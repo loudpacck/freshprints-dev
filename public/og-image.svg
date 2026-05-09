@@ -1,0 +1,73 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630">
+  <defs>
+    <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">
+      <path d="M 40 0 L 0 0 0 40" fill="none" stroke="#00C8FF" stroke-width="0.5" opacity="0.05"/>
+    </pattern>
+  </defs>
+
+  <!-- Background -->
+  <rect width="1200" height="630" fill="#0A0A0F"/>
+
+  <!-- Grid -->
+  <rect width="1200" height="630" fill="url(#grid)"/>
+
+  <!-- Subtle cyan glow center -->
+  <ellipse cx="600" cy="315" rx="400" ry="200" fill="#00C8FF" opacity="0.03"/>
+
+  <!-- Main heading -->
+  <text
+    x="600"
+    y="290"
+    font-family="'Bebas Neue', 'Arial Narrow', sans-serif"
+    font-size="120"
+    font-weight="400"
+    fill="#F0F0F8"
+    text-anchor="middle"
+    letter-spacing="8"
+  >FRESHPRINTS.DEV</text>
+
+  <!-- Subtitle -->
+  <text
+    x="600"
+    y="360"
+    font-family="'IBM Plex Mono', 'Courier New', monospace"
+    font-size="28"
+    fill="#00C8FF"
+    text-anchor="middle"
+    letter-spacing="6"
+  >ENGINEER. DEVELOPER. BUILDER.</text>
+
+  <!-- Separator line -->
+  <line x1="400" y1="390" x2="800" y2="390" stroke="#00C8FF" stroke-width="1" opacity="0.3"/>
+
+  <!-- Bottom-left corner label -->
+  <text
+    x="48"
+    y="596"
+    font-family="'IBM Plex Mono', 'Courier New', monospace"
+    font-size="16"
+    fill="#50505F"
+    letter-spacing="2"
+  >// freshprints.dev</text>
+
+  <!-- Bottom-right corner accent dots -->
+  <circle cx="1100" cy="580" r="3" fill="#00C8FF" opacity="0.4"/>
+  <circle cx="1116" cy="580" r="3" fill="#00C8FF" opacity="0.25"/>
+  <circle cx="1132" cy="580" r="3" fill="#00C8FF" opacity="0.12"/>
+
+  <!-- Top-left accent corner -->
+  <line x1="40" y1="40" x2="80" y2="40" stroke="#00C8FF" stroke-width="2" opacity="0.4"/>
+  <line x1="40" y1="40" x2="40" y2="80" stroke="#00C8FF" stroke-width="2" opacity="0.4"/>
+
+  <!-- Top-right accent corner -->
+  <line x1="1160" y1="40" x2="1120" y2="40" stroke="#00C8FF" stroke-width="2" opacity="0.4"/>
+  <line x1="1160" y1="40" x2="1160" y2="80" stroke="#00C8FF" stroke-width="2" opacity="0.4"/>
+
+  <!-- Bottom-right accent corner -->
+  <line x1="1160" y1="590" x2="1120" y2="590" stroke="#00C8FF" stroke-width="2" opacity="0.4"/>
+  <line x1="1160" y1="590" x2="1160" y2="550" stroke="#00C8FF" stroke-width="2" opacity="0.4"/>
+
+  <!-- Bottom-left accent corner -->
+  <line x1="40" y1="590" x2="80" y2="590" stroke="#00C8FF" stroke-width="2" opacity="0.4"/>
+  <line x1="40" y1="590" x2="40" y2="550" stroke="#00C8FF" stroke-width="2" opacity="0.4"/>
+</svg>

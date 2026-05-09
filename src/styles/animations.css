@@ -1,0 +1,85 @@
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(16px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes fadeInDown {
+  from { opacity: 0; transform: translateY(-16px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes fadeInScale {
+  from { opacity: 0; transform: scale(0.94); }
+  to   { opacity: 1; transform: scale(1); }
+}
+
+@keyframes slideInLeft {
+  from { opacity: 0; transform: translateX(-24px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+
+@keyframes slideInRight {
+  from { opacity: 0; transform: translateX(24px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+
+@keyframes hexPowerUp {
+  0%   { transform: scale(0.92); filter: brightness(0.8); }
+  60%  { transform: scale(1.04); filter: brightness(1.2); }
+  100% { transform: scale(1);    filter: brightness(1); }
+}
+
+@keyframes nodeIdle {
+  0%, 100% { transform: scale(1);    opacity: 1; }
+  50%       { transform: scale(1.02); opacity: 0.88; }
+}
+
+@keyframes scanLine {
+  from { transform: translateY(-100%); }
+  to   { transform: translateY(100vh); }
+}
+
+@keyframes gridAssemble {
+  from { opacity: 0; transform: scale(1.04); }
+  to   { opacity: 1; transform: scale(1); }
+}
+
+@keyframes cursorBlink {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0; }
+}
+
+@keyframes glowPulse {
+  0%, 100% { box-shadow: 0 0 6px rgba(0, 200, 255, 0.4); }
+  50%       { box-shadow: 0 0 16px rgba(0, 200, 255, 0.8), 0 0 32px rgba(0, 200, 255, 0.3); }
+}
+
+@keyframes glowPulseAmber {
+  0%, 100% { box-shadow: 0 0 6px rgba(255, 179, 71, 0.4); }
+  50%       { box-shadow: 0 0 16px rgba(255, 179, 71, 0.8), 0 0 32px rgba(255, 179, 71, 0.3); }
+}
+
+@keyframes spinnerRotate {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
+
+@keyframes dotPulse {
+  0%, 80%, 100% { transform: scale(0.6); opacity: 0.4; }
+  40%           { transform: scale(1);   opacity: 1; }
+}
+
+@keyframes float {
+  0%, 100% { transform: translateY(0); }
+  50%       { transform: translateY(-8px); }
+}
+
+@keyframes auraBreath {
+  0%, 100% { box-shadow: 0 0 18px rgba(0, 200, 255, 0.25), 0 0 40px rgba(0, 200, 255, 0.10); }
+  50%       { box-shadow: 0 0 32px rgba(0, 200, 255, 0.45), 0 0 80px rgba(0, 200, 255, 0.20); }
+}

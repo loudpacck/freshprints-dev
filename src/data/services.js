@@ -1,0 +1,195 @@
+export const services = [
+  {
+    id: 'engineering',
+    category: 'engineering',
+    name: 'Engineering & Product Design',
+    icon: 'gear',
+    description: 'CAD modeling, manufacturability review, and end-to-end prototyping.',
+    packages: [
+      {
+        name: 'Concept to CAD',
+        priceFrom: 800,
+        timeline: '1–2 weeks',
+        deliverables: [
+          'Discovery call + concept sketches',
+          'Parametric CAD model (SolidWorks or Fusion 360)',
+          'Print-ready exports (STL, STEP)',
+          '2 revision rounds',
+        ],
+      },
+      {
+        name: 'Prototype Package',
+        priceFrom: 1500,
+        timeline: '2–3 weeks',
+        deliverables: [
+          'Everything in Concept to CAD',
+          'DFM review and recommendations',
+          '1 physical FDM print delivered',
+          'Documentation and assembly notes',
+        ],
+      },
+    ],
+    customAvailable: true,
+  },
+  {
+    id: 'software',
+    category: 'software',
+    name: 'Software Development',
+    icon: 'code',
+    description: 'Full-stack web apps, APIs, dashboards, and MVPs.',
+    packages: [
+      {
+        name: 'MVP Build',
+        priceFrom: 4500,
+        timeline: '4–6 weeks',
+        deliverables: [
+          'Discovery + scoping document',
+          'FastAPI backend with PostgreSQL',
+          'React + Vite frontend',
+          'Auth, deployment, and handoff',
+          '2 revision cycles',
+        ],
+      },
+      {
+        name: 'Internal Tool / Dashboard',
+        priceFrom: 2500,
+        timeline: '2–4 weeks',
+        deliverables: [
+          'Single-page dashboard or internal tool',
+          'API integration with your data sources',
+          'Deployed to your infrastructure',
+          'Documentation included',
+        ],
+      },
+    ],
+    customAvailable: true,
+  },
+  {
+    id: 'gamedev',
+    category: 'games',
+    name: 'Game Development',
+    icon: 'controller',
+    description: 'Roblox systems, Unreal Engine work, and game design consulting.',
+    packages: [
+      {
+        name: 'Roblox System Build',
+        priceFrom: 1200,
+        timeline: '2–4 weeks',
+        deliverables: [
+          'Custom Luau system (matchmaking, leaderboards, economy, etc.)',
+          'Clean architecture with documentation',
+          'Integration with your existing place',
+          '1 revision round',
+        ],
+      },
+      {
+        name: 'Game Design Consulting',
+        priceFrom: 150,
+        timeline: 'Per-hour',
+        deliverables: [
+          'Per-hour engagement',
+          'Game architecture review',
+          'Mechanic prototyping advice',
+          'Written recommendations',
+        ],
+      },
+    ],
+    customAvailable: true,
+  },
+  {
+    id: 'ai',
+    category: 'ai',
+    name: 'AI Integration',
+    icon: 'brain',
+    description: 'AI-assisted workflows, ML integration, and intelligent tooling.',
+    packages: [
+      {
+        name: 'AI Workflow Setup',
+        priceFrom: 1800,
+        timeline: '2–3 weeks',
+        deliverables: [
+          'Workflow audit and recommendations',
+          'AI tooling integrated into existing stack',
+          'Custom prompts and pipelines',
+          'Training + handoff',
+        ],
+      },
+      {
+        name: 'ML Model Integration',
+        priceFrom: 3000,
+        timeline: '3–5 weeks',
+        deliverables: [
+          'Model selection or training',
+          'API wrapper for inference',
+          'Frontend integration',
+          'Documentation + monitoring setup',
+        ],
+      },
+    ],
+    customAvailable: true,
+  },
+  {
+    id: 'content',
+    category: 'content',
+    name: 'Content & Media',
+    icon: 'play',
+    description: 'YouTube production, thumbnail design, and devlog content.',
+    packages: [
+      {
+        name: 'Thumbnail Design',
+        priceFrom: 60,
+        timeline: '1–3 days',
+        deliverables: [
+          'Custom YouTube thumbnail',
+          '2 concept variations',
+          '1 revision round',
+          'Source files included',
+        ],
+      },
+      {
+        name: 'Devlog Episode',
+        priceFrom: 400,
+        timeline: '1–2 weeks',
+        deliverables: [
+          'Script + storyboard',
+          'Editing + color grading',
+          'Custom thumbnail',
+          'Final delivery in 4K',
+        ],
+      },
+    ],
+    customAvailable: true,
+  },
+  {
+    id: 'fresh-prints',
+    category: 'engineering',
+    name: 'Fresh Prints — Production',
+    icon: 'box',
+    description: 'Physical prototypes and small-batch manufacturing.',
+    packages: [
+      {
+        name: 'Single Part Print',
+        priceFrom: 25,
+        timeline: '3–5 days',
+        deliverables: [
+          'FDM print of your file',
+          'Material selection consult',
+          'Quality check + photos',
+          'Shipped or local pickup',
+        ],
+      },
+      {
+        name: 'Small-Batch Run',
+        priceFrom: 200,
+        timeline: '1–2 weeks',
+        deliverables: [
+          'Up to 25 parts per run',
+          'Material + finish consultation',
+          'Batch QC',
+          'Bulk pricing on reorders',
+        ],
+      },
+    ],
+    customAvailable: true,
+  },
+]

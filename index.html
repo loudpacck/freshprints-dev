@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#0A0A0F" />
+
+    <!-- Primary meta -->
+    <title>Fresh Prints — Engineer. Developer. Builder.</title>
+    <meta name="description" content="Kyle — Mechanical designer, software developer, and game developer. Contracting, products, and experiments from a solo operator." />
+    <meta name="keywords" content="portfolio, mechanical design, software development, game development, AI tooling, freelance, contracting, fresh prints, CAD, Roblox, Unreal Engine" />
+    <link rel="canonical" href="https://freshprints.dev/" />
+
+    <!-- Open Graph -->
+    <meta property="og:title" content="Fresh Prints — Engineer. Developer. Builder." />
+    <meta property="og:description" content="Kyle — Mechanical designer, software developer, and game developer. Contracting, products, and experiments from a solo operator." />
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="https://freshprints.dev" />
+    <meta property="og:site_name" content="Fresh Prints" />
+    <meta property="og:image" content="https://freshprints.dev/og-image.svg" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+
+    <!-- Twitter Card -->
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="Fresh Prints — Engineer. Developer. Builder." />
+    <meta name="twitter:description" content="Kyle — Mechanical designer, software developer, and game developer. Contracting, products, and experiments from a solo operator." />
+    <meta name="twitter:image" content="https://freshprints.dev/og-image.svg" />
+
+    <!-- Favicon: inline SVG data URL -->
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='32' height='32' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%230A0A0F'/%3E%3Ctext x='16' y='23' font-family='Arial Narrow%2C sans-serif' font-size='18' font-weight='700' fill='%2300C8FF' text-anchor='middle' letter-spacing='1'%3EFP%3C/text%3E%3C/svg%3E" />
+
+    <!-- Flash prevention: set data-ui and data-mode before any paint -->
+    <script>
+      (function () {
+        var theme = localStorage.getItem('fp-theme') || 'digital';
+        var mode = localStorage.getItem('fp-mode') || 'dark';
+        document.documentElement.setAttribute('data-ui', theme);
+        document.documentElement.setAttribute('data-mode', mode);
+      })();
+    </script>
+
+    <!-- model-viewer for CAD .glb files -->
+    <script type="module" src="https://ajax.googleapis.com/ajax/libs/model-viewer/3.4.0/model-viewer.min.js"></script>
+
+    <!-- Plausible analytics — account must be created at plausible.io with freshprints.dev as a site -->
+    <script defer data-domain="freshprints.dev" src="https://plausible.io/js/script.js"></script>
+
+    <!-- Skip to content for accessibility -->
+    <style>
+      .skip-to-content {
+        position: absolute;
+        left: -9999px;
+        top: auto;
+        width: 1px;
+        height: 1px;
+        overflow: hidden;
+      }
+      .skip-to-content:focus {
+        position: fixed;
+        top: 1rem;
+        left: 1rem;
+        width: auto;
+        height: auto;
+        padding: 0.75rem 1.5rem;
+        background: #00C8FF;
+        color: #0A0A0F;
+        font-family: 'IBM Plex Mono', monospace;
+        font-size: 0.875rem;
+        font-weight: 600;
+        text-decoration: none;
+        border-radius: 4px;
+        z-index: 9999;
+        overflow: visible;
+      }
+    </style>
+  </head>
+  <body>
+    <a href="#main-content" class="skip-to-content">Skip to content</a>
+    <div id="root"></div>
+    <script type="module" src="/src/main.jsx"></script>
+  </body>
+</html>
