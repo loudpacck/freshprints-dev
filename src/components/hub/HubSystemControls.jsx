@@ -1,7 +1,8 @@
 import { useState } from 'react'
-import { motion } from 'framer-motion'
+import { motion, AnimatePresence } from 'framer-motion'
 import { useSound } from '@/sound/useSound'
 import UIPicker from './UIPicker'
+import AdminLoginModal from '@/components/admin/AdminLoginModal'
 
 function SpeakerIcon() {
   return (
@@ -32,6 +33,16 @@ function LayersIcon() {
   )
 }
 
+function LockIcon() {
+  return (
+    <svg width="13" height="13" viewBox="0 0 20 20" fill="none" aria-hidden="true">
+      <rect x="3" y="10" width="14" height="9" rx="1.5" stroke="currentColor" strokeWidth="1.5"/>
+      <path d="M6.5 10V7a3.5 3.5 0 017 0v3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+      <circle cx="10" cy="14.5" r="1.2" fill="currentColor"/>
+    </svg>
+  )
+}
+
 const btnStyle = {
   display: 'inline-flex',
   alignItems: 'center',
@@ -48,11 +59,13 @@ const btnStyle = {
   padding: '0.5rem 0.875rem',
   cursor: 'pointer',
   transition: 'color var(--duration-base), border-color var(--duration-base)',
+  whiteSpace: 'nowrap',
 }
 
 export default function HubSystemControls({ reduced }) {
   const { isMuted, toggleMute, play } = useSound()
   const [pickerOpen, setPickerOpen] = useState(false)
+  const [adminOpen, setAdminOpen] = useState(false)
 
   function handleSound() {
     const wasMuted = isMuted
@@ -66,18 +79,29 @@ export default function HubSystemControls({ reduced }) {
         initial={reduced ? undefined : { opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 1.0, duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
+        className="hub-controls-cluster"
         style={{
           position: 'fixed',
           bottom: 'var(--space-8)',
           left: '50%',
           transform: 'translateX(-50%)',
           zIndex: 'var(--z-sticky)',
-          display: 'flex',
-          gap: 'var(--space-3)',
         }}
       >
         <motion.button
+          onClick={() => { play('modalOpen'); setAdminOpen(true) }}
+          className="hub-control-btn"
+          style={btnStyle}
+          whileHover={{ color: 'var(--color-text-accent)', borderColor: 'var(--color-accent-primary)' }}
+          aria-label="Open admin panel"
+        >
+          <LockIcon />
+          ADMIN
+        </motion.button>
+
+        <motion.button
           onClick={handleSound}
+          className="hub-control-btn"
           style={btnStyle}
           whileHover={{ color: 'var(--color-text-accent)', borderColor: 'var(--color-accent-primary)' }}
           aria-label={isMuted ? 'Unmute sounds' : 'Mute sounds'}
@@ -88,6 +112,7 @@ export default function HubSystemControls({ reduced }) {
 
         <motion.button
           onClick={() => { play('modalOpen'); setPickerOpen(true) }}
+          className="hub-control-btn"
           style={btnStyle}
           whileHover={{ color: 'var(--color-text-accent)', borderColor: 'var(--color-accent-primary)' }}
           aria-label="Change UI theme"
@@ -98,6 +123,10 @@ export default function HubSystemControls({ reduced }) {
       </motion.div>
 
       <UIPicker isOpen={pickerOpen} onClose={() => setPickerOpen(false)} />
+
+      <AnimatePresence>
+        {adminOpen && <AdminLoginModal onClose={() => setAdminOpen(false)} />}
+      </AnimatePresence>
     </>
   )
 }

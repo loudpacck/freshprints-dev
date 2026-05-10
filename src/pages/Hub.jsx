@@ -460,75 +460,56 @@ export default function Hub() {
       )}
 
       {/* ── UI overlay ── */}
-      <div style={{ position: 'fixed', inset: 0, zIndex: 3, pointerEvents: 'none' }}>
-        {/* Top-left */}
-        <motion.div
-          initial={reduced ? undefined : { opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ duration: 0.4, delay: 0.1 }}
-          style={{
-            position: 'absolute',
-            top: 'var(--space-6)',
-            left: 'var(--space-6)',
-            fontFamily: 'var(--font-mono)',
-            fontSize: 'var(--text-xs)',
-            color: 'var(--color-text-muted)',
-            letterSpacing: 'var(--tracking-wider)',
-            textTransform: 'uppercase',
-          }}
-        >
-          FRESH PRINTS // OPERATIONS TERMINAL
-        </motion.div>
+      {(() => {
+        const parts = siteStatus.lastUpdated.split('-')
+        const lastUpdatedShort = parts.slice(1).join('.')
+        return (
+          <div style={{ position: 'fixed', inset: 0, zIndex: 3, pointerEvents: 'none' }}>
+            {/* Top-left */}
+            <motion.div
+              initial={reduced ? undefined : { opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ duration: 0.4, delay: 0.1 }}
+              className="hub-corner"
+              style={{ position: 'absolute', top: 'var(--space-6)', left: 'var(--space-6)' }}
+            >
+              {isMobile ? 'OPERATIONS TERMINAL' : 'FRESH PRINTS // OPERATIONS TERMINAL'}
+            </motion.div>
 
-        {/* Top-right */}
-        <motion.div
-          initial={reduced ? undefined : { opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ duration: 0.4, delay: 0.15 }}
-          style={{
-            position: 'absolute',
-            top: 'var(--space-6)',
-            right: 'var(--space-6)',
-            pointerEvents: 'auto',
-          }}
-        >
-          <Badge status="ACTIVE" pulse={!reduced} label="ONLINE" />
-        </motion.div>
+            {/* Top-right */}
+            <motion.div
+              initial={reduced ? undefined : { opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ duration: 0.4, delay: 0.15 }}
+              style={{ position: 'absolute', top: 'var(--space-6)', right: 'var(--space-6)', pointerEvents: 'auto' }}
+            >
+              <Badge status="ACTIVE" pulse={!reduced} label="ONLINE" />
+            </motion.div>
 
-        {/* Bottom-left */}
-        <motion.div
-          initial={reduced ? undefined : { opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ duration: 0.4, delay: 0.2 }}
-          style={{
-            position: 'absolute',
-            bottom: 'var(--space-6)',
-            left: 'var(--space-6)',
-            fontFamily: 'var(--font-mono)',
-            fontSize: 'var(--text-xs)',
-            color: 'var(--color-text-muted)',
-          }}
-        >
-          {siteStatus.availabilityNote}
-        </motion.div>
+            {/* Bottom-left — hidden below 480px via CSS */}
+            <motion.div
+              initial={reduced ? undefined : { opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ duration: 0.4, delay: 0.2 }}
+              className="hub-corner hub-corner-bl"
+              style={{ position: 'absolute', bottom: 'var(--space-6)', left: 'var(--space-6)' }}
+            >
+              {siteStatus.availabilityNote}
+            </motion.div>
 
-        {/* Bottom-right */}
-        <motion.div
-          initial={reduced ? undefined : { opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ duration: 0.4, delay: 0.2 }}
-          style={{
-            position: 'absolute',
-            bottom: 'var(--space-6)',
-            right: 'var(--space-6)',
-            fontFamily: 'var(--font-mono)',
-            fontSize: 'var(--text-xs)',
-            color: 'var(--color-text-muted)',
-          }}
-        >
-          LAST SYNC: {siteStatus.lastUpdated}
-        </motion.div>
-      </div>
+            {/* Bottom-right — hidden below 480px via CSS */}
+            <motion.div
+              initial={reduced ? undefined : { opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ duration: 0.4, delay: 0.2 }}
+              className="hub-corner hub-corner-br"
+              style={{ position: 'absolute', bottom: 'var(--space-6)', right: 'var(--space-6)' }}
+            >
+              {isMobile ? `SYNC: ${lastUpdatedShort}` : `LAST SYNC: ${siteStatus.lastUpdated}`}
+            </motion.div>
+          </div>
+        )
+      })()}
 
       {/* ── System controls cluster ── */}
       <HubSystemControls reduced={reduced} />

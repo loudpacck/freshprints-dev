@@ -11,6 +11,7 @@
 
 html {
   scroll-behavior: smooth;
+  overflow-x: hidden;
 }
 
 body {
@@ -23,6 +24,7 @@ body {
   -moz-osx-font-smoothing: grayscale;
   min-height: 100vh;
   position: relative;
+  overflow-x: hidden;
 }
 
 body::before {
@@ -185,9 +187,54 @@ a {
   .page-container { padding: var(--space-16) var(--space-4) var(--space-16); }
 }
 
-/* Mobile: hide overflow */
-@media (max-width: 768px) {
-  body { overflow-x: hidden; }
+/* Hub corner overlay — responsive font sizing */
+.hub-corner {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  color: var(--color-text-muted);
+  letter-spacing: var(--tracking-wider);
+  text-transform: uppercase;
+}
+
+@media (max-width: 767px) {
+  .hub-corner {
+    font-size: 10px !important;
+    letter-spacing: 0.05em !important;
+  }
+  .hub-corner-bl {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 160px;
+  }
+}
+
+@media (max-width: 479px) {
+  .hub-corner-bl,
+  .hub-corner-br {
+    display: none !important;
+  }
+}
+
+/* Hub system controls cluster */
+.hub-controls-cluster {
+  display: flex;
+  gap: var(--space-4);
+  flex-wrap: nowrap;
+  justify-content: center;
+}
+
+@media (max-width: 767px) {
+  .hub-controls-cluster { gap: var(--space-3); }
+  .hub-control-btn { padding: 0.375rem 0.5rem !important; }
+}
+
+@media (max-width: 380px) {
+  .hub-controls-cluster {
+    flex-wrap: wrap;
+    gap: var(--space-2);
+    max-width: calc(100vw - 2rem);
+  }
 }
 
 /* UIPicker theme grid — responsive 2-col → 1-col */

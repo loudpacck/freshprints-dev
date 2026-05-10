@@ -85,6 +85,27 @@ Used on tags, project cards, skill nodes:
 - [x] Phase 7 — About + Contact + Polish (about page, contact page, forms backend, SEO, mobile audit, lazy loading)
 - [x] Phase 8 — Sound FX System (Web Audio API synthesizer, digital pack, useSound hook, SoundToggle button)
 - [x] Phase 9 — Theme Architecture Refactor (multi-theme system, CSS scoped to data-ui, ThemeProvider context, DevThemeSwitcher)
+- [x] Phase 10 — Mobile Fix Pass + Admin Button Placeholder (2026-05-10)
+
+## Phase 10 — Mobile Audit Results (2026-05-10)
+
+### What was fixed
+
+**Issue 1 — Horizontal overflow:** Added `overflow-x: hidden` to both `html` and `body` globally in `src/styles/global.css`. Previously only applied to `body` at `max-width: 768px`.
+
+**Issue 2 — Hub corner text overlaps:** Corner elements in `Hub.jsx` now respond to viewport width:
+- Below 768px: font shrinks to 10px (CSS class `hub-corner`), top-left label shortens from "FRESH PRINTS // OPERATIONS TERMINAL" to "OPERATIONS TERMINAL", bottom-right shortens from "LAST SYNC: YYYY-MM-DD" to "SYNC: MM.DD", bottom-left gets `text-overflow: ellipsis`.
+- Below 480px: bottom-left and bottom-right corners are hidden entirely (`hub-corner-bl` / `hub-corner-br` display:none). Only top-left label and top-right ONLINE badge remain.
+
+**Issue 3 — Bottom cluster button overlap:** `HubSystemControls.jsx` cluster container now uses CSS class `hub-controls-cluster` with `gap: var(--space-4)` (increased from `--space-3`). On mobile < 768px gap reduces to `--space-3` and button padding tightens. On very narrow < 380px, cluster allows `flex-wrap` to a second row. All buttons have `white-space: nowrap`.
+
+**Issue 4 — Admin button placeholder:** Added ADMIN button (leftmost) to the hub bottom cluster. Order: ADMIN | SOUND | CHANGE UI. Clicking opens `AdminLoginModal` — a polished placeholder modal with disabled password input and "AUTHENTICATE" button. Auth and dashboard ship in Phase 11.
+
+### New files
+- `src/components/admin/AdminLoginModal.jsx` — placeholder modal shell; Phase 11 will wire real auth inside it
+
+### Note
+The admin button is a UI placeholder only. No authentication is implemented. Phase 11 delivers: real auth flow, stats dashboard, session tracking, analytics.
 
 ## Key Design Decisions
 
