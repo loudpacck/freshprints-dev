@@ -82,7 +82,7 @@ export default function HubSystemControls({ reduced }) {
         className="hub-controls-cluster"
         style={{
           position: 'fixed',
-          bottom: 'var(--space-8)',
+          bottom: 'calc(var(--space-8) + env(safe-area-inset-bottom, 0px))',
           left: '50%',
           transform: 'translateX(-50%)',
           zIndex: 'var(--z-sticky)',

@@ -255,11 +255,29 @@ function HexNode({ node, isHovered, isFocused, isExiting, onHover, onClick, node
   )
 }
 
+// ─── Responsive radial dims ───────────────────────────────────────────────────
+
+function getRadialDims() {
+  const w = window.innerWidth
+  return {
+    radius: Math.min((w / 2) - 60, 140),
+    nodeW: w >= 480 ? 90 : w >= 380 ? 78 : 70,
+  }
+}
+
 // ─── Mobile radial drawer ─────────────────────────────────────────────────────
 
 function MobileRadial({ onNavigate }) {
   const [open, setOpen] = useState(false)
-  const RADIUS = 185
+  const [dims, setDims] = useState(getRadialDims)
+
+  useEffect(() => {
+    const handler = () => setDims(getRadialDims())
+    window.addEventListener('resize', handler)
+    return () => window.removeEventListener('resize', handler)
+  }, [])
+
+  const { radius, nodeW } = dims
 
   return (
     <div style={{
@@ -288,8 +306,8 @@ function MobileRadial({ onNavigate }) {
       <div style={{ position: 'relative', zIndex: 1 }}>
         {NODES.map((node, i) => {
           const angle = ((i * 360) / 8 - 90) * (Math.PI / 180)
-          const tx = Math.cos(angle) * RADIUS
-          const ty = Math.sin(angle) * RADIUS
+          const tx = Math.cos(angle) * radius
+          const ty = Math.sin(angle) * radius
 
           return (
             <motion.button
@@ -303,8 +321,8 @@ function MobileRadial({ onNavigate }) {
               onClick={() => { setOpen(false); onNavigate(node) }}
               style={{
                 position: 'absolute',
-                width: 82,
-                marginLeft: -41,
+                width: nodeW,
+                marginLeft: -(nodeW / 2),
                 marginTop: -18,
                 background: 'var(--color-bg-surface)',
                 border: '1px solid rgba(0,200,255,0.4)',
@@ -471,7 +489,11 @@ export default function Hub() {
               animate={{ opacity: 1 }}
               transition={{ duration: 0.4, delay: 0.1 }}
               className="hub-corner"
-              style={{ position: 'absolute', top: 'var(--space-6)', left: 'var(--space-6)' }}
+              style={{
+                position: 'absolute',
+                top: 'calc(var(--space-6) + env(safe-area-inset-top, 0px))',
+                left: 'calc(var(--space-6) + env(safe-area-inset-left, 0px))',
+              }}
             >
               {isMobile ? 'OPERATIONS TERMINAL' : 'FRESH PRINTS // OPERATIONS TERMINAL'}
             </motion.div>
@@ -481,7 +503,12 @@ export default function Hub() {
               initial={reduced ? undefined : { opacity: 0 }}
               animate={{ opacity: 1 }}
               transition={{ duration: 0.4, delay: 0.15 }}
-              style={{ position: 'absolute', top: 'var(--space-6)', right: 'var(--space-6)', pointerEvents: 'auto' }}
+              style={{
+                position: 'absolute',
+                top: 'calc(var(--space-6) + env(safe-area-inset-top, 0px))',
+                right: 'calc(var(--space-6) + env(safe-area-inset-right, 0px))',
+                pointerEvents: 'auto',
+              }}
             >
               <Badge status="ACTIVE" pulse={!reduced} label="ONLINE" />
             </motion.div>
@@ -492,7 +519,11 @@ export default function Hub() {
               animate={{ opacity: 1 }}
               transition={{ duration: 0.4, delay: 0.2 }}
               className="hub-corner hub-corner-bl"
-              style={{ position: 'absolute', bottom: 'var(--space-6)', left: 'var(--space-6)' }}
+              style={{
+                position: 'absolute',
+                bottom: 'calc(var(--space-6) + env(safe-area-inset-bottom, 0px))',
+                left: 'calc(var(--space-6) + env(safe-area-inset-left, 0px))',
+              }}
             >
               {siteStatus.availabilityNote}
             </motion.div>
@@ -503,7 +534,11 @@ export default function Hub() {
               animate={{ opacity: 1 }}
               transition={{ duration: 0.4, delay: 0.2 }}
               className="hub-corner hub-corner-br"
-              style={{ position: 'absolute', bottom: 'var(--space-6)', right: 'var(--space-6)' }}
+              style={{
+                position: 'absolute',
+                bottom: 'calc(var(--space-6) + env(safe-area-inset-bottom, 0px))',
+                right: 'calc(var(--space-6) + env(safe-area-inset-right, 0px))',
+              }}
             >
               {isMobile ? `SYNC: ${lastUpdatedShort}` : `LAST SYNC: ${siteStatus.lastUpdated}`}
             </motion.div>

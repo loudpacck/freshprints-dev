@@ -49,8 +49,8 @@ export default function SoundToggle() {
       aria-label={isMuted ? 'Unmute sounds' : 'Mute sounds'}
       style={{
         position: 'fixed',
-        bottom: 'var(--space-6)',
-        right: 'var(--space-6)',
+        bottom: 'calc(var(--space-6) + env(safe-area-inset-bottom, 0px))',
+        right: 'calc(var(--space-6) + env(safe-area-inset-right, 0px))',
         zIndex: 'var(--z-sticky)',
         display: 'inline-flex',
         alignItems: 'center',

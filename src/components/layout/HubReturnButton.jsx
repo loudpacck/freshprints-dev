@@ -12,8 +12,8 @@ export default function HubReturnButton() {
       transition={{ delay: 0.5, duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
       style={{
         position: 'fixed',
-        top: 'var(--space-6)',
-        left: 'var(--space-6)',
+        top: 'calc(var(--space-6) + env(safe-area-inset-top, 0px))',
+        left: 'calc(var(--space-6) + env(safe-area-inset-left, 0px))',
         zIndex: 'var(--z-sticky)',
         display: 'inline-flex',
         alignItems: 'center',
