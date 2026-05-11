@@ -163,7 +163,7 @@ export default function AdminOverview() {
         display: 'grid',
         gridTemplateColumns: '1fr 1fr',
         gap: 'var(--space-6)',
-      }}>
+      }} className="admin-bottom-grid">
         {/* Top paths */}
         <div style={{
           background: 'var(--color-bg-elevated)',
@@ -298,6 +298,12 @@ export default function AdminOverview() {
           )}
         </div>
       </div>
+
+      <style>{`
+        @media (max-width: 640px) {
+          .admin-bottom-grid { grid-template-columns: 1fr !important; }
+        }
+      `}</style>
     </div>
   )
 }

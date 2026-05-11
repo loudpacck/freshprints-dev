@@ -257,12 +257,16 @@ function HexNode({ node, isHovered, isFocused, isExiting, onHover, onClick, node
 
 // ─── Responsive radial dims ───────────────────────────────────────────────────
 
+const NODE_H = 34 // approximate node button height in px
+
 function getRadialDims() {
   const w = window.innerWidth
-  return {
-    radius: Math.min((w / 2) - 60, 140),
-    nodeW: w >= 480 ? 90 : w >= 380 ? 78 : 70,
-  }
+  const nodeW = w < 380 ? 64 : w < 480 ? 72 : 88
+  const safetyMargin = 16
+  const maxRadius = (w / 2) - (nodeW / 2) - safetyMargin
+  const idealRadius = w < 480 ? w * 0.28 : w * 0.30
+  const radius = Math.min(idealRadius, maxRadius, 130)
+  return { radius, nodeW }
 }
 
 // ─── Mobile radial drawer ─────────────────────────────────────────────────────
@@ -302,8 +306,9 @@ function MobileRadial({ onNavigate }) {
         )}
       </AnimatePresence>
 
-      {/* Radial nodes + center button */}
-      <div style={{ position: 'relative', zIndex: 1 }}>
+      {/* 0×0 anchor at viewport center — all nodes and the button center here */}
+      <div style={{ position: 'relative', width: 0, height: 0, zIndex: 1 }}>
+        {/* Radial nodes — left/top center them at origin; x/y translate to final radial position */}
         {NODES.map((node, i) => {
           const angle = ((i * 360) / 8 - 90) * (Math.PI / 180)
           const tx = Math.cos(angle) * radius
@@ -322,8 +327,8 @@ function MobileRadial({ onNavigate }) {
               style={{
                 position: 'absolute',
                 width: nodeW,
-                marginLeft: -(nodeW / 2),
-                marginTop: -18,
+                left: -(nodeW / 2),
+                top: -(NODE_H / 2),
                 background: 'var(--color-bg-surface)',
                 border: '1px solid rgba(0,200,255,0.4)',
                 borderRadius: 'var(--radius-sm)',
@@ -344,29 +349,31 @@ function MobileRadial({ onNavigate }) {
           )
         })}
 
-        {/* Center toggle button */}
-        <motion.button
-          animate={{ background: open ? 'var(--color-accent-primary)' : 'var(--color-bg-elevated)' }}
-          transition={{ duration: 0.2 }}
-          onClick={() => setOpen((v) => !v)}
-          style={{
-            position: 'relative',
-            zIndex: 2,
-            border: '1px solid var(--color-accent-primary)',
-            borderRadius: 'var(--radius-sm)',
-            padding: 'var(--space-3) var(--space-6)',
-            cursor: 'crosshair',
-            fontFamily: 'var(--font-mono)',
-            fontSize: 'var(--text-sm)',
-            fontWeight: 'var(--weight-medium)',
-            textTransform: 'uppercase',
-            letterSpacing: 'var(--tracking-wider)',
-            color: open ? 'var(--color-text-inverse)' : 'var(--color-text-accent)',
-            transition: 'color 200ms',
-          }}
-        >
-          {open ? 'CLOSE' : 'OPEN TERMINAL'}
-        </motion.button>
+        {/* Center toggle button — plain div centers it at the 0×0 origin = viewport center */}
+        <div style={{ position: 'absolute', left: 0, top: 0, transform: 'translate(-50%, -50%)', zIndex: 2 }}>
+          <motion.button
+            animate={{ background: open ? 'var(--color-accent-primary)' : 'var(--color-bg-elevated)' }}
+            transition={{ duration: 0.2 }}
+            onClick={() => setOpen((v) => !v)}
+            style={{
+              display: 'block',
+              border: '1px solid var(--color-accent-primary)',
+              borderRadius: 'var(--radius-sm)',
+              padding: 'var(--space-3) var(--space-6)',
+              cursor: 'crosshair',
+              fontFamily: 'var(--font-mono)',
+              fontSize: 'var(--text-sm)',
+              fontWeight: 'var(--weight-medium)',
+              textTransform: 'uppercase',
+              letterSpacing: 'var(--tracking-wider)',
+              color: open ? 'var(--color-text-inverse)' : 'var(--color-text-accent)',
+              transition: 'color 200ms',
+              whiteSpace: 'nowrap',
+            }}
+          >
+            {open ? 'CLOSE' : 'OPEN TERMINAL'}
+          </motion.button>
+        </div>
       </div>
     </div>
   )

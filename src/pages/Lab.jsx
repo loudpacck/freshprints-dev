@@ -134,6 +134,7 @@ export default function Lab() {
           </p>
 
           {/* Terminal stats readout */}
+          <div style={{ overflowX: 'auto', maxWidth: '100%' }}>
           <div
             style={{
               display: 'inline-flex',
@@ -148,6 +149,7 @@ export default function Lab() {
               border: '1px solid var(--color-border-subtle)',
               borderRadius: 'var(--radius-sm)',
               padding: 'var(--space-3) var(--space-5)',
+              whiteSpace: 'nowrap',
             }}
           >
             {[
@@ -170,6 +172,7 @@ export default function Lab() {
                 )}
               </span>
             ))}
+          </div>
           </div>
         </div>
 

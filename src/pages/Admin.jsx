@@ -127,14 +127,14 @@ export default function Admin() {
       </header>
 
       {/* Body */}
-      <div style={{ display: 'flex', flex: 1 }}>
+      <div style={{ display: 'flex', flex: 1 }} className="admin-body">
         {/* Sidebar */}
         <aside style={{
           width: 200,
           borderRight: '1px solid var(--color-border-subtle)',
           padding: 'var(--space-6) var(--space-4)',
           flexShrink: 0,
-        }}>
+        }} className="admin-sidebar">
           <nav>
             <div style={{
               fontFamily: 'var(--font-mono)',
@@ -157,6 +157,7 @@ export default function Admin() {
           flex: 1,
           padding: 'var(--space-8)',
           overflowY: 'auto',
+          minWidth: 0,
         }}>
           <p style={{
             fontFamily: 'var(--font-mono)',
@@ -171,6 +172,13 @@ export default function Admin() {
           <AdminOverview />
         </main>
       </div>
+
+      <style>{`
+        @media (max-width: 640px) {
+          .admin-body { flex-direction: column; }
+          .admin-sidebar { width: 100% !important; border-right: none !important; border-bottom: 1px solid var(--color-border-subtle); padding: var(--space-3) var(--space-4) !important; }
+        }
+      `}</style>
     </motion.div>
   )
 }

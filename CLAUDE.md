@@ -108,6 +108,38 @@ Used on tags, project cards, skill nodes:
 ### Note
 The admin button is a UI placeholder only. No authentication is implemented. Phase 11 delivers: real auth flow, stats dashboard, session tracking, analytics.
 
+## Phase 10 — Third Mobile Pass (2026-05-10)
+
+### Radial drawer math fixed
+`MobileRadial` in `Hub.jsx` rewritten with correct center-point geometry:
+- Container is now `width: 0; height: 0` — a zero-size anchor at the exact viewport center via `display: flex; align: center; justify: center` on the fixed outer wrapper.
+- Node buttons use `left: -(nodeW/2); top: -(NODE_H/2)` to center their own box at the origin, then Framer Motion `x: tx, y: ty` translates each to its radial position.
+- Center toggle button wrapped in a plain `div` with `transform: translate(-50%, -50%)` (not a motion element, avoiding Framer Motion transform override risk).
+- New radius formula: `min(w * 0.28, (w/2) - (nodeW/2) - 16, 130)` — proportional to viewport, safety-margined, capped at 130px. At 375px, radius ≈ 105px.
+
+### Comprehensive audit — pages fixed
+- **Services.jsx** — `minmax(480px, 1fr)` grid overflowed on any viewport < 480px. Fixed to `minmax(min(480px, 100%), 1fr)`.
+- **Lab.jsx** — inline-flex terminal stats readout could overflow. Wrapped in `overflowX: auto` scroll container.
+- **Admin.jsx** — 200px fixed sidebar + main content layout broke on mobile. Added `.admin-body` / `.admin-sidebar` classes; collapses to stacked column at 640px.
+- **AdminOverview.jsx** — 1fr 1fr bottom grid (top paths + recent events) had no mobile breakpoint. Added `.admin-bottom-grid` collapses to 1fr at 640px.
+- **Portfolio.jsx** — Converted inline containerStyle to `className="page-container"` for responsive side padding (32px desktop → 16px mobile).
+- **LabExperiment.jsx** — Top nav strip can overflow long experiment names; added `flexWrap: wrap`. Added responsive padding via `.lab-experiment-container` class.
+- **global.css** — Added `overflow-x: hidden` to `html` element (body already had it).
+
+### Pages audited with no changes needed
+- Landing (`/`) — centered content, no overflow
+- Portfolio grid / featured strip — existing media queries handle collapse
+- ProjectPage — hero uses clamp(), metrics bar collapses at 640px, all grids wrap
+- Skills — MobileAccordion path renders below 768px, no overflow
+- DecisionTree — `minmax(220px, 1fr)` correctly collapses to 1 col on narrow screens
+- Store — ProductGrid collapses at 900px → 540px; featured strip collapses at 768px
+- Media — VideoGrid collapses at 900px → 540px; FeaturedVideo collapses at 768px
+- About — all subcomponents use flexWrap or page-container responsive padding
+- Contact — layout-two-col has 768px breakpoint; ContactForm is 100% width
+- PlutusSimulator — stats grids collapse at 640px; ResponsiveContainer on charts
+- PredictinatorWidget — collapses to 1fr at 768px; table has overflowX: auto
+- CADViewer — collapses at 768px; cad-specs-grid goes 4→2 col
+
 ## Key Design Decisions
 
 **Hub is the navigation.** No traditional navbar. Hub at /hub is the central command center with 8 nodes (Portfolio, Skills, Services, Lab, Store, Media, About, Contact). Every other page has a HubReturnButton component fixed top-left.

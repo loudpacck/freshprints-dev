@@ -40,6 +40,7 @@ export default function LabExperiment() {
           margin: '0 auto',
           padding: 'var(--space-8) var(--space-8) var(--space-24)',
         }}
+        className="lab-experiment-container"
       >
         {/* Top nav strip */}
         <div
@@ -47,6 +48,8 @@ export default function LabExperiment() {
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'space-between',
+            flexWrap: 'wrap',
+            gap: 'var(--space-3)',
             paddingTop: 'var(--space-12)',
             paddingBottom: 'var(--space-6)',
             borderBottom: '1px solid var(--color-border-subtle)',
@@ -173,6 +176,12 @@ export default function LabExperiment() {
           </div>
         </div>
       </div>
+
+      <style>{`
+        @media (max-width: 600px) {
+          .lab-experiment-container { padding-inline: var(--space-4) !important; }
+        }
+      `}</style>
     </motion.div>
   )
 }

@@ -113,9 +113,10 @@ export default function Services() {
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -6 }}
               transition={{ duration: 0.22 }}
+              className="services-packages-grid"
               style={{
                 display: 'grid',
-                gridTemplateColumns: 'repeat(auto-fit, minmax(480px, 1fr))',
+                gridTemplateColumns: 'repeat(auto-fit, minmax(min(480px, 100%), 1fr))',
                 gap: 'var(--space-6)',
               }}
             >

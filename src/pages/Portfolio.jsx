@@ -5,12 +5,6 @@ import FeaturedStrip from '@/components/portfolio/FeaturedStrip'
 import FilterBar from '@/components/portfolio/FilterBar'
 import ProjectGrid from '@/components/portfolio/ProjectGrid'
 
-const containerStyle = {
-  maxWidth: 1200,
-  margin: '0 auto',
-  padding: 'var(--space-20) var(--space-8) var(--space-24)',
-}
-
 export default function Portfolio() {
   const [activeFilter, setActiveFilter] = useState('all')
 
@@ -26,7 +20,7 @@ export default function Portfolio() {
       exit={{ opacity: 0 }}
       transition={{ duration: 0.3 }}
     >
-      <div style={containerStyle}>
+      <div className="page-container">
         {/* Page header */}
         <header style={{ marginBottom: 'var(--space-16)' }}>
           <div
