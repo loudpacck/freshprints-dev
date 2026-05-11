@@ -9,6 +9,7 @@ import LoadingDot from '@/components/ui/LoadingDot'
 import { useTerminal } from '@/hooks/useTerminal'
 import { ThemeProvider } from '@/themes/ThemeProvider'
 import DevThemeSwitcher from '@/components/dev/DevThemeSwitcher'
+import AutoTrackers from '@/tracking/AutoTrackers'
 
 const Landing      = lazy(() => import('@/pages/Landing'))
 const Hub          = lazy(() => import('@/pages/Hub'))
@@ -22,6 +23,7 @@ const LabExperiment = lazy(() => import('@/pages/LabExperiment'))
 const Store        = lazy(() => import('@/pages/Store'))
 const Media        = lazy(() => import('@/pages/Media'))
 const Contact      = lazy(() => import('@/pages/Contact'))
+const Admin        = lazy(() => import('@/pages/Admin'))
 const NotFound     = lazy(() => import('@/pages/NotFound'))
 
 function PageLoader() {
@@ -56,6 +58,7 @@ function AnimatedRoutes() {
         <Route path="/store" element={<Store />} />
         <Route path="/media" element={<Media />} />
         <Route path="/contact" element={<Contact />} />
+        <Route path="/admin" element={<Admin />} />
         <Route path="*" element={<NotFound />} />
       </Routes>
     </AnimatePresence>
@@ -67,6 +70,7 @@ function AppInner() {
 
   return (
     <>
+      <AutoTrackers />
       <PageChrome />
       <SoundToggle />
       <main id="main-content">

@@ -7,11 +7,16 @@
     "dev": "vite",
     "build": "vite build",
     "lint": "eslint .",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "db:init": "node scripts/init-db.js",
+    "gen:hash": "node scripts/gen-admin-hash.js"
   },
   "dependencies": {
+    "@neondatabase/serverless": "^1.1.0",
     "@react-three/drei": "^9.122.0",
     "@react-three/fiber": "^8.18.0",
+    "bcryptjs": "^3.0.3",
+    "dotenv": "^17.4.2",
     "framer-motion": "^12.38.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
@@ -19,7 +24,8 @@
     "react-router-dom": "^7.15.0",
     "recharts": "^3.8.1",
     "resend": "^6.12.3",
-    "three": "^0.184.0"
+    "three": "^0.184.0",
+    "ua-parser-js": "^2.0.9"
   },
   "devDependencies": {
     "@tailwindcss/vite": "^4.2.4",

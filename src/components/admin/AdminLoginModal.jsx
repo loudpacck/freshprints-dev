@@ -1,5 +1,6 @@
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { createPortal } from 'react-dom'
+import { useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { useSound } from '@/sound/useSound'
 
@@ -23,6 +24,10 @@ function LockBodyIcon() {
 
 export default function AdminLoginModal({ onClose }) {
   const { play } = useSound()
+  const navigate = useNavigate()
+  const [password, setPassword] = useState('')
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState(null)
 
   useEffect(() => {
     play('modalOpen')
@@ -36,6 +41,35 @@ export default function AdminLoginModal({ onClose }) {
       window.removeEventListener('keydown', onKey)
     }
   }, [onClose, play])
+
+  async function handleSubmit(e) {
+    e.preventDefault()
+    if (!password || loading) return
+    setLoading(true)
+    setError(null)
+    try {
+      const res = await fetch('/api/auth/admin', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ password }),
+      })
+      if (res.ok) {
+        play('success')
+        onClose()
+        navigate('/admin')
+      } else {
+        play('error')
+        setError('// ACCESS DENIED')
+        setPassword('')
+      }
+    } catch {
+      play('error')
+      setError('// CONNECTION ERROR')
+      setPassword('')
+    } finally {
+      setLoading(false)
+    }
+  }
 
   return createPortal(
     <motion.div
@@ -143,57 +177,77 @@ export default function AdminLoginModal({ onClose }) {
           lineHeight: 'var(--leading-relaxed)',
           marginBottom: 'var(--space-6)',
         }}>
-          Admin panel under construction. Full authentication and dashboard ship in Phase 11.
+          Enter admin password to continue.
         </p>
 
-        {/* Password input (disabled) */}
-        <input
-          type="password"
-          placeholder="PASSWORD"
-          disabled
-          style={{
-            width: '100%',
-            fontFamily: 'var(--font-mono)',
-            fontSize: 'var(--text-sm)',
-            color: 'var(--color-text-muted)',
-            background: 'var(--color-bg-surface)',
-            border: '1px solid var(--color-border-subtle)',
-            borderRadius: 'var(--radius-sm)',
-            padding: 'var(--space-3) var(--space-4)',
-            outline: 'none',
-            opacity: 0.5,
-            cursor: 'not-allowed',
-            letterSpacing: 'var(--tracking-wider)',
-            textTransform: 'uppercase',
-            boxSizing: 'border-box',
-            marginBottom: 'var(--space-3)',
-          }}
-        />
+        <form onSubmit={handleSubmit}>
+          {/* Password input */}
+          <input
+            type="password"
+            placeholder="PASSWORD"
+            value={password}
+            onChange={e => setPassword(e.target.value)}
+            autoFocus
+            disabled={loading}
+            style={{
+              width: '100%',
+              fontFamily: 'var(--font-mono)',
+              fontSize: 'var(--text-sm)',
+              color: 'var(--color-text-primary)',
+              background: 'var(--color-bg-surface)',
+              border: `1px solid ${error ? 'rgba(239,68,68,0.5)' : 'var(--color-border-subtle)'}`,
+              borderRadius: 'var(--radius-sm)',
+              padding: 'var(--space-3) var(--space-4)',
+              outline: 'none',
+              letterSpacing: 'var(--tracking-wider)',
+              boxSizing: 'border-box',
+              marginBottom: 'var(--space-3)',
+              opacity: loading ? 0.6 : 1,
+              cursor: loading ? 'not-allowed' : 'text',
+              transition: 'border-color var(--duration-base)',
+            }}
+          />
 
-        {/* Authenticate button (disabled) */}
-        <button
-          disabled
-          style={{
-            width: '100%',
-            fontFamily: 'var(--font-mono)',
-            fontSize: 'var(--text-sm)',
-            fontWeight: 'var(--weight-medium)',
-            textTransform: 'uppercase',
-            letterSpacing: 'var(--tracking-wider)',
-            color: 'var(--color-text-inverse)',
-            background: 'var(--color-accent-primary)',
-            border: 'none',
-            borderRadius: 'var(--radius-sm)',
-            padding: 'var(--space-3) var(--space-4)',
-            cursor: 'not-allowed',
-            opacity: 0.4,
-            marginBottom: 'var(--space-6)',
-          }}
-        >
-          AUTHENTICATE
-        </button>
+          {/* Error message */}
+          {error && (
+            <p style={{
+              fontFamily: 'var(--font-mono)',
+              fontSize: 'var(--text-xs)',
+              color: 'rgb(239,68,68)',
+              letterSpacing: 'var(--tracking-wider)',
+              marginBottom: 'var(--space-3)',
+            }}>
+              {error}
+            </p>
+          )}
 
-        {/* Coming soon note */}
+          {/* Authenticate button */}
+          <button
+            type="submit"
+            disabled={loading || !password}
+            style={{
+              width: '100%',
+              fontFamily: 'var(--font-mono)',
+              fontSize: 'var(--text-sm)',
+              fontWeight: 'var(--weight-medium)',
+              textTransform: 'uppercase',
+              letterSpacing: 'var(--tracking-wider)',
+              color: 'var(--color-text-inverse)',
+              background: 'var(--color-accent-primary)',
+              border: 'none',
+              borderRadius: 'var(--radius-sm)',
+              padding: 'var(--space-3) var(--space-4)',
+              cursor: loading || !password ? 'not-allowed' : 'pointer',
+              opacity: loading || !password ? 0.5 : 1,
+              marginBottom: 'var(--space-6)',
+              transition: 'opacity var(--duration-base)',
+            }}
+          >
+            {loading ? 'AUTHENTICATING...' : 'AUTHENTICATE'}
+          </button>
+        </form>
+
+        {/* Footer note */}
         <p style={{
           fontFamily: 'var(--font-mono)',
           fontSize: 'var(--text-xs)',
@@ -203,7 +257,7 @@ export default function AdminLoginModal({ onClose }) {
           opacity: 0.6,
           textAlign: 'center',
         }}>
-          // COMING SOON — STATS, ANALYTICS, SESSION TRACKING, MORE
+          // SESSION EXPIRES IN 7 DAYS
         </p>
       </motion.div>
     </motion.div>,

@@ -86,6 +86,7 @@ Used on tags, project cards, skill nodes:
 - [x] Phase 8 — Sound FX System (Web Audio API synthesizer, digital pack, useSound hook, SoundToggle button)
 - [x] Phase 9 — Theme Architecture Refactor (multi-theme system, CSS scoped to data-ui, ThemeProvider context, DevThemeSwitcher)
 - [x] Phase 10 — Mobile Fix Pass + Admin Button Placeholder (2026-05-10)
+- [x] Phase 11 — Stats Foundation + Admin Auth (2026-05-10)
 
 ## Phase 10 — Mobile Audit Results (2026-05-10)
 
@@ -401,3 +402,26 @@ Token source of truth is now `src/themes/digital/tokens.css` (not `src/styles/to
 - Wire newsletter to Buttondown/ConvertKit if separate list management is needed (currently sends email via Resend)
 - Sound design tuning pass (volume levels, individual sound character)
 - Pantheon/Standard/Funky full theme implementation (manifests are stubs)
+
+---
+
+## Stats System — Phase 11 Foundation (2026-05-10)
+
+- **Database:** Vercel Postgres (Neon), schema in `db/schema.sql`, initialize via `npm run db:init`
+- **Driver:** `@neondatabase/serverless` — uses `POSTGRES_DATABASE_URL` env var (auto-set by Neon integration)
+- **Required env vars:**
+  - `POSTGRES_DATABASE_URL` — auto-provisioned by Vercel/Neon integration
+  - `ADMIN_PASSWORD_HASH` — generate via `npm run gen:hash`, set in `.env.local` AND Vercel dashboard
+- **Auth:** Cookie-based (`fp_admin`), 7-day expiry, bcrypt password hashing (rounds=12), HttpOnly Secure cookie. Admin sessions stored in `admin_sessions` table.
+- **Shared lib:** `lib/db.js` (Neon client), `lib/auth.js` (session helpers)
+- **API endpoints:**
+  - `POST /api/track` — ingest events (page_view, scroll_depth, time_on_page)
+  - `POST /api/auth/admin` — authenticate (returns session cookie)
+  - `POST /api/auth/logout` — revoke session
+  - `GET  /api/auth/check` — validate current session
+  - `GET  /api/admin/overview` — stats dashboard data (auth-gated)
+- **Frontend tracker:** `src/tracking/` — `Tracker.js` (singleton, 5s auto-flush, keepalive on pagehide), `sessionUtils.js` (visitor/session IDs in localStorage/sessionStorage), `useTracker.js` hook, `AutoTrackers.jsx` (mounted in AppInner)
+- **Auto-tracked events:** `page_view`, `scroll_depth` (25/50/75/100%), `time_on_page`
+- **Admin route:** `/admin` — protected page, auth-checks on mount, redirects to `/` if unauthenticated
+- **Admin UI:** Header + sidebar (OVERVIEW nav) + `AdminOverview` component (4 stat cards, 30-day area chart, top paths, recent events)
+- **Phase 12** will expand the dashboard. **Phase 13** will instrument custom events throughout the site.
