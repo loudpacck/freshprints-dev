@@ -1,6 +1,7 @@
 import { motion } from 'framer-motion'
 import { useNavigate } from 'react-router-dom'
 import useReducedMotion from '@/hooks/useReducedMotion'
+import { useTheme } from '@/themes/useTheme'
 import Button from '@/components/ui/Button'
 import ParticleField from '@/components/effects/ParticleField'
 
@@ -16,10 +17,15 @@ function fadeUp(delay, reduced) {
 export default function Landing() {
   const navigate = useNavigate()
   const reduced = useReducedMotion()
+  const { themeId } = useTheme()
   const today = new Date().toISOString().slice(0, 10).replace(/-/g, '.')
+
+  const handleEnter = () => navigate(themeId === 'standard' ? '/home' : '/hub')
 
   return (
     <motion.div
+      data-ui="digital"
+      data-mode="dark"
       initial={{ opacity: 1 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
@@ -83,7 +89,7 @@ export default function Landing() {
 
         <motion.div {...fadeUp(0.9, reduced)}>
           <div className="landing-enter-aura">
-            <Button size="lg" onClick={() => navigate('/hub')}>
+            <Button size="lg" onClick={handleEnter}>
               ENTER
             </Button>
           </div>

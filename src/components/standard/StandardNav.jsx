@@ -111,7 +111,7 @@ export default function StandardNav({ onOpenPicker }) {
       >
         {/* Logo */}
         <Link
-          to="/"
+          to="/home"
           style={{ textDecoration: 'none', display: 'flex', flexDirection: 'column', gap: '2px', flexShrink: 0 }}
         >
           <span style={{

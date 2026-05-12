@@ -1,5 +1,6 @@
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { socialLinks } from '@/data/socialLinks'
+import { useTheme } from '@/themes/useTheme'
 
 const SITE_LINKS = [
   { to: '/lab',    label: 'Lab' },
@@ -38,6 +39,8 @@ const col = {
 
 export default function StandardFooter({ onOpenPicker }) {
   const year = new Date().getFullYear()
+  const { setTheme } = useTheme()
+  const navigate = useNavigate()
 
   return (
     <footer style={{
@@ -143,7 +146,7 @@ export default function StandardFooter({ onOpenPicker }) {
             © {year} Kyle DeBord · All rights reserved
           </span>
           <button
-            onClick={onOpenPicker}
+            onClick={() => { setTheme('digital'); navigate('/hub') }}
             style={{
               background: 'none',
               border: 'none',

@@ -1,6 +1,8 @@
 import { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
+import { useNavigate } from 'react-router-dom'
 import { useSound } from '@/sound/useSound'
+import { useTheme } from '@/themes/useTheme'
 import UIPicker from './UIPicker'
 import AdminLoginModal from '@/components/admin/AdminLoginModal'
 
@@ -43,6 +45,16 @@ function LockIcon() {
   )
 }
 
+function ExitIcon() {
+  return (
+    <svg width="13" height="13" viewBox="0 0 20 20" fill="none" aria-hidden="true">
+      <path d="M8 3H4a1 1 0 00-1 1v12a1 1 0 001 1h4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+      <path d="M13 14l4-4-4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+      <path d="M17 10H8" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+    </svg>
+  )
+}
+
 const btnStyle = {
   display: 'inline-flex',
   alignItems: 'center',
@@ -64,6 +76,8 @@ const btnStyle = {
 
 export default function HubSystemControls({ reduced }) {
   const { isMuted, toggleMute, play } = useSound()
+  const { setTheme } = useTheme()
+  const navigate = useNavigate()
   const [pickerOpen, setPickerOpen] = useState(false)
   const [adminOpen, setAdminOpen] = useState(false)
 
@@ -71,6 +85,12 @@ export default function HubSystemControls({ reduced }) {
     const wasMuted = isMuted
     toggleMute()
     if (wasMuted) play('toggle')
+  }
+
+  function handleExitToStandard() {
+    play('modalClose')
+    setTheme('standard')
+    navigate('/home')
   }
 
   return (
@@ -119,6 +139,17 @@ export default function HubSystemControls({ reduced }) {
         >
           <LayersIcon />
           CHANGE UI
+        </motion.button>
+
+        <motion.button
+          onClick={handleExitToStandard}
+          className="hub-control-btn"
+          style={btnStyle}
+          whileHover={{ color: 'var(--color-text-accent)', borderColor: 'var(--color-accent-primary)' }}
+          aria-label="Switch to Standard view"
+        >
+          <ExitIcon />
+          STANDARD
         </motion.button>
       </motion.div>
 

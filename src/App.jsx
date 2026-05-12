@@ -36,10 +36,13 @@ function PageLoader() {
   )
 }
 
-// Conditional home route based on active theme
-function HomeRoute() {
+// Wraps inner pages with StandardLayout when in Standard theme
+function PageLayout({ children }) {
   const { themeId } = useTheme()
-  return themeId === 'standard' ? <StandardLanding /> : <Landing />
+  if (themeId === 'standard') {
+    return <StandardLayout>{children}</StandardLayout>
+  }
+  return <>{children}</>
 }
 
 function AnimatedRoutes() {
@@ -48,21 +51,25 @@ function AnimatedRoutes() {
   return (
     <AnimatePresence mode="wait">
       <Routes location={location} key={location.pathname}>
-        <Route path="/"                   element={<HomeRoute />} />
-        <Route path="/hub"                element={<Hub />} />
-        <Route path="/about"              element={<About />} />
-        <Route path="/portfolio"          element={<Portfolio />} />
-        <Route path="/portfolio/:slug"    element={<ProjectPage />} />
-        <Route path="/skills"             element={<Skills />} />
-        <Route path="/services"           element={<Services />} />
-        <Route path="/services/:category" element={<Services />} />
-        <Route path="/lab"                element={<Lab />} />
-        <Route path="/lab/:slug"          element={<LabExperiment />} />
-        <Route path="/store"              element={<Store />} />
-        <Route path="/media"              element={<Media />} />
-        <Route path="/contact"            element={<Contact />} />
+        {/* Entry points — each manages its own layout */}
+        <Route path="/"    element={<Landing />} />
+        <Route path="/home" element={<PageLayout><StandardLanding /></PageLayout>} />
+        <Route path="/hub"  element={<Hub />} />
+
+        {/* Inner pages — PageLayout adds StandardLayout when themeId === 'standard' */}
+        <Route path="/about"              element={<PageLayout><About /></PageLayout>} />
+        <Route path="/portfolio"          element={<PageLayout><Portfolio /></PageLayout>} />
+        <Route path="/portfolio/:slug"    element={<PageLayout><ProjectPage /></PageLayout>} />
+        <Route path="/skills"             element={<PageLayout><Skills /></PageLayout>} />
+        <Route path="/services"           element={<PageLayout><Services /></PageLayout>} />
+        <Route path="/services/:category" element={<PageLayout><Services /></PageLayout>} />
+        <Route path="/lab"                element={<PageLayout><Lab /></PageLayout>} />
+        <Route path="/lab/:slug"          element={<PageLayout><LabExperiment /></PageLayout>} />
+        <Route path="/store"              element={<PageLayout><Store /></PageLayout>} />
+        <Route path="/media"              element={<PageLayout><Media /></PageLayout>} />
+        <Route path="/contact"            element={<PageLayout><Contact /></PageLayout>} />
         <Route path="/admin"              element={<Admin />} />
-        <Route path="*"                   element={<NotFound />} />
+        <Route path="*"                   element={<PageLayout><NotFound /></PageLayout>} />
       </Routes>
     </AnimatePresence>
   )
@@ -71,34 +78,25 @@ function AnimatedRoutes() {
 function AppInner() {
   const { themeId } = useTheme()
   const { isOpen, close } = useTerminal()
+  const isDigital = themeId === 'digital'
 
-  const routes = (
+  const routesEl = (
     <Suspense fallback={<PageLoader />}>
       <AnimatedRoutes />
     </Suspense>
   )
 
-  if (themeId === 'standard') {
-    return (
-      <>
-        <AutoTrackers />
-        <StandardLayout>
-          {routes}
-        </StandardLayout>
-      </>
-    )
-  }
-
-  // Digital UI — existing chrome
   return (
     <>
       <AutoTrackers />
-      <PageChrome />
-      <SoundToggle />
-      <main id="main-content">
-        {routes}
-      </main>
-      <Terminal isOpen={isOpen} onClose={close} />
+      {isDigital && <PageChrome />}
+      {isDigital && <SoundToggle />}
+      {isDigital ? (
+        <main id="main-content">{routesEl}</main>
+      ) : (
+        routesEl
+      )}
+      {isDigital && <Terminal isOpen={isOpen} onClose={close} />}
     </>
   )
 }
