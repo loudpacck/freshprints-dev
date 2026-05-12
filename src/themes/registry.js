@@ -7,7 +7,7 @@ export const themes = { digital, pantheon, standard, funky }
 export const themeIds = Object.keys(themes)
 
 export function getTheme(id) {
-  return themes[id] || themes.digital
+  return themes[id] || themes.standard
 }
 
 export function getAvailableThemes() {

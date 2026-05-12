@@ -469,3 +469,49 @@ Token source of truth is now `src/themes/digital/tokens.css` (not `src/styles/to
 - **Jogger project added** — UE5 Blueprints endless runner, Q1 2026, status ACTIVE. Added to `projects.js`, `siteStatus.js`, and as a cross-ref in `pantheon.relatedSlugs`. Unreal/Blueprint tool `projectLinks` updated to include `jogger`.
 - **Portfolio header** — "SELECTED WORK" → "CREATIVE ENGINEER".
 - **ParticleField extracted** — moved from inline in `Landing.jsx` to reusable `src/components/effects/ParticleField.jsx`. `Landing.jsx` imports it unchanged. `Portfolio.jsx` renders it conditionally (`themeId === 'digital'`) behind a `pointer-events: none` fixed overlay; page content sits at `z-index: 1` above it.
+
+---
+
+## Phase 14a — Standard UI Foundation (2026-05-11)
+
+**Standard is now the default theme.** First-time visitors (no `fp-theme` in localStorage) land in Standard UI.
+
+### What was built
+
+- **`src/themes/standard/manifest.js`** — updated to `status: 'complete'`, `layoutType: 'traditional'`, Geist fonts.
+- **`src/themes/standard/fonts.css`** — loads Geist + Geist Mono via Google Fonts (`@import`).
+- **`src/themes/standard/tokens.css`** — full dark + light token sets plus shared typography, spacing, layout utilities. All scoped to `[data-ui="standard"]`.
+- **`index.html`** — Geist preconnect + link tags added; flash prevention script updated to default `fp-theme='standard'` and resolve `'auto'` mode from `prefers-color-scheme`.
+- **`src/main.jsx`** — imports `standard/tokens.css` and `standard/fonts.css` alongside Digital.
+- **`src/themes/registry.js`** — default fallback changed from `digital` to `standard`.
+- **`src/themes/ThemeProvider.jsx`** — default theme `'standard'`; mode preference stores `'dark'|'light'|'auto'`; system color scheme auto-detection with `matchMedia` listener; `setMode(pref)` exposed in context; URL param changed from `?theme=` to `?ui=` (legacy `?theme=` still works).
+
+### New components
+
+- **`src/components/ui/UIPicker.jsx`** — user-facing modal to switch between Standard / Digital and set mode (Dark / Light / Auto). Triggered from Standard chrome; opens on `Escape`-closeable backdrop.
+- **`src/components/standard/StandardLayout.jsx`** — `s-layout` + `s-main` wrapper with StandardNav, StandardFooter, UIPicker state.
+- **`src/components/standard/StandardNav.jsx`** — sticky transparent nav with blur, mode toggle (sun/moon), UI picker icon, desktop links, mobile hamburger with AnimatePresence slide-down.
+- **`src/components/standard/StandardFooter.jsx`** — 3-col footer (Brand / Site / Connect), pulls connect links from `src/data/socialLinks.js`, "Switch to Operations Terminal →" opens UIPicker.
+- **`src/components/standard/StandardButton.jsx`** — primary / secondary / ghost variants using Standard tokens. Separate from Digital's `Button.jsx`.
+- **`src/components/standard/StandardCard.jsx`** — image + eyebrow + title + description card with hover-lift, status badge overlay, Standard tokens.
+- **`src/pages/StandardLanding.jsx`** — 6-section landing page: Hero (engineering SVG motif + hero text), Featured Work (3 cards), Capabilities (6-card grid), About Snippet (2-col), From the Lab (2 cards), Contact CTA.
+
+### Routing changes (`src/App.jsx`)
+
+- `AppInner` reads `themeId` — renders `StandardLayout` wrapper when `'standard'`, Digital `PageChrome + SoundToggle + Terminal` when `'digital'`.
+- Route `/` now renders `<HomeRoute />` which returns `<StandardLanding />` or `<Landing />` based on `themeId`.
+
+### Design tokens
+
+Standard has its own token namespace (`--bg-base`, `--accent`, `--text-primary`, etc.) completely separate from Digital's (`--color-bg-base`, `--color-accent-primary`, etc.). Inner pages (portfolio, about, etc.) still use Digital tokens in 14a — **Phase 14b** will restyle them for Standard.
+
+### Default theme change
+
+- Old default: `digital`
+- New default: `standard`
+- Force Digital via URL: `?ui=digital`
+- Force Standard via URL: `?ui=standard`
+
+### Geist fonts
+
+Added to `index.html` via Google Fonts preconnect + link. Also imported in `src/themes/standard/fonts.css`. Both methods load together so the fonts are always available in Standard context.

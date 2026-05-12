@@ -1,12 +1,21 @@
-export default {
+export const standardManifest = {
   id: 'standard',
   label: 'Standard',
-  status: 'stub',
+  description: 'A premium, refined portfolio experience',
+  status: 'complete',
+  supportsLightMode: true,
+  supportsDarkMode: true,
+  defaultMode: 'auto',
+  layoutType: 'traditional',
   navigation: 'navbar',
   hasSoundFx: false,
   soundPack: null,
-  fonts: {},
-  tagline: 'Clean and classic.',
-  description: 'Traditional navbar layout. Wide compatibility, no surprises.',
-  palette: ['#FFFFFF', '#F5F5F5', '#1A1A2E', '#0050A0', '#4A4A6A'],
+  fonts: {
+    display: 'Geist',
+    body: 'Geist',
+    mono: 'Geist Mono',
+  },
+  hidden: false,
 }
+
+export default standardManifest
