@@ -156,6 +156,16 @@ a {
   .grid-5-col { grid-template-columns: 1fr; }
 }
 
+/* 3-column grid (about connect, 5 cards) */
+.grid-3-col {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--space-4);
+}
+@media (max-width: 640px) {
+  .grid-3-col { grid-template-columns: 1fr; }
+}
+
 /* 2-column grid (connect cards, etc.) */
 .grid-2-col {
   display: grid;

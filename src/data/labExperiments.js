@@ -1,7 +1,7 @@
 export const experiments = [
   {
     slug: 'predictinator',
-    name: 'Predictinator 5000',
+    name: 'Predictinator',
     shortName: 'PREDICTINATOR',
     status: 'ACTIVE',
     classification: 'LIVE SYSTEM',
@@ -23,7 +23,7 @@ export const experiments = [
   },
   {
     slug: 'architect',
-    name: 'Architect',
+    name: 'Architect (Archie)',
     shortName: 'ARCHITECT',
     status: 'CONCEPT',
     classification: 'PROOF OF CONCEPT',

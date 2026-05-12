@@ -139,25 +139,51 @@ export default function ProjectCard({ project, size = 'default' }) {
               alignItems: 'center',
               justifyContent: 'space-between',
               marginTop: 'var(--space-1)',
+              flexWrap: 'wrap',
+              gap: 'var(--space-2)',
             }}
           >
             <Badge status={project.status} />
-            <motion.span
-              animate={{
-                opacity: isHovered ? 1 : 0,
-                x: isHovered ? 0 : -4,
-              }}
-              transition={{ duration: 0.2 }}
-              style={{
-                fontFamily: 'var(--font-mono)',
-                fontSize: 'var(--text-xs)',
-                color: accentColor,
-                textTransform: 'uppercase',
-                letterSpacing: 'var(--tracking-wider)',
-              }}
-            >
-              VIEW →
-            </motion.span>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)' }}>
+              {project.liveUrl && (
+                <a
+                  href={project.liveUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  onClick={(e) => e.stopPropagation()}
+                  style={{
+                    fontFamily: 'var(--font-mono)',
+                    fontSize: 'var(--text-xs)',
+                    color: accentColor,
+                    textTransform: 'uppercase',
+                    letterSpacing: 'var(--tracking-wider)',
+                    textDecoration: 'none',
+                    border: `1px solid ${accentColor}`,
+                    borderRadius: 'var(--radius-sm)',
+                    padding: '2px var(--space-3)',
+                    whiteSpace: 'nowrap',
+                  }}
+                >
+                  VISIT SITE ↗
+                </a>
+              )}
+              <motion.span
+                animate={{
+                  opacity: isHovered ? 1 : 0,
+                  x: isHovered ? 0 : -4,
+                }}
+                transition={{ duration: 0.2 }}
+                style={{
+                  fontFamily: 'var(--font-mono)',
+                  fontSize: 'var(--text-xs)',
+                  color: accentColor,
+                  textTransform: 'uppercase',
+                  letterSpacing: 'var(--tracking-wider)',
+                }}
+              >
+                VIEW →
+              </motion.span>
+            </div>
           </div>
         </div>
       </Card>

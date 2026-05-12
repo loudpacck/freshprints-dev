@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom'
 import { motion } from 'framer-motion'
-import { media } from '@/data/media'
+import { socialLinks } from '@/data/socialLinks'
 
 function EmailIcon() {
   return (
@@ -40,59 +40,49 @@ const METHODS = [
   {
     id: 'email',
     label: 'EMAIL',
-    // kyle: replace with your actual email address
-    value: 'kyle@freshprints.dev',
-    href: 'mailto:kyle@freshprints.dev',
-    external: true,
+    value: socialLinks.email,
+    href: `mailto:${socialLinks.email}`,
     Icon: EmailIcon,
     color: '#00C8FF',
   },
   {
-    id: 'youtube',
-    label: 'YOUTUBE',
-    value: '@kyle — devlogs + builds',
-    href: media.channelUrl,
-    external: true,
+    id: 'youtube-main',
+    label: socialLinks.youtube.general.label,
+    value: socialLinks.youtube.general.handle,
+    href: socialLinks.youtube.general.url,
+    Icon: YoutubeIcon,
+    color: '#FF4444',
+  },
+  {
+    id: 'youtube-docs',
+    label: socialLinks.youtube.docs.label,
+    value: socialLinks.youtube.docs.handle,
+    href: socialLinks.youtube.docs.url,
     Icon: YoutubeIcon,
     color: '#FF4444',
   },
   {
     id: 'github',
-    label: 'GITHUB',
-    // kyle: replace with your actual GitHub URL
-    value: 'github.com/kyle-placeholder',
-    href: 'https://github.com/kyle-placeholder',
-    external: true,
+    label: socialLinks.github.label,
+    value: socialLinks.github.handle,
+    href: socialLinks.github.url,
     Icon: GithubIcon,
     color: '#A0A0B8',
   },
   {
     id: 'linkedin',
-    label: 'LINKEDIN',
-    // kyle: replace with your actual LinkedIn URL
-    value: 'linkedin.com/in/kyle-placeholder',
-    href: 'https://linkedin.com/in/kyle-placeholder',
-    external: true,
+    label: socialLinks.linkedin.label,
+    value: socialLinks.linkedin.handle,
+    href: socialLinks.linkedin.url,
     Icon: LinkedinIcon,
     color: '#0077B5',
   },
 ]
 
-function MethodCard({ label, value, href, external, Icon, color }) {
-  const Tag = external ? 'a' : Link
-  const linkProps = external
-    ? { href, target: '_blank', rel: 'noopener noreferrer' }
-    : { to: href }
-
+function MethodCard({ label, value, href, Icon, color }) {
   return (
-    <motion.div
-      whileHover={{ x: 2 }}
-      transition={{ duration: 0.15 }}
-    >
-      <Tag
-        {...linkProps}
-        style={{ textDecoration: 'none', display: 'block' }}
-      >
+    <motion.div whileHover={{ x: 2 }} transition={{ duration: 0.15 }}>
+      <a href={href} target="_blank" rel="noopener noreferrer" style={{ textDecoration: 'none', display: 'block' }}>
         <div style={{
           display: 'flex',
           alignItems: 'center',
@@ -102,11 +92,12 @@ function MethodCard({ label, value, href, external, Icon, color }) {
           border: '1px solid var(--color-border-subtle)',
           borderRadius: 'var(--radius-md)',
           transition: 'border-color var(--duration-base)',
+          height: '100%',
         }}>
           <div style={{ color, flexShrink: 0 }}>
             <Icon />
           </div>
-          <div>
+          <div style={{ minWidth: 0 }}>
             <div style={{
               fontFamily: 'var(--font-mono)',
               fontSize: 'var(--text-xs)',
@@ -121,12 +112,15 @@ function MethodCard({ label, value, href, external, Icon, color }) {
               fontFamily: 'var(--font-mono)',
               fontSize: 'var(--text-sm)',
               color: 'var(--color-text-primary)',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+              whiteSpace: 'nowrap',
             }}>
               {value}
             </div>
           </div>
         </div>
-      </Tag>
+      </a>
     </motion.div>
   )
 }
@@ -145,7 +139,7 @@ export default function ContactDirect() {
         // OR REACH OUT DIRECTLY
       </p>
 
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)', marginBottom: 'var(--space-8)' }}>
+      <div className="grid-2-col" style={{ marginBottom: 'var(--space-8)' }}>
         {METHODS.map(m => (
           <MethodCard key={m.id} {...m} />
         ))}

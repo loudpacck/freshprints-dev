@@ -1,5 +1,7 @@
+import { socialLinks } from './socialLinks'
+
 export const media = {
-  channelUrl: 'https://youtube.com/@kyle-placeholder',
+  channelUrl: socialLinks.youtube.general.url,
   newsletterPlaceholder: 'your@email.com',
 
   featured: {

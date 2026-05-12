@@ -189,8 +189,20 @@ export default function ProjectPage() {
               Let's discuss your project.
             </p>
             <div style={{ display: 'flex', gap: 'var(--space-4)', justifyContent: 'center', flexWrap: 'wrap' }}>
+              {project.liveUrl && (
+                <a
+                  href={project.liveUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  style={{ textDecoration: 'none' }}
+                >
+                  <Button variant="primary">
+                    VISIT {project.name.toUpperCase()} ↗
+                  </Button>
+                </a>
+              )}
               <Button
-                variant="primary"
+                variant={project.liveUrl ? 'secondary' : 'primary'}
                 onClick={() => navigate(project.cta.href)}
               >
                 {project.cta.label}

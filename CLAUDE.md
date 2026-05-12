@@ -457,3 +457,15 @@ Token source of truth is now `src/themes/digital/tokens.css` (not `src/styles/to
 - **Admin route:** `/admin` — protected page, auth-checks on mount, redirects to `/` if unauthenticated
 - **Admin UI:** Header + sidebar (OVERVIEW nav) + `AdminOverview` component (4 stat cards, 30-day area chart, top paths, recent events)
 - **Phase 12** will expand the dashboard. **Phase 13** will instrument custom events throughout the site.
+
+---
+
+## Content Updates (2026-05-11)
+
+- **Predictinator 5000 → Predictinator** — display name only; slug `predictinator-5000` unchanged. Updated in `projects.js`, `labExperiments.js`, `siteStatus.js`.
+- **Architect → Architect (Archie)** — display name updated in `projects.js` and `labExperiments.js`. Lab shortName `ARCHITECT` unchanged.
+- **Arena Systems → Hot Potato** — slug changed from `roblox-arena` to `hot-potato`, full project data replaced with real metrics (2,000+ monthly players, 91% approval). `relatedSlugs` in Pantheon and project cross-refs updated.
+- **SolidWorks → Siemens NX** — skill ID changed (`solidworks` → `siemens-nx`), `toolIds` in Mechanical discipline updated, `assembly-design` specialization `parentId` updated, `fresh-prints-prototypes` stack updated, services.js deliverable text updated.
+- **Jogger project added** — UE5 Blueprints endless runner, Q1 2026, status ACTIVE. Added to `projects.js`, `siteStatus.js`, and as a cross-ref in `pantheon.relatedSlugs`. Unreal/Blueprint tool `projectLinks` updated to include `jogger`.
+- **Portfolio header** — "SELECTED WORK" → "CREATIVE ENGINEER".
+- **ParticleField extracted** — moved from inline in `Landing.jsx` to reusable `src/components/effects/ParticleField.jsx`. `Landing.jsx` imports it unchanged. `Portfolio.jsx` renders it conditionally (`themeId === 'digital'`) behind a `pointer-events: none` fixed overlay; page content sits at `z-index: 1` above it.

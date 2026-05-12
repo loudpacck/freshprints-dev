@@ -5,7 +5,7 @@ export const skillTiers = {
       label: 'Mechanical Design',
       color: '#A0A0B8',
       description: 'CAD modeling, manufacturability, prototyping, and end-to-end product design.',
-      toolIds: ['solidworks', 'fusion360', 'fdm', 'gdt', 'dfm', 'scanning'],
+      toolIds: ['siemens-nx', 'fusion360', 'fdm', 'gdt', 'dfm', 'scanning'],
     },
     {
       id: 'software',
@@ -39,7 +39,7 @@ export const skillTiers = {
 
   tools: [
     // Mechanical
-    { id: 'solidworks',  parentId: 'mechanical', label: 'SolidWorks',      proficiency: 'PRODUCTION',   projectLinks: ['fresh-prints-prototypes'] },
+    { id: 'siemens-nx',  parentId: 'mechanical', label: 'Siemens NX',      proficiency: 'PRODUCTION',   projectLinks: ['fresh-prints-prototypes'] },
     { id: 'fusion360',   parentId: 'mechanical', label: 'Fusion 360',      proficiency: 'PRODUCTION',   projectLinks: ['fresh-prints-prototypes'] },
     { id: 'fdm',         parentId: 'mechanical', label: 'FDM Printing',    proficiency: 'PRODUCTION',   projectLinks: ['fresh-prints-prototypes'] },
     { id: 'gdt',         parentId: 'mechanical', label: 'GD&T',            proficiency: 'PROFESSIONAL', projectLinks: ['fresh-prints-prototypes'] },
@@ -55,10 +55,10 @@ export const skillTiers = {
     { id: 'websockets',  parentId: 'software',   label: 'WebSockets',      proficiency: 'PROFESSIONAL', projectLinks: ['plutus'] },
 
     // Game Dev
-    { id: 'roblox',      parentId: 'gamedev',    label: 'Roblox',          proficiency: 'PRODUCTION',   projectLinks: ['roblox-arena'] },
-    { id: 'luau',        parentId: 'gamedev',    label: 'Luau',            proficiency: 'PRODUCTION',   projectLinks: ['roblox-arena'] },
-    { id: 'unreal',      parentId: 'gamedev',    label: 'Unreal Engine 5', proficiency: 'ACTIVE',       projectLinks: ['pantheon'] },
-    { id: 'blueprint',   parentId: 'gamedev',    label: 'Blueprint',       proficiency: 'ACTIVE',       projectLinks: ['pantheon'] },
+    { id: 'roblox',      parentId: 'gamedev',    label: 'Roblox',          proficiency: 'PRODUCTION',   projectLinks: ['hot-potato'] },
+    { id: 'luau',        parentId: 'gamedev',    label: 'Luau',            proficiency: 'PRODUCTION',   projectLinks: ['hot-potato'] },
+    { id: 'unreal',      parentId: 'gamedev',    label: 'Unreal Engine 5', proficiency: 'ACTIVE',       projectLinks: ['pantheon', 'jogger'] },
+    { id: 'blueprint',   parentId: 'gamedev',    label: 'Blueprint',       proficiency: 'ACTIVE',       projectLinks: ['pantheon', 'jogger'] },
     { id: 'cpp',         parentId: 'gamedev',    label: 'C++',             proficiency: 'ACTIVE',       projectLinks: ['pantheon'] },
 
     // AI
@@ -80,7 +80,7 @@ export const skillTiers = {
     { id: 'functional-prototyping',  parentId: 'fdm',        label: 'Functional Prototyping' },
     { id: 'production-parts',        parentId: 'fdm',        label: 'Production-Ready Parts' },
     { id: 'parametric-modeling',     parentId: 'fusion360',  label: 'Parametric Modeling' },
-    { id: 'assembly-design',         parentId: 'solidworks', label: 'Assembly Design' },
+    { id: 'assembly-design',         parentId: 'siemens-nx', label: 'Assembly Design' },
     { id: 'rest-apis',               parentId: 'fastapi',    label: 'REST API Design' },
     { id: 'realtime-systems',        parentId: 'websockets', label: 'Realtime Systems' },
     { id: 'state-management',        parentId: 'react',      label: 'State Management' },

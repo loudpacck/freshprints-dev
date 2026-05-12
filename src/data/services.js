@@ -12,7 +12,7 @@ export const services = [
         timeline: '1–2 weeks',
         deliverables: [
           'Discovery call + concept sketches',
-          'Parametric CAD model (SolidWorks or Fusion 360)',
+          'Parametric CAD model (Siemens NX or Fusion 360)',
           'Print-ready exports (STL, STEP)',
           '2 revision rounds',
         ],
