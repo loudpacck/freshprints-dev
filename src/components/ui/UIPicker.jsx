@@ -1,19 +1,23 @@
 import { useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
+import { useNavigate } from 'react-router-dom'
 import { useTheme } from '@/themes/useTheme'
 import { getCompleteThemes, getTheme } from '@/themes/registry'
 
-const THEME_LABELS = {
-  standard: 'Standard',
-  digital:  'Operations Terminal',
-}
 const THEME_DESCS = {
   standard: 'Premium portfolio experience',
   digital:  'Hub-based command center',
 }
 
+function getThemeHome(id) {
+  if (id === 'digital') return '/hub'
+  if (id === 'standard') return '/home'
+  return '/'
+}
+
 export default function UIPicker({ isOpen, onClose }) {
   const { themeId, mode, modePref, setTheme, setMode } = useTheme()
+  const navigate = useNavigate()
 
   useEffect(() => {
     if (!isOpen) return
@@ -120,7 +124,7 @@ export default function UIPicker({ isOpen, onClose }) {
                 return (
                   <button
                     key={id}
-                    onClick={() => { setTheme(id); onClose() }}
+                    onClick={() => { setTheme(id); navigate(getThemeHome(id)); onClose() }}
                     style={{
                       display: 'flex',
                       alignItems: 'center',
@@ -163,7 +167,7 @@ export default function UIPicker({ isOpen, onClose }) {
                         color: '#0A0A14',
                         marginBottom: '0.125rem',
                       }}>
-                        {THEME_LABELS[id] || getTheme(id).label}
+                        {getTheme(id).label}
                       </div>
                       <div style={{
                         fontFamily: "'Geist Mono', monospace",

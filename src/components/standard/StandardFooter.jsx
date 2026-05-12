@@ -160,7 +160,7 @@ export default function StandardFooter({ onOpenPicker }) {
             onMouseEnter={e => e.target.style.color = 'var(--accent)'}
             onMouseLeave={e => e.target.style.color = 'var(--text-tertiary)'}
           >
-            Switch to Operations Terminal →
+            Switch to Digital UI →
           </button>
         </div>
       </div>

@@ -1,10 +1,17 @@
 import { useState, useEffect, useRef } from 'react'
 import { createPortal } from 'react-dom'
 import { motion, AnimatePresence } from 'framer-motion'
+import { useNavigate } from 'react-router-dom'
 import Card from '@/components/ui/Card'
 import { useTheme } from '@/themes/useTheme'
 import { useSound } from '@/sound/useSound'
 import { themes, themeIds } from '@/themes/registry'
+
+function getThemeHome(id) {
+  if (id === 'digital') return '/hub'
+  if (id === 'standard') return '/home'
+  return '/'
+}
 
 const THEME_ACCENTS = {
   digital: '#00C8FF',
@@ -134,6 +141,7 @@ function ThemeCard({ theme, isActive, isShaken, onClick }) {
 export default function UIPicker({ isOpen, onClose }) {
   const { themeId, mode, setTheme, toggleMode } = useTheme()
   const { play } = useSound()
+  const navigate = useNavigate()
   const [shakenId, setShakenId] = useState(null)
   const [toast, setToast] = useState(null)
   const wasOpenRef = useRef(false)
@@ -162,7 +170,7 @@ export default function UIPicker({ isOpen, onClose }) {
     if (theme.status === 'complete') {
       play('select')
       setTheme(theme.id)
-      setTimeout(() => onClose(), 300)
+      setTimeout(() => { navigate(getThemeHome(theme.id)); onClose() }, 300)
       return
     }
     setShakenId(theme.id)
