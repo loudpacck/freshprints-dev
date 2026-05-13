@@ -1,0 +1,153 @@
+/* ============================================================
+   Retro UI — Win95/98 aesthetic tokens
+   Single mode only (no light/dark variants)
+   ============================================================ */
+
+[data-ui="retro"] {
+  /* Surfaces */
+  --bg-base:     #008080;
+  --bg-elevated: #C0C0C0;
+  --bg-card:     #C0C0C0;
+  --bg-content:  #FFFFCC;
+  --bg-input:    #FFFFFF;
+  --bg-overlay:  rgba(0, 0, 0, 0.5);
+
+  /* Text */
+  --text-primary:   #000000;
+  --text-secondary: #404040;
+  --text-tertiary:  #606060;
+  --text-inverse:   #FFFFFF;
+  --text-disabled:  #808080;
+
+  /* Bevels — the Win95 secret sauce */
+  --bevel-highlight: #FFFFFF;
+  --bevel-light:     #DFDFDF;
+  --bevel-shadow:    #808080;
+  --bevel-dark:      #404040;
+  --border-thick:    2px;
+
+  /* Accent */
+  --accent:       #000080;
+  --accent-bright: #1084D0;
+  --accent-text:  #FFFFFF;
+
+  /* Title bar */
+  --titlebar-active-start: #000080;
+  --titlebar-active-end:   #1084D0;
+  --titlebar-inactive:     #808080;
+
+  /* Status */
+  --color-success: #008000;
+  --color-warning: #FFFF00;
+  --color-error:   #FF0000;
+
+  /* Spacing */
+  --space-1:  2px;
+  --space-2:  4px;
+  --space-3:  6px;
+  --space-4:  8px;
+  --space-5:  12px;
+  --space-6:  16px;
+  --space-8:  24px;
+  --space-10: 32px;
+  --space-12: 48px;
+  --space-16: 64px;
+
+  /* Typography */
+  --font-display: 'Press Start 2P', system-ui, monospace;
+  --font-body:    'MS Sans Serif', Tahoma, 'Microsoft Sans Serif', Arial, sans-serif;
+  --font-mono:    'VT323', 'Courier New', monospace;
+
+  /* Font sizes — absolute px for that crisp pixel feel */
+  --text-xs:         12px;
+  --text-sm:         13px;
+  --text-base:       15px;
+  --text-md:         16px;
+  --text-lg:         19px;
+  --text-xl:         22px;
+  --text-2xl:        28px;
+  --text-3xl:        36px;
+  --text-4xl:        48px;
+  --text-display-sm: 18px;
+  --text-display-md: 28px;
+  --text-display-lg: 44px;
+
+  --leading-tight:  1.2;
+  --leading-normal: 1.6;
+  --leading-loose:  1.8;
+
+  --weight-regular: 400;
+  --weight-bold:    700;
+
+  /* Zero border-radius — Win95 was all sharp corners */
+  --radius-none: 0;
+  --radius-sm:   0;
+  --radius-md:   0;
+  --radius-lg:   0;
+
+  /* Shadow */
+  --shadow-window: 4px 4px 0 rgba(0, 0, 0, 0.3);
+
+  /* Digital-name aliases — lets shared components work in Retro context */
+  --color-bg-base:      var(--bg-base);
+  --color-bg-surface:   var(--bg-elevated);
+  --color-text-primary: var(--text-primary);
+  --color-text-secondary: var(--text-secondary);
+  --color-accent-primary: var(--accent-bright);
+}
+
+/* ── CRT scanline overlay ──────────────────────────────────── */
+[data-ui="retro"][data-crt="on"] body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  background: repeating-linear-gradient(
+    to bottom,
+    rgba(0, 0, 0, 0) 0px,
+    rgba(0, 0, 0, 0) 2px,
+    rgba(0, 0, 0, 0.04) 3px,
+    rgba(0, 0, 0, 0.04) 4px
+  );
+  z-index: 9999;
+}
+
+[data-ui="retro"][data-crt="on"] body::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  background: radial-gradient(ellipse at center, transparent 60%, rgba(0, 0, 0, 0.2) 100%);
+  z-index: 9999;
+}
+
+/* ── Global resets for Retro ───────────────────────────────── */
+[data-ui="retro"] * {
+  border-radius: 0 !important;
+  box-sizing: border-box;
+}
+
+[data-ui="retro"] body {
+  font-family: var(--font-body);
+  font-size: var(--text-base);
+  color: var(--text-primary);
+  background: var(--bg-base);
+  margin: 0;
+}
+
+/* ── Bevel utility classes ─────────────────────────────────── */
+[data-ui="retro"] .retro-raised {
+  box-shadow:
+    inset 1px 1px 0 var(--bevel-highlight),
+    inset -1px -1px 0 var(--bevel-dark),
+    inset 2px 2px 0 var(--bevel-light),
+    inset -2px -2px 0 var(--bevel-shadow);
+}
+
+[data-ui="retro"] .retro-inset {
+  box-shadow:
+    inset 1px 1px 0 var(--bevel-dark),
+    inset -1px -1px 0 var(--bevel-highlight),
+    inset 2px 2px 0 var(--bevel-shadow),
+    inset -2px -2px 0 var(--bevel-light);
+}

@@ -4,5 +4,5 @@ import StandardProjectPage from '@/components/standard/pages/StandardProjectPage
 
 export default function ProjectPage() {
   const { themeId } = useTheme()
-  return themeId === 'standard' ? <StandardProjectPage /> : <DigitalProjectPage />
+  return (themeId === 'standard' || themeId === 'retro') ? <StandardProjectPage /> : <DigitalProjectPage />
 }

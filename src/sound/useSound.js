@@ -13,11 +13,20 @@ export function useSound() {
   }, [])
 
   useEffect(() => {
+    function onStateChange(e) {
+      setIsMuted(e.detail.muted)
+    }
+    window.addEventListener('fp-sound-state-change', onStateChange)
+
     if (typeof window === 'undefined') return
     const mq = window.matchMedia('(prefers-reduced-motion: reduce)')
     const handler = () => setIsMuted(soundManager.getMuted())
     mq.addEventListener('change', handler)
-    return () => mq.removeEventListener('change', handler)
+
+    return () => {
+      window.removeEventListener('fp-sound-state-change', onStateChange)
+      mq.removeEventListener('change', handler)
+    }
   }, [])
 
   return { play, isMuted, toggleMute }

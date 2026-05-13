@@ -4,5 +4,5 @@ import StandardStore from '@/components/standard/pages/StandardStore'
 
 export default function Store() {
   const { themeId } = useTheme()
-  return themeId === 'standard' ? <StandardStore /> : <DigitalStore />
+  return (themeId === 'standard' || themeId === 'retro') ? <StandardStore /> : <DigitalStore />
 }

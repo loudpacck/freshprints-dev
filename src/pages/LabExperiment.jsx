@@ -4,5 +4,5 @@ import StandardLabExperiment from '@/components/standard/pages/StandardLabExperi
 
 export default function LabExperiment() {
   const { themeId } = useTheme()
-  return themeId === 'standard' ? <StandardLabExperiment /> : <DigitalLabExperiment />
+  return (themeId === 'standard' || themeId === 'retro') ? <StandardLabExperiment /> : <DigitalLabExperiment />
 }

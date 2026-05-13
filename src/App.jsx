@@ -11,9 +11,11 @@ import { ThemeProvider, useTheme } from '@/themes/ThemeProvider'
 import DevThemeSwitcher from '@/components/dev/DevThemeSwitcher'
 import AutoTrackers from '@/tracking/AutoTrackers'
 import StandardLayout from '@/components/standard/StandardLayout'
+import RetroLayout from '@/components/retro/RetroLayout'
 
 const Landing         = lazy(() => import('@/pages/Landing'))
 const StandardLanding = lazy(() => import('@/pages/StandardLanding'))
+const RetroLanding    = lazy(() => import('@/pages/RetroLanding'))
 const Hub             = lazy(() => import('@/pages/Hub'))
 const About           = lazy(() => import('@/pages/About'))
 const Portfolio       = lazy(() => import('@/pages/Portfolio'))
@@ -36,13 +38,20 @@ function PageLoader() {
   )
 }
 
-// Wraps inner pages with StandardLayout when in Standard theme
+// Wraps inner pages with the active theme's layout
 function PageLayout({ children }) {
   const { themeId } = useTheme()
-  if (themeId === 'standard') {
-    return <StandardLayout>{children}</StandardLayout>
-  }
+  if (themeId === 'standard') return <StandardLayout>{children}</StandardLayout>
+  if (themeId === 'retro')    return <RetroLayout>{children}</RetroLayout>
   return <>{children}</>
+}
+
+function HomeRoute() {
+  const { themeId } = useTheme()
+  if (themeId === 'retro') {
+    return <RetroLayout><RetroLanding /></RetroLayout>
+  }
+  return <PageLayout><StandardLanding /></PageLayout>
 }
 
 function AnimatedRoutes() {
@@ -53,7 +62,7 @@ function AnimatedRoutes() {
       <Routes location={location} key={location.pathname}>
         {/* Entry points — each manages its own layout */}
         <Route path="/"    element={<Landing />} />
-        <Route path="/home" element={<PageLayout><StandardLanding /></PageLayout>} />
+        <Route path="/home" element={<HomeRoute />} />
         <Route path="/hub"  element={<Hub />} />
 
         {/* Inner pages — PageLayout adds StandardLayout when themeId === 'standard' */}

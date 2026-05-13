@@ -4,5 +4,5 @@ import StandardPortfolio from '@/components/standard/pages/StandardPortfolio'
 
 export default function Portfolio() {
   const { themeId } = useTheme()
-  return themeId === 'standard' ? <StandardPortfolio /> : <DigitalPortfolio />
+  return (themeId === 'standard' || themeId === 'retro') ? <StandardPortfolio /> : <DigitalPortfolio />
 }

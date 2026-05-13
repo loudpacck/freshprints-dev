@@ -19,7 +19,6 @@ function resolveMode(pref) {
 
 function readInitialTheme() {
   if (typeof window === 'undefined') return DEFAULT_THEME
-  // Check ?ui= param first, then legacy ?theme= param, then localStorage
   const params = new URLSearchParams(window.location.search)
   const param = params.get('ui') || params.get('theme')
   if (param) return param
@@ -34,11 +33,14 @@ function readInitialModePref() {
   return localStorage.getItem(STORAGE_MODE) || 'auto'
 }
 
+function readCrt() {
+  if (typeof localStorage === 'undefined') return 'on'
+  return localStorage.getItem('fp-retro-crt') || 'on'
+}
+
 export function ThemeProvider({ children }) {
   const [themeId, setThemeIdState] = useState(readInitialTheme)
-  // modePref: 'dark' | 'light' | 'auto'
   const [modePref, setModePrefState] = useState(readInitialModePref)
-  // mode: resolved 'dark' | 'light' (never 'auto')
   const [mode, setModeState] = useState(() => resolveMode(readInitialModePref()))
 
   const manifest = getTheme(themeId)
@@ -49,15 +51,11 @@ export function ThemeProvider({ children }) {
       setModeState(modePref)
       return
     }
-    // Auto: track system preference
     setModeState(getSystemColorScheme())
     const mq = window.matchMedia('(prefers-color-scheme: dark)')
     function onSystemChange(e) {
-      // Only react if still in auto mode
       setModePrefState(current => {
-        if (current === 'auto') {
-          setModeState(e.matches ? 'dark' : 'light')
-        }
+        if (current === 'auto') setModeState(e.matches ? 'dark' : 'light')
         return current
       })
     }
@@ -65,14 +63,29 @@ export function ThemeProvider({ children }) {
     return () => mq.removeEventListener('change', onSystemChange)
   }, [modePref])
 
-  // Apply to DOM + persist
+  // Apply theme to DOM + persist
   useEffect(() => {
-    document.documentElement.dataset.ui   = themeId
-    document.documentElement.dataset.mode = mode
+    document.documentElement.dataset.ui = themeId
     localStorage.setItem(STORAGE_THEME, themeId)
-    localStorage.setItem(STORAGE_MODE, modePref)
+
+    if (themeId === 'retro') {
+      // Retro: single mode — set CRT state, no data-mode
+      delete document.documentElement.dataset.mode
+      const crt = readCrt()
+      document.documentElement.setAttribute('data-crt', crt)
+    } else {
+      document.documentElement.dataset.mode = mode
+      localStorage.setItem(STORAGE_MODE, modePref)
+      // Remove CRT overlay when leaving retro
+      document.documentElement.removeAttribute('data-crt')
+    }
+
+    // Sound pack + per-theme mute
     if (manifest.soundPack) {
       soundManager.setPack(manifest.soundPack)
+      soundManager.setActiveTheme(themeId)
+    } else {
+      soundManager.setActiveTheme(themeId)
     }
   }, [themeId, mode, modePref, manifest.soundPack])
 
@@ -80,14 +93,12 @@ export function ThemeProvider({ children }) {
     setThemeIdState(id)
   }
 
-  // setMode accepts 'dark' | 'light' | 'auto'
   function setMode(pref) {
     setModePrefState(pref)
     if (pref !== 'auto') setModeState(pref)
     else setModeState(getSystemColorScheme())
   }
 
-  // toggleMode cycles: dark → light → dark (quick toggle, not auto)
   function toggleMode() {
     setMode(mode === 'dark' ? 'light' : 'dark')
   }

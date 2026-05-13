@@ -553,3 +553,84 @@ All 10 inner pages now have Standard UI variants. Digital versions are preserved
 ### Token bridge
 
 `src/themes/standard/tokens.css` now includes Digital-name aliases (`--color-bg-base`, `--color-text-primary`, etc.) that map to Standard equivalents. This allows shared components like `IntakeWizard` to render correctly inside Standard context.
+
+---
+
+## Phase 15a — Retro UI Foundation (2026-05-13)
+
+Third UI variant. Late 90s / early 2000s desktop computing aesthetic — Win95/98, CD-ROM software. NOT vaporwave, NOT cyberpunk. No fake desktop or draggable windows — the retro feeling comes from beveled cards/buttons, pixel typography, Win95 color palette, and synthesized audio.
+
+### Manifest
+- `src/themes/retro/manifest.js` — id: 'retro', status: 'complete', layoutType: 'traditional', soundPack: 'retro', fonts: Press Start 2P / Tahoma / VT323
+- Registered in `src/themes/registry.js`
+
+### Tokens (`src/themes/retro/tokens.css`)
+- Scoped to `[data-ui="retro"]` — single mode, no light/dark variants
+- `--bg-base: #008080` (teal desktop), `--bg-elevated: #C0C0C0` (Win95 gray), `--bg-content: #FFFFCC` (cream)
+- Bevel variables: `--bevel-highlight`, `--bevel-light`, `--bevel-shadow`, `--bevel-dark`
+- Title bar: `--titlebar-active-start: #000080`, `--titlebar-active-end: #1084D0`
+- Zero border-radius everywhere (`--radius-*: 0`)
+- Utility classes: `.retro-raised`, `.retro-inset`
+- Digital-name aliases included for shared component compatibility
+
+### CRT Effects
+- `[data-ui="retro"][data-crt="on"]` adds scanline + vignette via `body::before` / `body::after`
+- Default: `data-crt="on"`, persisted in `localStorage` key `fp-retro-crt`
+- Toggle via status bar CRT button
+
+### Fonts (`src/themes/retro/fonts.css`)
+- Google Fonts: Press Start 2P (display — used sparingly), VT323 (mono)
+- Body: `'MS Sans Serif', Tahoma, 'Microsoft Sans Serif', Arial, sans-serif` (system fonts)
+- Added to `index.html` font link and imported in `src/main.jsx`
+
+### Sound Pack (`src/sound/packs/retro.js`)
+- 13 sounds: boot, click, hover, select, error, success, modalOpen, modalClose, floppyRead, floppyWrite, notification, keyType, crash
+- Aliases map Digital-named keys (activate, toggle, terminalKey, etc.) so shared components work
+- `boot` = Win95-style multi-note startup chime (~2 sec)
+- Registered via `soundManager.registerPack('retro', retroPack)`
+
+### Per-theme Sound Mute
+- `SoundManager` now has `setActiveTheme(id)` — loads mute state from per-theme localStorage keys
+- `fp-sound-muted-retro` (default: **false** — Retro is unmuted by default)
+- `fp-sound-muted-digital` (default: true)
+- `soundManager` emits `fp-sound-state-change` CustomEvent on state changes
+- `useSound` hook subscribes to this event to keep `isMuted` state in sync
+- `ThemeProvider` calls `soundManager.setActiveTheme(id)` on theme change
+
+### Layout System
+- `src/components/retro/RetroLayout.jsx` — flex-column wrapper with toolbar + main panel + status bar + UIPicker
+- `src/components/retro/RetroToolbar.jsx` — sticky title bar (gradient) + menu bar (nav links + UI picker button); collapses to hamburger < 768px
+- `src/components/retro/RetroStatusBar.jsx` — sticky bottom: READY | Page: /path | CRT toggle + mute toggle + [UI] button + clock
+
+### Primitive Components
+- `src/components/retro/RetroButton.jsx` — raised bevel, pressed state, focus outline, variant: default/primary/link; plays click/hover sounds
+- `src/components/retro/RetroCard.jsx` — raised bevel panel with optional title bar (blue gradient)
+
+### Boot Sequence (`src/components/retro/RetroBootSequence.jsx`)
+- Controlled by `fp-retro-booted` in localStorage — plays once, never again
+- Phase 1: BIOS text lines appear one-by-one on black screen
+- Phase 2: Win95 splash with logo window, progress bar, boot chime audio
+- Skip: click anywhere or press any key
+- Exported: `shouldShowBoot()` helper
+
+### RetroLanding (`src/pages/RetroLanding.jsx`)
+- Checks `shouldShowBoot()` on mount — shows `RetroBootSequence` if needed
+- Sections: Hero panel (PORTFOLIO heading + intro + CTA buttons), Featured Work (3 project cards), About snippet + Services tiles (side-by-side), Contact CTA (dialog box style)
+
+### Routing
+- `HomeRoute` component in `App.jsx` renders `<RetroLayout><RetroLanding /></RetroLayout>` when retro, Standard otherwise
+- `PageLayout` now handles three themes: standard → StandardLayout, retro → RetroLayout, digital → raw
+- `RetroLanding` lazy-loaded
+
+### UIPicker Updates
+- Three themes shown: Standard, Digital, Retro — each with a mini inline preview card
+- Mode picker (Dark/Light/Auto) hidden when `themeId === 'retro'`
+- `getThemeHome('retro')` returns `/home`
+
+### ThemeProvider Updates
+- `themeId === 'retro'`: sets `data-crt` from localStorage, removes `data-mode`
+- Leaving retro: removes `data-crt`, restores `data-mode`
+- Calls `soundManager.setActiveTheme(id)` on every theme change
+
+### Phase 15b
+Will create dedicated Retro variants of inner pages (Portfolio, About, Services, etc.). Inner pages currently render Standard variants inside RetroLayout chrome.

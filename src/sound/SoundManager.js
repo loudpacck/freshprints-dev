@@ -1,7 +1,8 @@
 class SoundManager {
   constructor() {
     this.ctx = null
-    this.muted = this._loadMuted()
+    this.activeThemeId = 'digital'
+    this.muted = this._loadMutedForTheme('digital')
     this.masterVolume = 0.3
     this.activePack = 'digital'
     this.packs = {}
@@ -13,6 +14,32 @@ class SoundManager {
 
   setPack(name) {
     this.activePack = name
+  }
+
+  // Called by ThemeProvider when theme changes — loads per-theme mute preference
+  setActiveTheme(id) {
+    this.activeThemeId = id
+    this.muted = this._loadMutedForTheme(id)
+    this._emitStateChange()
+  }
+
+  _muteKey(id) {
+    if (id === 'retro') return 'fp-sound-muted-retro'
+    if (id === 'digital') return 'fp-sound-muted-digital'
+    return 'fp-sound-muted'
+  }
+
+  _defaultMuted(id) {
+    // Retro defaults to unmuted — sound is part of the experience
+    if (id === 'retro') return false
+    return true
+  }
+
+  _loadMutedForTheme(id) {
+    if (typeof localStorage === 'undefined') return this._defaultMuted(id)
+    const stored = localStorage.getItem(this._muteKey(id))
+    if (stored === null) return this._defaultMuted(id)
+    return stored === 'true'
   }
 
   _ensureContext() {
@@ -27,6 +54,12 @@ class SoundManager {
   _prefersReducedMotion() {
     if (typeof window === 'undefined') return false
     return window.matchMedia('(prefers-reduced-motion: reduce)').matches
+  }
+
+  _emitStateChange() {
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('fp-sound-state-change', { detail: { muted: this.muted } }))
+    }
   }
 
   play(name) {
@@ -51,26 +84,28 @@ class SoundManager {
   toggleMute() {
     this.muted = !this.muted
     this._saveMuted()
+    this._emitStateChange()
     return this.muted
   }
 
   setMuted(v) {
     this.muted = !!v
     this._saveMuted()
+    this._emitStateChange()
   }
 
   getMuted() {
     return this.muted
   }
 
-  _loadMuted() {
-    if (typeof localStorage === 'undefined') return false
-    return localStorage.getItem('fp-sound-muted') === 'true'
-  }
-
   _saveMuted() {
     if (typeof localStorage === 'undefined') return
-    localStorage.setItem('fp-sound-muted', String(this.muted))
+    localStorage.setItem(this._muteKey(this.activeThemeId), String(this.muted))
+  }
+
+  // Legacy single key — kept for backwards compat
+  _loadMuted() {
+    return this._loadMutedForTheme(this.activeThemeId || 'digital')
   }
 }
 

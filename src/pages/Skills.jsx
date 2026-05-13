@@ -4,5 +4,5 @@ import StandardSkills from '@/components/standard/pages/StandardSkills'
 
 export default function Skills() {
   const { themeId } = useTheme()
-  return themeId === 'standard' ? <StandardSkills /> : <DigitalSkills />
+  return (themeId === 'standard' || themeId === 'retro') ? <StandardSkills /> : <DigitalSkills />
 }

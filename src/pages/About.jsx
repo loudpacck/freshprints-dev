@@ -4,5 +4,5 @@ import StandardAbout from '@/components/standard/pages/StandardAbout'
 
 export default function About() {
   const { themeId } = useTheme()
-  return themeId === 'standard' ? <StandardAbout /> : <DigitalAbout />
+  return (themeId === 'standard' || themeId === 'retro') ? <StandardAbout /> : <DigitalAbout />
 }

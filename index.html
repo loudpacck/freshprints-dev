@@ -30,21 +30,26 @@
     <!-- Favicon: inline SVG data URL -->
     <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='32' height='32' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%230A0A0F'/%3E%3Ctext x='16' y='23' font-family='Arial Narrow%2C sans-serif' font-size='18' font-weight='700' fill='%2300C8FF' text-anchor='middle' letter-spacing='1'%3EFP%3C/text%3E%3C/svg%3E" />
 
-    <!-- Geist font family (Standard UI) -->
+    <!-- Geist font family (Standard UI) + Press Start 2P + VT323 (Retro UI) -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700;800&family=Geist+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700;800&family=Geist+Mono:wght@400;500;600&family=Press+Start+2P&family=VT323&display=swap" rel="stylesheet">
 
     <!-- Flash prevention: resolve theme + mode before any paint -->
     <script>
       (function () {
         var theme = localStorage.getItem('fp-theme') || 'standard';
-        var modePref = localStorage.getItem('fp-mode') || 'auto';
-        var mode = (modePref === 'auto' || !modePref)
-          ? (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light')
-          : modePref;
         document.documentElement.setAttribute('data-ui', theme);
-        document.documentElement.setAttribute('data-mode', mode);
+        if (theme === 'retro') {
+          var crt = localStorage.getItem('fp-retro-crt') || 'on';
+          document.documentElement.setAttribute('data-crt', crt);
+        } else {
+          var modePref = localStorage.getItem('fp-mode') || 'auto';
+          var mode = (modePref === 'auto' || !modePref)
+            ? (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light')
+            : modePref;
+          document.documentElement.setAttribute('data-mode', mode);
+        }
       })();
     </script>
 

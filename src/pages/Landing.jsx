@@ -20,7 +20,7 @@ export default function Landing() {
   const { themeId } = useTheme()
   const today = new Date().toISOString().slice(0, 10).replace(/-/g, '.')
 
-  const handleEnter = () => navigate(themeId === 'standard' ? '/home' : '/hub')
+  const handleEnter = () => navigate(themeId === 'digital' ? '/hub' : '/home')
 
   return (
     <motion.div
