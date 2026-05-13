@@ -52,25 +52,35 @@ export default function UIPicker({ isOpen, onClose }) {
           {/* Modal */}
           <motion.div
             key="picker-modal"
-            initial={{ opacity: 0, scale: 0.95, y: -8 }}
-            animate={{ opacity: 1, scale: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0.95, y: -8 }}
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.95 }}
             transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
-            role="dialog"
-            aria-label="Site experience picker"
             style={{
               position: 'fixed',
-              top: '50%',
-              left: '50%',
-              transform: 'translate(-50%, -50%)',
+              inset: 0,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
               zIndex: 201,
-              width: 'min(480px, calc(100vw - 2rem))',
-              background: '#FFFFFF',
-              borderRadius: '1rem',
-              boxShadow: '0 24px 64px -12px rgba(0,0,0,0.35)',
-              overflow: 'hidden',
+              padding: '1rem',
+              pointerEvents: 'none',
             }}
           >
+            <div
+              role="dialog"
+              aria-label="Site experience picker"
+              style={{
+                width: 'min(480px, 100%)',
+                maxHeight: 'calc(100vh - 2rem)',
+                overflowY: 'auto',
+                background: '#FFFFFF',
+                borderRadius: '1rem',
+                boxShadow: '0 24px 64px -12px rgba(0,0,0,0.35)',
+                overflow: 'hidden',
+                pointerEvents: 'auto',
+              }}
+            >
             {/* Header */}
             <div style={{
               padding: '1.5rem 1.5rem 1rem',
@@ -227,6 +237,7 @@ export default function UIPicker({ isOpen, onClose }) {
                   )
                 })}
               </div>
+            </div>
             </div>
           </motion.div>
         </>
