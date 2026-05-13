@@ -4,7 +4,7 @@ export const media = {
   channelUrl: socialLinks.youtube.general.url,
   docsChannelUrl: socialLinks.youtube.docs.url,
 
-  featuredVideoId: null,
+  featuredVideoId: 'C9IFqQgWWas',
 
   newsletterCopy: {
     eyebrow: '// DISPATCH',
@@ -25,7 +25,83 @@ export const media = {
   ],
 
   // Each video: { id (YouTube video ID), title, description, tabId, duration, publishedAt }
-  videos: [],
+  videos: [
+    // === Loudd Docs (4 videos) ===
+    {
+      id: 'C9IFqQgWWas',
+      title: 'The Ban Bounce',
+      description: 'How banned creators stage their comebacks — the psychology and strategy behind digital exile and return.',
+      tabId: 'loudd-docs',
+      duration: null,
+      publishedAt: null,
+    },
+    {
+      id: 'zATn1z9MxxU',
+      title: 'The H3 Story',
+      description: 'Ethan Klein and the rise of H3 — from a podcast in a basement to a media empire.',
+      tabId: 'loudd-docs',
+      duration: null,
+      publishedAt: null,
+    },
+    {
+      id: 'C3omSntjuZE',
+      title: 'The Rise and Fall of Vine',
+      description: 'How a 6-second video app shaped a generation of creators — and why it died young.',
+      tabId: 'loudd-docs',
+      duration: null,
+      publishedAt: null,
+    },
+    {
+      id: 'JohN868pw4o',
+      title: 'The Rise and Fall of Daily Vlogging',
+      description: 'When daily vlogs ruled YouTube — and the burnout cycle that ended the era.',
+      tabId: 'loudd-docs',
+      duration: null,
+      publishedAt: null,
+    },
+
+    // === Loudd (5 most viewed) ===
+    {
+      id: 'A7q9NFTEk40',
+      title: 'Welcome To My YouTube Channel',
+      description: 'Channel intro — what to expect from the chaos.',
+      tabId: 'loudd',
+      duration: null,
+      publishedAt: null,
+    },
+    {
+      id: 'abA0ZZezaE4',
+      title: "Nor'Easter 2023",
+      description: "Riding out the 2023 Nor'easter — storm coverage from New England.",
+      tabId: 'loudd',
+      duration: null,
+      publishedAt: null,
+    },
+    {
+      id: 'WJqBhlZ-odU',
+      title: "Nor'Easter 2024",
+      description: "The 2024 Nor'easter rolls through. Another year, another wild storm.",
+      tabId: 'loudd',
+      duration: null,
+      publishedAt: null,
+    },
+    {
+      id: 'wEszZZV2yGA',
+      title: 'I BROKE LETHAL COMPANY',
+      description: 'Pushing Lethal Company way past its intended limits.',
+      tabId: 'loudd',
+      duration: null,
+      publishedAt: null,
+    },
+    {
+      id: 'jcmAnWiWG28',
+      title: 'SUPER ACROBATIC ROCKET POWERED BATTLE GOLF...?',
+      description: "Rocket League meets golf. Yes, it's a thing. Yes, it's as chaotic as it sounds.",
+      tabId: 'loudd',
+      duration: null,
+      publishedAt: null,
+    },
+  ],
 }
 
 export function getThumbnailUrl(videoId) {
