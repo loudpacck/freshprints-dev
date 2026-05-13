@@ -282,7 +282,7 @@ The admin button is a UI placeholder only. No authentication is implemented. Pha
 2. Create component at `src/components/lab/experiments/YourComponent.jsx`
 3. Import and add to `COMPONENT_MAP` in `src/pages/LabExperiment.jsx`
 
-**CAD model placeholders:** `CADViewer.jsx` uses Google model-viewer sample GLBs. When real `.glb` files land in `public/models/`, update the `src` strings in the `MODELS` array at the top of `CADViewer.jsx`.
+**CAD model data:** `src/data/cadModels.js` — source of truth for all browsable models. Each entry: `{ id, name, description, file, source, relatedProjectSlug, thumbnail }`. To add a model: drop the `.glb` into `public/3d_files/`, add an entry to `cadModels.js`. Files with "PCB" in the name default to source `'KiCAD'`; all others default to `'Fusion 360'`. Set `relatedProjectSlug` to link a model to a portfolio project. 6 real models are wired up as of Phase 15a (inventory: Subaru Brat door handle, EverGreens 7 Iron, Mighty Max audio box, Touch LED art panel, Touch LED PCB compact, Touch LED PCB square). Files live in `public/3d_files/` (not `public/models/`).
 
 ## When Starting a New Phase
 
