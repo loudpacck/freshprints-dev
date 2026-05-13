@@ -492,31 +492,28 @@ export default function StandardLanding() {
                 position: 'relative',
                 overflow: 'hidden',
               }}>
-                {/* Placeholder portrait — SVG silhouette */}
-                <svg
-                  viewBox="0 0 200 260"
-                  fill="none"
+                <img
+                  src="/images/profile_picture/prof%20pic%201.jpg"
+                  alt="Kyle DeBord"
                   style={{
                     position: 'absolute',
-                    bottom: 0,
-                    left: '50%',
-                    transform: 'translateX(-50%)',
-                    width: '70%',
-                    opacity: 0.15,
+                    inset: 0,
+                    width: '100%',
+                    height: '100%',
+                    objectFit: 'cover',
+                    objectPosition: 'center top',
+                    borderRadius: 'var(--radius-2xl)',
                   }}
-                  aria-hidden="true"
-                >
-                  <ellipse cx="100" cy="70" rx="45" ry="50" fill="currentColor"/>
-                  <path d="M10 260 C10 180 40 155 100 155 C160 155 190 180 190 260" fill="currentColor"/>
-                </svg>
+                />
                 <div style={{
                   fontFamily: 'var(--font-mono)',
                   fontSize: '0.65rem',
-                  color: 'var(--text-tertiary)',
+                  color: '#FFFFFF',
                   textTransform: 'uppercase',
                   letterSpacing: '0.1em',
                   position: 'relative',
                   zIndex: 1,
+                  textShadow: '0 1px 4px rgba(0,0,0,0.7)',
                 }}>
                   // KYLE DEBORD
                 </div>

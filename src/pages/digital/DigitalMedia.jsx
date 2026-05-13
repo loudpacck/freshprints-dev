@@ -7,7 +7,7 @@ import VideoGrid from '@/components/media/VideoGrid'
 import VideoLightbox from '@/components/media/VideoLightbox'
 import NewsletterStrip from '@/components/media/NewsletterStrip'
 
-function ComingSoon({ tabLabel }) {
+function ComingSoon({ tabLabel, message }) {
   return (
     <div style={{
       padding: 'var(--space-20) 0',
@@ -28,8 +28,11 @@ function ComingSoon({ tabLabel }) {
         fontSize: 'var(--text-base)',
         color: 'var(--color-text-muted)',
         letterSpacing: 'var(--tracking-wide)',
+        maxWidth: 480,
+        margin: '0 auto',
+        lineHeight: 1.6,
       }}>
-        CONTENT UPLOADING SOON...
+        {message ?? 'CONTENT UPLOADING SOON...'}
       </p>
     </div>
   )
@@ -44,7 +47,9 @@ export default function DigitalMedia() {
     ? media.videos.find(v => v.id === media.featuredVideoId) ?? null
     : null
 
-  const activeTabLabel = media.tabs.find(t => t.id === activeTab)?.label ?? null
+  const activeTabMeta = media.tabs.find(t => t.id === activeTab) ?? null
+  const activeTabLabel = activeTabMeta?.label ?? null
+  const activeTabMessage = activeTabMeta?.comingSoonMessage ?? null
 
   return (
     <>
@@ -167,7 +172,7 @@ export default function DigitalMedia() {
           {filteredVideos.length > 0 ? (
             <VideoGrid videos={filteredVideos} onPlay={setPlayingVideo} />
           ) : (
-            <ComingSoon tabLabel={activeTabLabel} />
+            <ComingSoon tabLabel={activeTabLabel} message={activeTabMessage} />
           )}
 
           {/* Newsletter */}

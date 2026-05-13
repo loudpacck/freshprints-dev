@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { skillTiers } from '@/data/skills'
 import { socialList } from '@/data/socialLinks'
 import useReducedMotion from '@/hooks/useReducedMotion'
+import { useTheme } from '@/themes/useTheme'
 import Reveal from '@/components/standard/StandardReveal'
 import StandardButton from '@/components/standard/StandardButton'
 import IntakeWizard from '@/components/services/IntakeWizard'
@@ -111,6 +112,8 @@ export default function StandardAbout() {
   const reduced = useReducedMotion()
   const navigate = useNavigate()
   const [wizardOpen, setWizardOpen] = useState(false)
+  const { themeId } = useTheme()
+  const isRetro = themeId === 'retro'
 
   const allTools = skillTiers.tools
   const byDiscipline = skillTiers.disciplines.map(d => ({
@@ -182,45 +185,81 @@ export default function StandardAbout() {
         <div className="s-container">
           <div className="sa-portrait-grid">
             <Reveal>
-              <div style={{
-                borderRadius: 'var(--radius-2xl)',
-                aspectRatio: '4/5',
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-                justifyContent: 'flex-end',
-                padding: 'var(--space-5)',
-                border: '1px solid var(--border-subtle)',
-                position: 'relative',
-                overflow: 'hidden',
-                background: 'var(--bg-elevated)',
-              }}>
-                <img
-                  src="/images/profile_picture/prof pic 1.jpg"
-                  alt="Kyle DeBord"
-                  style={{
-                    position: 'absolute',
-                    inset: 0,
-                    width: '100%',
-                    height: '100%',
-                    objectFit: 'cover',
-                    objectPosition: 'center top',
-                    borderRadius: 'var(--radius-2xl)',
-                  }}
-                />
-                <div style={{
-                  fontFamily: 'var(--font-mono)',
-                  fontSize: '0.65rem',
-                  color: '#FFFFFF',
-                  textTransform: 'uppercase',
-                  letterSpacing: '0.1em',
-                  position: 'relative',
-                  zIndex: 1,
-                  textShadow: '0 1px 4px rgba(0,0,0,0.7)',
-                }}>
-                  // KYLE DEBORD · BASED IN MASSACHUSETTS
+              {isRetro ? (
+                <div>
+                  <div style={{
+                    boxShadow: 'inset 1px 1px 0 var(--bevel-highlight), inset -1px -1px 0 var(--bevel-dark), inset 2px 2px 0 var(--bevel-light), inset -2px -2px 0 var(--bevel-shadow)',
+                    background: 'var(--bg-elevated)',
+                    position: 'relative',
+                    overflow: 'hidden',
+                    aspectRatio: '4/5',
+                  }}>
+                    <img
+                      src="/images/profile_picture/prof%20pic%201.jpg"
+                      alt="Kyle DeBord"
+                      style={{
+                        position: 'absolute',
+                        inset: 0,
+                        width: '100%',
+                        height: '100%',
+                        objectFit: 'cover',
+                        objectPosition: 'center top',
+                        display: 'block',
+                      }}
+                    />
+                  </div>
+                  <div style={{
+                    fontFamily: 'var(--font-mono)',
+                    fontSize: '0.65rem',
+                    color: 'var(--text-primary)',
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.1em',
+                    marginTop: 'var(--space-2)',
+                  }}>
+                    // KYLE.JPG
+                  </div>
                 </div>
-              </div>
+              ) : (
+                <div style={{
+                  borderRadius: 'var(--radius-2xl)',
+                  aspectRatio: '4/5',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  justifyContent: 'flex-end',
+                  padding: 'var(--space-5)',
+                  border: '1px solid var(--border-subtle)',
+                  position: 'relative',
+                  overflow: 'hidden',
+                  background: 'var(--bg-elevated)',
+                }}>
+                  <img
+                    src="/images/profile_picture/prof%20pic%201.jpg"
+                    alt="Kyle DeBord"
+                    style={{
+                      position: 'absolute',
+                      inset: 0,
+                      width: '100%',
+                      height: '100%',
+                      objectFit: 'cover',
+                      objectPosition: 'center top',
+                      borderRadius: 'var(--radius-2xl)',
+                    }}
+                  />
+                  <div style={{
+                    fontFamily: 'var(--font-mono)',
+                    fontSize: '0.65rem',
+                    color: '#FFFFFF',
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.1em',
+                    position: 'relative',
+                    zIndex: 1,
+                    textShadow: '0 1px 4px rgba(0,0,0,0.7)',
+                  }}>
+                    // KYLE DEBORD · BASED IN MASSACHUSETTS
+                  </div>
+                </div>
+              )}
             </Reveal>
 
             <Reveal delay={0.1}>

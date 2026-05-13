@@ -206,7 +206,7 @@ function VideoThumbnail({ video, onPlay }) {
   )
 }
 
-function ComingSoon({ tabLabel, isRetro }) {
+function ComingSoon({ tabLabel, message, isRetro }) {
   if (isRetro) {
     return (
       <div style={{
@@ -241,7 +241,7 @@ function ComingSoon({ tabLabel, isRetro }) {
             margin: '0 0 16px',
             lineHeight: 1.6,
           }}>
-            Content is in production. Subscribe on YouTube to get notified when it drops.
+            {message ?? 'Content is in production. Subscribe on YouTube to get notified when it drops.'}
           </p>
           <div style={{
             display: 'flex',
@@ -305,11 +305,11 @@ function ComingSoon({ tabLabel, isRetro }) {
         fontFamily: 'var(--font-body)',
         fontSize: 'var(--text-base)',
         color: 'var(--text-secondary)',
-        maxWidth: 380,
+        maxWidth: 480,
         margin: '0 auto',
         lineHeight: 'var(--leading-normal)',
       }}>
-        Content is in production. Subscribe to get notified when it drops.
+        {message ?? 'Content is in production. Subscribe to get notified when it drops.'}
       </p>
     </div>
   )
@@ -429,7 +429,9 @@ export default function StandardMedia() {
     ? media.videos.find(v => v.id === media.featuredVideoId) ?? null
     : null
 
-  const activeTabLabel = media.tabs.find(t => t.id === activeTab)?.label ?? null
+  const activeTabMeta = media.tabs.find(t => t.id === activeTab) ?? null
+  const activeTabLabel = activeTabMeta?.label ?? null
+  const activeTabMessage = activeTabMeta?.comingSoonMessage ?? null
 
   return (
     <motion.div
@@ -629,7 +631,7 @@ export default function StandardMedia() {
                   ))}
                 </div>
               ) : (
-                <ComingSoon tabLabel={activeTabLabel} isRetro={isRetro} />
+                <ComingSoon tabLabel={activeTabLabel} message={activeTabMessage} isRetro={isRetro} />
               )}
             </motion.div>
           </AnimatePresence>
