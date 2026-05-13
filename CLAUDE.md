@@ -73,6 +73,10 @@ Used on tags, project cards, skill nodes:
 - BETA → #F59E0B (amber)
 - STABLE / PROFESSIONAL → #00C8FF (cyan)
 - CONCEPT / RESEARCH → #8B5CF6 (violet)
+- IN_DEVELOPMENT → #F59E0B (amber) — display label "IN DEVELOPMENT" (space not underscore). Data value uses underscore.
+- AVAILABLE → #FFFFFF (white) — white dot with `box-shadow: 0 0 6px rgba(255,255,255,0.6)` + `border: 1px solid rgba(180,180,180,0.4)` for light-bg visibility. Signals "ready to engage."
+
+Status values are defined in `src/components/ui/Badge.jsx` (Digital), `src/components/standard/StandardCard.jsx`, `src/components/standard/pages/StandardPortfolio.jsx`, and `src/components/standard/pages/StandardProjectPage.jsx`. Each has its own `STATUS_COLORS`/`STATUS_DOT` map — add new statuses to all four when adding new types. CSS tokens live in each theme's `tokens.css`. Display label rendering uses `.replace(/_/g, ' ')` for underscore-to-space conversion.
 
 ## Phase Plan
 
@@ -476,6 +480,7 @@ Token source of truth is now `src/themes/digital/tokens.css` (not `src/styles/to
 - **Jogger project added** — UE5 Blueprints endless runner, Q1 2026, status ACTIVE. Added to `projects.js`, `siteStatus.js`, and as a cross-ref in `pantheon.relatedSlugs`. Unreal/Blueprint tool `projectLinks` updated to include `jogger`.
 - **Portfolio header** — "SELECTED WORK" → "CREATIVE ENGINEER".
 - **ParticleField extracted** — moved from inline in `Landing.jsx` to reusable `src/components/effects/ParticleField.jsx`. `Landing.jsx` imports it unchanged. `Portfolio.jsx` renders it conditionally (`themeId === 'digital'`) behind a `pointer-events: none` fixed overlay; page content sits at `z-index: 1` above it.
+- **Project status updates (2026-05-13)** — Pantheon: ACTIVE → IN_DEVELOPMENT. Jogger: ACTIVE → IN_DEVELOPMENT. Hot Potato: STABLE → ACTIVE. Architect (Archie): CONCEPT → BETA. Fresh Prints - Production & Design: STABLE → AVAILABLE. `siteStatus.js` updated to match; Hot Potato and Architect entries added.
 
 ---
 

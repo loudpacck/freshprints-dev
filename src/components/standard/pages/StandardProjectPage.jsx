@@ -17,10 +17,16 @@ const CATEGORY_COLORS = {
 }
 
 const STATUS_COLORS = {
-  ACTIVE:  '#22C55E',
-  BETA:    '#F59E0B',
-  STABLE:  'var(--accent)',
-  CONCEPT: '#8B5CF6',
+  ACTIVE:         '#22C55E',
+  BETA:           '#F59E0B',
+  STABLE:         'var(--accent)',
+  CONCEPT:        '#8B5CF6',
+  PRODUCTION:     '#22C55E',
+  IN_DEVELOPMENT: '#F59E0B',
+  AVAILABLE:      '#FFFFFF',
+}
+const STATUS_DOT_EXTRA = {
+  AVAILABLE: { boxShadow: '0 0 6px rgba(255,255,255,0.6)', border: '1px solid rgba(180,180,180,0.4)' },
 }
 
 function HeroImage({ project }) {
@@ -91,6 +97,7 @@ export default function StandardProjectPage() {
 
   const catColor = CATEGORY_COLORS[project.category[0]] || 'var(--accent)'
   const statusColor = STATUS_COLORS[project.status] || 'var(--accent)'
+  const dotExtra = STATUS_DOT_EXTRA[project.status] || {}
 
   const related = project.relatedSlugs
     .map(s => projects.find(p => p.slug === s))
@@ -192,7 +199,7 @@ export default function StandardProjectPage() {
                   borderRadius: 'var(--radius-xl)',
                   padding: 'var(--space-2) var(--space-4)',
                 }}>
-                  <div style={{ width: 6, height: 6, borderRadius: '50%', background: statusColor }} />
+                  <div style={{ width: 6, height: 6, borderRadius: '50%', background: statusColor, ...dotExtra }} />
                   <span style={{
                     fontFamily: 'var(--font-mono)',
                     fontSize: 'var(--text-xs)',
@@ -200,7 +207,7 @@ export default function StandardProjectPage() {
                     textTransform: 'uppercase',
                     letterSpacing: '0.08em',
                   }}>
-                    {project.status}
+                    {project.status.replace(/_/g, ' ')}
                   </span>
                 </div>
                 {project.timeline && (

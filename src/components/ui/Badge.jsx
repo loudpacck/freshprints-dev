@@ -1,16 +1,19 @@
 const statusMap = {
-  ACTIVE:       { color: 'var(--color-status-active)',  label: 'Active' },
-  BETA:         { color: 'var(--color-status-beta)',    label: 'Beta' },
-  STABLE:       { color: 'var(--color-status-stable)',  label: 'Stable' },
-  CONCEPT:      { color: 'var(--color-status-concept)', label: 'Concept' },
-  PRODUCTION:   { color: 'var(--color-status-active)',  label: 'Production' },
-  PROFESSIONAL: { color: 'var(--color-status-stable)',  label: 'Professional' },
-  RESEARCH:     { color: 'var(--color-status-concept)', label: 'Research' },
-  DEFAULT:      { color: 'var(--color-text-muted)',     label: 'Unknown' },
+  ACTIVE:         { color: 'var(--color-status-active)',         label: 'Active' },
+  BETA:           { color: 'var(--color-status-beta)',           label: 'Beta' },
+  STABLE:         { color: 'var(--color-status-stable)',         label: 'Stable' },
+  CONCEPT:        { color: 'var(--color-status-concept)',        label: 'Concept' },
+  PRODUCTION:     { color: 'var(--color-status-active)',         label: 'Production' },
+  PROFESSIONAL:   { color: 'var(--color-status-stable)',         label: 'Professional' },
+  RESEARCH:       { color: 'var(--color-status-concept)',        label: 'Research' },
+  IN_DEVELOPMENT: { color: 'var(--color-status-in-development)', label: 'In Development' },
+  AVAILABLE:      { color: 'var(--color-status-available)',      label: 'Available',
+    dotStyle: { boxShadow: '0 0 6px rgba(255,255,255,0.6)', border: '1px solid rgba(180,180,180,0.4)' } },
+  DEFAULT:        { color: 'var(--color-text-muted)',            label: 'Unknown' },
 }
 
 export default function Badge({ status = 'DEFAULT', pulse = false, label: labelProp }) {
-  const { color, label: statusLabel } = statusMap[status] ?? statusMap.DEFAULT
+  const { color, label: statusLabel, dotStyle = {} } = statusMap[status] ?? statusMap.DEFAULT
   const label = labelProp ?? statusLabel
 
   return (
@@ -39,6 +42,7 @@ export default function Badge({ status = 'DEFAULT', pulse = false, label: labelP
           background: color,
           flexShrink: 0,
           animation: pulse ? 'glowPulse 2s ease-in-out infinite' : 'none',
+          ...dotStyle,
         }}
       />
       {label}

@@ -25,12 +25,19 @@ export default function StandardCard({
   }
 
   const STATUS_DOT = {
-    ACTIVE:  '#22C55E',
-    BETA:    '#F59E0B',
-    STABLE:  'var(--accent)',
-    CONCEPT: '#8B5CF6',
+    ACTIVE:         '#22C55E',
+    BETA:           '#F59E0B',
+    STABLE:         'var(--accent)',
+    CONCEPT:        '#8B5CF6',
+    PRODUCTION:     '#22C55E',
+    IN_DEVELOPMENT: '#F59E0B',
+    AVAILABLE:      '#FFFFFF',
+  }
+  const STATUS_DOT_EXTRA = {
+    AVAILABLE: { boxShadow: '0 0 6px rgba(255,255,255,0.6)', border: '1px solid rgba(180,180,180,0.4)' },
   }
   const dotColor = STATUS_DOT[status] || 'var(--accent)'
+  const dotExtra = STATUS_DOT_EXTRA[status] || {}
 
   return (
     <motion.div
@@ -86,7 +93,7 @@ export default function StandardCard({
             padding: '0.25rem 0.625rem',
             border: '1px solid var(--border-subtle)',
           }}>
-            <div style={{ width: 6, height: 6, borderRadius: '50%', background: dotColor, flexShrink: 0 }} />
+            <div style={{ width: 6, height: 6, borderRadius: '50%', background: dotColor, flexShrink: 0, ...dotExtra }} />
             <span style={{
               fontFamily: 'var(--font-mono)',
               fontSize: '0.65rem',
@@ -94,7 +101,7 @@ export default function StandardCard({
               textTransform: 'uppercase',
               letterSpacing: '0.08em',
             }}>
-              {status}
+              {status.replace(/_/g, ' ')}
             </span>
           </div>
         )}

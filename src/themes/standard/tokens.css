@@ -12,10 +12,12 @@
   --color-accent-primary: var(--accent);
   --color-border-subtle:  var(--border-subtle);
   --color-border-default: var(--border-strong);
-  --color-status-active:  #22C55E;
-  --color-status-beta:    #F59E0B;
-  --color-status-stable:  var(--accent);
-  --color-status-concept: #8B5CF6;
+  --color-status-active:         #22C55E;
+  --color-status-beta:           #F59E0B;
+  --color-status-stable:         var(--accent);
+  --color-status-concept:        #8B5CF6;
+  --color-status-in-development: #F59E0B;
+  --color-status-available:      #FFFFFF;
   --z-modal: 1000;
   --font-display: 'Geist', system-ui, sans-serif;
   --font-body:    'Geist', system-ui, sans-serif;

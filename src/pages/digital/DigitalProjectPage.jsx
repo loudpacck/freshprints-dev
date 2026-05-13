@@ -9,13 +9,15 @@ import ModelViewer from '@/components/portfolio/ModelViewer'
 import RelatedProjects from '@/components/portfolio/RelatedProjects'
 
 const OUTCOME_COPY = {
-  ACTIVE: 'Currently active and shipping new features.',
-  BETA: 'In active beta with live testers.',
-  STABLE: 'Shipped and stable in production.',
-  CONCEPT: 'Concept stage with working proof of concept.',
-  PRODUCTION: 'Currently active and shipping new features.',
-  PROFESSIONAL: 'Shipped and stable in production.',
-  RESEARCH: 'Concept stage with working proof of concept.',
+  ACTIVE:         'Currently active and shipping new features.',
+  BETA:           'In active beta with live testers.',
+  STABLE:         'Shipped and stable in production.',
+  CONCEPT:        'Concept stage with working proof of concept.',
+  PRODUCTION:     'Currently active and shipping new features.',
+  PROFESSIONAL:   'Shipped and stable in production.',
+  RESEARCH:       'Concept stage with working proof of concept.',
+  IN_DEVELOPMENT: 'Currently in active development.',
+  AVAILABLE:      'Shipped and available. Ready to use or order.',
 }
 
 const containerStyle = {

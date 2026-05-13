@@ -94,6 +94,13 @@
   --color-text-primary: var(--text-primary);
   --color-text-secondary: var(--text-secondary);
   --color-accent-primary: var(--accent-bright);
+
+  --color-status-active:         #22C55E;
+  --color-status-beta:           #F59E0B;
+  --color-status-stable:         #00C8FF;
+  --color-status-concept:        #8B5CF6;
+  --color-status-in-development: #F59E0B;
+  --color-status-available:      #FFFFFF;
 }
 
 /* ── CRT scanline overlay ──────────────────────────────────── */
