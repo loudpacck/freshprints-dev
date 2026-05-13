@@ -1,5 +1,5 @@
 import { sql } from '../lib/db.js'
-import UAParser from 'ua-parser-js'
+import { UAParser } from 'ua-parser-js'
 
 export const config = { runtime: 'nodejs' }
 
@@ -70,7 +70,8 @@ export default async function handler(req, res) {
 
     return res.status(200).json({ ok: true, recorded: events.length })
   } catch (err) {
-    console.error('Track error:', err)
-    return res.status(500).json({ error: 'Track failed' })
+    console.error('[/api/track] CRASH:', err.message)
+    console.error('[/api/track] STACK:', err.stack)
+    return res.status(500).json({ error: 'Track failed', detail: err.message })
   }
 }
