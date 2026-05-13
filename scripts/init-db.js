@@ -1,10 +1,18 @@
 import { neon } from '@neondatabase/serverless'
 import { readFileSync } from 'fs'
-import 'dotenv/config'
+import { config } from 'dotenv'
+config({ path: '.env.local' })
+config()
 
-const DATABASE_URL = process.env.POSTGRES_DATABASE_URL || process.env.POSTGRES_URL || process.env.DATABASE_URL
+const DATABASE_URL =
+  process.env.POSTGRES_DATABASE_URL ||
+  process.env.POSTGRES_URL ||
+  process.env.POSTGRES_DATABASE_URL_UNPOOLED ||
+  process.env.POSTGRES_URL_NON_POOLING ||
+  process.env.DATABASE_URL ||
+  process.env.DATABASE_URL_UNPOOLED
 if (!DATABASE_URL) {
-  console.error('No database URL found in env. Looked for POSTGRES_DATABASE_URL, POSTGRES_URL, DATABASE_URL')
+  console.error('No database URL found in env. Looked for POSTGRES_DATABASE_URL, POSTGRES_URL, POSTGRES_DATABASE_URL_UNPOOLED, POSTGRES_URL_NON_POOLING, DATABASE_URL, DATABASE_URL_UNPOOLED')
   process.exit(1)
 }
 
