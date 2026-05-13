@@ -87,6 +87,8 @@ Used on tags, project cards, skill nodes:
 - [x] Phase 9 — Theme Architecture Refactor (multi-theme system, CSS scoped to data-ui, ThemeProvider context, DevThemeSwitcher)
 - [x] Phase 10 — Mobile Fix Pass + Admin Button Placeholder (2026-05-10)
 - [x] Phase 11 — Stats Foundation + Admin Auth (2026-05-10)
+- [x] Phase 14a — Standard UI Foundation (2026-05-11)
+- [x] Phase 14b — Standard UI Inner Pages (2026-05-12)
 
 ## Phase 10 — Mobile Audit Results (2026-05-10)
 
@@ -515,3 +517,39 @@ Standard has its own token namespace (`--bg-base`, `--accent`, `--text-primary`,
 ### Geist fonts
 
 Added to `index.html` via Google Fonts preconnect + link. Also imported in `src/themes/standard/fonts.css`. Both methods load together so the fonts are always available in Standard context.
+
+---
+
+## Phase 14b — Standard UI Inner Pages (2026-05-12)
+
+All 10 inner pages now have Standard UI variants. Digital versions are preserved and untouched.
+
+### Architecture
+
+- Top-level page files (`src/pages/*.jsx`) are now thin theme switchers — they check `themeId` and render the correct variant.
+- Digital implementations moved to `src/pages/digital/Digital[PageName].jsx`.
+- Standard implementations live at `src/components/standard/pages/Standard[PageName].jsx`.
+
+### Standard pages built
+
+- `StandardPortfolio` — hero, filter pills, responsive project grid with hover cards
+- `StandardProjectPage` — sticky back bar, hero, two-column overview+stack+metrics, gallery, model viewer, CTA, related projects
+- `StandardAbout` — hero, portrait+intro, story, capabilities grid, skills pills by discipline, social connect grid, CTA
+- `StandardContact` — hero, two-column: social method cards + react-hook-form (POST /api/contact)
+- `StandardServices` — hero, sticky category tabs, package cards with checkmark deliverables, 4-step process, availability status, IntakeWizard CTA
+- `StandardSkills` — hero, sticky discipline tabs, AnimatePresence-animated detail view (tools + specializations), related projects
+- `StandardLab` — hero, 2-column experiment grid with accentColor previews, newsletter strip
+- `StandardLabExperiment` — back bar, hero, experiment widget wrapped in card, about panel, related experiments
+- `StandardStore` — hero, filter pills, product grid, Standard-native product detail modal (no Digital tokens)
+- `StandardMedia` — hero with YouTube subscribe buttons, featured video lightbox, series tab filter, video grid, newsletter strip
+
+### Shared Standard components added
+
+- `StandardReveal.jsx` — scroll-reveal wrapper (framer-motion, respects prefers-reduced-motion)
+- `StandardSectionHeader.jsx` — eyebrow + heading + subtitle pattern
+- `StandardPillFilter.jsx` — filter pill bar used in Portfolio, Store, Media
+- `StandardButton.jsx` — updated to accept `target` and `rel` props for external links
+
+### Token bridge
+
+`src/themes/standard/tokens.css` now includes Digital-name aliases (`--color-bg-base`, `--color-text-primary`, etc.) that map to Standard equivalents. This allows shared components like `IntakeWizard` to render correctly inside Standard context.

@@ -1,5 +1,22 @@
 /* ─── Standard theme — shared typography & spacing ─── */
 [data-ui="standard"] {
+  /* Bridge Digital-origin token names so shared components render correctly */
+  --color-bg-base:        var(--bg-base);
+  --color-bg-surface:     var(--bg-card);
+  --color-bg-elevated:    var(--bg-elevated);
+  --color-bg-overlay:     var(--bg-overlay);
+  --color-text-primary:   var(--text-primary);
+  --color-text-secondary: var(--text-secondary);
+  --color-text-muted:     var(--text-tertiary);
+  --color-text-accent:    var(--accent);
+  --color-accent-primary: var(--accent);
+  --color-border-subtle:  var(--border-subtle);
+  --color-border-default: var(--border-strong);
+  --color-status-active:  #22C55E;
+  --color-status-beta:    #F59E0B;
+  --color-status-stable:  var(--accent);
+  --color-status-concept: #8B5CF6;
+  --z-modal: 1000;
   --font-display: 'Geist', system-ui, sans-serif;
   --font-body:    'Geist', system-ui, sans-serif;
   --font-mono:    'Geist Mono', ui-monospace, monospace;

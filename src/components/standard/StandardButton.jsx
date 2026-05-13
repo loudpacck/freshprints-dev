@@ -25,6 +25,8 @@ export default function StandardButton({
   size = 'md',
   onClick,
   href,
+  target,
+  rel,
   type = 'button',
   disabled = false,
   style: styleProp,
@@ -71,6 +73,8 @@ export default function StandardButton({
     return (
       <motion.a
         href={href}
+        target={target}
+        rel={rel || (target === '_blank' ? 'noopener noreferrer' : undefined)}
         style={base}
         {...hoverProps}
       >
