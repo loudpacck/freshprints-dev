@@ -39,7 +39,7 @@ function ComingSoon({ tabLabel, message }) {
 }
 
 export default function DigitalMedia() {
-  const [activeTab, setActiveTab] = useState('all')
+  const [activeTab, setActiveTab] = useState('loudd-docs')
   const [playingVideo, setPlayingVideo] = useState(null)
 
   const filteredVideos = getVideosForTab(activeTab)

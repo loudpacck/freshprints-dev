@@ -107,9 +107,9 @@ export default function VideoCard({ video, onPlay }) {
             fontSize: 'var(--text-xs)',
             textTransform: 'uppercase',
             letterSpacing: 'var(--tracking-wider)',
-            color: tab.color,
-            background: `${tab.color}18`,
-            border: `1px solid ${tab.color}33`,
+            color: tab.color ?? 'var(--color-accent-primary)',
+            background: tab.color ? `${tab.color}18` : 'rgba(0,200,255,0.08)',
+            border: `1px solid ${tab.color ? `${tab.color}33` : 'rgba(0,200,255,0.2)'}`,
             borderRadius: 'var(--radius-sm)',
             padding: '2px var(--space-2)',
           }}

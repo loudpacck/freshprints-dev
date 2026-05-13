@@ -416,7 +416,7 @@ export default function StandardMedia() {
   const reduced = useReducedMotion()
   const { themeId } = useTheme()
   const isRetro = themeId === 'retro'
-  const [activeTab, setActiveTab] = useState('all')
+  const [activeTab, setActiveTab] = useState('loudd-docs')
   const [playingVideo, setPlayingVideo] = useState(null)
 
   const TABS = [
