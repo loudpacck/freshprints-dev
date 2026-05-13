@@ -2,6 +2,7 @@ import { useEffect } from 'react'
 import { createPortal } from 'react-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useSound } from '@/sound/useSound'
+import { getEmbedUrl } from '@/data/media'
 
 function formatDate(dateStr) {
   const d = new Date(dateStr + 'T00:00:00')
@@ -86,7 +87,7 @@ export default function VideoLightbox({ video, onClose }) {
           {/* 16:9 iframe */}
           <div style={{ position: 'relative', width: '100%', paddingTop: '56.25%', borderRadius: 'var(--radius-lg)', overflow: 'hidden', background: '#000' }}>
             <iframe
-              src={`https://www.youtube.com/embed/${video.youtubeId}?autoplay=1`}
+              src={getEmbedUrl(video.id)}
               allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
               allowFullScreen
               style={{

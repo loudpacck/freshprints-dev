@@ -248,14 +248,19 @@ The admin button is a UI placeholder only. No authentication is implemented. Pha
 - `StoreFeaturedStrip` (60/40 layout), `ProductGrid` (3-col, AnimatePresence filter), `ProductDetailModal`
 - All in `src/components/store/`
 
-**Media (`src/pages/Media.jsx`):**
-- `FeaturedVideo` — YouTube thumbnail + lightbox on click; "WATCH ON YOUTUBE" external button separate
-- `SeriesFilterTabs` — tabs from `media.series` array in data file
-- `VideoGrid` — 3-col, AnimatePresence filter; videos play in `VideoLightbox` (portal, iframe embed, ESC closes)
-- `NewsletterStrip` — UI-only, shows success state for 3s; wire up to Buttondown/ConvertKit in Phase 7
-- All in `src/components/media/`
-- YouTube thumbnails use `maxresdefault.jpg` → `mqdefault.jpg` → gradient fallback chain
-- Replace placeholder `youtubeId: 'dQw4w9WgXcQ'` values in `src/data/media.js` with real IDs when videos are live
+**Media (`src/pages/Media.jsx`) — Phase 15b restructure:**
+- Data: `src/data/media.js` — `media.tabs[]`, `media.videos[]` (each `{ id (YouTube ID), title, description, tabId, duration, publishedAt }`), `media.featuredVideoId`, `media.newsletterCopy`
+- Helpers: `getThumbnailUrl(id)`, `getThumbnailFallbackUrl(id)`, `getEmbedUrl(id)`, `getVideosForTab(tabId)`, `getTabById(id)`
+- **No more `youtubeId` field** — videos use `id` as the YouTube video ID directly
+- **No more `series` field** — videos use `tabId` linking to `media.tabs[]`
+- `FeaturedVideo` — shown only when `media.featuredVideoId` is set and matches a video in `media.videos[]`
+- `SeriesFilterTabs` — tabs from `media.tabs[]`, "ALL" prepended
+- `VideoGrid` — 3-col, AnimatePresence filter; videos play in `VideoLightbox` (portal, iframe embed, ESC+backdrop closes)
+- `VideoLightbox` — iframe uses `getEmbedUrl(video.id)` → `?autoplay=1&rel=0`
+- `NewsletterStrip` — copy sourced from `media.newsletterCopy`; sends to `/api/contact` with `type: 'newsletter'`
+- Coming-soon empty state: Standard = card+emoji, Retro = Win95 dialog box
+- Hero subscribe buttons: `socialLinks.youtube.general` (@loudd) + `socialLinks.youtube.docs` (@LouddDocs)
+- To add real videos: add entries to `media.videos[]` with `id` = YouTube video ID, set `media.featuredVideoId` to feature one
 
 ## Lab Architecture (Phase 5)
 

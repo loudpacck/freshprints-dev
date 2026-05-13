@@ -2,11 +2,13 @@ import { useState } from 'react'
 import Button from '@/components/ui/Button'
 import LoadingDot from '@/components/ui/LoadingDot'
 import { useSound } from '@/sound/useSound'
+import { media } from '@/data/media'
 
 export default function NewsletterStrip() {
   const [email, setEmail] = useState('')
   const [status, setStatus] = useState('idle') // idle | loading | success | error
   const { play } = useSound()
+  const copy = media.newsletterCopy
 
   async function handleSubmit(e) {
     e.preventDefault()
@@ -53,7 +55,7 @@ export default function NewsletterStrip() {
           marginBottom: 'var(--space-4)',
         }}
       >
-        // DISPATCH
+        {copy.eyebrow}
       </p>
 
       <h2
@@ -65,7 +67,7 @@ export default function NewsletterStrip() {
           marginBottom: 'var(--space-3)',
         }}
       >
-        GET NOTIFIED
+        {copy.heading}
       </h2>
 
       <p
@@ -78,7 +80,7 @@ export default function NewsletterStrip() {
           margin: '0 auto var(--space-8)',
         }}
       >
-        Get notified when I ship something new. No spam, no fluff. Just the build log.
+        {copy.body}
       </p>
 
       {status === 'success' && (
@@ -92,7 +94,7 @@ export default function NewsletterStrip() {
             animation: 'fadeIn 0.3s ease both',
           }}
         >
-          // SUBSCRIBED. CHECK YOUR INBOX.
+          {copy.success}
         </p>
       )}
 
@@ -128,7 +130,7 @@ export default function NewsletterStrip() {
             value={email}
             onChange={e => setEmail(e.target.value)}
             required
-            aria-label="Email address for dispatch newsletter"
+            aria-label="Email address for newsletter"
             style={{
               fontFamily: 'var(--font-mono)',
               fontSize: 'var(--text-sm)',
@@ -151,7 +153,7 @@ export default function NewsletterStrip() {
             disabled={status === 'loading'}
             icon={status === 'loading' ? <LoadingDot size={6} color="var(--color-text-inverse)" /> : null}
           >
-            {status === 'loading' ? 'SENDING' : 'SUBSCRIBE'}
+            {status === 'loading' ? 'SENDING' : copy.cta}
           </Button>
         </form>
       )}

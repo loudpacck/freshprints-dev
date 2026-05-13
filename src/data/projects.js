@@ -175,7 +175,7 @@ export const projects = [
   },
   {
     slug: 'fresh-prints-prototypes',
-    name: 'Fresh Prints — Production Prototypes',
+    name: 'Fresh Prints - Production & Design',
     tagline: 'End-to-end product prototyping and small-batch manufacturing',
     description: 'A portfolio of physical prototypes designed and manufactured under the Fresh Prints brand. Covers concept modeling, design-for-manufacturing review, FDM printing, and small-batch production. Each piece is designed for real-world function — not just visual mockups.',
     category: ['engineering'],

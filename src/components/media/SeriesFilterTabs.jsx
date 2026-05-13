@@ -1,7 +1,7 @@
 import { media } from '@/data/media'
 
-const ALL_TAB = { id: 'all', label: 'ALL', color: 'var(--color-text-secondary)' }
-const TABS = [ALL_TAB, ...media.series]
+const ALL_TAB = { id: 'all', label: 'ALL', color: null }
+const TABS = [ALL_TAB, ...media.tabs]
 
 export default function SeriesFilterTabs({ active, onChange }) {
   return (

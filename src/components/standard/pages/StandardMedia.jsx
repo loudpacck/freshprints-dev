@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react'
 import { createPortal } from 'react-dom'
 import { motion, AnimatePresence } from 'framer-motion'
-import { media, getVideosBySeries } from '@/data/media'
+import { media, getVideosForTab, getThumbnailUrl, getThumbnailFallbackUrl, getEmbedUrl } from '@/data/media'
 import { socialLinks } from '@/data/socialLinks'
+import { useTheme } from '@/themes/useTheme'
 import useReducedMotion from '@/hooks/useReducedMotion'
 import Reveal from '@/components/standard/StandardReveal'
 import StandardButton from '@/components/standard/StandardButton'
@@ -75,7 +76,7 @@ function VideoLightboxModal({ video, onClose }) {
           </button>
           <div style={{ position: 'relative', paddingBottom: '56.25%', borderRadius: 'var(--radius-xl)', overflow: 'hidden' }}>
             <iframe
-              src={`https://www.youtube.com/embed/${video.youtubeId}?autoplay=1&rel=0`}
+              src={getEmbedUrl(video.id)}
               title={video.title}
               allow="autoplay; encrypted-media"
               allowFullScreen
@@ -96,15 +97,13 @@ function VideoLightboxModal({ video, onClose }) {
 }
 
 function VideoThumbnail({ video, onPlay }) {
-  const [imgSrc, setImgSrc] = useState(
-    `https://img.youtube.com/vi/${video.youtubeId}/maxresdefault.jpg`
-  )
+  const [imgSrc, setImgSrc] = useState(() => getThumbnailUrl(video.id))
   const [level, setLevel] = useState(0)
   const reduced = useReducedMotion()
 
   function handleError() {
     if (level === 0) {
-      setImgSrc(`https://img.youtube.com/vi/${video.youtubeId}/mqdefault.jpg`)
+      setImgSrc(getThumbnailFallbackUrl(video.id))
       setLevel(1)
     }
   }
@@ -207,9 +206,119 @@ function VideoThumbnail({ video, onPlay }) {
   )
 }
 
+function ComingSoon({ tabLabel, isRetro }) {
+  if (isRetro) {
+    return (
+      <div style={{
+        padding: 'var(--space-16) 0',
+        display: 'flex',
+        justifyContent: 'center',
+      }}>
+        <div style={{
+          background: 'var(--bg-elevated)',
+          boxShadow: `inset 1px 1px 0 var(--bevel-highlight), inset -1px -1px 0 var(--bevel-dark), inset 2px 2px 0 var(--bevel-light), inset -2px -2px 0 var(--bevel-shadow)`,
+          padding: 24,
+          maxWidth: 380,
+          width: '100%',
+        }}>
+          <div style={{
+            background: 'linear-gradient(90deg, #000080, #1084d0)',
+            padding: '3px 8px',
+            marginBottom: 16,
+            display: 'flex',
+            alignItems: 'center',
+            gap: 8,
+          }}>
+            <span style={{ fontSize: 14 }}>📺</span>
+            <span style={{ fontFamily: 'var(--font-body)', fontSize: 12, fontWeight: 700, color: '#fff' }}>
+              {tabLabel ?? 'Videos'} — Coming Soon
+            </span>
+          </div>
+          <p style={{
+            fontFamily: 'var(--font-body)',
+            fontSize: 13,
+            color: 'var(--text-primary)',
+            margin: '0 0 16px',
+            lineHeight: 1.6,
+          }}>
+            Content is in production. Subscribe on YouTube to get notified when it drops.
+          </p>
+          <div style={{
+            display: 'flex',
+            justifyContent: 'flex-end',
+            gap: 8,
+          }}>
+            <a
+              href={socialLinks.youtube.general.url}
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{
+                background: 'var(--bg-elevated)',
+                boxShadow: `inset 1px 1px 0 var(--bevel-highlight), inset -1px -1px 0 var(--bevel-dark), inset 2px 2px 0 var(--bevel-light), inset -2px -2px 0 var(--bevel-shadow)`,
+                border: 'none',
+                padding: '4px 12px',
+                fontFamily: 'var(--font-body)',
+                fontSize: 13,
+                color: 'var(--text-primary)',
+                cursor: 'pointer',
+                textDecoration: 'none',
+                display: 'inline-block',
+              }}
+            >
+              Subscribe
+            </a>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <div style={{
+      textAlign: 'center',
+      padding: 'var(--space-20) 0',
+    }}>
+      <div style={{
+        width: 64,
+        height: 64,
+        borderRadius: 'var(--radius-2xl)',
+        background: 'var(--bg-elevated)',
+        border: '1px solid var(--border-subtle)',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        margin: '0 auto var(--space-6)',
+        fontSize: 28,
+      }}>
+        🎬
+      </div>
+      <h3 style={{
+        fontFamily: 'var(--font-body)',
+        fontWeight: 'var(--weight-semibold)',
+        fontSize: 'var(--text-2xl)',
+        color: 'var(--text-primary)',
+        marginBottom: 'var(--space-3)',
+      }}>
+        {tabLabel ? `${tabLabel} coming soon` : 'Videos coming soon'}
+      </h3>
+      <p style={{
+        fontFamily: 'var(--font-body)',
+        fontSize: 'var(--text-base)',
+        color: 'var(--text-secondary)',
+        maxWidth: 380,
+        margin: '0 auto',
+        lineHeight: 'var(--leading-normal)',
+      }}>
+        Content is in production. Subscribe to get notified when it drops.
+      </p>
+    </div>
+  )
+}
+
 function NewsletterStrip() {
   const [email, setEmail] = useState('')
   const [status, setStatus] = useState('idle')
+  const copy = media.newsletterCopy
 
   async function handleSubmit(e) {
     e.preventDefault()
@@ -244,7 +353,7 @@ function NewsletterStrip() {
               letterSpacing: 'var(--tracking-wider)',
               marginBottom: 'var(--space-3)',
             }}>
-              // NEWSLETTER
+              {copy.eyebrow}
             </div>
             <h2 style={{
               fontFamily: 'var(--font-body)',
@@ -254,7 +363,7 @@ function NewsletterStrip() {
               letterSpacing: 'var(--tracking-tight)',
               marginBottom: 'var(--space-3)',
             }}>
-              Stay in the loop
+              {copy.heading}
             </h2>
             <p style={{
               fontFamily: 'var(--font-body)',
@@ -263,11 +372,11 @@ function NewsletterStrip() {
               lineHeight: 'var(--leading-normal)',
               marginBottom: 'var(--space-6)',
             }}>
-              Notes when new videos, devlogs, and builds ship.
+              {copy.body}
             </p>
             {status === 'success' ? (
               <div style={{ fontFamily: 'var(--font-body)', fontSize: 'var(--text-base)', color: '#22C55E' }}>
-                You're in. Check your inbox.
+                {copy.success}
               </div>
             ) : (
               <form onSubmit={handleSubmit} style={{ display: 'flex', gap: 'var(--space-3)', maxWidth: 400, margin: '0 auto' }}>
@@ -292,7 +401,7 @@ function NewsletterStrip() {
                   onBlur={e => e.target.style.borderColor = 'var(--border-subtle)'}
                 />
                 <StandardButton type="submit" disabled={status === 'loading'}>
-                  {status === 'loading' ? '…' : 'Subscribe'}
+                  {status === 'loading' ? '…' : copy.cta}
                 </StandardButton>
               </form>
             )}
@@ -305,16 +414,22 @@ function NewsletterStrip() {
 
 export default function StandardMedia() {
   const reduced = useReducedMotion()
-  const [activeSeries, setActiveSeries] = useState('all')
+  const { themeId } = useTheme()
+  const isRetro = themeId === 'retro'
+  const [activeTab, setActiveTab] = useState('all')
   const [playingVideo, setPlayingVideo] = useState(null)
 
-  const SERIES_TABS = [
+  const TABS = [
     { id: 'all', label: 'All Videos' },
-    ...media.series.map(s => ({ id: s.id, label: s.label })),
+    ...media.tabs.map(t => ({ id: t.id, label: t.label })),
   ]
 
-  const filteredVideos = getVideosBySeries(activeSeries)
-  const featured = media.featured
+  const filteredVideos = getVideosForTab(activeTab)
+  const featuredVideo = media.featuredVideoId
+    ? media.videos.find(v => v.id === media.featuredVideoId) ?? null
+    : null
+
+  const activeTabLabel = media.tabs.find(t => t.id === activeTab)?.label ?? null
 
   return (
     <motion.div
@@ -363,10 +478,10 @@ export default function StandardMedia() {
               Devlogs, build series, and mini-documentaries.
             </p>
             <div style={{ display: 'flex', gap: 'var(--space-3)', flexWrap: 'wrap' }}>
-              <StandardButton variant="secondary" href={socialLinks.youtube.general.url} target="_blank">
+              <StandardButton variant="secondary" href={socialLinks.youtube.general.url} target="_blank" rel="noopener noreferrer">
                 Subscribe — {socialLinks.youtube.general.handle}
               </StandardButton>
-              <StandardButton variant="ghost" href={socialLinks.youtube.docs.url} target="_blank">
+              <StandardButton variant="ghost" href={socialLinks.youtube.docs.url} target="_blank" rel="noopener noreferrer">
                 Mini Docs — {socialLinks.youtube.docs.handle}
               </StandardButton>
             </div>
@@ -375,7 +490,7 @@ export default function StandardMedia() {
       </section>
 
       {/* Featured video */}
-      {featured && (
+      {featuredVideo && (
         <section className="s-section" style={{ background: 'var(--bg-base)' }}>
           <div className="s-container">
             <Reveal>
@@ -390,7 +505,7 @@ export default function StandardMedia() {
                 Featured
               </div>
               <div
-                onClick={() => setPlayingVideo(featured)}
+                onClick={() => setPlayingVideo(featuredVideo)}
                 style={{
                   cursor: 'pointer',
                   borderRadius: 'var(--radius-2xl)',
@@ -401,12 +516,10 @@ export default function StandardMedia() {
               >
                 <div style={{ position: 'relative', aspectRatio: '16/9', background: 'var(--bg-elevated)' }}>
                   <img
-                    src={`https://img.youtube.com/vi/${featured.youtubeId}/maxresdefault.jpg`}
-                    alt={featured.title}
+                    src={getThumbnailUrl(featuredVideo.id)}
+                    alt={featuredVideo.title}
                     style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
-                    onError={e => {
-                      e.target.src = `https://img.youtube.com/vi/${featured.youtubeId}/mqdefault.jpg`
-                    }}
+                    onError={e => { e.target.src = getThumbnailFallbackUrl(featuredVideo.id) }}
                   />
                   <div style={{
                     position: 'absolute',
@@ -442,7 +555,7 @@ export default function StandardMedia() {
                     color: 'var(--text-primary)',
                     marginBottom: 'var(--space-2)',
                   }}>
-                    {featured.title}
+                    {featuredVideo.title}
                   </h2>
                   <p style={{
                     fontFamily: 'var(--font-body)',
@@ -450,7 +563,7 @@ export default function StandardMedia() {
                     color: 'var(--text-secondary)',
                     lineHeight: 'var(--leading-normal)',
                   }}>
-                    {featured.description}
+                    {featuredVideo.description}
                   </p>
                 </div>
               </div>
@@ -459,7 +572,7 @@ export default function StandardMedia() {
         </section>
       )}
 
-      {/* Series filter */}
+      {/* Tab filter */}
       <div style={{
         position: 'sticky',
         top: 'var(--nav-height)',
@@ -471,18 +584,18 @@ export default function StandardMedia() {
       }}>
         <div className="s-container" style={{ padding: 0 }}>
           <div style={{ display: 'flex', overflowX: 'auto', WebkitOverflowScrolling: 'touch', scrollbarWidth: 'none' }}>
-            {SERIES_TABS.map(tab => (
+            {TABS.map(tab => (
               <button
                 key={tab.id}
-                onClick={() => setActiveSeries(tab.id)}
+                onClick={() => setActiveTab(tab.id)}
                 style={{
                   fontFamily: 'var(--font-body)',
                   fontSize: 'var(--text-sm)',
                   fontWeight: 'var(--weight-medium)',
-                  color: activeSeries === tab.id ? 'var(--text-primary)' : 'var(--text-secondary)',
+                  color: activeTab === tab.id ? 'var(--text-primary)' : 'var(--text-secondary)',
                   background: 'none',
                   border: 'none',
-                  borderBottom: `2px solid ${activeSeries === tab.id ? 'var(--accent)' : 'transparent'}`,
+                  borderBottom: `2px solid ${activeTab === tab.id ? 'var(--accent)' : 'transparent'}`,
                   cursor: 'pointer',
                   padding: 'var(--space-4) var(--space-5)',
                   whiteSpace: 'nowrap',
@@ -496,35 +609,30 @@ export default function StandardMedia() {
         </div>
       </div>
 
-      {/* Video grid */}
+      {/* Video grid or coming soon */}
       <section className="s-section" style={{ background: 'var(--bg-base)' }}>
         <div className="s-container">
           <AnimatePresence mode="wait">
             <motion.div
-              key={activeSeries}
+              key={activeTab}
               initial={reduced ? {} : { opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               transition={{ duration: 0.25 }}
-              className="s-grid-3"
             >
-              {filteredVideos.map((video, i) => (
-                <Reveal key={video.id} delay={i * 0.04}>
-                  <VideoThumbnail video={video} onPlay={setPlayingVideo} />
-                </Reveal>
-              ))}
+              {filteredVideos.length > 0 ? (
+                <div className="s-grid-3">
+                  {filteredVideos.map((video, i) => (
+                    <Reveal key={video.id} delay={i * 0.04}>
+                      <VideoThumbnail video={video} onPlay={setPlayingVideo} />
+                    </Reveal>
+                  ))}
+                </div>
+              ) : (
+                <ComingSoon tabLabel={activeTabLabel} isRetro={isRetro} />
+              )}
             </motion.div>
           </AnimatePresence>
-          {filteredVideos.length === 0 && (
-            <div style={{
-              textAlign: 'center',
-              padding: 'var(--space-16) 0',
-              fontFamily: 'var(--font-body)',
-              color: 'var(--text-secondary)',
-            }}>
-              No videos in this series yet.
-            </div>
-          )}
         </div>
       </section>
 

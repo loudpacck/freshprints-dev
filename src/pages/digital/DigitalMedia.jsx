@@ -1,17 +1,50 @@
 import { useState } from 'react'
 import { motion } from 'framer-motion'
-import { media, getVideosBySeries } from '@/data/media'
+import { media, getVideosForTab, getThumbnailUrl, getThumbnailFallbackUrl, getEmbedUrl } from '@/data/media'
 import FeaturedVideo from '@/components/media/FeaturedVideo'
 import SeriesFilterTabs from '@/components/media/SeriesFilterTabs'
 import VideoGrid from '@/components/media/VideoGrid'
 import VideoLightbox from '@/components/media/VideoLightbox'
 import NewsletterStrip from '@/components/media/NewsletterStrip'
 
-export default function Media() {
-  const [activeSeries, setActiveSeries] = useState('all')
+function ComingSoon({ tabLabel }) {
+  return (
+    <div style={{
+      padding: 'var(--space-20) 0',
+      textAlign: 'center',
+    }}>
+      <p style={{
+        fontFamily: 'var(--font-mono)',
+        fontSize: 'var(--text-xs)',
+        color: 'var(--color-text-accent)',
+        textTransform: 'uppercase',
+        letterSpacing: 'var(--tracking-widest)',
+        marginBottom: 'var(--space-4)',
+      }}>
+        // {tabLabel?.toUpperCase() ?? 'ALL'} — INCOMING
+      </p>
+      <p style={{
+        fontFamily: 'var(--font-mono)',
+        fontSize: 'var(--text-base)',
+        color: 'var(--color-text-muted)',
+        letterSpacing: 'var(--tracking-wide)',
+      }}>
+        CONTENT UPLOADING SOON...
+      </p>
+    </div>
+  )
+}
+
+export default function DigitalMedia() {
+  const [activeTab, setActiveTab] = useState('all')
   const [playingVideo, setPlayingVideo] = useState(null)
 
-  const filteredVideos = getVideosBySeries(activeSeries)
+  const filteredVideos = getVideosForTab(activeTab)
+  const featuredVideo = media.featuredVideoId
+    ? media.videos.find(v => v.id === media.featuredVideoId) ?? null
+    : null
+
+  const activeTabLabel = media.tabs.find(t => t.id === activeTab)?.label ?? null
 
   return (
     <>
@@ -76,39 +109,66 @@ export default function Media() {
                   margin: 0,
                 }}
               >
-                Devlogs, build series, and one-offs from the workshop.
+                Devlogs, build series, and mini-docs from the workshop.
               </p>
             </div>
 
-            <a
-              href={media.channelUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              style={{
-                fontFamily: 'var(--font-mono)',
-                fontSize: 'var(--text-xs)',
-                color: 'var(--color-text-accent)',
-                textTransform: 'uppercase',
-                letterSpacing: 'var(--tracking-wider)',
-                textDecoration: 'none',
-                display: 'flex',
-                alignItems: 'center',
-                gap: 'var(--space-2)',
-                whiteSpace: 'nowrap',
-              }}
-            >
-              → SUBSCRIBE ON YOUTUBE
-            </a>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-2)', alignItems: 'flex-end' }}>
+              <a
+                href={media.channelUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{
+                  fontFamily: 'var(--font-mono)',
+                  fontSize: 'var(--text-xs)',
+                  color: 'var(--color-text-accent)',
+                  textTransform: 'uppercase',
+                  letterSpacing: 'var(--tracking-wider)',
+                  textDecoration: 'none',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 'var(--space-2)',
+                  whiteSpace: 'nowrap',
+                }}
+              >
+                → SUBSCRIBE — @loudd
+              </a>
+              <a
+                href={media.docsChannelUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{
+                  fontFamily: 'var(--font-mono)',
+                  fontSize: 'var(--text-xs)',
+                  color: 'var(--color-text-muted)',
+                  textTransform: 'uppercase',
+                  letterSpacing: 'var(--tracking-wider)',
+                  textDecoration: 'none',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 'var(--space-2)',
+                  whiteSpace: 'nowrap',
+                }}
+              >
+                → SUBSCRIBE — @loudddocs
+              </a>
+            </div>
           </div>
 
           {/* Featured video */}
-          <FeaturedVideo video={media.featured} channelUrl={media.channelUrl} />
+          {featuredVideo && (
+            <FeaturedVideo video={featuredVideo} channelUrl={media.channelUrl} />
+          )}
 
-          {/* Series filter */}
-          <SeriesFilterTabs active={activeSeries} onChange={setActiveSeries} />
+          {/* Tab filter */}
+          <SeriesFilterTabs active={activeTab} onChange={setActiveTab} />
 
-          {/* Video grid */}
-          <VideoGrid videos={filteredVideos} onPlay={setPlayingVideo} />
+          {/* Video grid or coming soon */}
+          {filteredVideos.length > 0 ? (
+            <VideoGrid videos={filteredVideos} onPlay={setPlayingVideo} />
+          ) : (
+            <ComingSoon tabLabel={activeTabLabel} />
+          )}
 
           {/* Newsletter */}
           <NewsletterStrip />

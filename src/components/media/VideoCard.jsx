@@ -1,19 +1,19 @@
 import { useState } from 'react'
 import Card from '@/components/ui/Card'
-import { getSeries } from '@/data/media'
+import { getTabById, getThumbnailUrl, getThumbnailFallbackUrl } from '@/data/media'
 
 function formatDate(dateStr) {
   const d = new Date(dateStr + 'T00:00:00')
   return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }).toUpperCase()
 }
 
-function VideoThumbnail({ youtubeId, title }) {
-  const [src, setSrc] = useState(`https://img.youtube.com/vi/${youtubeId}/maxresdefault.jpg`)
+function VideoThumbnail({ videoId, title }) {
+  const [src, setSrc] = useState(() => getThumbnailUrl(videoId))
   const [fallbackStage, setFallbackStage] = useState(0)
 
   function handleError() {
     if (fallbackStage === 0) {
-      setSrc(`https://img.youtube.com/vi/${youtubeId}/mqdefault.jpg`)
+      setSrc(getThumbnailFallbackUrl(videoId))
       setFallbackStage(1)
     } else {
       setFallbackStage(2)
@@ -70,33 +70,35 @@ function VideoThumbnail({ youtubeId, title }) {
 }
 
 export default function VideoCard({ video, onPlay }) {
-  const series = getSeries(video.series)
+  const tab = getTabById(video.tabId)
 
   return (
     <Card hoverable onClick={() => onPlay(video)} style={{ cursor: 'pointer', display: 'flex', flexDirection: 'column', gap: 'var(--space-3)', position: 'relative' }}>
       {/* Thumbnail with duration badge */}
       <div style={{ position: 'relative' }}>
-        <VideoThumbnail youtubeId={video.youtubeId} title={video.title} />
-        <span
-          style={{
-            position: 'absolute',
-            bottom: 'var(--space-2)',
-            right: 'var(--space-2)',
-            fontFamily: 'var(--font-mono)',
-            fontSize: 'var(--text-xs)',
-            color: 'var(--color-text-primary)',
-            background: 'var(--color-bg-overlay)',
-            padding: '2px var(--space-2)',
-            borderRadius: 'var(--radius-sm)',
-            letterSpacing: 'var(--tracking-wide)',
-          }}
-        >
-          {video.duration}
-        </span>
+        <VideoThumbnail videoId={video.id} title={video.title} />
+        {video.duration && (
+          <span
+            style={{
+              position: 'absolute',
+              bottom: 'var(--space-2)',
+              right: 'var(--space-2)',
+              fontFamily: 'var(--font-mono)',
+              fontSize: 'var(--text-xs)',
+              color: 'var(--color-text-primary)',
+              background: 'var(--color-bg-overlay)',
+              padding: '2px var(--space-2)',
+              borderRadius: 'var(--radius-sm)',
+              letterSpacing: 'var(--tracking-wide)',
+            }}
+          >
+            {video.duration}
+          </span>
+        )}
       </div>
 
-      {/* Series tag */}
-      {series && (
+      {/* Tab tag */}
+      {tab && (
         <span
           style={{
             display: 'inline-flex',
@@ -105,14 +107,14 @@ export default function VideoCard({ video, onPlay }) {
             fontSize: 'var(--text-xs)',
             textTransform: 'uppercase',
             letterSpacing: 'var(--tracking-wider)',
-            color: series.color,
-            background: `${series.color}18`,
-            border: `1px solid ${series.color}33`,
+            color: tab.color,
+            background: `${tab.color}18`,
+            border: `1px solid ${tab.color}33`,
             borderRadius: 'var(--radius-sm)',
             padding: '2px var(--space-2)',
           }}
         >
-          {series.label}
+          {tab.label}
         </span>
       )}
 
@@ -153,17 +155,19 @@ export default function VideoCard({ video, onPlay }) {
       </p>
 
       {/* Date */}
-      <p
-        style={{
-          fontFamily: 'var(--font-mono)',
-          fontSize: 'var(--text-xs)',
-          color: 'var(--color-text-muted)',
-          margin: 0,
-          letterSpacing: 'var(--tracking-wide)',
-        }}
-      >
-        {formatDate(video.publishedAt)}
-      </p>
+      {video.publishedAt && (
+        <p
+          style={{
+            fontFamily: 'var(--font-mono)',
+            fontSize: 'var(--text-xs)',
+            color: 'var(--color-text-muted)',
+            margin: 0,
+            letterSpacing: 'var(--tracking-wide)',
+          }}
+        >
+          {formatDate(video.publishedAt)}
+        </p>
+      )}
     </Card>
   )
 }

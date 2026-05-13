@@ -171,20 +171,19 @@ export default function RetroLanding() {
         {/* C. About */}
         <RetroCard title="About Me">
           <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
-            {/* Portrait placeholder */}
+            {/* Portrait — Win95 beveled frame */}
             <div style={{
               width: 80,
               height: 80,
-              background: 'var(--bg-content)',
               flexShrink: 0,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              boxShadow: 'inset 1px 1px 0 var(--bevel-shadow)',
+              boxShadow: `inset -1px -1px 0 var(--bevel-highlight), inset 1px 1px 0 var(--bevel-dark), inset -2px -2px 0 var(--bevel-light), inset 2px 2px 0 var(--bevel-shadow)`,
+              overflow: 'hidden',
             }}>
-              <span style={{ fontFamily: 'var(--font-display)', fontSize: 7, color: 'var(--text-tertiary)', textAlign: 'center', lineHeight: 1.4 }}>
-                PHOTO
-              </span>
+              <img
+                src="/images/profile_picture/prof pic 1.jpg"
+                alt="Kyle DeBord"
+                style={{ width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'center top', display: 'block' }}
+              />
             </div>
             <div style={{ flex: 1, minWidth: 140 }}>
               <p style={{

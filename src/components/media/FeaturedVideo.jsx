@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import Button from '@/components/ui/Button'
 import VideoLightbox from './VideoLightbox'
+import { getThumbnailUrl, getThumbnailFallbackUrl } from '@/data/media'
 
 function formatDate(dateStr) {
   const d = new Date(dateStr + 'T00:00:00')
@@ -8,13 +9,12 @@ function formatDate(dateStr) {
 }
 
 function Thumbnail({ video, onClick }) {
-  const [imgError, setImgError] = useState(false)
   const [fallbackStage, setFallbackStage] = useState(0)
-  const [src, setSrc] = useState(`https://img.youtube.com/vi/${video.youtubeId}/maxresdefault.jpg`)
+  const [src, setSrc] = useState(() => getThumbnailUrl(video.id))
 
   function handleError() {
     if (fallbackStage === 0) {
-      setSrc(`https://img.youtube.com/vi/${video.youtubeId}/mqdefault.jpg`)
+      setSrc(getThumbnailFallbackUrl(video.id))
       setFallbackStage(1)
     } else {
       setFallbackStage(2)
@@ -138,17 +138,19 @@ export default function FeaturedVideo({ video, channelUrl }) {
             {video.description}
           </p>
 
-          <p
-            style={{
-              fontFamily: 'var(--font-mono)',
-              fontSize: 'var(--text-xs)',
-              color: 'var(--color-text-muted)',
-              letterSpacing: 'var(--tracking-wide)',
-              margin: 0,
-            }}
-          >
-            {video.duration} · {formatDate(video.publishedAt)}
-          </p>
+          {video.duration && video.publishedAt && (
+            <p
+              style={{
+                fontFamily: 'var(--font-mono)',
+                fontSize: 'var(--text-xs)',
+                color: 'var(--color-text-muted)',
+                letterSpacing: 'var(--tracking-wide)',
+                margin: 0,
+              }}
+            >
+              {video.duration} · {formatDate(video.publishedAt)}
+            </p>
+          )}
 
           <div style={{ display: 'flex', gap: 'var(--space-3)', marginTop: 'var(--space-2)', flexWrap: 'wrap' }}>
             <Button variant="primary" onClick={() => setLightboxOpen(true)}>
