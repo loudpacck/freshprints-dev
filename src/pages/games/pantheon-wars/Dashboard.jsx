@@ -11,11 +11,11 @@ const CLASS_LABEL   = { warden: 'Warden', oracle: 'Oracle', slayer: 'Slayer', br
 
 const NAV_ITEMS = [
   { label: 'QUESTS',      glyph: '⚔',  path: '/games/pantheon-wars/quests'      },
-  { label: 'INVENTORY',   glyph: '◈',  path: '/games/pantheon-wars/inventory',   comingSoon: true },
-  { label: 'SHOP',        glyph: '₯',  path: '/games/pantheon-wars/shop',        comingSoon: true },
+  { label: 'INVENTORY',   glyph: '◈',  path: '/games/pantheon-wars/inventory'                   },
+  { label: 'SHOP',        glyph: '₯',  path: '/games/pantheon-wars/shop'                         },
   { label: 'TEMPLES',     glyph: '⬟',  path: '/games/pantheon-wars/temples',     comingSoon: true },
   { label: 'ARENA',       glyph: '⚡',  path: '/games/pantheon-wars/pvp',         comingSoon: true },
-  { label: 'LEADERBOARD', glyph: '★',  path: '/games/pantheon-wars/leaderboard', comingSoon: true },
+  { label: 'LEADERBOARD', glyph: '★',  path: '/games/pantheon-wars/leaderboard'                  },
   { label: 'PROFILE',     glyph: '◎',  path: '/games/pantheon-wars/profile'      },
 ]
 

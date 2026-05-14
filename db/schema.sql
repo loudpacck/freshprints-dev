@@ -127,3 +127,38 @@ CREATE TABLE pw_quest_progress (
 );
 
 CREATE INDEX idx_pw_quest_progress_user ON pw_quest_progress(user_id);
+
+-- Pantheon Wars: Equipment catalog (seeded, not user-generated)
+CREATE TABLE pw_items (
+    id SERIAL PRIMARY KEY,
+    name VARCHAR(100) NOT NULL,
+    description TEXT,
+    slot VARCHAR(20) NOT NULL CHECK (slot IN ('weapon', 'armor', 'artifact', 'mount', 'companion')),
+    attack_bonus INTEGER DEFAULT 0,
+    defense_bonus INTEGER DEFAULT 0,
+    rarity VARCHAR(20) DEFAULT 'common' CHECK (rarity IN ('common', 'uncommon', 'rare', 'epic', 'legendary')),
+    level_required INTEGER DEFAULT 1,
+    faction_exclusive VARCHAR(20) DEFAULT NULL,
+    buy_price INTEGER DEFAULT NULL,
+    sell_price INTEGER DEFAULT 0,
+    glory_price INTEGER DEFAULT NULL
+);
+
+-- Pantheon Wars: Player inventory (many items per player)
+CREATE TABLE pw_inventory (
+    id SERIAL PRIMARY KEY,
+    user_id UUID REFERENCES pw_users(id) ON DELETE CASCADE,
+    item_id INTEGER REFERENCES pw_items(id),
+    equipped BOOLEAN DEFAULT FALSE,
+    acquired_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Pantheon Wars: Quest loot tables (which items can drop from which quests)
+CREATE TABLE pw_quest_loot (
+    quest_id INTEGER REFERENCES pw_quests(id),
+    item_id INTEGER REFERENCES pw_items(id),
+    drop_weight INTEGER DEFAULT 1,
+    PRIMARY KEY (quest_id, item_id)
+);
+
+CREATE INDEX idx_pw_inventory_user ON pw_inventory(user_id);

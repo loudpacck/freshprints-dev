@@ -70,8 +70,27 @@ export default requireUser(async function handler(req, res) {
     stats = checkLevelUp(stats)
     const levelsGained = stats.level - prevLevel
 
-    // Loot roll (Phase 3 will resolve item drops; placeholder for now)
-    const lootDropped = quest.loot_chance > 0 && Math.random() * 100 <= quest.loot_chance
+    // Loot roll — pick a random item from pw_quest_loot if applicable
+    let lootItem = null
+    if (quest.loot_chance > 0 && Math.random() * 100 <= quest.loot_chance) {
+      const lootRows = await sql`
+        SELECT i.id, i.name, i.rarity, i.slot, ql.drop_weight
+        FROM pw_quest_loot ql
+        JOIN pw_items i ON i.id = ql.item_id
+        WHERE ql.quest_id = ${quest_id}
+      `
+      if (lootRows.length > 0) {
+        const totalWeight = lootRows.reduce((sum, r) => sum + r.drop_weight, 0)
+        let roll = Math.random() * totalWeight
+        let picked = lootRows[lootRows.length - 1]
+        for (const row of lootRows) {
+          roll -= row.drop_weight
+          if (roll <= 0) { picked = row; break }
+        }
+        await sql`INSERT INTO pw_inventory (user_id, item_id) VALUES (${req.userId}, ${picked.id})`
+        lootItem = { id: picked.id, name: picked.name, rarity: picked.rarity, slot: picked.slot }
+      }
+    }
 
     // Increment mastery
     const progRows = await sql`
@@ -103,7 +122,7 @@ export default requireUser(async function handler(req, res) {
 
     return res.status(200).json({
       success:      true,
-      rewards:      { xp: earnedXp, drachma: earnedDrachma, loot: lootDropped ? 'drop' : null },
+      rewards:      { xp: earnedXp, drachma: earnedDrachma, loot: lootItem },
       levelsGained,
       completions:  newCompletions,
       stats: {

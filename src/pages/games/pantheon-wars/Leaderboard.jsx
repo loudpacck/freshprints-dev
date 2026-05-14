@@ -1,101 +1,390 @@
-import { Link } from 'react-router-dom'
-import { motion } from 'framer-motion'
+import { useState, useEffect, useCallback } from 'react'
+import { Link, useNavigate } from 'react-router-dom'
+import { motion, AnimatePresence } from 'framer-motion'
+import { usePantheonWars } from '@/contexts/PantheonWarsContext'
 
-export default function Leaderboard() {
+// ─── Constants ────────────────────────────────────────────────────────────────
+
+const FACTION_COLOR = { olympians: '#F5C542', aesir: '#78C5F0', annunaki: '#CF4444' }
+const FACTION_LABEL = { olympians: 'Olympians', aesir: 'Aesir', annunaki: 'Annunaki' }
+const CLASS_LABEL   = { warden: 'Warden', oracle: 'Oracle', slayer: 'Slayer', broker: 'Broker' }
+
+const TYPES = [
+  { key: 'level',   label: 'LEVEL',   glyph: '◎', unit: '' },
+  { key: 'glory',   label: 'GLORY',   glyph: '★', unit: '' },
+  { key: 'drachma', label: 'DRACHMA', glyph: '₯', unit: '₯' },
+  { key: 'mastery', label: 'MASTERY', glyph: '◆', unit: '' },
+]
+
+const FACTIONS = [
+  { key: 'all',       label: 'ALL'       },
+  { key: 'olympians', label: 'OLYMPIANS' },
+  { key: 'aesir',     label: 'AESIR'     },
+  { key: 'annunaki',  label: 'ANNUNAKI'  },
+]
+
+const MEDAL = ['🥇', '🥈', '🥉']
+
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+
+function fmt(n) { return Number(n).toLocaleString() }
+
+function hexRgb(hex) {
+  if (!hex || hex[0] !== '#') return '240,240,248'
+  const r = parseInt(hex.slice(1, 3), 16)
+  const g = parseInt(hex.slice(3, 5), 16)
+  const b = parseInt(hex.slice(5, 7), 16)
+  return `${r},${g},${b}`
+}
+
+function Skeleton({ h = 20, w = '100%', r = 6 }) {
+  return <div className="pw-skel" style={{ height: h, width: w, borderRadius: r }} />
+}
+
+// ─── Sub-components ───────────────────────────────────────────────────────────
+
+function RankRow({ entry, type }) {
+  const fColor  = FACTION_COLOR[entry.faction] ?? '#F0F0F8'
+  const fRgb    = hexRgb(fColor)
+  const unit    = TYPES.find(t => t.key === type)?.unit ?? ''
+  const isMedal = entry.rank <= 3
+
   return (
     <motion.div
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      exit={{ opacity: 0 }}
+      layout
+      initial={{ opacity: 0, x: -8 }}
+      animate={{ opacity: 1, x: 0 }}
       transition={{ duration: 0.3 }}
       style={{
-        minHeight: '100vh',
-        background: '#07070D',
-        backgroundImage: 'radial-gradient(ellipse at 50% 0%, rgba(251,191,36,0.07) 0%, transparent 55%)',
-        display: 'flex',
-        flexDirection: 'column',
-        fontFamily: "'DM Sans', sans-serif",
-        color: '#F0F0F8',
-      }}
-    >
-      <header style={{
-        position: 'sticky',
-        top: 0,
-        zIndex: 10,
         display: 'flex',
         alignItems: 'center',
-        justifyContent: 'space-between',
-        padding: '13px 20px',
-        background: 'rgba(7,7,13,0.9)',
-        backdropFilter: 'blur(12px)',
-        borderBottom: '1px solid rgba(255,255,255,0.07)',
+        gap: 12,
+        padding: '12px 16px',
+        background: entry.is_self
+          ? `rgba(${fRgb}, 0.06)`
+          : isMedal ? 'rgba(255,255,255,0.025)' : 'rgba(255,255,255,0.015)',
+        border: `1px solid ${entry.is_self ? `rgba(${fRgb}, 0.28)` : 'rgba(255,255,255,0.06)'}`,
+        borderRadius: 8,
+        transition: 'background 200ms',
+      }}
+    >
+      {/* Rank */}
+      <div style={{
+        flexShrink: 0, width: 32, textAlign: 'center',
+        fontFamily: isMedal ? "'Bebas Neue', sans-serif" : "'IBM Plex Mono', monospace",
+        fontSize: isMedal ? 20 : 12,
+        color: isMedal ? '#F0F0F8' : 'rgba(240,240,248,0.28)',
+        letterSpacing: '0.04em',
+        lineHeight: 1,
       }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <span style={{ fontSize: 14 }}>⚔</span>
-          <span style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 18, letterSpacing: '0.1em' }}>
-            PANTHEON WARS
-          </span>
+        {entry.rank <= 3 ? MEDAL[entry.rank - 1] : `#${entry.rank}`}
+      </div>
+
+      {/* Username + badges */}
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 7, flexWrap: 'wrap', marginBottom: 3 }}>
           <span style={{
-            fontFamily: "'IBM Plex Mono', monospace",
-            fontSize: 9,
-            letterSpacing: '0.12em',
-            textTransform: 'uppercase',
-            color: 'rgba(240,240,248,0.3)',
-            marginLeft: 4,
+            fontFamily: "'Bebas Neue', sans-serif",
+            fontSize: 18, letterSpacing: '0.05em',
+            color: entry.is_self ? fColor : '#F0F0F8',
+            lineHeight: 1,
+            overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
           }}>
-            / LEADERBOARD
+            {entry.username}
+            {entry.is_self && (
+              <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 9, letterSpacing: '0.1em', marginLeft: 6, color: `rgba(${fRgb}, 0.7)` }}>
+                (you)
+              </span>
+            )}
           </span>
         </div>
-        <Link
-          to="/games/pantheon-wars"
-          style={{
-            fontFamily: "'IBM Plex Mono', monospace",
-            fontSize: 10,
-            letterSpacing: '0.12em',
-            textTransform: 'uppercase',
-            color: 'rgba(240,240,248,0.38)',
-            textDecoration: 'none',
-            border: '1px solid rgba(255,255,255,0.1)',
-            borderRadius: 6,
-            padding: '6px 12px',
-          }}
-        >
-          ← Command Center
-        </Link>
-      </header>
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+          <span style={{
+            fontFamily: "'IBM Plex Mono', monospace", fontSize: 8,
+            letterSpacing: '0.1em', textTransform: 'uppercase',
+            color: fColor,
+            background: `rgba(${fRgb}, 0.1)`,
+            border: `1px solid rgba(${fRgb}, 0.25)`,
+            borderRadius: 3, padding: '2px 6px',
+          }}>
+            {FACTION_LABEL[entry.faction] ?? entry.faction}
+          </span>
+          <span style={{
+            fontFamily: "'IBM Plex Mono', monospace", fontSize: 8,
+            letterSpacing: '0.1em', textTransform: 'uppercase',
+            color: '#00C8FF',
+            background: 'rgba(0,200,255,0.08)',
+            border: '1px solid rgba(0,200,255,0.2)',
+            borderRadius: 3, padding: '2px 6px',
+          }}>
+            {CLASS_LABEL[entry.class] ?? entry.class}
+          </span>
+        </div>
+      </div>
 
-      <main style={{ flex: 1, maxWidth: 640, margin: '0 auto', padding: '64px 20px', textAlign: 'center' }}>
-        <p style={{
-          fontFamily: "'IBM Plex Mono', monospace",
-          fontSize: 10,
-          letterSpacing: '0.18em',
-          textTransform: 'uppercase',
-          color: 'rgba(240,240,248,0.3)',
-          marginBottom: 16,
-        }}>
-          // COMING SOON
-        </p>
-        <h1 style={{
-          fontFamily: "'Bebas Neue', sans-serif",
-          fontSize: 'clamp(40px, 12vw, 72px)',
-          letterSpacing: '0.07em',
-          color: '#F0F0F8',
-          margin: '0 0 24px',
-          lineHeight: 1,
-        }}>
-          LEADERBOARD
-        </h1>
-        <p style={{
-          fontFamily: "'DM Sans', sans-serif",
-          fontSize: 15,
-          color: 'rgba(240,240,248,0.45)',
-          lineHeight: 1.6,
-          maxWidth: 440,
-          margin: '0 auto',
-        }}>
-          Glory rankings, faction standings, and level-sorted records. The top players by glory, drachma lifetime, and combat wins across all three factions will be tracked here.
-        </p>
-      </main>
+      {/* Value */}
+      <div style={{
+        flexShrink: 0,
+        fontFamily: "'Bebas Neue', sans-serif",
+        fontSize: 22, letterSpacing: '0.04em',
+        color: entry.is_self ? fColor : '#F0F0F8',
+        lineHeight: 1,
+        textAlign: 'right',
+      }}>
+        {fmt(entry.value)}{unit && ` ${unit}`}
+      </div>
     </motion.div>
+  )
+}
+
+// ─── Page ─────────────────────────────────────────────────────────────────────
+
+const fadeUp = {
+  hidden:  { opacity: 0, y: 10 },
+  visible: { opacity: 1, y: 0, transition: { duration: 0.38, ease: [0.16, 1, 0.3, 1] } },
+}
+
+export default function Leaderboard() {
+  const { user, loading: authLoading } = usePantheonWars()
+  const navigate = useNavigate()
+
+  const [entries,  setEntries]  = useState([])
+  const [loading,  setLoading]  = useState(true)
+  const [error,    setError]    = useState(null)
+  const [type,     setType]     = useState('level')
+  const [faction,  setFaction]  = useState('all')
+
+  useEffect(() => {
+    if (!authLoading && !user) navigate('/games/pantheon-wars/login', { replace: true })
+  }, [authLoading, user, navigate])
+
+  const fetchLeaderboard = useCallback(async () => {
+    setLoading(true)
+    setError(null)
+    try {
+      const res = await fetch(`/api/games/pantheon-wars/leaderboard?type=${type}&faction=${faction}`)
+      if (res.status === 401) { navigate('/games/pantheon-wars/login', { replace: true }); return }
+      if (!res.ok) { setError('Failed to load leaderboard.'); return }
+      const data = await res.json()
+      setEntries(data.entries)
+    } catch { setError('Network error.') }
+    finally   { setLoading(false) }
+  }, [type, faction, navigate])
+
+  useEffect(() => { fetchLeaderboard() }, [fetchLeaderboard])
+
+  const activeType = TYPES.find(t => t.key === type)
+
+  return (
+    <>
+      <style>{`
+        @keyframes pw-pulse { 0%,100%{opacity:1} 50%{opacity:0.38} }
+        .pw-skel { background:rgba(255,255,255,0.07); animation:pw-pulse 1.6s ease-in-out infinite; }
+        @media (max-width: 480px) {
+          .pw-lb-type-tabs { gap: 6px !important; }
+          .pw-lb-type-tabs button { padding: 7px 8px !important; font-size: 9px !important; }
+          .pw-lb-faction-tabs button { padding: 5px 8px !important; }
+        }
+      `}</style>
+
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        transition={{ duration: 0.3 }}
+        style={{
+          minHeight: '100vh',
+          background: '#07070D',
+          backgroundImage: 'radial-gradient(ellipse at 50% 0%, rgba(251,191,36,0.07) 0%, transparent 55%)',
+          display: 'flex', flexDirection: 'column',
+          fontFamily: "'DM Sans', sans-serif", color: '#F0F0F8',
+        }}
+      >
+        {/* ── Header ────────────────────────────────────────────────── */}
+        <header style={{
+          position: 'sticky', top: 0, zIndex: 10,
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+          padding: '13px 20px',
+          background: 'rgba(7,7,13,0.9)', backdropFilter: 'blur(12px)',
+          borderBottom: '1px solid rgba(255,255,255,0.07)',
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <span style={{ fontSize: 14 }}>⚔</span>
+            <span style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 18, letterSpacing: '0.1em' }}>
+              PANTHEON WARS
+            </span>
+            <span style={{
+              fontFamily: "'IBM Plex Mono', monospace", fontSize: 9,
+              letterSpacing: '0.12em', textTransform: 'uppercase',
+              color: 'rgba(240,240,248,0.3)', marginLeft: 4,
+            }}>
+              / LEADERBOARD
+            </span>
+          </div>
+          <Link
+            to="/games/pantheon-wars"
+            style={{
+              fontFamily: "'IBM Plex Mono', monospace", fontSize: 10,
+              letterSpacing: '0.12em', textTransform: 'uppercase',
+              color: 'rgba(240,240,248,0.38)', textDecoration: 'none',
+              border: '1px solid rgba(255,255,255,0.1)', borderRadius: 6, padding: '6px 12px',
+            }}
+            onMouseEnter={e => { e.currentTarget.style.color = 'rgba(240,240,248,0.8)'; e.currentTarget.style.borderColor = 'rgba(255,255,255,0.25)' }}
+            onMouseLeave={e => { e.currentTarget.style.color = 'rgba(240,240,248,0.38)'; e.currentTarget.style.borderColor = 'rgba(255,255,255,0.1)' }}
+          >
+            ← Command Center
+          </Link>
+        </header>
+
+        {/* ── Main ──────────────────────────────────────────────────── */}
+        <main style={{ flex: 1, maxWidth: 700, width: '100%', margin: '0 auto', padding: '24px 20px 64px' }}>
+
+          {/* Type tabs */}
+          <motion.div
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.3 }}
+            className="pw-lb-type-tabs"
+            style={{ display: 'flex', gap: 8, marginBottom: 12 }}
+          >
+            {TYPES.map(t => (
+              <button
+                key={t.key}
+                onClick={() => setType(t.key)}
+                style={{
+                  flex: 1,
+                  padding: '10px 12px',
+                  fontFamily: "'IBM Plex Mono', monospace",
+                  fontSize: 10, letterSpacing: '0.09em', textTransform: 'uppercase',
+                  color: type === t.key ? '#F0F0F8' : 'rgba(240,240,248,0.35)',
+                  background: type === t.key ? 'rgba(255,255,255,0.09)' : 'transparent',
+                  border: `1px solid ${type === t.key ? 'rgba(255,255,255,0.2)' : 'rgba(255,255,255,0.07)'}`,
+                  borderRadius: 8, cursor: 'pointer', transition: 'all 150ms',
+                  whiteSpace: 'nowrap',
+                }}
+              >
+                {t.glyph} {t.label}
+              </button>
+            ))}
+          </motion.div>
+
+          {/* Faction filter */}
+          <motion.div
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.3, delay: 0.05 }}
+            className="pw-lb-faction-tabs"
+            style={{ display: 'flex', gap: 7, marginBottom: 24, flexWrap: 'wrap' }}
+          >
+            {FACTIONS.map(f => {
+              const fColor = f.key !== 'all' ? (FACTION_COLOR[f.key] ?? '#F0F0F8') : 'rgba(240,240,248,0.6)'
+              const active = faction === f.key
+              return (
+                <button
+                  key={f.key}
+                  onClick={() => setFaction(f.key)}
+                  style={{
+                    padding: '5px 12px',
+                    fontFamily: "'IBM Plex Mono', monospace",
+                    fontSize: 9, letterSpacing: '0.1em', textTransform: 'uppercase',
+                    color: active ? fColor : 'rgba(240,240,248,0.3)',
+                    background: active ? `rgba(${hexRgb(fColor)}, 0.08)` : 'transparent',
+                    border: `1px solid ${active ? `rgba(${hexRgb(fColor)}, 0.3)` : 'rgba(255,255,255,0.07)'}`,
+                    borderRadius: 5, cursor: 'pointer', transition: 'all 150ms',
+                  }}
+                >
+                  {f.label}
+                </button>
+              )
+            })}
+          </motion.div>
+
+          {/* Loading skeletons */}
+          {loading && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              {[0,1,2,3,4,5,6,7].map(i => <Skeleton key={i} h={68} r={8} />)}
+            </div>
+          )}
+
+          {!loading && error && (
+            <p style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 12, color: '#F87171', textAlign: 'center', marginTop: 48 }}>
+              // {error}
+            </p>
+          )}
+
+          {/* Entries */}
+          {!loading && !error && (
+            <AnimatePresence mode="wait">
+              <motion.div
+                key={`${type}-${faction}`}
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.2 }}
+              >
+                {entries.length === 0 ? (
+                  <div style={{
+                    textAlign: 'center', marginTop: 48,
+                    padding: '32px 20px',
+                    background: 'rgba(255,255,255,0.02)',
+                    border: '1px solid rgba(255,255,255,0.06)',
+                    borderRadius: 12,
+                  }}>
+                    <p style={{
+                      fontFamily: "'IBM Plex Mono', monospace",
+                      fontSize: 10, letterSpacing: '0.14em', textTransform: 'uppercase',
+                      color: 'rgba(240,240,248,0.25)', marginBottom: 8,
+                    }}>
+                      // NO ENTRIES YET
+                    </p>
+                    <p style={{
+                      fontFamily: "'DM Sans', sans-serif",
+                      fontSize: 13, color: 'rgba(240,240,248,0.35)',
+                    }}>
+                      Be the first to claim a rank.
+                    </p>
+                  </div>
+                ) : (
+                  <>
+                    {/* Column header */}
+                    <div style={{
+                      display: 'flex', alignItems: 'center', gap: 12,
+                      padding: '6px 16px',
+                      borderBottom: '1px solid rgba(255,255,255,0.06)',
+                      marginBottom: 8,
+                    }}>
+                      <div style={{ width: 32, fontFamily: "'IBM Plex Mono', monospace", fontSize: 8, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'rgba(240,240,248,0.22)' }}>
+                        RANK
+                      </div>
+                      <div style={{ flex: 1, fontFamily: "'IBM Plex Mono', monospace", fontSize: 8, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'rgba(240,240,248,0.22)' }}>
+                        PLAYER
+                      </div>
+                      <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 8, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'rgba(240,240,248,0.22)' }}>
+                        {activeType?.label ?? type.toUpperCase()}
+                      </div>
+                    </div>
+
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                      {entries.map(entry => (
+                        <RankRow key={`${entry.rank}-${entry.username}`} entry={entry} type={type} />
+                      ))}
+                    </div>
+
+                    <p style={{
+                      fontFamily: "'IBM Plex Mono', monospace",
+                      fontSize: 9, letterSpacing: '0.08em',
+                      color: 'rgba(240,240,248,0.18)',
+                      textAlign: 'center', marginTop: 20,
+                    }}>
+                      // TOP {entries.length} OF ALL TIME
+                    </p>
+                  </>
+                )}
+              </motion.div>
+            </AnimatePresence>
+          )}
+        </main>
+      </motion.div>
+    </>
   )
 }

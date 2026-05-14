@@ -682,5 +682,12 @@ Full game design document: `pantheon_wars/docs/PANTHEON-WARS-GDD.md`
 - Stat values are visible on Dashboard; allocation happens at `/games/pantheon-wars/profile`
 - Regen is folded into the allocation UPDATE (no separate regen write) — same pattern as `quests/complete.js`
 
-### Next phase (B2/B3)
-Inventory + item system, Shop, Leaderboard (API + UI for all three).
+### Phase B2/B3 — Inventory, Shop, Leaderboard (complete)
+- `pw_items` (50 items), `pw_inventory`, `pw_quest_loot` tables added to schema + seed
+- Real loot drops wired into `quests/complete.js` (picks from `pw_quest_loot`, inserts to `pw_inventory`)
+- APIs: `inventory`, `equip`, `unequip`, `sell`, `shop`, `shop/buy`, `leaderboard`
+- Full UI: `Inventory.jsx` (slot grid, filter, equip/sell), `Shop.jsx` (drachma/glory tabs), `Leaderboard.jsx` (type + faction filters)
+- Dashboard INVENTORY, SHOP, LEADERBOARD nav buttons unlocked
+
+### Next phase (B4/B5)
+Temples (passive income) + PvP (combat, target list, combat log).

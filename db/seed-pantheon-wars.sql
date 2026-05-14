@@ -1,6 +1,10 @@
 -- Pantheon Wars seed data
--- Re-runnable: TRUNCATE resets serial IDs and cascades to pw_quest_progress
+-- Re-runnable: clears all catalog data and re-seeds.
+-- WARNING: Also clears pw_inventory (player items) and pw_quest_progress (mastery data).
 TRUNCATE pw_quests RESTART IDENTITY CASCADE;
+-- ↑ cascades to: pw_quest_progress, pw_quest_loot
+TRUNCATE pw_items RESTART IDENTITY CASCADE;
+-- ↑ cascades to: pw_inventory, pw_quest_loot (already empty from above)
 
 -- ─── pw_quests ───────────────────────────────────────────────────────────────
 -- Columns: name, description, tier, energy_cost, xp_reward,
@@ -185,3 +189,279 @@ VALUES
   ('Unmake the First Temple',
    'The oldest structure in existence predates every god ever worshipped. Reduce it to rubble. What rises from the ruin belongs to no one but you.',
    5, 30, 1150, 2250, 750, 25, 95, 25);
+
+-- ─── pw_items ────────────────────────────────────────────────────────────────
+-- Columns: name, description, slot, attack_bonus, defense_bonus, rarity,
+--          level_required, faction_exclusive, buy_price, sell_price, glory_price
+-- IDs are assigned sequentially:
+--   Weapons:   1–10  | Armor: 11–20 | Artifact: 21–30
+--   Mounts:   31–40  | Companion: 41–50
+
+INSERT INTO pw_items
+  (name, description, slot, attack_bonus, defense_bonus, rarity, level_required, faction_exclusive, buy_price, sell_price, glory_price)
+VALUES
+
+-- ── Weapons ───────────────────────────────────────────────────────────────────
+
+  ('Iron Gladius',
+   'Standard issue — carries more history than edge.',
+   'weapon', 2, 0, 'common', 1, NULL, 200, 40, NULL),
+
+  ('Bronze Kopis',
+   'Curved blade favored by light infantry. Gets the job done.',
+   'weapon', 3, 0, 'common', 1, NULL, 300, 60, NULL),
+
+  ('Legionary Spear',
+   'Eight feet of oak and iron. The backbone of every great army.',
+   'weapon', 6, 0, 'uncommon', 5, NULL, 700, 140, NULL),
+
+  ('Runic Dagger',
+   'Three runes etched at the forge. Each one a prayer to Odin that still holds.',
+   'weapon', 7, 0, 'uncommon', 8, NULL, 900, 180, NULL),
+
+  ('Blade of Ares',
+   'Forged in war-fury and quenched in enemy blood. The war god''s mark is permanent.',
+   'weapon', 14, 0, 'rare', 15, NULL, 3000, 600, NULL),
+
+  ('Mjolnir Shard',
+   'A fragment from the original hammer. Still carries the storm.',
+   'weapon', 16, 0, 'rare', 18, 'aesir', 4000, 800, NULL),
+
+  ('Spear of Olympus',
+   'Struck by lightning seventeen times. Refuses to bend.',
+   'weapon', 28, 0, 'epic', 35, 'olympians', 14000, 2800, NULL),
+
+  ('Enkidu''s Axe',
+   'Carved from the first cedar of Mesopotamia. As old as the written word.',
+   'weapon', 25, 0, 'epic', 38, 'annunaki', 12000, 2400, NULL),
+
+  ('Godkiller Blade',
+   'Seven ichor-drops quenched into the edge. It has already ended three immortals. It knows how.',
+   'weapon', 55, 0, 'legendary', 60, NULL, NULL, 5000, 50),
+
+  ('Gungnir',
+   'Odin''s spear never misses its mark. Yours now. Don''t waste the throw.',
+   'weapon', 65, 0, 'legendary', 75, 'aesir', NULL, 8000, 80),
+
+-- ── Armor ────────────────────────────────────────────────────────────────────
+
+  ('Woven Reed Armor',
+   'Cheap, light, and surprisingly resilient against things that aren''t blades.',
+   'armor', 0, 2, 'common', 1, NULL, 150, 30, NULL),
+
+  ('Leather Breastplate',
+   'Cured in salt and fear. Better than nothing.',
+   'armor', 0, 3, 'common', 1, NULL, 220, 44, NULL),
+
+  ('Legionary Shield',
+   'The formation is the shield. The shield is the formation.',
+   'armor', 0, 7, 'uncommon', 5, NULL, 750, 150, NULL),
+
+  ('Berserker Furs',
+   'Soaked in the spirit of the great bears of Jotunheim. Still smells like one.',
+   'armor', 0, 8, 'uncommon', 10, 'aesir', 1100, 220, NULL),
+
+  ('Hoplite Greaves',
+   'Bronze from Corinth. Polished enough to watch your enemies charge reflected in it.',
+   'armor', 0, 9, 'uncommon', 12, NULL, 1300, 260, NULL),
+
+  ('Ishtar''s Veil',
+   'The goddess of war wove protection into every thread. The pattern is not decorative.',
+   'armor', 0, 14, 'rare', 18, 'annunaki', 3500, 700, NULL),
+
+  ('Aegis Breastplate',
+   'Carved from Athena''s sacred shield-leather. Holds when lesser armor shatters.',
+   'armor', 0, 16, 'rare', 22, 'olympians', 4500, 900, NULL),
+
+  ('Chain of Niflheim',
+   'Forged in the cold realm and worn by its highest warden. Every link is a prayer.',
+   'armor', 0, 26, 'epic', 35, 'aesir', 15000, 3000, NULL),
+
+  ('Olympian Plate',
+   'Full plate tempered on Mount Olympus. The gods wore lighter armor. You don''t have their advantage.',
+   'armor', 0, 30, 'epic', 42, 'olympians', 18000, 3600, NULL),
+
+  ('Shield of Aegis',
+   'The original Aegis, not a copy. The Medusa''s head is still etched into the center — still works.',
+   'armor', 0, 55, 'legendary', 65, NULL, NULL, 6000, 60),
+
+-- ── Artifacts ────────────────────────────────────────────────────────────────
+
+  ('Carved Idol',
+   'Old god, small power. But consistent.',
+   'artifact', 1, 1, 'common', 1, NULL, 250, 50, NULL),
+
+  ('Bone Amulet',
+   'Whose bones? Nobody who mattered enough to stay dead.',
+   'artifact', 0, 2, 'common', 1, NULL, 200, 40, NULL),
+
+  ('Oracle''s Eye',
+   'A preserved seer''s eye in amber resin. It still blinks when it sees something you should know.',
+   'artifact', 3, 3, 'uncommon', 8, NULL, 1200, 240, NULL),
+
+  ('Runic Compass',
+   'Points toward the next enemy worth fighting. Different from a regular compass. More honest.',
+   'artifact', 4, 2, 'uncommon', 10, 'aesir', 1500, 300, NULL),
+
+  ('Celestial Map',
+   'Every star labeled in a language older than any pantheon. Reading it takes practice.',
+   'artifact', 5, 2, 'uncommon', 15, NULL, 2000, 400, NULL),
+
+  ('Omphalos Stone',
+   'The navel of the world, removed and carried. The world didn''t notice the surgery.',
+   'artifact', 7, 10, 'rare', 20, 'olympians', 6000, 1200, NULL),
+
+  ('Tablet of Destinies',
+   'Who controls the tablet controls what''s written. You''ll have to carve your own entry.',
+   'artifact', 9, 9, 'rare', 25, 'annunaki', 8000, 1600, NULL),
+
+  ('Prometheus'' Flame',
+   'Stolen fire burns hotter than given fire. He paid a price for this. You''re paying a smaller one.',
+   'artifact', 12, 5, 'rare', 30, NULL, 9000, 1800, NULL),
+
+  ('Pandora''s Fragment',
+   'A shard of the original box. What was inside is gone. What remains is the hinge that held everything.',
+   'artifact', 16, 16, 'epic', 45, NULL, 25000, 5000, NULL),
+
+  ('Eye of Providence',
+   'It sees the full picture. Every battle, every outcome, every flaw. It has seen yours. Still chose you.',
+   'artifact', 28, 28, 'legendary', 70, NULL, NULL, 10000, 100),
+
+-- ── Mounts ───────────────────────────────────────────────────────────────────
+
+  ('Draft Horse',
+   'Heavy. Reliable. Will not spook at blood.',
+   'mount', 1, 2, 'common', 1, NULL, 500, 100, NULL),
+
+  ('Mule of Hermes',
+   'Divine errands require divine persistence. This one has outlasted three pantheons.',
+   'mount', 0, 3, 'common', 1, NULL, 400, 80, NULL),
+
+  ('War Stallion',
+   'Raised on battlefields and terrified of nothing. The cavalry''s secret weapon.',
+   'mount', 3, 5, 'uncommon', 8, NULL, 1800, 360, NULL),
+
+  ('Sleipnir Pup',
+   'Eight-legged and curious. Grows into the fastest thing in nine realms.',
+   'mount', 5, 3, 'uncommon', 12, 'aesir', 2500, 500, NULL),
+
+  ('Storm-Born Horse',
+   'Struck by lightning at birth and survived. Runs faster in thunder.',
+   'mount', 4, 5, 'uncommon', 15, NULL, 3000, 600, NULL),
+
+  ('Pegasus',
+   'The winged horse of Perseus. Doesn''t fly for everyone. You apparently qualify.',
+   'mount', 9, 9, 'rare', 22, 'olympians', 7500, 1500, NULL),
+
+  ('Lamassu',
+   'Bull body, eagle wings, human head. Guards all doors. Except yours, now.',
+   'mount', 7, 13, 'rare', 25, 'annunaki', 8500, 1700, NULL),
+
+  ('Chimera Fragment',
+   'Not the full beast — a fragment, partially tamed. The part that isn''t tamed is the fast half.',
+   'mount', 11, 8, 'rare', 30, NULL, 10000, 2000, NULL),
+
+  ('Fenrir Pup',
+   'Raised in chains since birth. Loyal to exactly one person. Currently: you.',
+   'mount', 22, 12, 'epic', 50, 'aesir', 30000, 6000, NULL),
+
+  ('Divine Chariot',
+   'Helios loaned it once. It was returned damaged. He never asked for it back.',
+   'mount', 35, 35, 'legendary', 80, NULL, NULL, 12000, 120),
+
+-- ── Companions ───────────────────────────────────────────────────────────────
+
+  ('Minor Sprite',
+   'Bound to serve. Not particularly intelligent. Extremely enthusiastic.',
+   'companion', 2, 1, 'common', 1, NULL, 300, 60, NULL),
+
+  ('Shade of the Dead',
+   'A hero''s ghost, briefly conscripted. Remembers enough of life to be useful.',
+   'companion', 3, 0, 'common', 1, NULL, 250, 50, NULL),
+
+  ('Einherjar Scout',
+   'A chosen warrior who died well and accepted the offer. Knows every formation Odin ever taught.',
+   'companion', 6, 3, 'uncommon', 8, 'aesir', 2000, 400, NULL),
+
+  ('Sacred Hound',
+   'Temple-trained to track divine bloodlines. Won''t bark at anything that isn''t worth killing.',
+   'companion', 4, 5, 'uncommon', 12, NULL, 2500, 500, NULL),
+
+  ('Temple Guardian',
+   'Bound to a shrine for centuries before you freed it. Grateful. Protective.',
+   'companion', 2, 8, 'uncommon', 10, NULL, 2200, 440, NULL),
+
+  ('Olympian Herald',
+   'Hermes'' second-favorite messenger. Fast, reliable, and knows which doors to open.',
+   'companion', 8, 8, 'rare', 20, 'olympians', 6500, 1300, NULL),
+
+  ('Sumerian Sage',
+   'Three thousand years of accumulated wisdom. Mostly about which divine mistakes to avoid.',
+   'companion', 7, 10, 'rare', 22, 'annunaki', 7000, 1400, NULL),
+
+  ('Valkyrie Fragment',
+   'Half of a Valkyrie, split at the moment of choosing. The half that chose you.',
+   'companion', 13, 5, 'rare', 28, 'aesir', 9500, 1900, NULL),
+
+  ('Divine Emissary',
+   'Technically working for no specific deity right now. Technically available to serve yours.',
+   'companion', 20, 20, 'epic', 55, NULL, 35000, 7000, NULL),
+
+  ('Bound Titan',
+   'Chained since the first age. The chains broke three minutes ago. Choosing to stay. For now.',
+   'companion', 45, 20, 'legendary', 85, NULL, NULL, 15000, 150);
+
+-- ─── pw_quest_loot ───────────────────────────────────────────────────────────
+-- Maps quests to droppable items.  drop_weight = 1 (equal probability).
+-- Tier 1 quests (IDs 1–8)   → common items only
+-- Tier 2 quests (IDs 9–16)  → common + uncommon
+-- Tier 3 quests (IDs 17–25) → uncommon + rare
+-- Tier 4 quests (IDs 26–33) → rare + epic
+-- Tier 5 quests (IDs 34–40) → epic + legendary
+
+INSERT INTO pw_quest_loot (quest_id, item_id, drop_weight) VALUES
+-- Tier 1
+(1,  1,  1), (1,  11, 1), (1,  41, 1),
+(2,  2,  1), (2,  12, 1), (2,  42, 1),
+(3,  1,  1), (3,  21, 1), (3,  31, 1),
+(4,  2,  1), (4,  22, 1), (4,  32, 1),
+(5,  11, 1), (5,  21, 1), (5,  41, 1),
+(6,  12, 1), (6,  22, 1), (6,  42, 1),
+(7,  1,  1), (7,  12, 1), (7,  31, 1),
+(8,  2,  1), (8,  11, 1), (8,  32, 1),
+-- Tier 2
+(9,  3,  1), (9,  13, 1), (9,  43, 1),
+(10, 4,  1), (10, 14, 1), (10, 44, 1),
+(11, 3,  1), (11, 23, 1), (11, 33, 1),
+(12, 4,  1), (12, 24, 1), (12, 34, 1),
+(13, 2,  1), (13, 13, 1), (13, 44, 1),
+(14, 3,  1), (14, 15, 1), (14, 45, 1),
+(15, 4,  1), (15, 25, 1), (15, 35, 1),
+(16, 1,  1), (16, 23, 1), (16, 43, 1),
+-- Tier 3
+(17, 5,  1), (17, 16, 1), (17, 46, 1),
+(18, 6,  1), (18, 17, 1), (18, 36, 1),
+(19, 5,  1), (19, 26, 1), (19, 43, 1),
+(20, 4,  1), (20, 27, 1), (20, 47, 1),
+(21, 6,  1), (21, 16, 1), (21, 46, 1),
+(22, 5,  1), (22, 28, 1), (22, 37, 1),
+(23, 6,  1), (23, 27, 1), (23, 38, 1),
+(24, 4,  1), (24, 26, 1), (24, 48, 1),
+(25, 3,  1), (25, 17, 1), (25, 47, 1),
+-- Tier 4
+(26, 7,  1), (26, 17, 1), (26, 37, 1),
+(27, 8,  1), (27, 18, 1), (27, 47, 1),
+(28, 7,  1), (28, 28, 1), (28, 38, 1),
+(29, 6,  1), (29, 18, 1), (29, 49, 1),
+(30, 8,  1), (30, 29, 1), (30, 39, 1),
+(31, 7,  1), (31, 27, 1), (31, 48, 1),
+(32, 5,  1), (32, 38, 1), (32, 49, 1),
+(33, 8,  1), (33, 19, 1), (33, 37, 1),
+-- Tier 5
+(34, 9,  1), (34, 19, 1), (34, 49, 1),
+(35, 10, 1), (35, 20, 1), (35, 50, 1),
+(36, 9,  1), (36, 29, 1), (36, 40, 1),
+(37, 10, 1), (37, 30, 1), (37, 39, 1),
+(38, 9,  1), (38, 20, 1), (38, 50, 1),
+(39, 10, 1), (39, 29, 1), (39, 40, 1),
+(40, 8,  1), (40, 30, 1), (40, 49, 1);
