@@ -59,3 +59,46 @@ CREATE TABLE IF NOT EXISTS admin_sessions (
 );
 
 CREATE INDEX IF NOT EXISTS idx_admin_sessions_expires ON admin_sessions(expires_at);
+
+-- Pantheon Wars: User accounts (game players)
+CREATE TABLE pw_users (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    username VARCHAR(30) UNIQUE NOT NULL,
+    email VARCHAR(255) UNIQUE NOT NULL,
+    password_hash VARCHAR(255) NOT NULL,
+    faction VARCHAR(20) NOT NULL CHECK (faction IN ('olympians', 'aesir', 'annunaki')),
+    class VARCHAR(20) NOT NULL CHECK (class IN ('warden', 'oracle', 'slayer', 'broker')),
+    alignment VARCHAR(20) DEFAULT NULL CHECK (alignment IN ('coalition', 'compact', NULL)),
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    last_login TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Pantheon Wars: Core player stats (1:1 with pw_users)
+CREATE TABLE pw_player_stats (
+    user_id UUID PRIMARY KEY REFERENCES pw_users(id) ON DELETE CASCADE,
+    level INTEGER DEFAULT 1,
+    xp INTEGER DEFAULT 0,
+    energy INTEGER DEFAULT 20,
+    energy_max INTEGER DEFAULT 20,
+    health INTEGER DEFAULT 100,
+    health_max INTEGER DEFAULT 100,
+    drachma INTEGER DEFAULT 500,
+    drachma_lifetime INTEGER DEFAULT 500,
+    glory INTEGER DEFAULT 0,
+    attack INTEGER DEFAULT 5,
+    defense INTEGER DEFAULT 5,
+    stat_points INTEGER DEFAULT 0,
+    last_updated TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Pantheon Wars: User sessions (game auth, mirrors admin_sessions pattern)
+CREATE TABLE pw_user_sessions (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID REFERENCES pw_users(id) ON DELETE CASCADE,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    expires_at TIMESTAMPTZ NOT NULL
+);
+
+CREATE INDEX idx_pw_user_sessions_user ON pw_user_sessions(user_id);
+CREATE INDEX idx_pw_users_level ON pw_player_stats(level DESC);
+CREATE INDEX idx_pw_users_glory ON pw_player_stats(glory DESC);

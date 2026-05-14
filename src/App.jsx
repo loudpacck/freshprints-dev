@@ -1,5 +1,5 @@
 import { lazy, Suspense } from 'react'
-import { BrowserRouter, Routes, Route, useLocation } from 'react-router-dom'
+import { BrowserRouter, Routes, Route, Outlet, useLocation } from 'react-router-dom'
 import { AnimatePresence } from 'framer-motion'
 
 import PageChrome from '@/components/layout/PageChrome'
@@ -10,6 +10,7 @@ import { useTerminal } from '@/hooks/useTerminal'
 import { ThemeProvider, useTheme } from '@/themes/ThemeProvider'
 import DevThemeSwitcher from '@/components/dev/DevThemeSwitcher'
 import AutoTrackers from '@/tracking/AutoTrackers'
+import { PantheonWarsProvider } from '@/contexts/PantheonWarsContext'
 import StandardLayout from '@/components/standard/StandardLayout'
 import RetroLayout from '@/components/retro/RetroLayout'
 
@@ -27,8 +28,11 @@ const LabExperiment   = lazy(() => import('@/pages/LabExperiment'))
 const Store           = lazy(() => import('@/pages/Store'))
 const Media           = lazy(() => import('@/pages/Media'))
 const Contact         = lazy(() => import('@/pages/Contact'))
-const Admin           = lazy(() => import('@/pages/Admin'))
-const NotFound        = lazy(() => import('@/pages/NotFound'))
+const Admin             = lazy(() => import('@/pages/Admin'))
+const NotFound          = lazy(() => import('@/pages/NotFound'))
+const PantheonSignup    = lazy(() => import('@/pages/games/pantheon-wars/Signup'))
+const PantheonLogin     = lazy(() => import('@/pages/games/pantheon-wars/Login'))
+const PantheonDashboard = lazy(() => import('@/pages/games/pantheon-wars/Dashboard'))
 
 function PageLoader() {
   return (
@@ -44,6 +48,15 @@ function PageLayout({ children }) {
   if (themeId === 'standard') return <StandardLayout>{children}</StandardLayout>
   if (themeId === 'retro')    return <RetroLayout>{children}</RetroLayout>
   return <>{children}</>
+}
+
+// Provides game state to all Pantheon Wars routes without adding visible UI
+function PantheonWarsShell() {
+  return (
+    <PantheonWarsProvider>
+      <Outlet />
+    </PantheonWarsProvider>
+  )
 }
 
 function HomeRoute() {
@@ -77,8 +90,14 @@ function AnimatedRoutes() {
         <Route path="/store"              element={<PageLayout><Store /></PageLayout>} />
         <Route path="/media"              element={<PageLayout><Media /></PageLayout>} />
         <Route path="/contact"            element={<PageLayout><Contact /></PageLayout>} />
-        <Route path="/admin"              element={<Admin />} />
-        <Route path="*"                   element={<PageLayout><NotFound /></PageLayout>} />
+        <Route path="/admin"                        element={<Admin />} />
+        {/* Pantheon Wars — standalone, provider shared across all game routes */}
+        <Route element={<PantheonWarsShell />}>
+          <Route path="/games/pantheon-wars"        element={<PantheonDashboard />} />
+          <Route path="/games/pantheon-wars/signup" element={<PantheonSignup />} />
+          <Route path="/games/pantheon-wars/login"  element={<PantheonLogin />} />
+        </Route>
+        <Route path="*"                           element={<PageLayout><NotFound /></PageLayout>} />
       </Routes>
     </AnimatePresence>
   )
