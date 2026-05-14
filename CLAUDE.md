@@ -685,6 +685,7 @@ Full game design document: `pantheon_wars/docs/PANTHEON-WARS-GDD.md`
 - Real loot drops wired into quest completion (picks from `pw_quest_loot`, inserts to `pw_inventory`)
 - Full UI: `Inventory.jsx` (slot grid, filter, equip/sell), `Shop.jsx` (drachma/glory tabs), `Leaderboard.jsx` (type + faction filters)
 - Dashboard INVENTORY, SHOP, LEADERBOARD nav buttons unlocked
+- Quest reward toast shows loot item name + rarity on drop
 
 ### API consolidation (Vercel 12-function limit fix)
 Vercel Hobby plan allows max 12 serverless functions. All 14 Pantheon Wars API files were consolidated into 2:

@@ -294,7 +294,10 @@ function RewardToast({ reward, level, onDone }) {
       </span>
       {reward.loot && (
         <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 12, color: '#22C55E' }}>
-          LOOT ◆
+          ◆ {reward.loot.name}
+          <span style={{ color: 'rgba(34,197,94,0.55)', fontSize: 10, marginLeft: 5 }}>
+            [{reward.loot.rarity}]
+          </span>
         </span>
       )}
       {level > 0 && (
