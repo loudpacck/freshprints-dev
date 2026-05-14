@@ -33,6 +33,7 @@ const NotFound          = lazy(() => import('@/pages/NotFound'))
 const PantheonSignup    = lazy(() => import('@/pages/games/pantheon-wars/Signup'))
 const PantheonLogin     = lazy(() => import('@/pages/games/pantheon-wars/Login'))
 const PantheonDashboard = lazy(() => import('@/pages/games/pantheon-wars/Dashboard'))
+const PantheonQuests    = lazy(() => import('@/pages/games/pantheon-wars/Quests'))
 
 function PageLoader() {
   return (
@@ -93,9 +94,10 @@ function AnimatedRoutes() {
         <Route path="/admin"                        element={<Admin />} />
         {/* Pantheon Wars — standalone, provider shared across all game routes */}
         <Route element={<PantheonWarsShell />}>
-          <Route path="/games/pantheon-wars"        element={<PantheonDashboard />} />
-          <Route path="/games/pantheon-wars/signup" element={<PantheonSignup />} />
-          <Route path="/games/pantheon-wars/login"  element={<PantheonLogin />} />
+          <Route path="/games/pantheon-wars"               element={<PantheonDashboard />} />
+          <Route path="/games/pantheon-wars/quests"        element={<PantheonQuests />} />
+          <Route path="/games/pantheon-wars/signup"        element={<PantheonSignup />} />
+          <Route path="/games/pantheon-wars/login"         element={<PantheonLogin />} />
         </Route>
         <Route path="*"                           element={<PageLayout><NotFound /></PageLayout>} />
       </Routes>

@@ -102,3 +102,28 @@ CREATE TABLE pw_user_sessions (
 CREATE INDEX idx_pw_user_sessions_user ON pw_user_sessions(user_id);
 CREATE INDEX idx_pw_users_level ON pw_player_stats(level DESC);
 CREATE INDEX idx_pw_users_glory ON pw_player_stats(glory DESC);
+
+-- Pantheon Wars: Quest catalog (seeded)
+CREATE TABLE pw_quests (
+    id SERIAL PRIMARY KEY,
+    name VARCHAR(100) NOT NULL,
+    description TEXT,
+    tier INTEGER NOT NULL CHECK (tier BETWEEN 1 AND 5),
+    energy_cost INTEGER NOT NULL,
+    xp_reward INTEGER NOT NULL,
+    drachma_base INTEGER NOT NULL,
+    drachma_range INTEGER DEFAULT 0,
+    loot_chance INTEGER DEFAULT 0,
+    level_required INTEGER DEFAULT 1,
+    mastery_target INTEGER DEFAULT 100
+);
+
+-- Pantheon Wars: Player quest progress / mastery tracking
+CREATE TABLE pw_quest_progress (
+    user_id UUID REFERENCES pw_users(id) ON DELETE CASCADE,
+    quest_id INTEGER REFERENCES pw_quests(id),
+    completions INTEGER DEFAULT 0,
+    PRIMARY KEY (user_id, quest_id)
+);
+
+CREATE INDEX idx_pw_quest_progress_user ON pw_quest_progress(user_id);

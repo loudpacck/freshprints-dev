@@ -9,6 +9,7 @@
     "lint": "eslint .",
     "preview": "vite preview",
     "db:init": "node scripts/init-db.js",
+    "db:seed:pw": "node scripts/seed-pantheon-wars.js",
     "gen:hash": "node scripts/gen-admin-hash.js"
   },
   "dependencies": {
