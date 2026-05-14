@@ -1,0 +1,101 @@
+import { Link } from 'react-router-dom'
+import { motion } from 'framer-motion'
+
+export default function Leaderboard() {
+  return (
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      transition={{ duration: 0.3 }}
+      style={{
+        minHeight: '100vh',
+        background: '#07070D',
+        backgroundImage: 'radial-gradient(ellipse at 50% 0%, rgba(251,191,36,0.07) 0%, transparent 55%)',
+        display: 'flex',
+        flexDirection: 'column',
+        fontFamily: "'DM Sans', sans-serif",
+        color: '#F0F0F8',
+      }}
+    >
+      <header style={{
+        position: 'sticky',
+        top: 0,
+        zIndex: 10,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        padding: '13px 20px',
+        background: 'rgba(7,7,13,0.9)',
+        backdropFilter: 'blur(12px)',
+        borderBottom: '1px solid rgba(255,255,255,0.07)',
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <span style={{ fontSize: 14 }}>⚔</span>
+          <span style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 18, letterSpacing: '0.1em' }}>
+            PANTHEON WARS
+          </span>
+          <span style={{
+            fontFamily: "'IBM Plex Mono', monospace",
+            fontSize: 9,
+            letterSpacing: '0.12em',
+            textTransform: 'uppercase',
+            color: 'rgba(240,240,248,0.3)',
+            marginLeft: 4,
+          }}>
+            / LEADERBOARD
+          </span>
+        </div>
+        <Link
+          to="/games/pantheon-wars"
+          style={{
+            fontFamily: "'IBM Plex Mono', monospace",
+            fontSize: 10,
+            letterSpacing: '0.12em',
+            textTransform: 'uppercase',
+            color: 'rgba(240,240,248,0.38)',
+            textDecoration: 'none',
+            border: '1px solid rgba(255,255,255,0.1)',
+            borderRadius: 6,
+            padding: '6px 12px',
+          }}
+        >
+          ← Command Center
+        </Link>
+      </header>
+
+      <main style={{ flex: 1, maxWidth: 640, margin: '0 auto', padding: '64px 20px', textAlign: 'center' }}>
+        <p style={{
+          fontFamily: "'IBM Plex Mono', monospace",
+          fontSize: 10,
+          letterSpacing: '0.18em',
+          textTransform: 'uppercase',
+          color: 'rgba(240,240,248,0.3)',
+          marginBottom: 16,
+        }}>
+          // COMING SOON
+        </p>
+        <h1 style={{
+          fontFamily: "'Bebas Neue', sans-serif",
+          fontSize: 'clamp(40px, 12vw, 72px)',
+          letterSpacing: '0.07em',
+          color: '#F0F0F8',
+          margin: '0 0 24px',
+          lineHeight: 1,
+        }}>
+          LEADERBOARD
+        </h1>
+        <p style={{
+          fontFamily: "'DM Sans', sans-serif",
+          fontSize: 15,
+          color: 'rgba(240,240,248,0.45)',
+          lineHeight: 1.6,
+          maxWidth: 440,
+          margin: '0 auto',
+        }}>
+          Glory rankings, faction standings, and level-sorted records. The top players by glory, drachma lifetime, and combat wins across all three factions will be tracked here.
+        </p>
+      </main>
+    </motion.div>
+  )
+}

@@ -644,3 +644,36 @@ Third UI variant. Late 90s / early 2000s desktop computing aesthetic — Win95/9
 
 ### Phase 15b
 Will create dedicated Retro variants of inner pages (Portfolio, About, Services, etc.). Inner pages currently render Standard variants inside RetroLayout chrome.
+
+---
+
+## Pantheon Wars — Game (Discoverability Phase)
+
+The game is a persistent Greek-mythology browser MMO (Mafia Wars-style) built end to end as a Lab experiment and portfolio piece. It is NOT rendered inline in the Lab — it has its own full-page chrome at `/games/pantheon-wars`.
+
+### Entry points
+- **Lab:** Registered in `src/data/labExperiments.js` with `external: true`, `externalUrl: '/games/pantheon-wars'`. Lab cards detect the `external` flag and navigate directly to the game route instead of `/lab/:slug`. Cards show "PLAY LIVE" badge (Standard) or `// PLAY LIVE ↗` (Digital).
+- **Portfolio:** The Pantheon UE5 project page (`/portfolio/pantheon`) has a "Play the Web Companion →" secondary CTA button in both Standard and Digital variants, plus a one-line note about the MMO. Implemented via `project.slug === 'pantheon'` check in the CTA section.
+- **Direct URL:** `/lab/pantheon-wars` redirects to `/games/pantheon-wars` via `<Navigate replace />` in `src/pages/LabExperiment.jsx`.
+
+### Routes
+All game routes live under `PantheonWarsShell` (provides `PantheonWarsContext`):
+- `/games/pantheon-wars` — Dashboard (built)
+- `/games/pantheon-wars/quests` — Quest board (built)
+- `/games/pantheon-wars/signup` — Signup (built)
+- `/games/pantheon-wars/login` — Login (built)
+- `/games/pantheon-wars/inventory` — Stub: Coming Soon
+- `/games/pantheon-wars/shop` — Stub: Coming Soon
+- `/games/pantheon-wars/temples` — Stub: Coming Soon
+- `/games/pantheon-wars/pvp` — Stub: Coming Soon
+- `/games/pantheon-wars/leaderboard` — Stub: Coming Soon
+- `/games/pantheon-wars/profile` — Stub: Coming Soon (shows stat_points alert if player has unspent points)
+
+### Dashboard nav treatment
+Dead routes show as disabled nav buttons at opacity 0.5 with a "SOON" badge in the corner. Non-clickable. Tooltip on hover. The `comingSoon: true` flag on each `NAV_ITEMS` entry controls this.
+
+### GDD
+Full game design document: `pantheon_wars/docs/PANTHEON-WARS-GDD.md`
+
+### Next phase (B)
+Profile/stat allocation, Inventory + item system, Shop, Leaderboard (API + UI for all four).

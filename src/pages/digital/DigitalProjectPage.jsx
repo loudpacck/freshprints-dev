@@ -203,6 +203,11 @@ export default function ProjectPage() {
                   </Button>
                 </a>
               )}
+              {project.slug === 'pantheon' && (
+                <Button variant="secondary" onClick={() => navigate('/games/pantheon-wars')}>
+                  PLAY THE WEB COMPANION →
+                </Button>
+              )}
               <Button
                 variant={project.liveUrl ? 'secondary' : 'primary'}
                 onClick={() => navigate(project.cta.href)}
@@ -216,6 +221,17 @@ export default function ProjectPage() {
                 VIEW ALL SERVICES
               </Button>
             </div>
+            {project.slug === 'pantheon' && (
+              <p style={{
+                fontFamily: 'var(--font-body)',
+                fontSize: 'var(--text-sm)',
+                color: 'var(--color-text-muted)',
+                marginTop: 'var(--space-6)',
+                marginBottom: 0,
+              }}>
+                A persistent Greek-mythology MMO lives alongside the UE5 game. Choose a faction, run quests, level up.
+              </p>
+            )}
           </div>
         </section>
 

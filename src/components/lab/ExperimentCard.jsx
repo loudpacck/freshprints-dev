@@ -5,6 +5,14 @@ import Badge from '@/components/ui/Badge'
 export default function ExperimentCard({ experiment, animationDelay = 0 }) {
   const navigate = useNavigate()
 
+  function handleClick() {
+    if (experiment.external) {
+      navigate(experiment.externalUrl)
+    } else {
+      navigate(`/lab/${experiment.slug}`)
+    }
+  }
+
   return (
     <div
       style={{
@@ -15,7 +23,7 @@ export default function ExperimentCard({ experiment, animationDelay = 0 }) {
       <Card
         hoverable
         accentColor={experiment.accentColor}
-        onClick={() => navigate(`/lab/${experiment.slug}`)}
+        onClick={handleClick}
         style={{
           cursor: 'pointer',
           display: 'flex',
@@ -82,9 +90,13 @@ export default function ExperimentCard({ experiment, animationDelay = 0 }) {
             marginTop: 'var(--space-2)',
           }}
         >
-          // LAUNCH EXPERIMENT
+          {experiment.external ? '// PLAY LIVE' : '// LAUNCH EXPERIMENT'}
           <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
-            <path d="M2.5 6h7M6.5 3l3 3-3 3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+            {experiment.external ? (
+              <path d="M2 2h8v8M10 2L2 10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+            ) : (
+              <path d="M2.5 6h7M6.5 3l3 3-3 3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+            )}
           </svg>
         </div>
       </Card>

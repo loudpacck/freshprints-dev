@@ -11,12 +11,12 @@ const CLASS_LABEL   = { warden: 'Warden', oracle: 'Oracle', slayer: 'Slayer', br
 
 const NAV_ITEMS = [
   { label: 'QUESTS',      glyph: '⚔',  path: '/games/pantheon-wars/quests'      },
-  { label: 'INVENTORY',   glyph: '◈',  path: '/games/pantheon-wars/inventory'   },
-  { label: 'SHOP',        glyph: '₯',  path: '/games/pantheon-wars/shop'        },
-  { label: 'TEMPLES',     glyph: '⬟',  path: '/games/pantheon-wars/temples'     },
-  { label: 'ARENA',       glyph: '⚡',  path: '/games/pantheon-wars/pvp'         },
-  { label: 'LEADERBOARD', glyph: '★',  path: '/games/pantheon-wars/leaderboard' },
-  { label: 'PROFILE',     glyph: '◎',  path: '/games/pantheon-wars/profile'     },
+  { label: 'INVENTORY',   glyph: '◈',  path: '/games/pantheon-wars/inventory',   comingSoon: true },
+  { label: 'SHOP',        glyph: '₯',  path: '/games/pantheon-wars/shop',        comingSoon: true },
+  { label: 'TEMPLES',     glyph: '⬟',  path: '/games/pantheon-wars/temples',     comingSoon: true },
+  { label: 'ARENA',       glyph: '⚡',  path: '/games/pantheon-wars/pvp',         comingSoon: true },
+  { label: 'LEADERBOARD', glyph: '★',  path: '/games/pantheon-wars/leaderboard', comingSoon: true },
+  { label: 'PROFILE',     glyph: '◎',  path: '/games/pantheon-wars/profile',     comingSoon: true },
 ]
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -141,6 +141,51 @@ function StatCard({ glyph, label, value, color }) {
 }
 
 function NavButton({ item }) {
+  if (item.comingSoon) {
+    return (
+      <div
+        title="Coming soon — temples, PvP, inventory, and crew systems shipping in the next phase"
+        style={{ position: 'relative', opacity: 0.45, cursor: 'not-allowed' }}
+      >
+        <div style={{
+          background: 'rgba(255,255,255,0.03)',
+          border: '1px solid rgba(255,255,255,0.1)',
+          borderRadius: 10,
+          padding: '16px 8px 14px',
+          textAlign: 'center',
+        }}>
+          <div style={{ fontSize: 20, marginBottom: 6, lineHeight: 1 }}>{item.glyph}</div>
+          <div style={{
+            fontFamily: "'Bebas Neue', sans-serif",
+            fontSize: 13,
+            letterSpacing: '0.08em',
+            color: '#F0F0F8',
+            lineHeight: 1,
+          }}>
+            {item.label}
+          </div>
+        </div>
+        <div style={{
+          position: 'absolute',
+          top: 5,
+          right: 5,
+          fontFamily: "'IBM Plex Mono', monospace",
+          fontSize: 7,
+          letterSpacing: '0.08em',
+          textTransform: 'uppercase',
+          color: 'rgba(240,240,248,0.6)',
+          background: 'rgba(255,255,255,0.08)',
+          border: '1px solid rgba(255,255,255,0.12)',
+          borderRadius: 3,
+          padding: '2px 4px',
+          lineHeight: 1,
+        }}>
+          SOON
+        </div>
+      </div>
+    )
+  }
+
   return (
     <Link to={item.path} style={{ textDecoration: 'none' }}>
       <motion.div

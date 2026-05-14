@@ -30,10 +30,16 @@ const Media           = lazy(() => import('@/pages/Media'))
 const Contact         = lazy(() => import('@/pages/Contact'))
 const Admin             = lazy(() => import('@/pages/Admin'))
 const NotFound          = lazy(() => import('@/pages/NotFound'))
-const PantheonSignup    = lazy(() => import('@/pages/games/pantheon-wars/Signup'))
-const PantheonLogin     = lazy(() => import('@/pages/games/pantheon-wars/Login'))
-const PantheonDashboard = lazy(() => import('@/pages/games/pantheon-wars/Dashboard'))
-const PantheonQuests    = lazy(() => import('@/pages/games/pantheon-wars/Quests'))
+const PantheonSignup      = lazy(() => import('@/pages/games/pantheon-wars/Signup'))
+const PantheonLogin       = lazy(() => import('@/pages/games/pantheon-wars/Login'))
+const PantheonDashboard   = lazy(() => import('@/pages/games/pantheon-wars/Dashboard'))
+const PantheonQuests      = lazy(() => import('@/pages/games/pantheon-wars/Quests'))
+const PantheonInventory   = lazy(() => import('@/pages/games/pantheon-wars/Inventory'))
+const PantheonShop        = lazy(() => import('@/pages/games/pantheon-wars/Shop'))
+const PantheonTemples     = lazy(() => import('@/pages/games/pantheon-wars/Temples'))
+const PantheonPvP         = lazy(() => import('@/pages/games/pantheon-wars/PvP'))
+const PantheonLeaderboard = lazy(() => import('@/pages/games/pantheon-wars/Leaderboard'))
+const PantheonProfile     = lazy(() => import('@/pages/games/pantheon-wars/Profile'))
 
 function PageLoader() {
   return (
@@ -98,6 +104,12 @@ function AnimatedRoutes() {
           <Route path="/games/pantheon-wars/quests"        element={<PantheonQuests />} />
           <Route path="/games/pantheon-wars/signup"        element={<PantheonSignup />} />
           <Route path="/games/pantheon-wars/login"         element={<PantheonLogin />} />
+          <Route path="/games/pantheon-wars/inventory"     element={<PantheonInventory />} />
+          <Route path="/games/pantheon-wars/shop"          element={<PantheonShop />} />
+          <Route path="/games/pantheon-wars/temples"       element={<PantheonTemples />} />
+          <Route path="/games/pantheon-wars/pvp"           element={<PantheonPvP />} />
+          <Route path="/games/pantheon-wars/leaderboard"   element={<PantheonLeaderboard />} />
+          <Route path="/games/pantheon-wars/profile"       element={<PantheonProfile />} />
         </Route>
         <Route path="*"                           element={<PageLayout><NotFound /></PageLayout>} />
       </Routes>

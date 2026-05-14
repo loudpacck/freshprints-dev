@@ -7,10 +7,11 @@ import Reveal from '@/components/standard/StandardReveal'
 import StandardButton from '@/components/standard/StandardButton'
 
 const STATUS_COLORS = {
-  ACTIVE:  '#22C55E',
-  BETA:    '#F59E0B',
-  STABLE:  'var(--accent)',
-  CONCEPT: '#8B5CF6',
+  ACTIVE:        '#22C55E',
+  BETA:          '#F59E0B',
+  STABLE:        'var(--accent)',
+  CONCEPT:       '#8B5CF6',
+  IN_DEVELOPMENT: '#F59E0B',
 }
 
 function ExperimentCard({ experiment }) {
@@ -18,9 +19,17 @@ function ExperimentCard({ experiment }) {
   const reduced = useReducedMotion()
   const statusColor = STATUS_COLORS[experiment.status] || 'var(--accent)'
 
+  function handleClick() {
+    if (experiment.external) {
+      navigate(experiment.externalUrl)
+    } else {
+      navigate(`/lab/${experiment.slug}`)
+    }
+  }
+
   return (
     <motion.div
-      onClick={() => navigate(`/lab/${experiment.slug}`)}
+      onClick={handleClick}
       whileHover={reduced ? {} : { y: -2, boxShadow: 'var(--shadow-lg)' }}
       transition={{ duration: 0.2 }}
       style={{
@@ -77,9 +86,35 @@ function ExperimentCard({ experiment }) {
             textTransform: 'uppercase',
             letterSpacing: '0.08em',
           }}>
-            {experiment.status}
+            {experiment.status.replace(/_/g, ' ')}
           </span>
         </div>
+        {/* External / play-live indicator */}
+        {experiment.external && (
+          <div style={{
+            position: 'absolute',
+            top: '0.75rem',
+            left: '0.75rem',
+            background: `${experiment.accentColor}22`,
+            border: `1px solid ${experiment.accentColor}55`,
+            borderRadius: '999px',
+            padding: '0.2rem 0.55rem',
+            display: 'flex',
+            alignItems: 'center',
+            gap: 4,
+          }}>
+            <span style={{
+              fontFamily: 'var(--font-mono)',
+              fontSize: '0.6rem',
+              color: experiment.accentColor,
+              textTransform: 'uppercase',
+              letterSpacing: '0.08em',
+              fontWeight: 600,
+            }}>
+              PLAY LIVE
+            </span>
+          </div>
+        )}
       </div>
 
       {/* Body */}
@@ -126,9 +161,19 @@ function ExperimentCard({ experiment }) {
           fontFamily: 'var(--font-body)',
           fontSize: 'var(--text-sm)',
           fontWeight: 'var(--weight-medium)',
-          color: 'var(--accent)',
+          color: experiment.external ? experiment.accentColor : 'var(--accent)',
+          display: 'flex',
+          alignItems: 'center',
+          gap: 6,
         }}>
-          Try it →
+          {experiment.external ? 'Play live' : 'Try it'}
+          {experiment.external ? (
+            <svg width="13" height="13" viewBox="0 0 13 13" fill="none" aria-hidden="true">
+              <path d="M2 2h9v9M11 2L2 11" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+          ) : (
+            <span>→</span>
+          )}
         </div>
       </div>
     </motion.div>

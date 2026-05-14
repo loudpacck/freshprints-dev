@@ -434,10 +434,26 @@ export default function StandardProjectPage() {
                 <StandardButton size="lg" href={project.cta?.href || '/contact'}>
                   Get in Touch
                 </StandardButton>
+                {project.slug === 'pantheon' && (
+                  <StandardButton variant="secondary" href="/games/pantheon-wars">
+                    Play the Web Companion →
+                  </StandardButton>
+                )}
                 <StandardButton variant="ghost" href="/portfolio">
                   See More Work →
                 </StandardButton>
               </div>
+              {project.slug === 'pantheon' && (
+                <p style={{
+                  fontFamily: 'var(--font-body)',
+                  fontSize: 'var(--text-sm)',
+                  color: 'var(--text-tertiary)',
+                  marginTop: 'var(--space-4)',
+                  marginBottom: 0,
+                }}>
+                  A persistent Greek-mythology MMO lives alongside the UE5 game. Choose a faction, run quests, level up.
+                </p>
+              )}
             </div>
           </Reveal>
         </div>
