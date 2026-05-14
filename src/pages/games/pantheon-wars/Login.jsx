@@ -41,7 +41,7 @@ export default function PantheonLogin() {
     setError('')
     setBusy(true)
     try {
-      const res  = await fetch('/api/games/pantheon-wars/login', {
+      const res  = await fetch('/api/games/pantheon-wars/auth?action=login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, password }),

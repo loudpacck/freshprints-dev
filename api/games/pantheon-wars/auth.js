@@ -1,0 +1,191 @@
+import { sql } from '../../../lib/db.js'
+import {
+  hashPassword, verifyPassword,
+  createUserSession,
+  getSessionFromCookie, revokeUserSession, buildClearSessionCookie,
+  requireUser,
+} from '../../../lib/pwAuth.js'
+import { regenPlayer } from '../../../lib/pwHelpers.js'
+
+export const config = { runtime: 'nodejs' }
+
+// ── Signup ────────────────────────────────────────────────────────────────────
+
+const VALID_FACTIONS = ['olympians', 'aesir', 'annunaki']
+const VALID_CLASSES  = ['warden', 'oracle', 'slayer', 'broker']
+
+async function handleSignup(req, res) {
+  if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' })
+
+  const { username, email, password, faction, class: playerClass } = req.body || {}
+
+  if (!username || !email || !password || !faction || !playerClass) {
+    return res.status(400).json({ error: 'Missing required fields: username, email, password, faction, class' })
+  }
+  if (!VALID_FACTIONS.includes(faction)) {
+    return res.status(400).json({ error: `Invalid faction. Must be one of: ${VALID_FACTIONS.join(', ')}` })
+  }
+  if (!VALID_CLASSES.includes(playerClass)) {
+    return res.status(400).json({ error: `Invalid class. Must be one of: ${VALID_CLASSES.join(', ')}` })
+  }
+  if (username.length > 30) {
+    return res.status(400).json({ error: 'Username must be 30 characters or fewer' })
+  }
+
+  try {
+    const existing = await sql`
+      SELECT id FROM pw_users
+      WHERE email = ${email} OR username = ${username}
+      LIMIT 1
+    `
+    if (existing.length > 0) {
+      return res.status(409).json({ error: 'Username or email already taken' })
+    }
+
+    const passwordHash = await hashPassword(password)
+
+    const userRows = await sql`
+      INSERT INTO pw_users (username, email, password_hash, faction, class)
+      VALUES (${username}, ${email}, ${passwordHash}, ${faction}, ${playerClass})
+      RETURNING id, username, email, faction, class, alignment, created_at, last_login
+    `
+    const user = userRows[0]
+
+    await sql`INSERT INTO pw_player_stats (user_id) VALUES (${user.id})`
+
+    await createUserSession(user.id, res)
+
+    return res.status(201).json({ user })
+  } catch (err) {
+    console.error('Signup error:', err)
+    return res.status(500).json({ error: 'Failed to create account' })
+  }
+}
+
+// ── Login ─────────────────────────────────────────────────────────────────────
+
+async function handleLogin(req, res) {
+  if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' })
+
+  const { email, password } = req.body || {}
+  if (!email || !password) {
+    return res.status(400).json({ error: 'Missing required fields: email, password' })
+  }
+
+  try {
+    const userRows = await sql`
+      SELECT id, username, email, password_hash, faction, class, alignment, created_at, last_login
+      FROM pw_users
+      WHERE email = ${email}
+      LIMIT 1
+    `
+    if (userRows.length === 0) {
+      await new Promise(r => setTimeout(r, 800))
+      return res.status(401).json({ error: 'Invalid credentials' })
+    }
+
+    const user = userRows[0]
+    const ok = await verifyPassword(password, user.password_hash)
+    if (!ok) {
+      await new Promise(r => setTimeout(r, 800))
+      return res.status(401).json({ error: 'Invalid credentials' })
+    }
+
+    const statsRows = await sql`
+      SELECT level, xp, energy, energy_max, health, health_max,
+             drachma, drachma_lifetime, glory, attack, defense, stat_points, last_updated
+      FROM pw_player_stats
+      WHERE user_id = ${user.id}
+    `
+
+    await sql`UPDATE pw_users SET last_login = NOW() WHERE id = ${user.id}`
+
+    await createUserSession(user.id, res)
+
+    const { password_hash, ...safeUser } = user
+    return res.status(200).json({ user: safeUser, stats: statsRows[0] || null })
+  } catch (err) {
+    console.error('Login error:', err)
+    return res.status(500).json({ error: 'Login failed' })
+  }
+}
+
+// ── Logout ────────────────────────────────────────────────────────────────────
+
+async function handleLogout(req, res) {
+  if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' })
+
+  const sessionId = getSessionFromCookie(req)
+  await revokeUserSession(sessionId)
+  res.setHeader('Set-Cookie', buildClearSessionCookie())
+  return res.status(200).json({ ok: true })
+}
+
+// ── Me ────────────────────────────────────────────────────────────────────────
+
+async function handleMe(req, res) {
+  if (req.method !== 'GET') return res.status(405).json({ error: 'Method not allowed' })
+
+  try {
+    const rows = await sql`
+      SELECT
+        u.id, u.username, u.email, u.faction, u.class, u.alignment,
+        u.created_at, u.last_login,
+        s.level, s.xp, s.energy, s.energy_max, s.health, s.health_max,
+        s.drachma, s.drachma_lifetime, s.glory, s.attack, s.defense,
+        s.stat_points, s.last_updated
+      FROM pw_users u
+      JOIN pw_player_stats s ON s.user_id = u.id
+      WHERE u.id = ${req.userId}
+    `
+
+    if (rows.length === 0) return res.status(404).json({ error: 'Player not found' })
+
+    const row = rows[0]
+    let statsRaw = {
+      level: row.level, xp: row.xp,
+      energy: row.energy, energy_max: row.energy_max,
+      health: row.health, health_max: row.health_max,
+      drachma: row.drachma, drachma_lifetime: row.drachma_lifetime,
+      glory: row.glory, attack: row.attack, defense: row.defense,
+      stat_points: row.stat_points, last_updated: row.last_updated,
+    }
+
+    const statsRegen = regenPlayer(statsRaw)
+    if (statsRegen.energy !== statsRaw.energy || statsRegen.health !== statsRaw.health) {
+      await sql`
+        UPDATE pw_player_stats
+        SET energy = ${statsRegen.energy}, health = ${statsRegen.health},
+            last_updated = ${statsRegen.last_updated}
+        WHERE user_id = ${req.userId}
+      `
+    }
+
+    const user = {
+      id:         row.id,
+      username:   row.username,
+      email:      row.email,
+      faction:    row.faction,
+      class:      row.class,
+      alignment:  row.alignment,
+      created_at: row.created_at,
+      last_login: row.last_login,
+    }
+
+    return res.status(200).json({ user, stats: statsRegen })
+  } catch (err) {
+    console.error('Me error:', err)
+    return res.status(500).json({ error: 'Failed to fetch profile' })
+  }
+}
+
+// ── Router ────────────────────────────────────────────────────────────────────
+
+export default async function handler(req, res) {
+  const { action } = req.query
+  if (action === 'signup') return handleSignup(req, res)
+  if (action === 'login')  return handleLogin(req, res)
+  if (action === 'logout') return handleLogout(req, res)
+  if (action === 'me')     return requireUser(handleMe)(req, res)
+  return res.status(400).json({ error: 'Unknown action' })
+}

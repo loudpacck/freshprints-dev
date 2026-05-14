@@ -162,7 +162,7 @@ export default function Leaderboard() {
     setLoading(true)
     setError(null)
     try {
-      const res = await fetch(`/api/games/pantheon-wars/leaderboard?type=${type}&faction=${faction}`)
+      const res = await fetch(`/api/games/pantheon-wars/game?action=leaderboard&type=${type}&faction=${faction}`)
       if (res.status === 401) { navigate('/games/pantheon-wars/login', { replace: true }); return }
       if (!res.ok) { setError('Failed to load leaderboard.'); return }
       const data = await res.json()

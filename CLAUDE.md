@@ -677,17 +677,21 @@ Full game design document: `pantheon_wars/docs/PANTHEON-WARS-GDD.md`
 
 ### Phase B1 — Profile / Stat Allocation (complete)
 - Players can now spend earned `stat_points` on Attack and Defense (1 point per +1 stat increment)
-- New API endpoint: `POST /api/games/pantheon-wars/profile/allocate` — validates, applies regen, and writes in one UPDATE
 - `/games/pantheon-wars/profile` is now fully functional; the Dashboard PROFILE nav button is live (no longer Coming Soon)
 - Stat values are visible on Dashboard; allocation happens at `/games/pantheon-wars/profile`
-- Regen is folded into the allocation UPDATE (no separate regen write) — same pattern as `quests/complete.js`
 
 ### Phase B2/B3 — Inventory, Shop, Leaderboard (complete)
 - `pw_items` (50 items), `pw_inventory`, `pw_quest_loot` tables added to schema + seed
-- Real loot drops wired into `quests/complete.js` (picks from `pw_quest_loot`, inserts to `pw_inventory`)
-- APIs: `inventory`, `equip`, `unequip`, `sell`, `shop`, `shop/buy`, `leaderboard`
+- Real loot drops wired into quest completion (picks from `pw_quest_loot`, inserts to `pw_inventory`)
 - Full UI: `Inventory.jsx` (slot grid, filter, equip/sell), `Shop.jsx` (drachma/glory tabs), `Leaderboard.jsx` (type + faction filters)
 - Dashboard INVENTORY, SHOP, LEADERBOARD nav buttons unlocked
+
+### API consolidation (Vercel 12-function limit fix)
+Vercel Hobby plan allows max 12 serverless functions. All 14 Pantheon Wars API files were consolidated into 2:
+- `api/games/pantheon-wars/auth.js` — handles: signup, login, logout, me (via `?action=` routing)
+- `api/games/pantheon-wars/game.js` — handles: quests, complete, inventory, equip, unequip, sell, shop, buy, leaderboard, allocate
+- Total API files: 8 (auth.js, game.js + contact.js, track.js, auth/admin.js, auth/check.js, auth/logout.js, admin/overview.js)
+- All frontend fetch() URLs updated to use `?action=` params
 
 ### Next phase (B4/B5)
 Temples (passive income) + PvP (combat, target list, combat log).

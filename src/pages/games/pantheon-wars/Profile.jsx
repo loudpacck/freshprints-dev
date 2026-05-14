@@ -272,7 +272,7 @@ export default function Profile() {
     if (totalPending === 0 || isSubmitting) return
     setIsSubmitting(true)
     try {
-      const res  = await fetch('/api/games/pantheon-wars/profile/allocate', {
+      const res  = await fetch('/api/games/pantheon-wars/game?action=allocate', {
         method:  'POST',
         headers: { 'Content-Type': 'application/json' },
         body:    JSON.stringify({ attack: pendingAttack, defense: pendingDefense }),

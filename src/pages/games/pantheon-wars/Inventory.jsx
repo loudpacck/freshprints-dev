@@ -422,7 +422,7 @@ export default function Inventory() {
     setLoading(true)
     setError(null)
     try {
-      const res = await fetch('/api/games/pantheon-wars/inventory')
+      const res = await fetch('/api/games/pantheon-wars/game?action=inventory')
       if (res.status === 401) { navigate('/games/pantheon-wars/login', { replace: true }); return }
       if (!res.ok) { setError('Failed to load inventory.'); return }
       const data = await res.json()
@@ -438,7 +438,7 @@ export default function Inventory() {
   async function handleEquip(inventory_id) {
     setBusy(true)
     try {
-      const res  = await fetch('/api/games/pantheon-wars/equip', {
+      const res  = await fetch('/api/games/pantheon-wars/game?action=equip', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ inventory_id }),
@@ -454,7 +454,7 @@ export default function Inventory() {
   async function handleUnequip(inventory_id) {
     setBusy(true)
     try {
-      const res  = await fetch('/api/games/pantheon-wars/unequip', {
+      const res  = await fetch('/api/games/pantheon-wars/game?action=unequip', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ inventory_id }),
@@ -476,7 +476,7 @@ export default function Inventory() {
     setSellModal(null)
     setBusy(true)
     try {
-      const res  = await fetch('/api/games/pantheon-wars/sell', {
+      const res  = await fetch('/api/games/pantheon-wars/game?action=sell', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ inventory_id }),

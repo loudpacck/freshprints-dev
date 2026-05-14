@@ -12,7 +12,7 @@ export function PantheonWarsProvider({ children }) {
     setLoading(true)
     setError(null)
     try {
-      const res = await fetch('/api/games/pantheon-wars/me')
+      const res = await fetch('/api/games/pantheon-wars/auth?action=me')
       if (res.status === 401) {
         setUser(null)
         setStats(null)
@@ -36,7 +36,7 @@ export function PantheonWarsProvider({ children }) {
 
   async function logout() {
     try {
-      await fetch('/api/games/pantheon-wars/logout', { method: 'POST' })
+      await fetch('/api/games/pantheon-wars/auth?action=logout', { method: 'POST' })
     } finally {
       setUser(null)
       setStats(null)

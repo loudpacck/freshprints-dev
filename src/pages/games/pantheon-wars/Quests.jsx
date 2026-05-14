@@ -335,7 +335,7 @@ export default function Quests() {
     setLoading(true)
     setError(null)
     try {
-      const res = await fetch('/api/games/pantheon-wars/quests')
+      const res = await fetch('/api/games/pantheon-wars/game?action=quests')
       if (res.status === 401) { navigate('/games/pantheon-wars/login', { replace: true }); return }
       if (!res.ok) { setError('Failed to load quests.'); return }
       const data = await res.json()
@@ -357,7 +357,7 @@ export default function Quests() {
   async function handleComplete(questId) {
     setCompleting(questId)
     try {
-      const res = await fetch('/api/games/pantheon-wars/quests/complete', {
+      const res = await fetch('/api/games/pantheon-wars/game?action=complete', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ quest_id: questId }),

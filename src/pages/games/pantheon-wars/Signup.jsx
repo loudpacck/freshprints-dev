@@ -258,7 +258,7 @@ export default function PantheonSignup() {
     if (!cls)     { setError('Choose a class to continue.'); return }
     setBusy(true)
     try {
-      const res  = await fetch('/api/games/pantheon-wars/signup', {
+      const res  = await fetch('/api/games/pantheon-wars/auth?action=signup', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ ...fields, faction, class: cls }),

@@ -251,7 +251,7 @@ export default function Shop() {
     setLoading(true)
     setError(null)
     try {
-      const res = await fetch('/api/games/pantheon-wars/shop')
+      const res = await fetch('/api/games/pantheon-wars/game?action=shop')
       if (res.status === 401) { navigate('/games/pantheon-wars/login', { replace: true }); return }
       if (!res.ok) { setError('Failed to load shop.'); return }
       const data = await res.json()
@@ -267,7 +267,7 @@ export default function Shop() {
   async function handleBuy(item_id) {
     setBuying(item_id)
     try {
-      const res  = await fetch('/api/games/pantheon-wars/shop/buy', {
+      const res  = await fetch('/api/games/pantheon-wars/game?action=buy', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ item_id, currency: tab }),
