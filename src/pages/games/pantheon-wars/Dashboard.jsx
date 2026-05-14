@@ -16,7 +16,7 @@ const NAV_ITEMS = [
   { label: 'TEMPLES',     glyph: '⬟',  path: '/games/pantheon-wars/temples',     comingSoon: true },
   { label: 'ARENA',       glyph: '⚡',  path: '/games/pantheon-wars/pvp',         comingSoon: true },
   { label: 'LEADERBOARD', glyph: '★',  path: '/games/pantheon-wars/leaderboard', comingSoon: true },
-  { label: 'PROFILE',     glyph: '◎',  path: '/games/pantheon-wars/profile',     comingSoon: true },
+  { label: 'PROFILE',     glyph: '◎',  path: '/games/pantheon-wars/profile'      },
 ]
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────

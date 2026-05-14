@@ -675,5 +675,12 @@ Dead routes show as disabled nav buttons at opacity 0.5 with a "SOON" badge in t
 ### GDD
 Full game design document: `pantheon_wars/docs/PANTHEON-WARS-GDD.md`
 
-### Next phase (B)
-Profile/stat allocation, Inventory + item system, Shop, Leaderboard (API + UI for all four).
+### Phase B1 — Profile / Stat Allocation (complete)
+- Players can now spend earned `stat_points` on Attack and Defense (1 point per +1 stat increment)
+- New API endpoint: `POST /api/games/pantheon-wars/profile/allocate` — validates, applies regen, and writes in one UPDATE
+- `/games/pantheon-wars/profile` is now fully functional; the Dashboard PROFILE nav button is live (no longer Coming Soon)
+- Stat values are visible on Dashboard; allocation happens at `/games/pantheon-wars/profile`
+- Regen is folded into the allocation UPDATE (no separate regen write) — same pattern as `quests/complete.js`
+
+### Next phase (B2/B3)
+Inventory + item system, Shop, Leaderboard (API + UI for all three).
