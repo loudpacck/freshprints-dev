@@ -465,3 +465,18 @@ INSERT INTO pw_quest_loot (quest_id, item_id, drop_weight) VALUES
 (38, 9,  1), (38, 20, 1), (38, 50, 1),
 (39, 10, 1), (39, 29, 1), (39, 40, 1),
 (40, 8,  1), (40, 30, 1), (40, 49, 1);
+
+-- ─── pw_temples ───────────────────────────────────────────────────────────────
+-- Re-runnable: clears player-owned temples, then re-seeds the catalog.
+-- WARNING: Also clears pw_player_temples (player ownership data).
+TRUNCATE pw_temples CASCADE;
+-- ↑ cascades to: pw_player_temples
+
+-- Columns: type, name, base_cost, income_per_hour, level_required
+INSERT INTO pw_temples (type, name, base_cost, income_per_hour, level_required)
+VALUES
+  ('roadside_shrine',  'Roadside Shrine',   500,     10,    1),
+  ('minor_temple',     'Minor Temple',      2500,    40,    10),
+  ('grand_temple',     'Grand Temple',      15000,   200,   25),
+  ('divine_fortress',  'Divine Fortress',   100000,  1000,  50),
+  ('pantheon_citadel', 'Pantheon Citadel',  500000,  4000,  75);

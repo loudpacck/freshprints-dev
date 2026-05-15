@@ -639,19 +639,251 @@ async function handleAllocate(req, res) {
   }
 }
 
+// ── Temples helpers ───────────────────────────────────────────────────────────
+
+async function fetchOwnedTemples(userId) {
+  return sql`
+    SELECT
+      pt.id,
+      pt.temple_type,
+      pt.upgrade_level,
+      pt.purchased_at,
+      t.name,
+      t.base_cost,
+      t.income_per_hour,
+      t.level_required
+    FROM pw_player_temples pt
+    JOIN pw_temples t ON t.type = pt.temple_type
+    WHERE pt.user_id = ${userId}
+    ORDER BY t.level_required ASC, pt.purchased_at ASC
+  `
+}
+
+function shapeOwnedTemple(row, playerDrachma) {
+  const currentIncome  = Math.round(row.income_per_hour * (1 + 0.25 * row.upgrade_level))
+  const upgradeCost    = row.upgrade_level < 10 ? Math.floor(row.base_cost * 0.5) : null
+  const canUpgrade     = row.upgrade_level < 10 && playerDrachma >= upgradeCost
+  return {
+    id:                     row.id,
+    temple_type:            row.temple_type,
+    name:                   row.name,
+    upgrade_level:          row.upgrade_level,
+    current_income_per_hour: currentIncome,
+    upgrade_cost:           upgradeCost,
+    can_upgrade:            canUpgrade,
+  }
+}
+
+// ── Temples (GET) ─────────────────────────────────────────────────────────────
+
+async function handleTemples(req, res) {
+  if (req.method !== 'GET') return res.status(405).json({ error: 'Method not allowed' })
+
+  try {
+    const statsRows = await sql`SELECT * FROM pw_player_stats WHERE user_id = ${req.userId}`
+    if (statsRows.length === 0) return res.status(404).json({ error: 'Player not found' })
+
+    const playerLevel = statsRows[0].level
+
+    const owned = await fetchOwnedTemples(req.userId)
+    let stats = regenPlayer(statsRows[0], owned)
+
+    if (
+      stats.energy           !== statsRows[0].energy   ||
+      stats.health           !== statsRows[0].health   ||
+      stats.drachma          !== statsRows[0].drachma  ||
+      stats.drachma_lifetime !== statsRows[0].drachma_lifetime
+    ) {
+      await sql`
+        UPDATE pw_player_stats
+        SET energy           = ${stats.energy},
+            health           = ${stats.health},
+            drachma          = ${stats.drachma},
+            drachma_lifetime = ${stats.drachma_lifetime},
+            last_updated     = ${stats.last_updated}
+        WHERE user_id = ${req.userId}
+      `
+    }
+
+    const catalogRows = await sql`
+      SELECT type, name, base_cost, income_per_hour, level_required
+      FROM pw_temples
+      ORDER BY level_required ASC
+    `
+
+    const catalog = catalogRows.map(t => {
+      const levelOk   = playerLevel >= t.level_required
+      const fundsOk   = stats.drachma >= t.base_cost
+      const canBuy    = levelOk && fundsOk
+      const reason    = !canBuy ? (!levelOk ? 'level' : 'drachma') : null
+      return { ...t, canBuy, reason }
+    })
+
+    const shapedOwned = owned.map(r => shapeOwnedTemple(r, stats.drachma))
+    const totalIncome = shapedOwned.reduce((s, r) => s + r.current_income_per_hour, 0)
+
+    return res.status(200).json({
+      catalog,
+      owned:                shapedOwned,
+      total_income_per_hour: totalIncome,
+      stats: {
+        level:            stats.level,
+        xp:               stats.xp,
+        energy:           stats.energy,
+        energy_max:       stats.energy_max,
+        health:           stats.health,
+        health_max:       stats.health_max,
+        drachma:          stats.drachma,
+        drachma_lifetime: stats.drachma_lifetime,
+        glory:            stats.glory,
+        attack:           stats.attack,
+        defense:          stats.defense,
+        stat_points:      stats.stat_points,
+      },
+    })
+  } catch (err) {
+    console.error('Temples error:', err)
+    return res.status(500).json({ error: 'Failed to fetch temples' })
+  }
+}
+
+// ── Temples Buy (POST) ────────────────────────────────────────────────────────
+
+async function handleTemplesBuy(req, res) {
+  if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' })
+
+  const { temple_type } = req.body ?? {}
+  if (!temple_type) return res.status(400).json({ error: 'temple_type is required' })
+
+  try {
+    const templeRows = await sql`
+      SELECT type, name, base_cost, income_per_hour, level_required
+      FROM pw_temples WHERE type = ${temple_type}
+    `
+    if (templeRows.length === 0) return res.status(400).json({ error: 'invalid_temple' })
+    const temple = templeRows[0]
+
+    const statsRows = await sql`SELECT * FROM pw_player_stats WHERE user_id = ${req.userId}`
+    if (statsRows.length === 0) return res.status(404).json({ error: 'Player not found' })
+
+    const playerLevel = statsRows[0].level
+
+    if (playerLevel < temple.level_required) {
+      return res.status(400).json({ error: 'level_too_low', level_required: temple.level_required })
+    }
+
+    const owned = await fetchOwnedTemples(req.userId)
+    let stats = regenPlayer(statsRows[0], owned)
+
+    if (stats.drachma < temple.base_cost) {
+      return res.status(400).json({ error: 'insufficient_drachma', cost: temple.base_cost })
+    }
+
+    stats = { ...stats, drachma: stats.drachma - temple.base_cost }
+
+    await sql`
+      UPDATE pw_player_stats
+      SET drachma          = ${stats.drachma},
+          drachma_lifetime = ${stats.drachma_lifetime},
+          energy           = ${stats.energy},
+          health           = ${stats.health},
+          last_updated     = ${stats.last_updated}
+      WHERE user_id = ${req.userId}
+    `
+
+    const newRows = await sql`
+      INSERT INTO pw_player_temples (user_id, temple_type, upgrade_level)
+      VALUES (${req.userId}, ${temple_type}, 0)
+      RETURNING id, temple_type, upgrade_level, purchased_at
+    `
+    const newTemple = { ...newRows[0], ...temple }
+    const shaped    = shapeOwnedTemple(newTemple, stats.drachma)
+
+    return res.status(201).json({ stats, temple: shaped })
+  } catch (err) {
+    console.error('Temples buy error:', err)
+    return res.status(500).json({ error: 'Purchase failed' })
+  }
+}
+
+// ── Temples Upgrade (POST) ────────────────────────────────────────────────────
+
+async function handleTemplesUpgrade(req, res) {
+  if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' })
+
+  const { player_temple_id } = req.body ?? {}
+  if (!player_temple_id) return res.status(400).json({ error: 'player_temple_id is required' })
+
+  try {
+    const ptRows = await sql`
+      SELECT
+        pt.id, pt.temple_type, pt.upgrade_level,
+        t.name, t.base_cost, t.income_per_hour, t.level_required
+      FROM pw_player_temples pt
+      JOIN pw_temples t ON t.type = pt.temple_type
+      WHERE pt.id = ${player_temple_id} AND pt.user_id = ${req.userId}
+    `
+    if (ptRows.length === 0) return res.status(404).json({ error: 'not_found' })
+    const pt = ptRows[0]
+
+    if (pt.upgrade_level >= 10) return res.status(400).json({ error: 'max_level' })
+
+    const upgradeCost = Math.floor(pt.base_cost * 0.5)
+
+    const statsRows = await sql`SELECT * FROM pw_player_stats WHERE user_id = ${req.userId}`
+    if (statsRows.length === 0) return res.status(404).json({ error: 'Player not found' })
+
+    const owned = await fetchOwnedTemples(req.userId)
+    let stats = regenPlayer(statsRows[0], owned)
+
+    if (stats.drachma < upgradeCost) {
+      return res.status(400).json({ error: 'insufficient_drachma', cost: upgradeCost })
+    }
+
+    stats = { ...stats, drachma: stats.drachma - upgradeCost }
+
+    await sql`
+      UPDATE pw_player_stats
+      SET drachma          = ${stats.drachma},
+          drachma_lifetime = ${stats.drachma_lifetime},
+          energy           = ${stats.energy},
+          health           = ${stats.health},
+          last_updated     = ${stats.last_updated}
+      WHERE user_id = ${req.userId}
+    `
+
+    const updatedRows = await sql`
+      UPDATE pw_player_temples
+      SET upgrade_level = upgrade_level + 1
+      WHERE id = ${player_temple_id}
+      RETURNING id, temple_type, upgrade_level, purchased_at
+    `
+    const updatedPt = { ...updatedRows[0], ...pt, upgrade_level: updatedRows[0].upgrade_level }
+    const shaped    = shapeOwnedTemple(updatedPt, stats.drachma)
+
+    return res.status(200).json({ stats, temple: shaped })
+  } catch (err) {
+    console.error('Temples upgrade error:', err)
+    return res.status(500).json({ error: 'Upgrade failed' })
+  }
+}
+
 // ── Router ────────────────────────────────────────────────────────────────────
 
 export default requireUser(async function handler(req, res) {
   const { action } = req.query
-  if (action === 'quests')      return handleQuests(req, res)
-  if (action === 'complete')    return handleComplete(req, res)
-  if (action === 'inventory')   return handleInventory(req, res)
-  if (action === 'equip')       return handleEquip(req, res)
-  if (action === 'unequip')     return handleUnequip(req, res)
-  if (action === 'sell')        return handleSell(req, res)
-  if (action === 'shop')        return handleShop(req, res)
-  if (action === 'buy')         return handleBuy(req, res)
-  if (action === 'leaderboard') return handleLeaderboard(req, res)
-  if (action === 'allocate')    return handleAllocate(req, res)
+  if (action === 'quests')           return handleQuests(req, res)
+  if (action === 'complete')         return handleComplete(req, res)
+  if (action === 'inventory')        return handleInventory(req, res)
+  if (action === 'equip')            return handleEquip(req, res)
+  if (action === 'unequip')          return handleUnequip(req, res)
+  if (action === 'sell')             return handleSell(req, res)
+  if (action === 'shop')             return handleShop(req, res)
+  if (action === 'buy')              return handleBuy(req, res)
+  if (action === 'leaderboard')      return handleLeaderboard(req, res)
+  if (action === 'allocate')         return handleAllocate(req, res)
+  if (action === 'temples')          return handleTemples(req, res)
+  if (action === 'temples_buy')      return handleTemplesBuy(req, res)
+  if (action === 'temples_upgrade')  return handleTemplesUpgrade(req, res)
   return res.status(400).json({ error: 'Unknown action' })
 })

@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { usePantheonWars } from '@/contexts/PantheonWarsContext'
@@ -13,7 +13,7 @@ const NAV_ITEMS = [
   { label: 'QUESTS',      glyph: '⚔',  path: '/games/pantheon-wars/quests'      },
   { label: 'INVENTORY',   glyph: '◈',  path: '/games/pantheon-wars/inventory'                   },
   { label: 'SHOP',        glyph: '₯',  path: '/games/pantheon-wars/shop'                         },
-  { label: 'TEMPLES',     glyph: '⬟',  path: '/games/pantheon-wars/temples',     comingSoon: true },
+  { label: 'TEMPLES',     glyph: '⬟',  path: '/games/pantheon-wars/temples'      },
   { label: 'ARENA',       glyph: '⚡',  path: '/games/pantheon-wars/pvp',         comingSoon: true },
   { label: 'LEADERBOARD', glyph: '★',  path: '/games/pantheon-wars/leaderboard'                  },
   { label: 'PROFILE',     glyph: '◎',  path: '/games/pantheon-wars/profile'      },
@@ -234,9 +234,23 @@ export default function Dashboard() {
   const { user, stats, loading, error, logout } = usePantheonWars()
   const navigate = useNavigate()
 
+  // null = loading, false = failed (render nothing), { total, count } = loaded
+  const [templeIncome, setTempleIncome] = useState(null)
+
   useEffect(() => {
     if (!loading && !user) navigate('/games/pantheon-wars/login', { replace: true })
   }, [loading, user, navigate])
+
+  useEffect(() => {
+    if (loading || !user) return
+    fetch('/api/games/pantheon-wars/game?action=temples')
+      .then(r => r.ok ? r.json() : null)
+      .then(data => {
+        if (data) setTempleIncome({ total: data.total_income_per_hour, count: data.owned.length })
+        else setTempleIncome(false)
+      })
+      .catch(() => setTempleIncome(false))
+  }, [loading, user])
 
   async function handleLogout() {
     await logout()
@@ -533,7 +547,7 @@ export default function Dashboard() {
                   display: 'grid',
                   gridTemplateColumns: 'repeat(4, 1fr)',
                   gap: 10,
-                  marginBottom: stats.stat_points > 0 ? 12 : 28,
+                  marginBottom: 12,
                 }}
               >
                 <StatCard glyph="₯" label="Drachma" value={fmt(stats.drachma)} color="#F5C542" />
@@ -541,6 +555,77 @@ export default function Dashboard() {
                 <StatCard glyph="⚔" label="Attack"  value={stats.attack}       color="#F97316" />
                 <StatCard glyph="◈" label="Defense" value={stats.defense}      color="#22C55E" />
               </motion.div>
+
+              {/* ── Temple income card ───────────────────────── */}
+              {templeIncome !== false && (
+                <motion.div variants={fadeUp} style={{ marginBottom: 12 }}>
+                  <Link to="/games/pantheon-wars/temples" style={{ textDecoration: 'none' }}>
+                    <motion.div
+                      whileHover={{ scale: 1.015 }}
+                      whileTap={{ scale: 0.99 }}
+                      style={{
+                        background: 'rgba(167,139,250,0.06)',
+                        border: '1px solid rgba(167,139,250,0.18)',
+                        borderRadius: 10,
+                        padding: '14px 16px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        cursor: 'pointer',
+                      }}
+                    >
+                      {templeIncome === null ? (
+                        <Skeleton h={14} w={160} />
+                      ) : (
+                        <>
+                          <div>
+                            <div style={{
+                              fontFamily: "'IBM Plex Mono', monospace",
+                              fontSize: 10,
+                              letterSpacing: '0.13em',
+                              textTransform: 'uppercase',
+                              color: 'rgba(167,139,250,0.7)',
+                              marginBottom: 4,
+                            }}>
+                              TEMPLE INCOME
+                            </div>
+                            <div style={{
+                              fontFamily: "'Bebas Neue', sans-serif",
+                              fontSize: 22,
+                              letterSpacing: '0.04em',
+                              color: '#A78BFA',
+                              lineHeight: 1,
+                            }}>
+                              {fmt(templeIncome.total)} ₯/hr
+                            </div>
+                          </div>
+                          <div style={{ textAlign: 'right' }}>
+                            <div style={{
+                              fontFamily: "'IBM Plex Mono', monospace",
+                              fontSize: 10,
+                              letterSpacing: '0.09em',
+                              color: 'rgba(167,139,250,0.5)',
+                              marginBottom: 4,
+                            }}>
+                              {templeIncome.count === 0
+                                ? 'Build your first temple →'
+                                : `${templeIncome.count} temple${templeIncome.count !== 1 ? 's' : ''}`}
+                            </div>
+                            <div style={{
+                              fontFamily: "'IBM Plex Mono', monospace",
+                              fontSize: 9,
+                              letterSpacing: '0.09em',
+                              color: 'rgba(167,139,250,0.35)',
+                            }}>
+                              VIEW →
+                            </div>
+                          </div>
+                        </>
+                      )}
+                    </motion.div>
+                  </Link>
+                </motion.div>
+              )}
 
               {/* ── Stat points alert ────────────────────────── */}
               {stats.stat_points > 0 && (

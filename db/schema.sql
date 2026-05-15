@@ -162,3 +162,23 @@ CREATE TABLE pw_quest_loot (
 );
 
 CREATE INDEX idx_pw_inventory_user ON pw_inventory(user_id);
+
+-- Pantheon Wars: Temple catalog (seeded)
+CREATE TABLE IF NOT EXISTS pw_temples (
+    type VARCHAR(50) PRIMARY KEY,
+    name VARCHAR(100) NOT NULL,
+    base_cost INTEGER NOT NULL,
+    income_per_hour INTEGER NOT NULL,
+    level_required INTEGER DEFAULT 1
+);
+
+-- Pantheon Wars: Player-owned temples (passive income properties)
+CREATE TABLE IF NOT EXISTS pw_player_temples (
+    id SERIAL PRIMARY KEY,
+    user_id UUID REFERENCES pw_users(id) ON DELETE CASCADE,
+    temple_type VARCHAR(50) REFERENCES pw_temples(type),
+    upgrade_level INTEGER DEFAULT 0 CHECK (upgrade_level BETWEEN 0 AND 10),
+    purchased_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_pw_player_temples_user ON pw_player_temples(user_id);
