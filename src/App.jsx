@@ -38,6 +38,7 @@ const PantheonInventory   = lazy(() => import('@/pages/games/pantheon-wars/Inven
 const PantheonShop        = lazy(() => import('@/pages/games/pantheon-wars/Shop'))
 const PantheonTemples     = lazy(() => import('@/pages/games/pantheon-wars/Temples'))
 const PantheonPvP         = lazy(() => import('@/pages/games/pantheon-wars/PvP'))
+const PantheonPvPLog      = lazy(() => import('@/pages/games/pantheon-wars/PvPLog'))
 const PantheonLeaderboard = lazy(() => import('@/pages/games/pantheon-wars/Leaderboard'))
 const PantheonProfile     = lazy(() => import('@/pages/games/pantheon-wars/Profile'))
 
@@ -108,6 +109,7 @@ function AnimatedRoutes() {
           <Route path="/games/pantheon-wars/shop"          element={<PantheonShop />} />
           <Route path="/games/pantheon-wars/temples"       element={<PantheonTemples />} />
           <Route path="/games/pantheon-wars/pvp"           element={<PantheonPvP />} />
+          <Route path="/games/pantheon-wars/pvp/log"      element={<PantheonPvPLog />} />
           <Route path="/games/pantheon-wars/leaderboard"   element={<PantheonLeaderboard />} />
           <Route path="/games/pantheon-wars/profile"       element={<PantheonProfile />} />
         </Route>

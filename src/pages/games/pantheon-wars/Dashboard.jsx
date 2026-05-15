@@ -14,7 +14,7 @@ const NAV_ITEMS = [
   { label: 'INVENTORY',   glyph: '◈',  path: '/games/pantheon-wars/inventory'                   },
   { label: 'SHOP',        glyph: '₯',  path: '/games/pantheon-wars/shop'                         },
   { label: 'TEMPLES',     glyph: '⬟',  path: '/games/pantheon-wars/temples'      },
-  { label: 'ARENA',       glyph: '⚡',  path: '/games/pantheon-wars/pvp',         comingSoon: true },
+  { label: 'ARENA',       glyph: '⚡',  path: '/games/pantheon-wars/pvp'          },
   { label: 'LEADERBOARD', glyph: '★',  path: '/games/pantheon-wars/leaderboard'                  },
   { label: 'PROFILE',     glyph: '◎',  path: '/games/pantheon-wars/profile'      },
 ]
@@ -107,7 +107,7 @@ function StatBar({ label, current, max, color, delay = 0 }) {
   )
 }
 
-function StatCard({ glyph, label, value, color }) {
+function StatCard({ glyph, label, value, color, subtext }) {
   return (
     <div style={{
       background: 'rgba(255,255,255,0.03)',
@@ -136,6 +136,17 @@ function StatCard({ glyph, label, value, color }) {
       }}>
         {label}
       </div>
+      {subtext && (
+        <div style={{
+          fontFamily: "'IBM Plex Mono', monospace",
+          fontSize: 8,
+          letterSpacing: '0.08em',
+          color: 'rgba(240,240,248,0.2)',
+          marginTop: 3,
+        }}>
+          {subtext}
+        </div>
+      )}
     </div>
   )
 }
@@ -551,7 +562,9 @@ export default function Dashboard() {
                 }}
               >
                 <StatCard glyph="₯" label="Drachma" value={fmt(stats.drachma)} color="#F5C542" />
-                <StatCard glyph="✦" label="Glory"   value={fmt(stats.glory)}   color="#FBBF24" />
+                <StatCard glyph="✦" label="Glory"   value={fmt(stats.glory)}   color="#FBBF24"
+                  subtext={stats.glory_lifetime > 0 ? `Lifetime: ${fmt(stats.glory_lifetime)}` : undefined}
+                />
                 <StatCard glyph="⚔" label="Attack"  value={stats.attack}       color="#F97316" />
                 <StatCard glyph="◈" label="Defense" value={stats.defense}      color="#22C55E" />
               </motion.div>

@@ -182,3 +182,26 @@ CREATE TABLE IF NOT EXISTS pw_player_temples (
 );
 
 CREATE INDEX IF NOT EXISTS idx_pw_player_temples_user ON pw_player_temples(user_id);
+
+-- Phase 5 PvP: lifetime glory tracker (non-destructive migration)
+ALTER TABLE pw_player_stats ADD COLUMN IF NOT EXISTS glory_lifetime INTEGER DEFAULT 0;
+
+-- Phase 5 PvP: combat log
+CREATE TABLE IF NOT EXISTS pw_combat_log (
+    id SERIAL PRIMARY KEY,
+    attacker_id UUID REFERENCES pw_users(id) ON DELETE CASCADE,
+    defender_id UUID REFERENCES pw_users(id) ON DELETE CASCADE,
+    attacker_power INTEGER NOT NULL,
+    defender_power INTEGER NOT NULL,
+    result VARCHAR(10) NOT NULL CHECK (result IN ('win', 'loss')),
+    xp_earned INTEGER DEFAULT 0,
+    drachma_transferred INTEGER DEFAULT 0,
+    glory_earned INTEGER DEFAULT 0,
+    attacker_health_lost INTEGER DEFAULT 0,
+    defender_health_lost INTEGER DEFAULT 0,
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_pw_combat_log_attacker ON pw_combat_log(attacker_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_pw_combat_log_defender ON pw_combat_log(defender_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_pw_combat_log_cooldown ON pw_combat_log(attacker_id, defender_id, created_at DESC);

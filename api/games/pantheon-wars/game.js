@@ -1,6 +1,6 @@
 import { sql } from '../../../lib/db.js'
 import { requireUser } from '../../../lib/pwAuth.js'
-import { regenPlayer, checkLevelUp } from '../../../lib/pwHelpers.js'
+import { regenPlayer, checkLevelUp, getEquipmentBonuses, calculateCombat } from '../../../lib/pwHelpers.js'
 
 export const config = { runtime: 'nodejs' }
 
@@ -57,7 +57,7 @@ async function handleComplete(req, res) {
         u.faction, u.class,
         s.user_id, s.level, s.xp, s.energy, s.energy_max,
         s.health, s.health_max, s.drachma, s.drachma_lifetime,
-        s.glory, s.attack, s.defense, s.stat_points, s.last_updated
+        s.glory, s.glory_lifetime, s.attack, s.defense, s.stat_points, s.last_updated
       FROM pw_users u
       JOIN pw_player_stats s ON s.user_id = u.id
       WHERE u.id = ${req.userId}
@@ -140,6 +140,7 @@ async function handleComplete(req, res) {
         level            = ${stats.level},
         drachma          = ${stats.drachma},
         drachma_lifetime = ${stats.drachma_lifetime},
+        glory_lifetime   = ${stats.glory_lifetime},
         stat_points      = ${stats.stat_points},
         last_updated     = ${stats.last_updated}
       WHERE user_id = ${req.userId}
@@ -216,11 +217,7 @@ async function handleInventory(req, res) {
       ORDER BY i.slot, inv.equipped DESC, i.rarity DESC, i.level_required DESC
     `
 
-    const equipped = inventory.filter(r => r.equipped)
-    const equipment_bonuses = {
-      attack:  equipped.reduce((s, r) => s + r.attack_bonus,  0),
-      defense: equipped.reduce((s, r) => s + r.defense_bonus, 0),
-    }
+    const equipment_bonuses = await getEquipmentBonuses(sql, req.userId)
 
     return res.status(200).json({ inventory, equipment_bonuses, stats })
   } catch (err) {
@@ -596,7 +593,7 @@ async function handleAllocate(req, res) {
 
   try {
     const rows = await sql`
-      SELECT stat_points, attack, defense,
+      SELECT stat_points, attack, defense, glory, glory_lifetime,
              energy, energy_max, health, health_max, last_updated
       FROM pw_player_stats
       WHERE user_id = ${req.userId}
@@ -619,12 +616,13 @@ async function handleAllocate(req, res) {
 
     await sql`
       UPDATE pw_player_stats SET
-        attack       = ${newAttack},
-        defense      = ${newDefense},
-        stat_points  = ${newStatPoints},
-        energy       = ${stats.energy},
-        health       = ${stats.health},
-        last_updated = ${stats.last_updated}
+        attack         = ${newAttack},
+        defense        = ${newDefense},
+        stat_points    = ${newStatPoints},
+        glory_lifetime = ${stats.glory_lifetime},
+        energy         = ${stats.energy},
+        health         = ${stats.health},
+        last_updated   = ${stats.last_updated}
       WHERE user_id = ${req.userId}
     `
 
@@ -700,6 +698,7 @@ async function handleTemples(req, res) {
             health           = ${stats.health},
             drachma          = ${stats.drachma},
             drachma_lifetime = ${stats.drachma_lifetime},
+            glory_lifetime   = ${stats.glory_lifetime},
             last_updated     = ${stats.last_updated}
         WHERE user_id = ${req.userId}
       `
@@ -785,6 +784,7 @@ async function handleTemplesBuy(req, res) {
       UPDATE pw_player_stats
       SET drachma          = ${stats.drachma},
           drachma_lifetime = ${stats.drachma_lifetime},
+          glory_lifetime   = ${stats.glory_lifetime},
           energy           = ${stats.energy},
           health           = ${stats.health},
           last_updated     = ${stats.last_updated}
@@ -846,6 +846,7 @@ async function handleTemplesUpgrade(req, res) {
       UPDATE pw_player_stats
       SET drachma          = ${stats.drachma},
           drachma_lifetime = ${stats.drachma_lifetime},
+          glory_lifetime   = ${stats.glory_lifetime},
           energy           = ${stats.energy},
           health           = ${stats.health},
           last_updated     = ${stats.last_updated}
@@ -868,22 +869,446 @@ async function handleTemplesUpgrade(req, res) {
   }
 }
 
+// ── Alignment Choose (POST) ───────────────────────────────────────────────────
+
+async function handleAlignmentChoose(req, res) {
+  if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' })
+
+  const { alignment } = req.body ?? {}
+
+  try {
+    const rows = await sql`
+      SELECT u.alignment, ps.level, ps.energy, ps.energy_max, ps.health, ps.health_max,
+             ps.drachma, ps.drachma_lifetime, ps.glory, ps.glory_lifetime,
+             ps.xp, ps.attack, ps.defense, ps.stat_points, ps.last_updated
+      FROM pw_users u
+      JOIN pw_player_stats ps ON ps.user_id = u.id
+      WHERE u.id = ${req.userId}
+    `
+    if (rows.length === 0) return res.status(404).json({ error: 'Player not found' })
+    const row = rows[0]
+
+    let stats = regenPlayer(row)
+
+    if (stats.level < 10) return res.status(400).json({ error: 'level_too_low' })
+    if (!['coalition', 'compact'].includes(alignment)) return res.status(400).json({ error: 'invalid_alignment' })
+    if (row.alignment !== null) return res.status(400).json({ error: 'already_aligned' })
+
+    await sql`UPDATE pw_users SET alignment = ${alignment} WHERE id = ${req.userId}`
+
+    return res.status(200).json({
+      alignment,
+      stats: {
+        level: stats.level, xp: stats.xp,
+        energy: stats.energy, energy_max: stats.energy_max,
+        health: stats.health, health_max: stats.health_max,
+        drachma: stats.drachma, drachma_lifetime: stats.drachma_lifetime,
+        glory: stats.glory, glory_lifetime: stats.glory_lifetime,
+        attack: stats.attack, defense: stats.defense,
+        stat_points: stats.stat_points,
+      },
+    })
+  } catch (err) {
+    console.error('Alignment choose error:', err)
+    return res.status(500).json({ error: 'Failed to set alignment' })
+  }
+}
+
+// ── PvP Targets (GET) ─────────────────────────────────────────────────────────
+
+async function handlePvPTargets(req, res) {
+  if (req.method !== 'GET') return res.status(405).json({ error: 'Method not allowed' })
+
+  try {
+    const userRows = await sql`
+      SELECT u.alignment, ps.level, ps.energy, ps.energy_max, ps.health, ps.health_max,
+             ps.drachma, ps.drachma_lifetime, ps.glory, ps.glory_lifetime,
+             ps.xp, ps.attack, ps.defense, ps.stat_points, ps.last_updated
+      FROM pw_users u
+      JOIN pw_player_stats ps ON ps.user_id = u.id
+      WHERE u.id = ${req.userId}
+    `
+    if (userRows.length === 0) return res.status(404).json({ error: 'Player not found' })
+
+    const userRow = userRows[0]
+    const ownedTemples = await fetchOwnedTemples(req.userId)
+    let stats = regenPlayer(userRow, ownedTemples)
+    const attAlignment = userRow.alignment
+
+    // Unaligned at 10+ must choose alignment before attacking
+    if (!attAlignment && stats.level >= 10) {
+      return res.status(200).json({ targets: [], stats, requires_alignment: true })
+    }
+
+    const limit  = Math.min(50, Math.max(1, parseInt(req.query.limit)  || 20))
+    const offset = Math.max(0, parseInt(req.query.offset) || 0)
+    const minLevel = Math.max(1, stats.level - 10)
+    const maxLevel = stats.level + 10
+
+    let targets
+    if (attAlignment === 'coalition') {
+      targets = await sql`
+        SELECT sub.user_id, sub.username, sub.faction, sub.class, sub.alignment,
+               sub.level, sub.health, sub.health_max, sub.glory
+        FROM (
+          SELECT u.id AS user_id, u.username, u.faction, u.class, u.alignment,
+                 ps.level, ps.health_max, ps.glory,
+                 LEAST(ps.health_max, ps.health + FLOOR(EXTRACT(EPOCH FROM (NOW() - ps.last_updated)) / 180)::INT) AS health
+          FROM pw_users u
+          JOIN pw_player_stats ps ON ps.user_id = u.id
+          WHERE u.id != ${req.userId}
+            AND ps.level >= ${minLevel} AND ps.level <= ${maxLevel}
+            AND (u.alignment = 'compact' OR ps.level < 10)
+            AND NOT EXISTS (
+              SELECT 1 FROM pw_combat_log cl
+              WHERE cl.attacker_id = ${req.userId} AND cl.defender_id = u.id
+                AND cl.created_at > NOW() - INTERVAL '5 minutes'
+            )
+        ) sub
+        WHERE sub.health > 0
+        ORDER BY sub.level DESC
+        LIMIT ${limit} OFFSET ${offset}
+      `
+    } else if (attAlignment === 'compact') {
+      targets = await sql`
+        SELECT sub.user_id, sub.username, sub.faction, sub.class, sub.alignment,
+               sub.level, sub.health, sub.health_max, sub.glory
+        FROM (
+          SELECT u.id AS user_id, u.username, u.faction, u.class, u.alignment,
+                 ps.level, ps.health_max, ps.glory,
+                 LEAST(ps.health_max, ps.health + FLOOR(EXTRACT(EPOCH FROM (NOW() - ps.last_updated)) / 180)::INT) AS health
+          FROM pw_users u
+          JOIN pw_player_stats ps ON ps.user_id = u.id
+          WHERE u.id != ${req.userId}
+            AND ps.level >= ${minLevel} AND ps.level <= ${maxLevel}
+            AND (u.alignment = 'coalition' OR ps.level < 10)
+            AND NOT EXISTS (
+              SELECT 1 FROM pw_combat_log cl
+              WHERE cl.attacker_id = ${req.userId} AND cl.defender_id = u.id
+                AND cl.created_at > NOW() - INTERVAL '5 minutes'
+            )
+        ) sub
+        WHERE sub.health > 0
+        ORDER BY sub.level DESC
+        LIMIT ${limit} OFFSET ${offset}
+      `
+    } else {
+      // Unaligned attacker (level < 10) — only level < 10 targets
+      targets = await sql`
+        SELECT sub.user_id, sub.username, sub.faction, sub.class, sub.alignment,
+               sub.level, sub.health, sub.health_max, sub.glory
+        FROM (
+          SELECT u.id AS user_id, u.username, u.faction, u.class, u.alignment,
+                 ps.level, ps.health_max, ps.glory,
+                 LEAST(ps.health_max, ps.health + FLOOR(EXTRACT(EPOCH FROM (NOW() - ps.last_updated)) / 180)::INT) AS health
+          FROM pw_users u
+          JOIN pw_player_stats ps ON ps.user_id = u.id
+          WHERE u.id != ${req.userId}
+            AND ps.level >= ${minLevel} AND ps.level <= ${maxLevel}
+            AND ps.level < 10
+            AND NOT EXISTS (
+              SELECT 1 FROM pw_combat_log cl
+              WHERE cl.attacker_id = ${req.userId} AND cl.defender_id = u.id
+                AND cl.created_at > NOW() - INTERVAL '5 minutes'
+            )
+        ) sub
+        WHERE sub.health > 0
+        ORDER BY sub.level DESC
+        LIMIT ${limit} OFFSET ${offset}
+      `
+    }
+
+    return res.status(200).json({ targets, stats })
+  } catch (err) {
+    console.error('PvP targets error:', err)
+    return res.status(500).json({ error: 'Failed to fetch targets' })
+  }
+}
+
+// ── PvP Attack (POST) ─────────────────────────────────────────────────────────
+
+async function handlePvPAttack(req, res) {
+  if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' })
+
+  const { target_user_id } = req.body ?? {}
+  if (!target_user_id) return res.status(400).json({ error: 'target_user_id is required' })
+
+  if (target_user_id === req.userId) {
+    return res.status(400).json({ error: 'cannot_attack_self' })
+  }
+
+  try {
+    // Fetch attacker
+    const attRows = await sql`
+      SELECT u.id, u.faction, u.class, u.alignment,
+             ps.level, ps.xp, ps.energy, ps.energy_max,
+             ps.health, ps.health_max, ps.drachma, ps.drachma_lifetime,
+             ps.glory, ps.glory_lifetime, ps.attack, ps.defense, ps.stat_points, ps.last_updated
+      FROM pw_users u JOIN pw_player_stats ps ON ps.user_id = u.id
+      WHERE u.id = ${req.userId}
+    `
+    if (attRows.length === 0) return res.status(404).json({ error: 'Attacker not found' })
+    const attUser = { faction: attRows[0].faction, class: attRows[0].class, alignment: attRows[0].alignment }
+
+    // Fetch defender
+    const defRows = await sql`
+      SELECT u.id, u.username, u.faction, u.class, u.alignment,
+             ps.level, ps.xp, ps.energy, ps.energy_max,
+             ps.health, ps.health_max, ps.drachma, ps.drachma_lifetime,
+             ps.glory, ps.glory_lifetime, ps.attack, ps.defense, ps.stat_points, ps.last_updated
+      FROM pw_users u JOIN pw_player_stats ps ON ps.user_id = u.id
+      WHERE u.id = ${target_user_id}
+    `
+    if (defRows.length === 0) return res.status(404).json({ error: 'target_not_found' })
+    const defUser = { username: defRows[0].username, faction: defRows[0].faction, class: defRows[0].class, alignment: defRows[0].alignment }
+
+    const attLevel = attRows[0].level
+    const defLevel = defRows[0].level
+
+    // Alignment gate
+    if (!attUser.alignment && attLevel >= 10) {
+      return res.status(400).json({ error: 'requires_alignment' })
+    }
+
+    // Alignment matchup
+    if (attUser.alignment) {
+      const opposing = attUser.alignment === 'coalition' ? 'compact' : 'coalition'
+      if (defUser.alignment !== opposing && defLevel >= 10) {
+        return res.status(400).json({ error: 'invalid_alignment_matchup' })
+      }
+    } else {
+      // Unaligned attacker (level < 10) can only hit level < 10 targets
+      if (defLevel >= 10) {
+        return res.status(400).json({ error: 'invalid_alignment_matchup' })
+      }
+    }
+
+    // Level range
+    if (Math.abs(attLevel - defLevel) > 10) {
+      return res.status(400).json({ error: 'level_out_of_range' })
+    }
+
+    // Fetch temples + regen both players
+    const [attTemples, defTemples] = await Promise.all([
+      fetchOwnedTemples(req.userId),
+      fetchOwnedTemples(target_user_id),
+    ])
+    let attStats = regenPlayer(attRows[0], attTemples)
+    let defStats = regenPlayer(defRows[0], defTemples)
+
+    // Health checks (after regen)
+    if (attStats.health <= 0) return res.status(400).json({ error: 'attacker_no_health' })
+    if (defStats.health <= 0) return res.status(400).json({ error: 'defender_no_health' })
+
+    // Cooldown check
+    const coolRows = await sql`
+      SELECT created_at FROM pw_combat_log
+      WHERE attacker_id = ${req.userId} AND defender_id = ${target_user_id}
+        AND created_at > NOW() - INTERVAL '5 minutes'
+      ORDER BY created_at DESC LIMIT 1
+    `
+    if (coolRows.length > 0) {
+      const expiresAt  = new Date(new Date(coolRows[0].created_at).getTime() + 5 * 60 * 1000)
+      const secondsLeft = Math.max(0, Math.ceil((expiresAt - new Date()) / 1000))
+      return res.status(400).json({ error: 'cooldown', seconds_remaining: secondsLeft })
+    }
+
+    // Equipment bonuses
+    const [attEquip, defEquip] = await Promise.all([
+      getEquipmentBonuses(sql, req.userId),
+      getEquipmentBonuses(sql, target_user_id),
+    ])
+
+    // Combat
+    const combat = calculateCombat({
+      attacker:      { ...attUser, ...attStats },
+      defender:      { ...defUser, ...defStats },
+      attackerEquip: attEquip,
+      defenderEquip: defEquip,
+    })
+
+    const actualDrachma = Math.min(combat.drachma_transferred, defStats.drachma)
+
+    // Apply outcomes
+    if (combat.result === 'win') {
+      attStats = {
+        ...attStats,
+        xp:               attStats.xp + combat.xp_earned,
+        drachma:          attStats.drachma + actualDrachma,
+        drachma_lifetime: attStats.drachma_lifetime + actualDrachma,
+        glory:            attStats.glory + combat.glory_earned,
+        glory_lifetime:   attStats.glory_lifetime + combat.glory_earned,
+        health:           Math.max(0, attStats.health - combat.attacker_health_lost),
+      }
+      defStats = {
+        ...defStats,
+        drachma: Math.max(0, defStats.drachma - actualDrachma),
+        health:  Math.max(0, defStats.health - combat.defender_health_lost),
+      }
+    } else {
+      attStats = {
+        ...attStats,
+        health: Math.max(0, attStats.health - combat.attacker_health_lost),
+      }
+      defStats = {
+        ...defStats,
+        glory:          defStats.glory + combat.defender_glory_earned,
+        glory_lifetime: defStats.glory_lifetime + combat.defender_glory_earned,
+      }
+    }
+
+    const prevLevel = attStats.level
+    attStats = checkLevelUp(attStats)
+    const levelsGained = attStats.level - prevLevel
+
+    // Persist attacker
+    await sql`
+      UPDATE pw_player_stats SET
+        xp               = ${attStats.xp},
+        level            = ${attStats.level},
+        energy           = ${attStats.energy},
+        health           = ${attStats.health},
+        health_max       = ${attStats.health_max},
+        drachma          = ${attStats.drachma},
+        drachma_lifetime = ${attStats.drachma_lifetime},
+        glory            = ${attStats.glory},
+        glory_lifetime   = ${attStats.glory_lifetime},
+        stat_points      = ${attStats.stat_points},
+        last_updated     = ${attStats.last_updated}
+      WHERE user_id = ${req.userId}
+    `
+
+    // Persist defender
+    await sql`
+      UPDATE pw_player_stats SET
+        health           = ${defStats.health},
+        drachma          = ${defStats.drachma},
+        glory            = ${defStats.glory},
+        glory_lifetime   = ${defStats.glory_lifetime},
+        drachma_lifetime = ${defStats.drachma_lifetime},
+        last_updated     = ${defStats.last_updated}
+      WHERE user_id = ${target_user_id}
+    `
+
+    // Log combat
+    await sql`
+      INSERT INTO pw_combat_log (
+        attacker_id, defender_id, attacker_power, defender_power, result,
+        xp_earned, drachma_transferred, glory_earned, attacker_health_lost, defender_health_lost
+      ) VALUES (
+        ${req.userId}, ${target_user_id},
+        ${combat.attacker_power}, ${combat.defender_power}, ${combat.result},
+        ${combat.xp_earned}, ${actualDrachma}, ${combat.glory_earned},
+        ${combat.attacker_health_lost}, ${combat.defender_health_lost}
+      )
+    `
+
+    return res.status(200).json({
+      result:               combat.result,
+      attacker_power:       combat.attacker_power,
+      defender_power:       combat.defender_power,
+      xp_earned:            combat.xp_earned,
+      drachma_transferred:  actualDrachma,
+      glory_earned:         combat.glory_earned,
+      attacker_health_lost: combat.attacker_health_lost,
+      defender_health_lost: combat.defender_health_lost,
+      levelsGained,
+      defender: {
+        username:    defUser.username,
+        faction:     defUser.faction,
+        class:       defUser.class,
+        health_lost: combat.defender_health_lost,
+      },
+      stats: {
+        level:            attStats.level,
+        xp:               attStats.xp,
+        energy:           attStats.energy,
+        energy_max:       attStats.energy_max,
+        health:           attStats.health,
+        health_max:       attStats.health_max,
+        drachma:          attStats.drachma,
+        drachma_lifetime: attStats.drachma_lifetime,
+        glory:            attStats.glory,
+        glory_lifetime:   attStats.glory_lifetime,
+        attack:           attStats.attack,
+        defense:          attStats.defense,
+        stat_points:      attStats.stat_points,
+      },
+    })
+  } catch (err) {
+    console.error('PvP attack error:', err)
+    return res.status(500).json({ error: 'Attack failed' })
+  }
+}
+
+// ── PvP Log (GET) ─────────────────────────────────────────────────────────────
+
+async function handlePvPLog(req, res) {
+  if (req.method !== 'GET') return res.status(405).json({ error: 'Method not allowed' })
+
+  try {
+    const entries = await sql`
+      SELECT
+        cl.id, cl.created_at, cl.result,
+        cl.attacker_power, cl.defender_power,
+        cl.xp_earned, cl.drachma_transferred, cl.glory_earned,
+        cl.attacker_health_lost, cl.defender_health_lost,
+        cl.attacker_id, cl.defender_id,
+        au.username AS attacker_username,
+        au.faction  AS attacker_faction,
+        du.username AS defender_username,
+        du.faction  AS defender_faction
+      FROM pw_combat_log cl
+      LEFT JOIN pw_users au ON au.id = cl.attacker_id
+      LEFT JOIN pw_users du ON du.id = cl.defender_id
+      WHERE cl.attacker_id = ${req.userId} OR cl.defender_id = ${req.userId}
+      ORDER BY cl.created_at DESC
+      LIMIT 50
+    `
+
+    const log = entries.map(e => ({
+      id:                   e.id,
+      created_at:           e.created_at,
+      perspective:          e.attacker_id === req.userId ? 'attacker' : 'defender',
+      result:               e.result,
+      opponent_username:    e.attacker_id === req.userId ? e.defender_username : e.attacker_username,
+      opponent_faction:     e.attacker_id === req.userId ? e.defender_faction  : e.attacker_faction,
+      attacker_power:       e.attacker_power,
+      defender_power:       e.defender_power,
+      xp_earned:            e.xp_earned,
+      drachma_transferred:  e.drachma_transferred,
+      glory_earned:         e.glory_earned,
+      attacker_health_lost: e.attacker_health_lost,
+      defender_health_lost: e.defender_health_lost,
+    }))
+
+    return res.status(200).json({ log })
+  } catch (err) {
+    console.error('PvP log error:', err)
+    return res.status(500).json({ error: 'Failed to fetch combat log' })
+  }
+}
+
 // ── Router ────────────────────────────────────────────────────────────────────
 
 export default requireUser(async function handler(req, res) {
   const { action } = req.query
-  if (action === 'quests')           return handleQuests(req, res)
-  if (action === 'complete')         return handleComplete(req, res)
-  if (action === 'inventory')        return handleInventory(req, res)
-  if (action === 'equip')            return handleEquip(req, res)
-  if (action === 'unequip')          return handleUnequip(req, res)
-  if (action === 'sell')             return handleSell(req, res)
-  if (action === 'shop')             return handleShop(req, res)
-  if (action === 'buy')              return handleBuy(req, res)
-  if (action === 'leaderboard')      return handleLeaderboard(req, res)
-  if (action === 'allocate')         return handleAllocate(req, res)
-  if (action === 'temples')          return handleTemples(req, res)
-  if (action === 'temples_buy')      return handleTemplesBuy(req, res)
-  if (action === 'temples_upgrade')  return handleTemplesUpgrade(req, res)
+  if (action === 'quests')            return handleQuests(req, res)
+  if (action === 'complete')          return handleComplete(req, res)
+  if (action === 'inventory')         return handleInventory(req, res)
+  if (action === 'equip')             return handleEquip(req, res)
+  if (action === 'unequip')           return handleUnequip(req, res)
+  if (action === 'sell')              return handleSell(req, res)
+  if (action === 'shop')              return handleShop(req, res)
+  if (action === 'buy')               return handleBuy(req, res)
+  if (action === 'leaderboard')       return handleLeaderboard(req, res)
+  if (action === 'allocate')          return handleAllocate(req, res)
+  if (action === 'temples')           return handleTemples(req, res)
+  if (action === 'temples_buy')       return handleTemplesBuy(req, res)
+  if (action === 'temples_upgrade')   return handleTemplesUpgrade(req, res)
+  if (action === 'alignment_choose')  return handleAlignmentChoose(req, res)
+  if (action === 'pvp_targets')       return handlePvPTargets(req, res)
+  if (action === 'pvp_attack')        return handlePvPAttack(req, res)
+  if (action === 'pvp_log')           return handlePvPLog(req, res)
   return res.status(400).json({ error: 'Unknown action' })
 })

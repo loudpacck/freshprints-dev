@@ -9,9 +9,11 @@ const FACTION_COLOR = { olympians: '#F5C542', aesir: '#78C5F0', annunaki: '#CF44
 const FACTION_LABEL = { olympians: 'Olympians', aesir: 'Aesir', annunaki: 'Annunaki' }
 const CLASS_LABEL   = { warden: 'Warden', oracle: 'Oracle', slayer: 'Slayer', broker: 'Broker' }
 
-const ATTACK_COLOR  = '#F97316'
-const DEFENSE_COLOR = '#22C55E'
-const VIOLET        = '#8B5CF6'
+const ATTACK_COLOR    = '#F97316'
+const DEFENSE_COLOR   = '#22C55E'
+const VIOLET          = '#8B5CF6'
+const COALITION_COLOR = '#A78BFA'
+const COMPACT_COLOR   = '#FB923C'
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -85,6 +87,10 @@ function AllocToast({ toast, onDone }) {
       {isError ? (
         <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 11, color: '#F87171' }}>
           // {toast.message}
+        </span>
+      ) : toast.message ? (
+        <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 11, color: '#22C55E' }}>
+          {toast.message}
         </span>
       ) : (
         <>
@@ -254,10 +260,11 @@ export default function Profile() {
   const [displayStats, setDisplayStats] = useState(null)
   useEffect(() => { if (ctxStats) setDisplayStats(ctxStats) }, [ctxStats])
 
-  const [pendingAttack,  setPendingAttack]  = useState(0)
-  const [pendingDefense, setPendingDefense] = useState(0)
-  const [isSubmitting,   setIsSubmitting]   = useState(false)
-  const [toast,          setToast]          = useState(null)
+  const [pendingAttack,   setPendingAttack]   = useState(0)
+  const [pendingDefense,  setPendingDefense]  = useState(0)
+  const [isSubmitting,    setIsSubmitting]    = useState(false)
+  const [isChoosing,      setIsChoosing]      = useState(false)
+  const [toast,           setToast]           = useState(null)
 
   useEffect(() => {
     if (!loading && !user) navigate('/games/pantheon-wars/login', { replace: true })
@@ -302,6 +309,30 @@ export default function Profile() {
     }
   }
 
+  async function handleChooseAlignment(alignment) {
+    if (isChoosing) return
+    setIsChoosing(true)
+    try {
+      const res = await fetch('/api/games/pantheon-wars/game?action=alignment_choose', {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify({ alignment }),
+      })
+      const data = await res.json()
+      if (!res.ok) {
+        setToast({ type: 'error', message: data.error || 'Failed to set alignment' })
+        return
+      }
+      const label = alignment === 'coalition' ? 'COALITION' : 'COMPACT'
+      setToast({ type: 'success', attack: 0, defense: 0, message: `ALIGNMENT PLEDGED — ${label}` })
+      refresh()
+    } catch {
+      setToast({ type: 'error', message: 'Network error. Try again.' })
+    } finally {
+      setIsChoosing(false)
+    }
+  }
+
   const factionColor = user ? (FACTION_COLOR[user.faction] ?? '#F0F0F8') : '#F0F0F8'
   const xpMax = stats ? xpNeeded(stats.level) : 100
   const xpPct = stats ? Math.min(100, Math.round((stats.xp / xpMax) * 100)) : 0
@@ -312,7 +343,8 @@ export default function Profile() {
         @keyframes pw-pulse { 0%,100%{opacity:1} 50%{opacity:0.38} }
         .pw-skel { background:rgba(255,255,255,0.07); animation:pw-pulse 1.6s ease-in-out infinite; }
         @media (max-width: 540px) {
-          .pw-alloc-grid { grid-template-columns: 1fr !important; }
+          .pw-alloc-grid  { grid-template-columns: 1fr !important; }
+          .pw-align-grid  { grid-template-columns: 1fr !important; }
         }
       `}</style>
 
@@ -759,6 +791,142 @@ export default function Profile() {
                   >
                     RESET
                   </button>
+                )}
+              </motion.section>
+
+              {/* G — Alignment section */}
+              <motion.section variants={fadeUp} style={{ marginTop: 32 }}>
+                <p style={{
+                  fontFamily: "'IBM Plex Mono', monospace",
+                  fontSize: 10,
+                  letterSpacing: '0.18em',
+                  textTransform: 'uppercase',
+                  color: 'rgba(240,240,248,0.3)',
+                  marginBottom: 14,
+                }}>
+                  // ALIGNMENT
+                </p>
+
+                {/* Already aligned */}
+                {user.alignment && (
+                  <div style={{
+                    background: user.alignment === 'coalition'
+                      ? 'rgba(167,139,250,0.06)' : 'rgba(251,146,60,0.06)',
+                    border: `1px solid ${user.alignment === 'coalition'
+                      ? 'rgba(167,139,250,0.25)' : 'rgba(251,146,60,0.25)'}`,
+                    borderRadius: 12,
+                    padding: '18px 20px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 12,
+                  }}>
+                    <span style={{ fontSize: 22, lineHeight: 1 }}>
+                      {user.alignment === 'coalition' ? '⚜' : '⚡'}
+                    </span>
+                    <div>
+                      <div style={{
+                        fontFamily: "'Bebas Neue', sans-serif",
+                        fontSize: 20,
+                        letterSpacing: '0.08em',
+                        color: user.alignment === 'coalition' ? COALITION_COLOR : COMPACT_COLOR,
+                        lineHeight: 1,
+                        marginBottom: 4,
+                      }}>
+                        {user.alignment === 'coalition' ? 'PANTHEON COALITION' : 'MORTAL COMPACT'}
+                      </div>
+                      <div style={{
+                        fontFamily: "'IBM Plex Mono', monospace",
+                        fontSize: 9,
+                        letterSpacing: '0.1em',
+                        color: 'rgba(240,240,248,0.3)',
+                      }}>
+                        Alignment is permanent
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Level too low */}
+                {!user.alignment && stats.level < 10 && (
+                  <div style={{
+                    background: 'rgba(255,255,255,0.025)',
+                    border: '1px solid rgba(255,255,255,0.07)',
+                    borderRadius: 12,
+                    padding: '18px 20px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 12,
+                  }}>
+                    <span style={{ fontSize: 22, lineHeight: 1, opacity: 0.3 }}>⚔</span>
+                    <div>
+                      <div style={{
+                        fontFamily: "'IBM Plex Mono', monospace",
+                        fontSize: 10,
+                        letterSpacing: '0.12em',
+                        textTransform: 'uppercase',
+                        color: 'rgba(240,240,248,0.3)',
+                        marginBottom: 4,
+                      }}>
+                        Alignment unlocked at Level 10
+                      </div>
+                      <div style={{
+                        fontFamily: "'DM Sans', sans-serif",
+                        fontSize: 12,
+                        color: 'rgba(240,240,248,0.22)',
+                      }}>
+                        You are level {stats.level} — {10 - stats.level} more level{10 - stats.level !== 1 ? 's' : ''} to go.
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Chooser — level >= 10 and not yet aligned */}
+                {!user.alignment && stats.level >= 10 && (
+                  <div>
+                    <p style={{
+                      fontFamily: "'DM Sans', sans-serif",
+                      fontSize: 13,
+                      color: 'rgba(240,240,248,0.38)',
+                      marginBottom: 16,
+                      lineHeight: 1.55,
+                    }}>
+                      Choose your allegiance. This decision is permanent and determines your PvP pool and future quest chains.
+                    </p>
+                    <div className="pw-align-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                      {[
+                        { id: 'coalition', icon: '⚜', label: 'PANTHEON COALITION', color: COALITION_COLOR, border: 'rgba(167,139,250,0.3)', bg: 'rgba(167,139,250,0.1)' },
+                        { id: 'compact',   icon: '⚡', label: 'MORTAL COMPACT',     color: COMPACT_COLOR,   border: 'rgba(251,146,60,0.3)',  bg: 'rgba(251,146,60,0.1)'  },
+                      ].map(opt => (
+                        <button
+                          key={opt.id}
+                          onClick={() => handleChooseAlignment(opt.id)}
+                          disabled={isChoosing}
+                          style={{
+                            padding: '18px 12px',
+                            background: isChoosing ? 'transparent' : opt.bg,
+                            border: `1px solid ${opt.border}`,
+                            borderRadius: 10,
+                            cursor: isChoosing ? 'not-allowed' : 'pointer',
+                            textAlign: 'center',
+                            transition: 'background 150ms',
+                            opacity: isChoosing ? 0.6 : 1,
+                          }}
+                          onMouseEnter={e => { if (!isChoosing) e.currentTarget.style.background = opt.bg.replace('0.1', '0.2') }}
+                          onMouseLeave={e => { if (!isChoosing) e.currentTarget.style.background = opt.bg }}
+                        >
+                          <div style={{ fontSize: 20, marginBottom: 6 }}>{opt.icon}</div>
+                          <div style={{
+                            fontFamily: "'Bebas Neue', sans-serif",
+                            fontSize: 14,
+                            letterSpacing: '0.08em',
+                            color: opt.color,
+                          }}>
+                            {opt.label}
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
                 )}
               </motion.section>
 
