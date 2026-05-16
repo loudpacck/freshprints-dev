@@ -2,10 +2,11 @@ import { useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { usePantheonWars } from '@/contexts/PantheonWarsContext'
+import PWPageShell from '@/components/games/pantheon-wars/PWPageShell'
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
-const FACTION_COLOR = { olympians: '#F5C542', aesir: '#78C5F0', annunaki: '#CF4444' }
+const FACTION_COLOR = { olympians: '#E8D080', aesir: '#8AB8D4', annunaki: '#C25E3C' }
 const FACTION_LABEL = { olympians: 'Olympians', aesir: 'Aesir', annunaki: 'Annunaki' }
 const CLASS_LABEL   = { warden: 'Warden', oracle: 'Oracle', slayer: 'Slayer', broker: 'Broker' }
 
@@ -280,108 +281,44 @@ export default function Dashboard() {
   const xpMax = stats ? xpNeeded(stats.level) : 100
   const xpPct = stats ? Math.min(100, Math.round((stats.xp / xpMax) * 100)) : 0
 
+  const logoutSlot = (
+    <button
+      onClick={handleLogout}
+      style={{
+        fontFamily: "var(--pw-font-display, 'Cinzel', serif)",
+        fontSize: 10,
+        fontWeight: 600,
+        letterSpacing: '0.10em',
+        textTransform: 'uppercase',
+        color: 'var(--color-text-muted)',
+        background: 'var(--color-bg-elevated)',
+        border: '1px solid var(--color-accent-gold-dim)',
+        borderRadius: 4,
+        padding: '6px 14px',
+        cursor: 'pointer',
+        transition: 'color 180ms, border-color 180ms, box-shadow 180ms',
+      }}
+      onMouseEnter={e => {
+        e.currentTarget.style.color = 'var(--color-accent-gold-bright)'
+        e.currentTarget.style.borderColor = 'var(--color-accent-gold)'
+        e.currentTarget.style.boxShadow = 'var(--glow-gold)'
+      }}
+      onMouseLeave={e => {
+        e.currentTarget.style.color = 'var(--color-text-muted)'
+        e.currentTarget.style.borderColor = 'var(--color-accent-gold-dim)'
+        e.currentTarget.style.boxShadow = 'none'
+      }}
+    >
+      Logout
+    </button>
+  )
+
   return (
-    <>
-      <style>{`
-        @keyframes pw-pulse { 0%,100%{opacity:1} 50%{opacity:0.38} }
-        .pw-skel { background:rgba(255,255,255,0.07); animation:pw-pulse 1.6s ease-in-out infinite; }
-        @media (max-width: 480px) {
-          .pw-resources { flex-direction: column !important; }
-          .pw-statgrid  { grid-template-columns: repeat(2,1fr) !important; }
-          .pw-navgrid   { grid-template-columns: repeat(2,1fr) !important; }
-        }
-        @media (min-width: 481px) and (max-width: 639px) {
-          .pw-navgrid { grid-template-columns: repeat(4,1fr) !important; }
-        }
-      `}</style>
-
-      <motion.div
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        exit={{ opacity: 0 }}
-        transition={{ duration: 0.35 }}
-        style={{
-          minHeight: '100vh',
-          background: '#07070D',
-          backgroundImage: 'radial-gradient(ellipse at 50% 0%, rgba(139,92,246,0.09) 0%, transparent 55%)',
-          display: 'flex',
-          flexDirection: 'column',
-          fontFamily: "'DM Sans', sans-serif",
-          color: '#F0F0F8',
-        }}
-      >
-        {/* ── Sticky Header ──────────────────────────────────────────── */}
-        <header style={{
-          position: 'sticky',
-          top: 0,
-          zIndex: 10,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          padding: '13px 20px',
-          background: 'rgba(7,7,13,0.9)',
-          backdropFilter: 'blur(12px)',
-          borderBottom: '1px solid rgba(255,255,255,0.07)',
-        }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <span style={{ fontSize: 14, lineHeight: 1 }}>⚔</span>
-            <span style={{
-              fontFamily: "'Bebas Neue', sans-serif",
-              fontSize: 18,
-              letterSpacing: '0.1em',
-              color: '#F0F0F8',
-            }}>
-              PANTHEON WARS
-            </span>
-            {user && (
-              <span style={{
-                fontFamily: "'IBM Plex Mono', monospace",
-                fontSize: 9,
-                letterSpacing: '0.12em',
-                textTransform: 'uppercase',
-                color: 'rgba(240,240,248,0.3)',
-                marginLeft: 4,
-              }}>
-                / COMMAND CENTER
-              </span>
-            )}
-          </div>
-          <button
-            onClick={handleLogout}
-            style={{
-              fontFamily: "'IBM Plex Mono', monospace",
-              fontSize: 10,
-              letterSpacing: '0.12em',
-              textTransform: 'uppercase',
-              color: 'rgba(240,240,248,0.38)',
-              background: 'none',
-              border: '1px solid rgba(255,255,255,0.1)',
-              borderRadius: 6,
-              padding: '6px 12px',
-              cursor: 'pointer',
-              transition: 'color 120ms, border-color 120ms',
-            }}
-            onMouseEnter={e => {
-              e.currentTarget.style.color = 'rgba(240,240,248,0.8)'
-              e.currentTarget.style.borderColor = 'rgba(255,255,255,0.25)'
-            }}
-            onMouseLeave={e => {
-              e.currentTarget.style.color = 'rgba(240,240,248,0.38)'
-              e.currentTarget.style.borderColor = 'rgba(255,255,255,0.1)'
-            }}
-          >
-            Logout
-          </button>
-        </header>
-
-        {/* ── Main ───────────────────────────────────────────────────── */}
-        <main style={{
-          flex: 1,
-          width: '100%',
-          maxWidth: 640,
-          margin: '0 auto',
-          padding: '28px 20px 64px',
-        }}>
+    <PWPageShell
+      title="COMMAND CENTER"
+      backgroundVariant="dashboard"
+      rightSlot={logoutSlot}
+    >
 
           {/* Loading skeleton */}
           {loading && (
@@ -430,9 +367,9 @@ export default function Dashboard() {
                   />
                   <Badge
                     label={CLASS_LABEL[user.class] ?? user.class}
-                    color="#00C8FF"
-                    bg="rgba(0,200,255,0.1)"
-                    border="rgba(0,200,255,0.32)"
+                    color="#C9A961"
+                    bg="rgba(201,169,97,0.1)"
+                    border="rgba(201,169,97,0.32)"
                   />
                   {user.alignment && (
                     <Badge
@@ -460,8 +397,8 @@ export default function Dashboard() {
                 <motion.div
                   variants={fadeUp}
                   style={{
-                    background: 'rgba(0,200,255,0.07)',
-                    border: '1px solid rgba(0,200,255,0.22)',
+                    background: 'rgba(201,169,97,0.07)',
+                    border: '1px solid rgba(201,169,97,0.22)',
                     borderRadius: 10,
                     padding: '14px 16px',
                     marginBottom: 14,
@@ -477,7 +414,7 @@ export default function Dashboard() {
                       fontSize: 10,
                       letterSpacing: '0.12em',
                       textTransform: 'uppercase',
-                      color: '#00C8FF',
+                      color: '#C9A961',
                       margin: '0 0 4px',
                     }}>
                       New here? Start with Quests
@@ -602,7 +539,7 @@ export default function Dashboard() {
                     label="Energy"
                     current={stats.energy}
                     max={stats.energy_max}
-                    color="#00C8FF"
+                    color="#C9A961"
                     delay={0.2}
                   />
                 </div>
@@ -628,7 +565,7 @@ export default function Dashboard() {
                   marginBottom: 12,
                 }}
               >
-                <StatCard glyph="₯" label="Drachma" value={fmt(stats.drachma)} color="#F5C542" />
+                <StatCard glyph="₯" label="Drachma" value={fmt(stats.drachma)} color="#C9A961" />
                 <StatCard glyph="✦" label="Glory"   value={fmt(stats.glory)}   color="#FBBF24"
                   subtext={stats.glory_lifetime > 0 ? `Lifetime: ${fmt(stats.glory_lifetime)}` : undefined}
                 />
@@ -771,9 +708,7 @@ export default function Dashboard() {
 
             </motion.div>
           )}
-        </main>
-      </motion.div>
-    </>
+    </PWPageShell>
   )
 }
 

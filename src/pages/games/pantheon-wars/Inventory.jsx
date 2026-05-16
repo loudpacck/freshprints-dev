@@ -3,16 +3,16 @@ import { Link, useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import { usePantheonWars } from '@/contexts/PantheonWarsContext'
 import PWBackButton from '@/components/games/pantheon-wars/PWBackButton'
-import PWHubLink from '@/components/games/pantheon-wars/PWHubLink'
+import PWPageShell from '@/components/games/pantheon-wars/PWPageShell'
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
 const RARITY_COLOR = {
   common:    '#A0A0B8',
   uncommon:  '#22C55E',
-  rare:      '#00C8FF',
+  rare:      '#8BBECC',
   epic:      '#A78BFA',
-  legendary: '#F5C542',
+  legendary: '#F5D88B',
 }
 
 const SLOT_GLYPH = {
@@ -216,7 +216,7 @@ function ItemCard({ item, onEquip, onUnequip, onSell, busy }) {
         ) : (
           <ActionBtn
             label="EQUIP"
-            color="#00C8FF"
+            color="#C9A961"
             onClick={() => onEquip(item.inventory_id)}
             disabled={busy}
           />
@@ -306,7 +306,7 @@ function SellModal({ item, onConfirm, onCancel }) {
         <p style={{
           fontFamily: "'IBM Plex Mono', monospace",
           fontSize: 13,
-          color: '#F5C542',
+          color: '#C9A961',
           marginBottom: 24,
         }}>
           +{fmt(item.price)} ₯
@@ -317,14 +317,14 @@ function SellModal({ item, onConfirm, onCancel }) {
             style={{
               flex: 1,
               padding: '11px',
-              background: 'rgba(245,197,66,0.1)',
-              border: '1px solid rgba(245,197,66,0.4)',
+              background: 'rgba(201,169,97,0.1)',
+              border: '1px solid rgba(201,169,97,0.4)',
               borderRadius: 8,
               fontFamily: "'IBM Plex Mono', monospace",
               fontSize: 11,
               letterSpacing: '0.1em',
               textTransform: 'uppercase',
-              color: '#F5C542',
+              color: '#C9A961',
               cursor: 'pointer',
             }}
           >
@@ -368,16 +368,16 @@ function Toast({ message, color, onDone }) {
       style={{
         position: 'fixed', top: 'calc(env(safe-area-inset-top, 0px) + 88px)', left: '50%', transform: 'translateX(-50%)',
         zIndex: 70,
-        background: 'rgba(7,7,13,0.93)',
+        background: 'linear-gradient(180deg, var(--color-bg-elevated, #14101A), var(--color-bg-base, #0A0710))',
         backdropFilter: 'blur(12px)',
-        border: `1px solid ${color}55`,
-        borderRadius: 10,
+        border: `2px solid ${color}`,
+        borderRadius: 6,
         padding: '11px 22px',
-        fontFamily: "'IBM Plex Mono', monospace",
+        fontFamily: "var(--pw-font-mono, 'IBM Plex Mono', monospace)",
         fontSize: 12,
         color,
         whiteSpace: 'nowrap',
-        boxShadow: '0 4px 24px rgba(0,0,0,0.5)',
+        boxShadow: `var(--glow-gold, 0 0 16px rgba(201,169,97,0.45)), 0 4px 24px rgba(0,0,0,0.6)`,
       }}
     >
       {message}
@@ -449,7 +449,7 @@ export default function Inventory() {
       if (!res.ok) { setToast({ message: data.error || 'Failed to equip', color: '#F87171' }); return }
       setInventory(data.inventory)
       setBonuses(data.equipment_bonuses)
-      setToast({ message: 'Item equipped', color: '#00C8FF' })
+      setToast({ message: 'Item equipped', color: '#C9A961' })
     } finally { setBusy(false) }
   }
 
@@ -487,7 +487,7 @@ export default function Inventory() {
       if (!res.ok) { setToast({ message: data.error || 'Sell failed', color: '#F87171' }); return }
       setInventory(prev => prev.filter(i => i.inventory_id !== inventory_id))
       if (stats) setStats(prev => ({ ...prev, drachma: data.new_drachma }))
-      setToast({ message: `Sold for ${fmt(data.sell_price)}₯`, color: '#F5C542' })
+      setToast({ message: `Sold for ${fmt(data.sell_price)}₯`, color: '#C9A961' })
       refreshContext()
     } finally { setBusy(false) }
   }
@@ -506,8 +506,6 @@ export default function Inventory() {
   return (
     <>
       <style>{`
-        @keyframes pw-pulse { 0%,100%{opacity:1} 50%{opacity:0.38} }
-        .pw-skel { background:rgba(255,255,255,0.07); animation:pw-pulse 1.6s ease-in-out infinite; }
         @media (max-width: 520px) {
           .pw-slot-grid { grid-template-columns: repeat(3,1fr) !important; }
           .pw-bonus-row { flex-direction: column !important; gap: 8px !important; }
@@ -536,50 +534,7 @@ export default function Inventory() {
         )}
       </AnimatePresence>
 
-      <motion.div
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        exit={{ opacity: 0 }}
-        transition={{ duration: 0.3 }}
-        style={{
-          minHeight: '100vh',
-          background: '#07070D',
-          backgroundImage: 'radial-gradient(ellipse at 50% 0%, rgba(139,92,246,0.07) 0%, transparent 55%)',
-          display: 'flex',
-          flexDirection: 'column',
-          fontFamily: "'DM Sans', sans-serif",
-          color: '#F0F0F8',
-        }}
-      >
-        {/* ── Header ────────────────────────────────────────────────── */}
-        <header style={{
-          position: 'sticky', top: 0, zIndex: 10,
-          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-          padding: '13px 20px',
-          background: 'rgba(7,7,13,0.9)',
-          backdropFilter: 'blur(12px)',
-          borderBottom: '1px solid rgba(255,255,255,0.07)',
-        }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <span style={{ fontSize: 14 }}>⚔</span>
-            <span style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 18, letterSpacing: '0.1em' }}>
-              PANTHEON WARS
-            </span>
-            <span style={{
-              fontFamily: "'IBM Plex Mono', monospace", fontSize: 9,
-              letterSpacing: '0.12em', textTransform: 'uppercase',
-              color: 'rgba(240,240,248,0.3)', marginLeft: 4,
-            }}>
-              / INVENTORY
-            </span>
-          </div>
-          <PWBackButton />
-        </header>
-
-        <PWHubLink />
-
-        {/* ── Main ──────────────────────────────────────────────────── */}
-        <main style={{ flex: 1, maxWidth: 700, width: '100%', margin: '0 auto', padding: '24px 20px 64px' }}>
+      <PWPageShell title="INVENTORY" rightSlot={<PWBackButton />} backgroundVariant="inventory">
 
           {loading && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
@@ -735,9 +690,9 @@ export default function Inventory() {
                       fontSize: 10,
                       letterSpacing: '0.1em',
                       textTransform: 'uppercase',
-                      color: '#F5C542',
+                      color: '#C9A961',
                       textDecoration: 'none',
-                      border: '1px solid rgba(245,197,66,0.35)',
+                      border: '1px solid rgba(201,169,97,0.35)',
                       borderRadius: 6,
                       padding: '8px 16px',
                     }}
@@ -748,8 +703,7 @@ export default function Inventory() {
               )}
             </motion.div>
           )}
-        </main>
-      </motion.div>
+      </PWPageShell>
     </>
   )
 }

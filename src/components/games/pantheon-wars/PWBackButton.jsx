@@ -5,26 +5,37 @@ export default function PWBackButton() {
     <>
       <style>{`
         @keyframes pw-cmd-glow {
-          0%, 100% { box-shadow: none; border-color: rgba(255,255,255,0.1); color: rgba(240,240,248,0.38); }
-          50%       { box-shadow: 0 0 10px rgba(0,200,255,0.18); border-color: rgba(0,200,255,0.38); color: rgba(0,200,255,0.8); }
+          0%, 100% {
+            box-shadow: none;
+            border-color: var(--color-accent-gold-dim);
+            color: var(--color-text-muted);
+          }
+          50% {
+            box-shadow: var(--glow-gold);
+            border-color: var(--color-accent-gold);
+            color: var(--color-accent-gold-bright);
+          }
         }
         .pw-back-btn {
-          font-family: 'IBM Plex Mono', monospace;
+          font-family: var(--pw-font-display, 'Cinzel', serif);
           font-size: 10px;
-          letter-spacing: 0.12em;
+          font-weight: 600;
+          letter-spacing: 0.10em;
           text-transform: uppercase;
-          color: rgba(240,240,248,0.38);
+          color: var(--color-text-muted);
           text-decoration: none;
-          border: 1px solid rgba(255,255,255,0.1);
-          border-radius: 6px;
-          padding: 6px 12px;
-          transition: color 120ms, border-color 120ms, box-shadow 120ms;
-          animation: pw-cmd-glow 2.8s ease-in-out infinite;
+          background: var(--color-bg-elevated);
+          border: 1px solid var(--color-accent-gold-dim);
+          border-radius: 4px;
+          padding: 6px 14px;
+          transition: color 180ms, border-color 180ms, box-shadow 180ms;
+          animation: pw-cmd-glow 3.5s ease-in-out infinite;
+          display: inline-block;
         }
         .pw-back-btn:hover {
-          color: rgba(240,240,248,0.85) !important;
-          border-color: rgba(255,255,255,0.28) !important;
-          box-shadow: none !important;
+          color: var(--color-accent-gold-bright) !important;
+          border-color: var(--color-accent-gold) !important;
+          box-shadow: var(--glow-gold) !important;
           animation: none !important;
         }
       `}</style>

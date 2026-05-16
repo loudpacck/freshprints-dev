@@ -1,0 +1,102 @@
+/* ============================================================
+   Pantheon UI — WotLK × Mythology aesthetic tokens
+   Single mode (obsidian dark only)
+   ============================================================ */
+
+[data-ui="pantheon"] {
+  /* ── Surfaces ───────────────────────────────────────────── */
+  --color-bg-base:     #0A0710;
+  --color-bg-elevated: #14101A;
+  --color-bg-overlay:  rgba(10, 7, 16, 0.92);
+  --color-bg-card:     rgba(20, 16, 26, 0.8);
+  --color-bg-input:    rgba(20, 16, 26, 0.9);
+
+  /* ── Gold filigree (primary ornament) ──────────────────── */
+  --color-accent-gold:        #C9A961;
+  --color-accent-gold-bright: #F5D88B;
+  --color-accent-gold-dim:    #6F5C32;
+
+  /* ── Text ───────────────────────────────────────────────── */
+  --color-text-primary:   #EDE3CC;
+  --color-text-secondary: #A89B7E;
+  --color-text-muted:     #5C5446;
+
+  /* ── Ornament strokes ───────────────────────────────────── */
+  --color-border-frame: #3D2F1A;
+  --color-border-inner: #5C4626;
+
+  /* ── Status ─────────────────────────────────────────────── */
+  --color-success: #5FB857;
+  --color-danger:  #B8443A;
+  --color-warning: #D4A437;
+
+  /* ── Faction accents ────────────────────────────────────── */
+  --faction-olympians: #E8D080;
+  --faction-aesir:     #8AB8D4;
+  --faction-annunaki:  #C25E3C;
+
+  /* ── Alignment accents ──────────────────────────────────── */
+  --align-coalition: #DEC580;
+  --align-compact:   #9F4A3D;
+
+  /* ── Glows ──────────────────────────────────────────────── */
+  --glow-gold:              0 0 16px rgba(201, 169, 97, 0.45);
+  --glow-gold-tight:        0 0 8px rgba(201, 169, 97, 0.35);
+  --glow-faction-olympians: 0 0 18px rgba(232, 208, 128, 0.35);
+  --glow-faction-aesir:     0 0 18px rgba(138, 184, 212, 0.35);
+  --glow-faction-annunaki:  0 0 18px rgba(194, 94, 60, 0.35);
+
+  /* ── Typography ─────────────────────────────────────────── */
+  --pw-font-display: 'Cinzel', 'Trajan Pro', Georgia, serif;
+  --pw-font-body:    'Cormorant Garamond', 'Palatino', Georgia, serif;
+  --pw-font-mono:    'IBM Plex Mono', 'Consolas', monospace;
+
+  /* ── Spacing (mirror digital scale) ─────────────────────── */
+  --space-1:  4px;
+  --space-2:  8px;
+  --space-3:  12px;
+  --space-4:  16px;
+  --space-5:  20px;
+  --space-6:  24px;
+  --space-8:  32px;
+  --space-10: 40px;
+  --space-12: 48px;
+  --space-16: 64px;
+
+  /* ── Border radius ───────────────────────────────────────── */
+  --radius-sm:  4px;
+  --radius-md:  8px;
+  --radius-lg:  12px;
+  --radius-xl:  16px;
+
+  /* ── Digital-name aliases ────────────────────────────────── */
+  /* These let existing PW page CSS variable references work without rewrites */
+  --color-bg-page:        var(--color-bg-base);
+  --color-surface:        var(--color-bg-elevated);
+  --color-primary:        var(--color-accent-gold);
+  --color-primary-bright: var(--color-accent-gold-bright);
+  --color-text:           var(--color-text-primary);
+  --color-text-dim:       var(--color-text-secondary);
+  --color-border:         var(--color-border-frame);
+
+  /* Digital global token names */
+  --color-bg-surface:        var(--color-bg-elevated);
+  --color-accent-primary:    var(--color-accent-gold);
+  --color-accent-energy:     var(--color-accent-gold-bright);
+
+  /* Status tokens (used by Badge.jsx and StandardCard) */
+  --color-status-active:         #22C55E;
+  --color-status-beta:           #F59E0B;
+  --color-status-stable:         var(--color-accent-gold);
+  --color-status-concept:        #8B5CF6;
+  --color-status-in-development: #F59E0B;
+  --color-status-available:      #FFFFFF;
+}
+
+/* ── Global resets for Pantheon ────────────────────────────── */
+[data-ui="pantheon"] body {
+  font-family: var(--pw-font-body);
+  color: var(--color-text-primary);
+  background: var(--color-bg-base);
+  margin: 0;
+}

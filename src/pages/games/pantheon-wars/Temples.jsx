@@ -3,7 +3,7 @@ import { Link, useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import { usePantheonWars } from '@/contexts/PantheonWarsContext'
 import PWBackButton from '@/components/games/pantheon-wars/PWBackButton'
-import PWHubLink from '@/components/games/pantheon-wars/PWHubLink'
+import PWPageShell from '@/components/games/pantheon-wars/PWPageShell'
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -33,35 +33,35 @@ function TempleToast({ data, onDone }) {
         left: '50%',
         transform: 'translateX(-50%)',
         zIndex: 50,
-        background: 'rgba(7,7,13,0.92)',
+        background: 'linear-gradient(180deg, var(--color-bg-elevated, #14101A), var(--color-bg-base, #0A0710))',
         backdropFilter: 'blur(12px)',
-        border: '1px solid rgba(167,139,250,0.35)',
-        borderRadius: 10,
+        border: '2px solid var(--color-accent-gold-dim, #6F5C32)',
+        borderRadius: 6,
         padding: '12px 22px',
         display: 'flex',
         alignItems: 'center',
         gap: 18,
         whiteSpace: 'nowrap',
-        boxShadow: '0 4px 24px rgba(0,0,0,0.5)',
+        boxShadow: 'var(--glow-gold, 0 0 16px rgba(201,169,97,0.45)), 0 4px 24px rgba(0,0,0,0.6)',
       }}
     >
-      <span style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 15, letterSpacing: '0.08em', color: '#A78BFA' }}>
+      <span style={{ fontFamily: "var(--pw-font-display, 'Cinzel', serif)", fontSize: 13, letterSpacing: '0.1em', color: 'var(--color-accent-gold, #C9A961)' }}>
         {data.type === 'buy' ? 'TEMPLE ACQUIRED' : 'UPGRADED'}
       </span>
-      <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 12, color: '#F0F0F8' }}>
+      <span style={{ fontFamily: "var(--pw-font-mono, 'IBM Plex Mono', monospace)", fontSize: 12, color: 'var(--color-text-primary, #EDE3CC)' }}>
         {data.name}
       </span>
       {data.type === 'buy' && (
-        <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 12, color: '#EF4444' }}>
+        <span style={{ fontFamily: "var(--pw-font-mono, 'IBM Plex Mono', monospace)", fontSize: 12, color: 'var(--color-danger, #B8443A)' }}>
           -{fmt(data.cost)} ₯
         </span>
       )}
       {data.type === 'upgrade' && (
         <>
-          <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 12, color: '#A0A0B8' }}>
+          <span style={{ fontFamily: "var(--pw-font-mono, 'IBM Plex Mono', monospace)", fontSize: 12, color: 'var(--color-text-secondary, #A89B7E)' }}>
             → LVL {data.newLevel}
           </span>
-          <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 12, color: '#22C55E' }}>
+          <span style={{ fontFamily: "var(--pw-font-mono, 'IBM Plex Mono', monospace)", fontSize: 12, color: 'var(--color-success, #5FB857)' }}>
             +{fmt(data.incomeDelta)} ₯/hr
           </span>
         </>
@@ -223,8 +223,8 @@ function CatalogTempleCard({ temple, onBuy, isBuying }) {
   const canInteract = temple.canBuy && !isBuying
 
   let buttonLabel = `${fmt(temple.base_cost)} ₯`
-  let buttonColor = '#00C8FF'
-  let borderColor = 'rgba(0,200,255,0.4)'
+  let buttonColor = '#C9A961'
+  let borderColor = 'rgba(201,169,97,0.4)'
   if (temple.reason === 'level') {
     buttonLabel = `REQUIRES LVL ${temple.level_required}`
     buttonColor = 'rgba(240,240,248,0.2)'
@@ -422,74 +422,13 @@ export default function Temples() {
 
   return (
     <>
-      <style>{`
-        @keyframes pw-pulse { 0%,100%{opacity:1} 50%{opacity:0.38} }
-        .pw-skel { background:rgba(255,255,255,0.07); animation:pw-pulse 1.6s ease-in-out infinite; }
-      `}</style>
-
       <AnimatePresence>
         {toast && (
           <TempleToast data={toast} onDone={() => setToast(null)} />
         )}
       </AnimatePresence>
 
-      <motion.div
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        exit={{ opacity: 0 }}
-        transition={{ duration: 0.3 }}
-        style={{
-          minHeight: '100vh',
-          background: '#07070D',
-          backgroundImage: 'radial-gradient(ellipse at 50% 0%, rgba(167,139,250,0.09) 0%, transparent 55%)',
-          display: 'flex',
-          flexDirection: 'column',
-          fontFamily: "'DM Sans', sans-serif",
-          color: '#F0F0F8',
-        }}
-      >
-        {/* ── Header ─────────────────────────────────────────────────── */}
-        <header style={{
-          position: 'sticky',
-          top: 0,
-          zIndex: 10,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          padding: '13px 20px',
-          background: 'rgba(7,7,13,0.9)',
-          backdropFilter: 'blur(12px)',
-          borderBottom: '1px solid rgba(255,255,255,0.07)',
-        }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <span style={{ fontSize: 14 }}>⬟</span>
-            <span style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 18, letterSpacing: '0.1em' }}>
-              PANTHEON WARS
-            </span>
-            <span style={{
-              fontFamily: "'IBM Plex Mono', monospace",
-              fontSize: 9,
-              letterSpacing: '0.12em',
-              textTransform: 'uppercase',
-              color: 'rgba(240,240,248,0.3)',
-              marginLeft: 4,
-            }}>
-              / TEMPLES
-            </span>
-          </div>
-          <PWBackButton />
-        </header>
-
-        <PWHubLink />
-
-        {/* ── Main ───────────────────────────────────────────────────── */}
-        <main style={{
-          flex: 1,
-          width: '100%',
-          maxWidth: 640,
-          margin: '0 auto',
-          padding: '28px 20px 64px',
-        }}>
+      <PWPageShell title="TEMPLES" rightSlot={<PWBackButton />} backgroundVariant="temples">
 
           {/* Loading */}
           {loading && (
@@ -583,8 +522,7 @@ export default function Temples() {
 
             </motion.div>
           )}
-        </main>
-      </motion.div>
+      </PWPageShell>
     </>
   )
 }

@@ -9,16 +9,17 @@ export default function PWHubLink() {
         bottom: 'calc(20px + env(safe-area-inset-bottom, 0px))',
         left: 'calc(20px + env(safe-area-inset-left, 0px))',
         zIndex: 9,
-        fontFamily: "'IBM Plex Mono', monospace",
+        fontFamily: "var(--pw-font-display, 'Cinzel', serif)",
         fontSize: 9,
+        fontWeight: 400,
         letterSpacing: '0.14em',
         textTransform: 'uppercase',
-        color: 'rgba(240,240,248,0.2)',
+        color: 'var(--color-text-muted)',
         textDecoration: 'none',
         transition: 'color 150ms',
       }}
-      onMouseEnter={e => { e.currentTarget.style.color = 'rgba(240,240,248,0.5)' }}
-      onMouseLeave={e => { e.currentTarget.style.color = 'rgba(240,240,248,0.2)' }}
+      onMouseEnter={e => { e.currentTarget.style.color = 'var(--color-accent-gold-dim)' }}
+      onMouseLeave={e => { e.currentTarget.style.color = 'var(--color-text-muted)' }}
     >
       ← HUB
     </Link>

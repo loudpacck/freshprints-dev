@@ -1,4 +1,4 @@
-import { lazy, Suspense } from 'react'
+import { lazy, Suspense, useEffect, useRef } from 'react'
 import { BrowserRouter, Routes, Route, Outlet, useLocation } from 'react-router-dom'
 import { AnimatePresence } from 'framer-motion'
 
@@ -58,8 +58,18 @@ function PageLayout({ children }) {
   return <>{children}</>
 }
 
-// Provides game state to all Pantheon Wars routes without adding visible UI
+// Provides game state + forces Pantheon theme while on game routes
 function PantheonWarsShell() {
+  const prevUi = useRef(null)
+
+  useEffect(() => {
+    prevUi.current = document.documentElement.dataset.ui || 'standard'
+    document.documentElement.dataset.ui = 'pantheon'
+    return () => {
+      document.documentElement.dataset.ui = prevUi.current || 'standard'
+    }
+  }, [])
+
   return (
     <PantheonWarsProvider>
       <Outlet />

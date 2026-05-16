@@ -2,10 +2,11 @@ import { useState, useEffect } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { usePantheonWars } from '@/contexts/PantheonWarsContext'
+import PWPageShell from '@/components/games/pantheon-wars/PWPageShell'
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-const FACTION_COLOR = { olympians: '#F5C542', aesir: '#78C5F0', annunaki: '#CF4444' }
+const FACTION_COLOR = { olympians: '#E8D080', aesir: '#8AB8D4', annunaki: '#C25E3C' }
 
 function fmt(n) { return Number(n).toLocaleString() }
 
@@ -115,7 +116,7 @@ function CombatEntry({ entry }) {
                 <StatChip label="XP" value={`+${fmt(entry.xp_earned)}`} color="#8B5CF6" />
               )}
               {entry.drachma_transferred > 0 && (
-                <StatChip label="₯" value={`+${fmt(entry.drachma_transferred)}`} color="#F5C542" />
+                <StatChip label="₯" value={`+${fmt(entry.drachma_transferred)}`} color="#C9A961" />
               )}
               {entry.glory_earned > 0 && (
                 <StatChip label="Glory" value={`+${entry.glory_earned}`} color="#FBBF24" />
@@ -191,68 +192,41 @@ export default function PvPLog() {
       .finally(() => setIsLoading(false))
   }, [loading, user])
 
+  const arenaLink = (
+    <Link
+      to="/games/pantheon-wars/pvp"
+      style={{
+        fontFamily: "var(--pw-font-display, 'Cinzel', serif)",
+        fontSize: 10,
+        fontWeight: 600,
+        letterSpacing: '0.10em',
+        textTransform: 'uppercase',
+        color: 'var(--color-text-muted)',
+        textDecoration: 'none',
+        background: 'var(--color-bg-elevated)',
+        border: '1px solid var(--color-accent-gold-dim)',
+        borderRadius: 4,
+        padding: '6px 14px',
+        transition: 'color 180ms, border-color 180ms, box-shadow 180ms',
+        display: 'inline-block',
+      }}
+      onMouseEnter={e => {
+        e.currentTarget.style.color = 'var(--color-accent-gold-bright)'
+        e.currentTarget.style.borderColor = 'var(--color-accent-gold)'
+        e.currentTarget.style.boxShadow = 'var(--glow-gold)'
+      }}
+      onMouseLeave={e => {
+        e.currentTarget.style.color = 'var(--color-text-muted)'
+        e.currentTarget.style.borderColor = 'var(--color-accent-gold-dim)'
+        e.currentTarget.style.boxShadow = 'none'
+      }}
+    >
+      ← Arena
+    </Link>
+  )
+
   return (
-    <>
-      <style>{`
-        @keyframes pw-pulse { 0%,100%{opacity:1} 50%{opacity:0.38} }
-        .pw-skel { background:rgba(255,255,255,0.07); animation:pw-pulse 1.6s ease-in-out infinite; }
-      `}</style>
-
-      <motion.div
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        exit={{ opacity: 0 }}
-        transition={{ duration: 0.3 }}
-        style={{
-          minHeight: '100vh',
-          background: '#07070D',
-          backgroundImage: 'radial-gradient(ellipse at 50% 0%, rgba(239,68,68,0.05) 0%, transparent 55%)',
-          display: 'flex',
-          flexDirection: 'column',
-          fontFamily: "'DM Sans', sans-serif",
-          color: '#F0F0F8',
-        }}
-      >
-        {/* ── Header ──────────────────────────────────────────────── */}
-        <header style={{
-          position: 'sticky', top: 0, zIndex: 10,
-          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-          padding: '13px 20px',
-          background: 'rgba(7,7,13,0.9)',
-          backdropFilter: 'blur(12px)',
-          borderBottom: '1px solid rgba(255,255,255,0.07)',
-        }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <span style={{ fontSize: 14 }}>⚔</span>
-            <span style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 18, letterSpacing: '0.1em' }}>
-              PANTHEON WARS
-            </span>
-            <span style={{
-              fontFamily: "'IBM Plex Mono', monospace", fontSize: 9,
-              letterSpacing: '0.12em', textTransform: 'uppercase',
-              color: 'rgba(240,240,248,0.3)', marginLeft: 4,
-            }}>
-              / COMBAT LOG
-            </span>
-          </div>
-          <Link
-            to="/games/pantheon-wars/pvp"
-            style={{
-              fontFamily: "'IBM Plex Mono', monospace", fontSize: 10,
-              letterSpacing: '0.12em', textTransform: 'uppercase',
-              color: 'rgba(240,240,248,0.38)', textDecoration: 'none',
-              border: '1px solid rgba(255,255,255,0.1)', borderRadius: 6, padding: '6px 12px',
-              transition: 'color 120ms, border-color 120ms',
-            }}
-            onMouseEnter={e => { e.currentTarget.style.color = 'rgba(240,240,248,0.8)'; e.currentTarget.style.borderColor = 'rgba(255,255,255,0.25)' }}
-            onMouseLeave={e => { e.currentTarget.style.color = 'rgba(240,240,248,0.38)'; e.currentTarget.style.borderColor = 'rgba(255,255,255,0.1)' }}
-          >
-            ← Arena
-          </Link>
-        </header>
-
-        {/* ── Main ────────────────────────────────────────────────── */}
-        <main style={{ flex: 1, width: '100%', maxWidth: 640, margin: '0 auto', padding: '28px 20px 72px' }}>
+    <PWPageShell title="COMBAT LOG" rightSlot={arenaLink} backgroundVariant="pvplog">
 
           {/* Loading skeleton */}
           {(loading || isLoading) && (
@@ -334,8 +308,6 @@ export default function PvPLog() {
 
             </motion.div>
           )}
-        </main>
-      </motion.div>
-    </>
+    </PWPageShell>
   )
 }

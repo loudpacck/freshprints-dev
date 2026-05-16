@@ -3,16 +3,16 @@ import { useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import { usePantheonWars } from '@/contexts/PantheonWarsContext'
 import PWBackButton from '@/components/games/pantheon-wars/PWBackButton'
-import PWHubLink from '@/components/games/pantheon-wars/PWHubLink'
+import PWPageShell from '@/components/games/pantheon-wars/PWPageShell'
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
 const RARITY_COLOR = {
   common:    '#A0A0B8',
   uncommon:  '#22C55E',
-  rare:      '#00C8FF',
+  rare:      '#8BBECC',
   epic:      '#A78BFA',
-  legendary: '#F5C542',
+  legendary: '#F5D88B',
 }
 
 const RARITY_ORDER = ['common', 'uncommon', 'rare', 'epic', 'legendary']
@@ -25,7 +25,7 @@ const SLOT_GLYPH = {
   companion: '◆',
 }
 
-const FACTION_COLOR = { olympians: '#F5C542', aesir: '#78C5F0', annunaki: '#CF4444' }
+const FACTION_COLOR = { olympians: '#E8D080', aesir: '#8AB8D4', annunaki: '#C25E3C' }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -51,7 +51,7 @@ function ShopItem({ item, player, currency, onBuy, buying }) {
   const price       = currency === 'drachma' ? item.buy_price : item.glory_price
   const balance     = currency === 'drachma' ? player.drachma : player.glory
   const priceLabel  = currency === 'drachma' ? `${fmt(price)} ₯` : `${price} ★`
-  const priceColor  = currency === 'drachma' ? '#F5C542' : '#FBBF24'
+  const priceColor  = currency === 'drachma' ? '#C9A961' : '#FBBF24'
 
   const levelLocked   = player.level < item.level_required
   const factionLocked = item.faction_exclusive && item.faction_exclusive !== player.faction
@@ -213,11 +213,14 @@ function Toast({ message, color, onDone }) {
       style={{
         position: 'fixed', top: 'calc(env(safe-area-inset-top, 0px) + 88px)', left: '50%', transform: 'translateX(-50%)',
         zIndex: 70,
-        background: 'rgba(7,7,13,0.93)', backdropFilter: 'blur(12px)',
-        border: `1px solid ${color}55`, borderRadius: 10,
+        background: 'linear-gradient(180deg, var(--color-bg-elevated, #14101A), var(--color-bg-base, #0A0710))',
+        backdropFilter: 'blur(12px)',
+        border: `2px solid ${color}`,
+        borderRadius: 6,
         padding: '11px 22px',
-        fontFamily: "'IBM Plex Mono', monospace", fontSize: 12, color,
-        whiteSpace: 'nowrap', boxShadow: '0 4px 24px rgba(0,0,0,0.5)',
+        fontFamily: "var(--pw-font-mono, 'IBM Plex Mono', monospace)", fontSize: 12, color,
+        whiteSpace: 'nowrap',
+        boxShadow: `var(--glow-gold, 0 0 16px rgba(201,169,97,0.45)), 0 4px 24px rgba(0,0,0,0.6)`,
       }}
     >
       {message}
@@ -285,7 +288,7 @@ export default function Shop() {
         drachma: data.new_drachma,
         glory:   data.new_glory,
       }))
-      setToast({ message: `${data.purchased.name} acquired`, color: RARITY_COLOR[data.purchased.rarity] ?? '#00C8FF' })
+      setToast({ message: `${data.purchased.name} acquired`, color: RARITY_COLOR[data.purchased.rarity] ?? '#C9A961' })
       refreshContext()
     } finally { setBuying(null) }
   }
@@ -293,60 +296,15 @@ export default function Shop() {
   const items       = tab === 'drachma' ? drachmaItems : gloryItems
   const currLabel   = tab === 'drachma' ? '₯' : '★'
   const balance     = player ? (tab === 'drachma' ? player.drachma : player.glory) : 0
-  const balColor    = tab === 'drachma' ? '#F5C542' : '#FBBF24'
+  const balColor    = tab === 'drachma' ? '#C9A961' : '#FBBF24'
 
   return (
     <>
-      <style>{`
-        @keyframes pw-pulse { 0%,100%{opacity:1} 50%{opacity:0.38} }
-        .pw-skel { background:rgba(255,255,255,0.07); animation:pw-pulse 1.6s ease-in-out infinite; }
-      `}</style>
-
       <AnimatePresence>
         {toast && <Toast message={toast.message} color={toast.color} onDone={() => setToast(null)} />}
       </AnimatePresence>
 
-      <motion.div
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        exit={{ opacity: 0 }}
-        transition={{ duration: 0.3 }}
-        style={{
-          minHeight: '100vh',
-          background: '#07070D',
-          backgroundImage: 'radial-gradient(ellipse at 50% 0%, rgba(245,197,66,0.07) 0%, transparent 55%)',
-          display: 'flex', flexDirection: 'column',
-          fontFamily: "'DM Sans', sans-serif", color: '#F0F0F8',
-        }}
-      >
-        {/* ── Header ────────────────────────────────────────────────── */}
-        <header style={{
-          position: 'sticky', top: 0, zIndex: 10,
-          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-          padding: '13px 20px',
-          background: 'rgba(7,7,13,0.9)', backdropFilter: 'blur(12px)',
-          borderBottom: '1px solid rgba(255,255,255,0.07)',
-        }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <span style={{ fontSize: 14 }}>⚔</span>
-            <span style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 18, letterSpacing: '0.1em' }}>
-              PANTHEON WARS
-            </span>
-            <span style={{
-              fontFamily: "'IBM Plex Mono', monospace", fontSize: 9,
-              letterSpacing: '0.12em', textTransform: 'uppercase',
-              color: 'rgba(240,240,248,0.3)', marginLeft: 4,
-            }}>
-              / SHOP
-            </span>
-          </div>
-          <PWBackButton />
-        </header>
-
-        <PWHubLink />
-
-        {/* ── Main ──────────────────────────────────────────────────── */}
-        <main style={{ flex: 1, maxWidth: 700, width: '100%', margin: '0 auto', padding: '24px 20px 64px' }}>
+      <PWPageShell title="SHOP" rightSlot={<PWBackButton />} backgroundVariant="shop">
 
           {loading && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
@@ -380,7 +338,7 @@ export default function Shop() {
                   <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 9, letterSpacing: '0.12em', textTransform: 'uppercase', color: 'rgba(240,240,248,0.3)' }}>
                     Drachma
                   </span>
-                  <span style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 26, letterSpacing: '0.04em', color: '#F5C542', lineHeight: 1 }}>
+                  <span style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 26, letterSpacing: '0.04em', color: '#C9A961', lineHeight: 1 }}>
                     {fmt(player.drachma)} ₯
                   </span>
                 </div>
@@ -466,8 +424,7 @@ export default function Shop() {
 
             </motion.div>
           )}
-        </main>
-      </motion.div>
+      </PWPageShell>
     </>
   )
 }

@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import { usePantheonWars } from '@/contexts/PantheonWarsContext'
 import PWBackButton from '@/components/games/pantheon-wars/PWBackButton'
-import PWHubLink from '@/components/games/pantheon-wars/PWHubLink'
+import PWPageShell from '@/components/games/pantheon-wars/PWPageShell'
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -16,8 +16,8 @@ const TIER_META = [
 ]
 
 const TIER_COLOR = {
-  1: '#78C5F0',
-  2: '#F5C542',
+  1: '#8AB8D4',
+  2: '#C9A961',
   3: '#A78BFA',
   4: '#F97316',
   5: '#EF4444',
@@ -34,7 +34,7 @@ function masteryPct(completions, target) {
 function masteryLabel(completions, target) {
   const pct = masteryPct(completions, target)
   if (pct >= 100) return { text: 'MASTERED', color: '#FBBF24' }
-  if (pct >= 75)  return { text: 'GOLD',     color: '#F5C542' }
+  if (pct >= 75)  return { text: 'GOLD',     color: '#C9A961' }
   if (pct >= 50)  return { text: 'SILVER',   color: '#A0A0B8' }
   if (pct >= 25)  return { text: 'BRONZE',   color: '#CD7F32' }
   return null
@@ -67,7 +67,7 @@ function EnergyBar({ energy, energyMax }) {
           fontSize: 10,
           letterSpacing: '0.13em',
           textTransform: 'uppercase',
-          color: '#00C8FF',
+          color: '#C9A961',
         }}>
           ⚡ Energy
         </span>
@@ -84,7 +84,7 @@ function EnergyBar({ energy, energyMax }) {
         <motion.div
           animate={{ width: `${pct}%` }}
           transition={{ duration: 0.6, ease: 'easeOut' }}
-          style={{ height: '100%', background: '#00C8FF', borderRadius: 3 }}
+          style={{ height: '100%', background: '#C9A961', borderRadius: 3 }}
         />
       </div>
     </div>
@@ -167,7 +167,7 @@ function QuestCard({ quest, stats, onComplete, completing }) {
       animate={{ opacity: 1, y: 0 }}
       style={{
         background: 'rgba(255,255,255,0.03)',
-        border: `1px solid ${isCompleting ? 'rgba(0,200,255,0.25)' : 'rgba(255,255,255,0.07)'}`,
+        border: `1px solid ${isCompleting ? 'rgba(201,169,97,0.25)' : 'rgba(255,255,255,0.07)'}`,
         borderRadius: 10,
         padding: '16px',
         transition: 'border-color 200ms',
@@ -203,13 +203,13 @@ function QuestCard({ quest, stats, onComplete, completing }) {
             gap: '6px 14px',
             marginTop: 10,
           }}>
-            <span className="pw-reward-chip" style={{ color: '#00C8FF' }}>
+            <span className="pw-reward-chip" style={{ color: '#C9A961' }}>
               ⚡ {quest.energy_cost}
             </span>
             <span className="pw-reward-chip" style={{ color: '#A78BFA' }}>
               +{fmt(quest.xp_reward)} XP
             </span>
-            <span className="pw-reward-chip" style={{ color: '#F5C542' }}>
+            <span className="pw-reward-chip" style={{ color: '#C9A961' }}>
               +{fmt(quest.drachma_base)}
               {quest.drachma_range > 0 ? `–${fmt(quest.drachma_base + quest.drachma_range)}` : ''} ₯
             </span>
@@ -239,9 +239,9 @@ function QuestCard({ quest, stats, onComplete, completing }) {
               fontSize: 10,
               letterSpacing: '0.12em',
               textTransform: 'uppercase',
-              color:   canAfford ? '#00C8FF' : 'rgba(240,240,248,0.2)',
+              color:   canAfford ? '#C9A961' : 'rgba(240,240,248,0.2)',
               background: 'transparent',
-              border: `1px solid ${canAfford ? 'rgba(0,200,255,0.4)' : 'rgba(255,255,255,0.08)'}`,
+              border: `1px solid ${canAfford ? 'rgba(201,169,97,0.4)' : 'rgba(255,255,255,0.08)'}`,
               borderRadius: 6,
               padding: '8px 14px',
               cursor: canAfford && !isCompleting ? 'pointer' : 'not-allowed',
@@ -275,36 +275,36 @@ function RewardToast({ reward, level, onDone }) {
         top: 'calc(env(safe-area-inset-top, 0px) + 88px)',
         left: '50%',
         transform: 'translateX(-50%)',
-        zIndex: 50,
-        background: 'rgba(7,7,13,0.92)',
-        backdropFilter: 'blur(12px)',
-        border: '1px solid rgba(0,200,255,0.35)',
-        borderRadius: 10,
+        zIndex: 60,
+        background: 'linear-gradient(180deg, var(--color-bg-elevated, #14101A), var(--color-bg-base, #0A0710))',
+        backdropFilter: 'blur(16px)',
+        border: '2px solid var(--color-accent-gold-dim, #6F5C32)',
+        borderRadius: 6,
         padding: '12px 22px',
         display: 'flex',
         alignItems: 'center',
         gap: 18,
         whiteSpace: 'nowrap',
-        boxShadow: '0 4px 24px rgba(0,0,0,0.5)',
+        boxShadow: '0 0 16px rgba(201,169,97,0.45), 0 4px 24px rgba(0,0,0,0.6)',
       }}
     >
-      <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 12, color: '#A78BFA' }}>
+      <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 12, color: '#9B8AC4' }}>
         +{fmt(reward.xp)} XP
       </span>
-      <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 12, color: '#F5C542' }}>
+      <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 12, color: 'var(--color-accent-gold-bright, #F5D88B)' }}>
         +{fmt(reward.drachma)} ₯
       </span>
       {reward.loot && (
-        <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 12, color: '#22C55E' }}>
+        <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 12, color: 'var(--color-success, #5FB857)' }}>
           ◆ {reward.loot.name}
-          <span style={{ color: 'rgba(34,197,94,0.55)', fontSize: 10, marginLeft: 5 }}>
+          <span style={{ color: 'rgba(95,184,87,0.6)', fontSize: 10, marginLeft: 5 }}>
             [{reward.loot.rarity}]
           </span>
         </span>
       )}
       {level > 0 && (
-        <span style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 16, letterSpacing: '0.06em', color: '#FBBF24' }}>
-          ⭐ LEVEL UP!
+        <span style={{ fontFamily: "var(--pw-font-display, 'Cinzel', serif)", fontSize: 13, fontWeight: 700, letterSpacing: '0.08em', color: 'var(--color-warning, #D4A437)' }}>
+          ★ LEVEL UP!
         </span>
       )}
     </motion.div>
@@ -402,16 +402,6 @@ export default function Quests() {
 
   return (
     <>
-      <style>{`
-        @keyframes pw-pulse { 0%,100%{opacity:1} 50%{opacity:0.38} }
-        .pw-skel { background:rgba(255,255,255,0.07); animation:pw-pulse 1.6s ease-in-out infinite; }
-        .pw-reward-chip {
-          fontFamily: "'IBM Plex Mono', monospace";
-          font-size: 11px;
-          letter-spacing: 0.06em;
-        }
-      `}</style>
-
       {/* Reward toast */}
       <AnimatePresence>
         {toast && (
@@ -423,67 +413,7 @@ export default function Quests() {
         )}
       </AnimatePresence>
 
-      <motion.div
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        exit={{ opacity: 0 }}
-        transition={{ duration: 0.3 }}
-        style={{
-          minHeight: '100vh',
-          background: '#07070D',
-          backgroundImage: 'radial-gradient(ellipse at 50% 0%, rgba(245,197,66,0.07) 0%, transparent 55%)',
-          display: 'flex',
-          flexDirection: 'column',
-          fontFamily: "'DM Sans', sans-serif",
-          color: '#F0F0F8',
-        }}
-      >
-        {/* ── Header ─────────────────────────────────────────────── */}
-        <header style={{
-          position: 'sticky',
-          top: 0,
-          zIndex: 10,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          padding: '13px 20px',
-          background: 'rgba(7,7,13,0.9)',
-          backdropFilter: 'blur(12px)',
-          borderBottom: '1px solid rgba(255,255,255,0.07)',
-        }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <span style={{ fontSize: 14 }}>⚔</span>
-            <span style={{
-              fontFamily: "'Bebas Neue', sans-serif",
-              fontSize: 18,
-              letterSpacing: '0.1em',
-            }}>
-              PANTHEON WARS
-            </span>
-            <span style={{
-              fontFamily: "'IBM Plex Mono', monospace",
-              fontSize: 9,
-              letterSpacing: '0.12em',
-              textTransform: 'uppercase',
-              color: 'rgba(240,240,248,0.3)',
-              marginLeft: 4,
-            }}>
-              / QUEST BOARD
-            </span>
-          </div>
-          <PWBackButton />
-        </header>
-
-        <PWHubLink />
-
-        {/* ── Main ────────────────────────────────────────────────── */}
-        <main style={{
-          flex: 1,
-          width: '100%',
-          maxWidth: 680,
-          margin: '0 auto',
-          padding: '28px 20px 64px',
-        }}>
+      <PWPageShell title="QUEST BOARD" rightSlot={<PWBackButton />} backgroundVariant="quests">
 
           {loading && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
@@ -583,8 +513,7 @@ export default function Quests() {
               )}
             </motion.div>
           )}
-        </main>
-      </motion.div>
+      </PWPageShell>
     </>
   )
 }

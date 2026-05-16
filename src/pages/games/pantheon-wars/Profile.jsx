@@ -3,17 +3,17 @@ import { useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import { usePantheonWars } from '@/contexts/PantheonWarsContext'
 import PWBackButton from '@/components/games/pantheon-wars/PWBackButton'
-import PWHubLink from '@/components/games/pantheon-wars/PWHubLink'
+import PWPageShell from '@/components/games/pantheon-wars/PWPageShell'
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
-const FACTION_COLOR = { olympians: '#F5C542', aesir: '#78C5F0', annunaki: '#CF4444' }
+const FACTION_COLOR = { olympians: '#E8D080', aesir: '#8AB8D4', annunaki: '#C25E3C' }
 const FACTION_LABEL = { olympians: 'Olympians', aesir: 'Aesir', annunaki: 'Annunaki' }
 const CLASS_LABEL   = { warden: 'Warden', oracle: 'Oracle', slayer: 'Slayer', broker: 'Broker' }
 
 const ATTACK_COLOR     = '#F97316'
 const DEFENSE_COLOR    = '#22C55E'
-const ENERGY_COLOR     = '#00C8FF'
+const ENERGY_COLOR     = '#C9A961'
 const HEALTH_COLOR     = '#EF4444'
 const VIOLET           = '#8B5CF6'
 const COALITION_COLOR  = '#A78BFA'
@@ -373,8 +373,6 @@ export default function Profile() {
   return (
     <>
       <style>{`
-        @keyframes pw-pulse { 0%,100%{opacity:1} 50%{opacity:0.38} }
-        .pw-skel { background:rgba(255,255,255,0.07); animation:pw-pulse 1.6s ease-in-out infinite; }
         @media (max-width: 640px) {
           .pw-alloc-grid  { grid-template-columns: 1fr 1fr !important; }
           .pw-align-grid  { grid-template-columns: 1fr !important; }
@@ -391,68 +389,7 @@ export default function Profile() {
         )}
       </AnimatePresence>
 
-      <motion.div
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        exit={{ opacity: 0 }}
-        transition={{ duration: 0.3 }}
-        style={{
-          minHeight: '100vh',
-          background: '#07070D',
-          backgroundImage: 'radial-gradient(ellipse at 50% 0%, rgba(139,92,246,0.09) 0%, transparent 55%)',
-          display: 'flex',
-          flexDirection: 'column',
-          fontFamily: "'DM Sans', sans-serif",
-          color: '#F0F0F8',
-        }}
-      >
-        {/* ── Sticky Header ──────────────────────────────────────────── */}
-        <header style={{
-          position: 'sticky',
-          top: 0,
-          zIndex: 10,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          padding: '13px 20px',
-          background: 'rgba(7,7,13,0.9)',
-          backdropFilter: 'blur(12px)',
-          borderBottom: '1px solid rgba(255,255,255,0.07)',
-        }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <span style={{ fontSize: 14, lineHeight: 1 }}>⚔</span>
-            <span style={{
-              fontFamily: "'Bebas Neue', sans-serif",
-              fontSize: 18,
-              letterSpacing: '0.1em',
-              color: '#F0F0F8',
-            }}>
-              PANTHEON WARS
-            </span>
-            <span style={{
-              fontFamily: "'IBM Plex Mono', monospace",
-              fontSize: 9,
-              letterSpacing: '0.12em',
-              textTransform: 'uppercase',
-              color: 'rgba(240,240,248,0.3)',
-              marginLeft: 4,
-            }}>
-              / PROFILE
-            </span>
-          </div>
-          <PWBackButton />
-        </header>
-
-        <PWHubLink />
-
-        {/* ── Main ───────────────────────────────────────────────────── */}
-        <main style={{
-          flex: 1,
-          width: '100%',
-          maxWidth: 640,
-          margin: '0 auto',
-          padding: '28px 20px 72px',
-        }}>
+      <PWPageShell title="PROFILE" rightSlot={<PWBackButton />} backgroundVariant="profile">
 
           {/* Loading skeleton */}
           {loading && (
@@ -527,9 +464,9 @@ export default function Profile() {
                   />
                   <Badge
                     label={CLASS_LABEL[user.class] ?? user.class}
-                    color="#00C8FF"
-                    bg="rgba(0,200,255,0.1)"
-                    border="rgba(0,200,255,0.32)"
+                    color="#C9A961"
+                    bg="rgba(201,169,97,0.1)"
+                    border="rgba(201,169,97,0.32)"
                   />
                   {user.alignment && (
                     <Badge
@@ -798,8 +735,8 @@ export default function Profile() {
                     flex: 1,
                     padding: '14px 20px',
                     background: totalPending === 0 || isSubmitting
-                      ? 'rgba(245,197,66,0.22)'
-                      : 'linear-gradient(135deg, #F5C542 0%, #E8943A 100%)',
+                      ? 'rgba(201,169,97,0.22)'
+                      : 'linear-gradient(135deg, #C9A961 0%, #A07840 100%)',
                     border: 'none',
                     borderRadius: 8,
                     fontFamily: "'Bebas Neue', sans-serif",
@@ -984,8 +921,7 @@ export default function Profile() {
 
             </motion.div>
           )}
-        </main>
-      </motion.div>
+      </PWPageShell>
     </>
   )
 }

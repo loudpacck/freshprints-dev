@@ -3,11 +3,11 @@ import { useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import { usePantheonWars } from '@/contexts/PantheonWarsContext'
 import PWBackButton from '@/components/games/pantheon-wars/PWBackButton'
-import PWHubLink from '@/components/games/pantheon-wars/PWHubLink'
+import PWPageShell from '@/components/games/pantheon-wars/PWPageShell'
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
-const FACTION_COLOR = { olympians: '#F5C542', aesir: '#78C5F0', annunaki: '#CF4444' }
+const FACTION_COLOR = { olympians: '#E8D080', aesir: '#8AB8D4', annunaki: '#C25E3C' }
 const FACTION_LABEL = { olympians: 'Olympians', aesir: 'Aesir', annunaki: 'Annunaki' }
 const CLASS_LABEL   = { warden: 'Warden', oracle: 'Oracle', slayer: 'Slayer', broker: 'Broker' }
 
@@ -114,9 +114,9 @@ function RankRow({ entry, type }) {
           <span style={{
             fontFamily: "'IBM Plex Mono', monospace", fontSize: 8,
             letterSpacing: '0.1em', textTransform: 'uppercase',
-            color: '#00C8FF',
-            background: 'rgba(0,200,255,0.08)',
-            border: '1px solid rgba(0,200,255,0.2)',
+            color: '#C9A961',
+            background: 'rgba(201,169,97,0.08)',
+            border: '1px solid rgba(201,169,97,0.2)',
             borderRadius: 3, padding: '2px 6px',
           }}>
             {CLASS_LABEL[entry.class] ?? entry.class}
@@ -182,8 +182,6 @@ export default function Leaderboard() {
   return (
     <>
       <style>{`
-        @keyframes pw-pulse { 0%,100%{opacity:1} 50%{opacity:0.38} }
-        .pw-skel { background:rgba(255,255,255,0.07); animation:pw-pulse 1.6s ease-in-out infinite; }
         @media (max-width: 480px) {
           .pw-lb-type-tabs { gap: 6px !important; }
           .pw-lb-type-tabs button { padding: 7px 8px !important; font-size: 9px !important; }
@@ -191,47 +189,7 @@ export default function Leaderboard() {
         }
       `}</style>
 
-      <motion.div
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        exit={{ opacity: 0 }}
-        transition={{ duration: 0.3 }}
-        style={{
-          minHeight: '100vh',
-          background: '#07070D',
-          backgroundImage: 'radial-gradient(ellipse at 50% 0%, rgba(251,191,36,0.07) 0%, transparent 55%)',
-          display: 'flex', flexDirection: 'column',
-          fontFamily: "'DM Sans', sans-serif", color: '#F0F0F8',
-        }}
-      >
-        {/* ── Header ────────────────────────────────────────────────── */}
-        <header style={{
-          position: 'sticky', top: 0, zIndex: 10,
-          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-          padding: '13px 20px',
-          background: 'rgba(7,7,13,0.9)', backdropFilter: 'blur(12px)',
-          borderBottom: '1px solid rgba(255,255,255,0.07)',
-        }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <span style={{ fontSize: 14 }}>⚔</span>
-            <span style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 18, letterSpacing: '0.1em' }}>
-              PANTHEON WARS
-            </span>
-            <span style={{
-              fontFamily: "'IBM Plex Mono', monospace", fontSize: 9,
-              letterSpacing: '0.12em', textTransform: 'uppercase',
-              color: 'rgba(240,240,248,0.3)', marginLeft: 4,
-            }}>
-              / LEADERBOARD
-            </span>
-          </div>
-          <PWBackButton />
-        </header>
-
-        <PWHubLink />
-
-        {/* ── Main ──────────────────────────────────────────────────── */}
-        <main style={{ flex: 1, maxWidth: 700, width: '100%', margin: '0 auto', padding: '24px 20px 64px' }}>
+      <PWPageShell title="LEADERBOARD" rightSlot={<PWBackButton />} backgroundVariant="leaderboard">
 
           {/* Type tabs */}
           <motion.div
@@ -399,8 +357,7 @@ export default function Leaderboard() {
               </motion.div>
             </AnimatePresence>
           )}
-        </main>
-      </motion.div>
+      </PWPageShell>
     </>
   )
 }
