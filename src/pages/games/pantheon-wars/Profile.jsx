@@ -261,7 +261,7 @@ function StatAllocCard({ label, color, current, pending, onIncrement, onDecremen
 
 function AlignmentChooser({ onChoose, isChoosing }) {
   useEffect(() => {
-    musicManager.play('/sounds/pantheon_wars/alignmentChoose.mp3')
+    musicManager.play('/sounds/pantheon_wars/alignmentChoose.mp3', { volume: 0.3 })
     return () => musicManager.stop()
   }, [])
 

@@ -52,7 +52,7 @@ class AmbienceManager {
       if (this._audio) this._audio.pause()
       this._audio = new Audio(src)
       this._audio.loop = true
-      this._audio.volume = this._muted ? 0 : 0.25
+      this._audio.volume = this._muted ? 0 : 0.125
     }
   }
 

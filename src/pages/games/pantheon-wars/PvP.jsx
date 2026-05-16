@@ -97,7 +97,7 @@ function MiniHealthBar({ current, max, color }) {
 
 function AlignmentGate({ onChoose, isSubmitting }) {
   useEffect(() => {
-    musicManager.play('/sounds/pantheon_wars/alignmentChoose.mp3')
+    musicManager.play('/sounds/pantheon_wars/alignmentChoose.mp3', { volume: 0.3 })
     return () => musicManager.stop()
   }, [])
 

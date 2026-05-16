@@ -15,7 +15,7 @@ export default function PWTitleCardSequence({ onComplete }) {
 
   useEffect(() => {
     // Start intro music the moment the video starts
-    musicManager.play('/sounds/pantheon_wars/intro.mp3')
+    musicManager.play('/sounds/pantheon_wars/intro.mp3', { volume: 0.3 })
     // Attempt to play video (it's muted, so autoplay is unrestricted)
     videoRef.current?.play().catch(() => {})
   }, [])

@@ -46,14 +46,14 @@ class MusicManager {
   // Play a one-shot music cue. Stops any current track first.
   // If muted, audio plays silently (volume 0) so the ended event still fires
   // and the MusicManager → AmbienceManager timing chain is preserved.
-  play(src, { onEnded } = {}) {
+  play(src, { onEnded, volume = 0.6 } = {}) {
     if (this._active) {
       this._clearAudio()
       this._emitPlaybackChange(false)
     }
 
     const audio = new Audio(src)
-    audio.volume = this._muted ? 0 : 0.6
+    audio.volume = this._muted ? 0 : volume
     this._audio = audio
 
     audio.addEventListener('ended', () => {
