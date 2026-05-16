@@ -4,6 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { usePantheonWars } from '@/contexts/PantheonWarsContext'
 import PWBackButton from '@/components/games/pantheon-wars/PWBackButton'
 import PWPageShell from '@/components/games/pantheon-wars/PWPageShell'
+import { useSound } from '@/sound/useSound'
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -238,6 +239,7 @@ const fadeUp = {
 export default function Shop() {
   const { user, loading: authLoading, refresh: refreshContext } = usePantheonWars()
   const navigate = useNavigate()
+  const { play } = useSound()
 
   const [drachmaItems, setDrachmaItems] = useState([])
   const [gloryItems,   setGloryItems]   = useState([])
@@ -289,6 +291,7 @@ export default function Shop() {
         glory:   data.new_glory,
       }))
       setToast({ message: `${data.purchased.name} acquired`, color: RARITY_COLOR[data.purchased.rarity] ?? '#C9A961' })
+      play('purchase')
       refreshContext()
     } finally { setBuying(null) }
   }

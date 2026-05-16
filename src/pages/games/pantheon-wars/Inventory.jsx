@@ -4,6 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { usePantheonWars } from '@/contexts/PantheonWarsContext'
 import PWBackButton from '@/components/games/pantheon-wars/PWBackButton'
 import PWPageShell from '@/components/games/pantheon-wars/PWPageShell'
+import { useSound } from '@/sound/useSound'
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -405,6 +406,7 @@ const fadeUp = {
 export default function Inventory() {
   const { user, loading: authLoading, refresh: refreshContext } = usePantheonWars()
   const navigate = useNavigate()
+  const { play } = useSound()
 
   const [inventory,  setInventory]  = useState([])
   const [bonuses,    setBonuses]    = useState({ attack: 0, defense: 0 })
@@ -450,6 +452,7 @@ export default function Inventory() {
       setInventory(data.inventory)
       setBonuses(data.equipment_bonuses)
       setToast({ message: 'Item equipped', color: '#C9A961' })
+      play('click')
     } finally { setBusy(false) }
   }
 
@@ -488,6 +491,7 @@ export default function Inventory() {
       setInventory(prev => prev.filter(i => i.inventory_id !== inventory_id))
       if (stats) setStats(prev => ({ ...prev, drachma: data.new_drachma }))
       setToast({ message: `Sold for ${fmt(data.sell_price)}₯`, color: '#C9A961' })
+      play('purchase')
       refreshContext()
     } finally { setBusy(false) }
   }

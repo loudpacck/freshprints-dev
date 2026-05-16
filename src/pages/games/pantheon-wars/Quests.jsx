@@ -4,6 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { usePantheonWars } from '@/contexts/PantheonWarsContext'
 import PWBackButton from '@/components/games/pantheon-wars/PWBackButton'
 import PWPageShell from '@/components/games/pantheon-wars/PWPageShell'
+import { useSound } from '@/sound/useSound'
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -321,6 +322,7 @@ const fadeUp = {
 export default function Quests() {
   const { user, loading: authLoading, refresh: refreshContext } = usePantheonWars()
   const navigate = useNavigate()
+  const { play } = useSound()
 
   const [quests,    setQuests]    = useState([])
   const [stats,     setStats]     = useState(null)
@@ -384,6 +386,11 @@ export default function Quests() {
 
       // Show reward toast
       setToast({ reward: data.rewards, levelsGained: data.levelsGained })
+
+      // SFX
+      play('questComplete')
+      if (data.rewards?.loot)      setTimeout(() => play('lootDrop'), 300)
+      if (data.levelsGained > 0)   setTimeout(() => play('levelUp'),  600)
 
       // Sync global context in background (updates dashboard energy/XP)
       refreshContext()

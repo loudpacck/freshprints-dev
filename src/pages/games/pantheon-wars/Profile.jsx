@@ -4,6 +4,8 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { usePantheonWars } from '@/contexts/PantheonWarsContext'
 import PWBackButton from '@/components/games/pantheon-wars/PWBackButton'
 import PWPageShell from '@/components/games/pantheon-wars/PWPageShell'
+import { useSound } from '@/sound/useSound'
+import { musicManager } from '@/sound/MusicManager'
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -255,6 +257,63 @@ function StatAllocCard({ label, color, current, pending, onIncrement, onDecremen
   )
 }
 
+// ─── Alignment chooser — plays alignment song on mount, stops on unmount ──────
+
+function AlignmentChooser({ onChoose, isChoosing }) {
+  useEffect(() => {
+    musicManager.play('/sounds/pantheon_wars/alignmentChoose.mp3')
+    return () => musicManager.stop()
+  }, [])
+
+  return (
+    <div>
+      <p style={{
+        fontFamily: "'DM Sans', sans-serif",
+        fontSize: 13,
+        color: 'rgba(240,240,248,0.38)',
+        marginBottom: 16,
+        lineHeight: 1.55,
+      }}>
+        Choose your allegiance. This decision is permanent and determines your PvP pool and future quest chains.
+      </p>
+      <div className="pw-align-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+        {[
+          { id: 'coalition', icon: '⚜', label: 'PANTHEON COALITION', color: '#A78BFA', border: 'rgba(167,139,250,0.3)', bg: 'rgba(167,139,250,0.1)' },
+          { id: 'compact',   icon: '⚡', label: 'MORTAL COMPACT',     color: '#FB923C', border: 'rgba(251,146,60,0.3)',  bg: 'rgba(251,146,60,0.1)'  },
+        ].map(opt => (
+          <button
+            key={opt.id}
+            onClick={() => { musicManager.stop(); onChoose(opt.id) }}
+            disabled={isChoosing}
+            style={{
+              padding: '18px 12px',
+              background: isChoosing ? 'transparent' : opt.bg,
+              border: `1px solid ${opt.border}`,
+              borderRadius: 10,
+              cursor: isChoosing ? 'not-allowed' : 'pointer',
+              textAlign: 'center',
+              transition: 'background 150ms',
+              opacity: isChoosing ? 0.6 : 1,
+            }}
+            onMouseEnter={e => { if (!isChoosing) e.currentTarget.style.background = opt.bg.replace('0.1', '0.2') }}
+            onMouseLeave={e => { if (!isChoosing) e.currentTarget.style.background = opt.bg }}
+          >
+            <div style={{ fontSize: 20, marginBottom: 6 }}>{opt.icon}</div>
+            <div style={{
+              fontFamily: "'Bebas Neue', sans-serif",
+              fontSize: 14,
+              letterSpacing: '0.08em',
+              color: opt.color,
+            }}>
+              {opt.label}
+            </div>
+          </button>
+        ))}
+      </div>
+    </div>
+  )
+}
+
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 const fadeUp = {
@@ -269,6 +328,7 @@ const stagger = {
 export default function Profile() {
   const { user, stats: ctxStats, loading, refresh } = usePantheonWars()
   const navigate = useNavigate()
+  const { play } = useSound()
 
   // Local stats so we can update instantly on allocation success
   const [displayStats, setDisplayStats] = useState(null)
@@ -330,6 +390,7 @@ export default function Profile() {
         energy_max: pendingEnergyMax,
         health_max: pendingHealthMax,
       })
+      play('success')
       setPendingAttack(0)
       setPendingDefense(0)
       setPendingEnergyMax(0)
@@ -871,51 +932,7 @@ export default function Profile() {
 
                 {/* Chooser — level >= 10 and not yet aligned */}
                 {!user.alignment && stats.level >= 10 && (
-                  <div>
-                    <p style={{
-                      fontFamily: "'DM Sans', sans-serif",
-                      fontSize: 13,
-                      color: 'rgba(240,240,248,0.38)',
-                      marginBottom: 16,
-                      lineHeight: 1.55,
-                    }}>
-                      Choose your allegiance. This decision is permanent and determines your PvP pool and future quest chains.
-                    </p>
-                    <div className="pw-align-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-                      {[
-                        { id: 'coalition', icon: '⚜', label: 'PANTHEON COALITION', color: COALITION_COLOR, border: 'rgba(167,139,250,0.3)', bg: 'rgba(167,139,250,0.1)' },
-                        { id: 'compact',   icon: '⚡', label: 'MORTAL COMPACT',     color: COMPACT_COLOR,   border: 'rgba(251,146,60,0.3)',  bg: 'rgba(251,146,60,0.1)'  },
-                      ].map(opt => (
-                        <button
-                          key={opt.id}
-                          onClick={() => handleChooseAlignment(opt.id)}
-                          disabled={isChoosing}
-                          style={{
-                            padding: '18px 12px',
-                            background: isChoosing ? 'transparent' : opt.bg,
-                            border: `1px solid ${opt.border}`,
-                            borderRadius: 10,
-                            cursor: isChoosing ? 'not-allowed' : 'pointer',
-                            textAlign: 'center',
-                            transition: 'background 150ms',
-                            opacity: isChoosing ? 0.6 : 1,
-                          }}
-                          onMouseEnter={e => { if (!isChoosing) e.currentTarget.style.background = opt.bg.replace('0.1', '0.2') }}
-                          onMouseLeave={e => { if (!isChoosing) e.currentTarget.style.background = opt.bg }}
-                        >
-                          <div style={{ fontSize: 20, marginBottom: 6 }}>{opt.icon}</div>
-                          <div style={{
-                            fontFamily: "'Bebas Neue', sans-serif",
-                            fontSize: 14,
-                            letterSpacing: '0.08em',
-                            color: opt.color,
-                          }}>
-                            {opt.label}
-                          </div>
-                        </button>
-                      ))}
-                    </div>
-                  </div>
+                  <AlignmentChooser onChoose={handleChooseAlignment} isChoosing={isChoosing} />
                 )}
               </motion.section>
 

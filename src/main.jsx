@@ -11,6 +11,7 @@ import '@/themes/pantheon/fonts.css'
 import './styles/global.css'
 import './sound/packs/digital'
 import './sound/packs/retro'
+import './sound/packs/pantheon'
 import App from './App.jsx'
 
 createRoot(document.getElementById('root')).render(

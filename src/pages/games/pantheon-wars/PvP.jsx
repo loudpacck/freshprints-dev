@@ -4,6 +4,8 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { usePantheonWars } from '@/contexts/PantheonWarsContext'
 import PWBackButton from '@/components/games/pantheon-wars/PWBackButton'
 import PWPageShell from '@/components/games/pantheon-wars/PWPageShell'
+import { useSound } from '@/sound/useSound'
+import { musicManager } from '@/sound/MusicManager'
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -94,6 +96,11 @@ function MiniHealthBar({ current, max, color }) {
 // ─── Alignment Gate ───────────────────────────────────────────────────────────
 
 function AlignmentGate({ onChoose, isSubmitting }) {
+  useEffect(() => {
+    musicManager.play('/sounds/pantheon_wars/alignmentChoose.mp3')
+    return () => musicManager.stop()
+  }, [])
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 14 }}
@@ -163,7 +170,7 @@ function AlignmentGate({ onChoose, isSubmitting }) {
             </p>
           </div>
           <button
-            onClick={() => onChoose('coalition')}
+            onClick={() => { musicManager.stop(); onChoose('coalition') }}
             disabled={isSubmitting}
             style={{
               marginTop: 'auto',
@@ -217,7 +224,7 @@ function AlignmentGate({ onChoose, isSubmitting }) {
             </p>
           </div>
           <button
-            onClick={() => onChoose('compact')}
+            onClick={() => { musicManager.stop(); onChoose('compact') }}
             disabled={isSubmitting}
             style={{
               marginTop: 'auto',
@@ -657,6 +664,7 @@ const stagger = {
 export default function PvP() {
   const { user, stats: ctxStats, loading, refresh } = usePantheonWars()
   const navigate = useNavigate()
+  const { play } = useSound()
 
   const [targetsData,      setTargetsData]      = useState(null)
   const [isLoadingTargets, setIsLoadingTargets] = useState(true)
@@ -736,6 +744,8 @@ export default function PvP() {
         return
       }
       setCombatResult(data)
+      play(data.result === 'win' ? 'combatWin' : 'combatLose')
+      if (data.levelsGained > 0) setTimeout(() => play('levelUp'), 800)
       refresh()
       fetchTargets()
     } catch {

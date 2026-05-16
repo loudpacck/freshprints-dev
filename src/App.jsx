@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect } from 'react'
+import { lazy, Suspense, useEffect, useState } from 'react'
 import { BrowserRouter, Routes, Route, Outlet, useLocation } from 'react-router-dom'
 import { AnimatePresence } from 'framer-motion'
 
@@ -11,6 +11,10 @@ import { ThemeProvider, useTheme } from '@/themes/ThemeProvider'
 import DevThemeSwitcher from '@/components/dev/DevThemeSwitcher'
 import AutoTrackers from '@/tracking/AutoTrackers'
 import { PantheonWarsProvider } from '@/contexts/PantheonWarsContext'
+import { soundManager } from '@/sound/SoundManager'
+import { musicManager } from '@/sound/MusicManager'
+import { ambienceManager } from '@/sound/AmbienceManager'
+import PWTitleCardSequence from '@/components/games/pantheon-wars/PWTitleCardSequence'
 import StandardLayout from '@/components/standard/StandardLayout'
 import RetroLayout from '@/components/retro/RetroLayout'
 
@@ -58,19 +62,51 @@ function PageLayout({ children }) {
   return <>{children}</>
 }
 
-// Provides game state + forces Pantheon theme while on game routes
+// Provides game state + forces Pantheon theme while on game routes.
+// Manages the title card sequence (once per session via sessionStorage pw-titlecard-shown),
+// intro song (MusicManager), and looping ambience (AmbienceManager).
 function PantheonWarsShell() {
+  const [showTitleCard, setShowTitleCard] = useState(false)
+
   useEffect(() => {
     document.documentElement.dataset.ui = 'pantheon'
+    soundManager.setActiveTheme('pantheon')
+    soundManager.setPack('pantheon')
+
+    const shown = sessionStorage.getItem('pw-titlecard-shown')
+    if (!shown) {
+      // Arm ambience src so AmbienceManager knows what to play when intro ends.
+      // Intro song starts inside PWTitleCardSequence on its mount.
+      // fp-music-playback-change event chain handles ambience timing automatically.
+      ambienceManager.setSrc('/sounds/pantheon_wars/ambience.mp3')
+      setShowTitleCard(true)
+    } else {
+      // No title card — start ambience immediately
+      ambienceManager.play('/sounds/pantheon_wars/ambience.mp3')
+    }
+
     return () => {
       const saved = localStorage.getItem('fp-theme')
       const safe = (!saved || saved === 'pantheon') ? 'standard' : saved
       document.documentElement.dataset.ui = safe
+      soundManager.setActiveTheme(safe)
+      const packMap = { digital: 'digital', retro: 'retro' }
+      soundManager.setPack(packMap[safe] ?? null)
+      ambienceManager.pause()
+      musicManager.stop()
     }
   }, [])
 
+  function handleTitleCardComplete() {
+    sessionStorage.setItem('pw-titlecard-shown', '1')
+    setShowTitleCard(false)
+    // Do NOT start ambience here — it starts automatically when intro song ends
+    // via the fp-music-playback-change { playing: false } event from MusicManager
+  }
+
   return (
     <PantheonWarsProvider>
+      {showTitleCard && <PWTitleCardSequence onComplete={handleTitleCardComplete} />}
       <Outlet />
     </PantheonWarsProvider>
   )

@@ -4,6 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { usePantheonWars } from '@/contexts/PantheonWarsContext'
 import PWBackButton from '@/components/games/pantheon-wars/PWBackButton'
 import PWPageShell from '@/components/games/pantheon-wars/PWPageShell'
+import { useSound } from '@/sound/useSound'
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -325,6 +326,7 @@ const stagger = {
 
 export default function Temples() {
   const { user, loading: authLoading, refresh: refreshContext } = usePantheonWars()
+  const { play } = useSound()
   const navigate = useNavigate()
 
   const [catalog,     setCatalog]     = useState([])
@@ -380,6 +382,7 @@ export default function Temples() {
         name: templeEntry?.name ?? templeType,
         cost: templeEntry?.base_cost ?? 0,
       })
+      play('purchase')
       await fetchTemples()
       refreshContext()
     } catch {
@@ -411,6 +414,7 @@ export default function Temples() {
         newLevel:   temple.upgrade_level,
         incomeDelta: temple.current_income_per_hour - prevIncome,
       })
+      play('templeUpgrade')
       await fetchTemples()
       refreshContext()
     } catch {

@@ -1,6 +1,7 @@
 import { motion } from 'framer-motion'
 import PWBackground from './PWBackground'
 import PWHubLink from './PWHubLink'
+import PWAudioControls from './PWAudioControls'
 
 // Inline SVG corner ornament — small gold flourish mark
 function CornerGlyph({ style }) {
@@ -161,6 +162,9 @@ export default function PWPageShell({ title, rightSlot, backgroundVariant = 'das
 
         {/* ── Hub return link ──────────────────────────────────────────── */}
         <PWHubLink />
+
+        {/* ── Audio control cluster (SFX / MUSIC / AMB) ───────────────── */}
+        <PWAudioControls />
       </motion.div>
     </>
   )

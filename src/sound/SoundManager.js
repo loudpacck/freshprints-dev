@@ -24,14 +24,16 @@ class SoundManager {
   }
 
   _muteKey(id) {
-    if (id === 'retro') return 'fp-sound-muted-retro'
-    if (id === 'digital') return 'fp-sound-muted-digital'
+    if (id === 'retro')    return 'fp-sound-muted-retro'
+    if (id === 'digital')  return 'fp-sound-muted-digital'
+    if (id === 'pantheon') return 'fp-sound-muted-pantheon'
     return 'fp-sound-muted'
   }
 
   _defaultMuted(id) {
-    // Retro defaults to unmuted — sound is part of the experience
-    if (id === 'retro') return false
+    // Retro and Pantheon default to unmuted — sound is part of the experience
+    if (id === 'retro')    return false
+    if (id === 'pantheon') return false
     return true
   }
 
