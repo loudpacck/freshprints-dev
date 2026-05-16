@@ -18,3 +18,8 @@ export function getAvailableThemes() {
 export function getCompleteThemes() {
   return themeIds.filter(id => themes[id].status === 'complete')
 }
+
+// Themes that appear in the UI picker: all non-hidden complete themes + comingSoon previews
+export function getPickerThemes() {
+  return themeIds.filter(id => !themes[id].hidden || themes[id].comingSoon)
+}

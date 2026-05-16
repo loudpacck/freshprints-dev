@@ -10,6 +10,7 @@ export default {
   supportsDarkMode: true,
   defaultMode: 'dark',
   hidden: true,
+  comingSoon: true,
   fonts: {
     display: 'Cinzel',
     body: 'Cormorant Garamond',

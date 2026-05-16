@@ -2,12 +2,13 @@ import { useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useNavigate } from 'react-router-dom'
 import { useTheme } from '@/themes/useTheme'
-import { getCompleteThemes, getTheme } from '@/themes/registry'
+import { getPickerThemes, getTheme } from '@/themes/registry'
 
 const THEME_DESCS = {
   standard: 'Premium portfolio experience',
   digital:  'Hub-based command center',
   retro:    'A nostalgic 90s computer experience',
+  pantheon: 'Mythological grandeur. WotLK meets myth.',
 }
 
 const THEME_PREVIEWS = {
@@ -71,6 +72,21 @@ const THEME_PREVIEWS = {
       </div>
     ),
   },
+  pantheon: {
+    bg: '#0A0710',
+    accent: '#C9A961',
+    label: 'Pantheon',
+    preview: (
+      <div style={{ padding: '8px 10px', background: '#0A0710', border: '1px solid rgba(201,169,97,0.25)' }}>
+        <div style={{ fontFamily: 'Georgia, serif', fontSize: 9, color: '#C9A961', marginBottom: 4, letterSpacing: '0.1em' }}>
+          PANTHEON WARS
+        </div>
+        <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 7, color: '#5C4626' }}>
+          ◆ QUESTS  ★ GLORY  ₯ DRACHMA
+        </div>
+      </div>
+    ),
+  },
 }
 
 function getThemeHome(id) {
@@ -91,7 +107,7 @@ export default function UIPicker({ isOpen, onClose }) {
     return () => window.removeEventListener('keydown', handler)
   }, [isOpen, onClose])
 
-  const completeThemes = getCompleteThemes()
+  const pickerThemes = getPickerThemes()
   const isRetro = themeId === 'retro'
 
   return (
@@ -193,13 +209,15 @@ export default function UIPicker({ isOpen, onClose }) {
 
               {/* Theme options */}
               <div style={{ padding: '1rem 1.5rem', display: 'flex', flexDirection: 'column', gap: '0.625rem' }}>
-                {completeThemes.map(id => {
+                {pickerThemes.map(id => {
+                  const manifest = getTheme(id)
                   const active = id === themeId
+                  const comingSoon = manifest.comingSoon === true
                   const preview = THEME_PREVIEWS[id]
                   return (
                     <button
                       key={id}
-                      onClick={() => { setTheme(id); navigate(getThemeHome(id)); onClose() }}
+                      onClick={comingSoon ? undefined : () => { setTheme(id); navigate(getThemeHome(id)); onClose() }}
                       style={{
                         display: 'flex',
                         alignItems: 'center',
@@ -209,9 +227,10 @@ export default function UIPicker({ isOpen, onClose }) {
                         borderRadius: '0.625rem',
                         border: active ? '2px solid #1E3C64' : '1px solid rgba(0,0,0,0.08)',
                         background: active ? 'rgba(30,60,100,0.06)' : 'transparent',
-                        cursor: 'pointer',
+                        cursor: comingSoon ? 'default' : 'pointer',
                         textAlign: 'left',
                         transition: 'all 150ms ease',
+                        opacity: comingSoon ? 0.55 : 1,
                       }}
                     >
                       {/* Radio dot */}
@@ -239,7 +258,7 @@ export default function UIPicker({ isOpen, onClose }) {
                           color: '#0A0A14',
                           marginBottom: '0.125rem',
                         }}>
-                          {getTheme(id).label}
+                          {manifest.label}
                         </div>
                         <div style={{
                           fontFamily: "'Geist Mono', monospace",
@@ -249,6 +268,24 @@ export default function UIPicker({ isOpen, onClose }) {
                           {THEME_DESCS[id] || ''}
                         </div>
                       </div>
+
+                      {/* COMING SOON badge */}
+                      {comingSoon && (
+                        <span style={{
+                          fontFamily: "'Geist Mono', monospace",
+                          fontSize: '0.6rem',
+                          letterSpacing: '0.1em',
+                          textTransform: 'uppercase',
+                          color: '#C9A961',
+                          border: '1px solid rgba(201,169,97,0.5)',
+                          borderRadius: 3,
+                          padding: '2px 6px',
+                          flexShrink: 0,
+                          whiteSpace: 'nowrap',
+                        }}>
+                          COMING SOON
+                        </span>
+                      )}
 
                       {/* Mini preview */}
                       {preview?.preview && (

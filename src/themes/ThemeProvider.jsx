@@ -17,12 +17,16 @@ function resolveMode(pref) {
   return pref === 'auto' ? getSystemColorScheme() : pref
 }
 
+const GAME_ONLY_THEMES = new Set(['pantheon'])
+
 function readInitialTheme() {
   if (typeof window === 'undefined') return DEFAULT_THEME
   const params = new URLSearchParams(window.location.search)
   const param = params.get('ui') || params.get('theme')
-  if (param) return param
-  return localStorage.getItem(STORAGE_THEME) || DEFAULT_THEME
+  if (param && !GAME_ONLY_THEMES.has(param)) return param
+  const saved = localStorage.getItem(STORAGE_THEME)
+  if (saved && !GAME_ONLY_THEMES.has(saved)) return saved
+  return DEFAULT_THEME
 }
 
 function readInitialModePref() {
@@ -66,7 +70,7 @@ export function ThemeProvider({ children }) {
   // Apply theme to DOM + persist
   useEffect(() => {
     document.documentElement.dataset.ui = themeId
-    localStorage.setItem(STORAGE_THEME, themeId)
+    if (!GAME_ONLY_THEMES.has(themeId)) localStorage.setItem(STORAGE_THEME, themeId)
 
     if (themeId === 'retro') {
       // Retro: single mode — set CRT state, no data-mode
@@ -90,6 +94,7 @@ export function ThemeProvider({ children }) {
   }, [themeId, mode, modePref, manifest.soundPack])
 
   function setTheme(id) {
+    if (GAME_ONLY_THEMES.has(id)) return
     setThemeIdState(id)
   }
 

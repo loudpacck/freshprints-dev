@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect, useRef } from 'react'
+import { lazy, Suspense, useEffect } from 'react'
 import { BrowserRouter, Routes, Route, Outlet, useLocation } from 'react-router-dom'
 import { AnimatePresence } from 'framer-motion'
 
@@ -60,13 +60,12 @@ function PageLayout({ children }) {
 
 // Provides game state + forces Pantheon theme while on game routes
 function PantheonWarsShell() {
-  const prevUi = useRef(null)
-
   useEffect(() => {
-    prevUi.current = document.documentElement.dataset.ui || 'standard'
     document.documentElement.dataset.ui = 'pantheon'
     return () => {
-      document.documentElement.dataset.ui = prevUi.current || 'standard'
+      const saved = localStorage.getItem('fp-theme')
+      const safe = (!saved || saved === 'pantheon') ? 'standard' : saved
+      document.documentElement.dataset.ui = safe
     }
   }, [])
 

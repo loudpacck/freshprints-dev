@@ -41,6 +41,7 @@ function StatusPill({ label, color }) {
 
 function getStatusInfo(theme, activeId) {
   if (theme.id === activeId) return { label: 'ACTIVE', color: '#00C8FF' }
+  if (theme.comingSoon) return { label: 'COMING SOON', color: '#C9A961' }
   if (theme.status === 'complete') return { label: 'AVAILABLE', color: '#22C55E' }
   if (theme.hidden) return { label: 'LOCKED', color: '#50505F' }
   return { label: 'COMING SOON', color: '#F59E0B' }
@@ -49,7 +50,7 @@ function getStatusInfo(theme, activeId) {
 function ThemeCard({ theme, isActive, isShaken, onClick }) {
   const accent = THEME_ACCENTS[theme.id] || '#00C8FF'
   const status = getStatusInfo(theme, isActive ? theme.id : '')
-  const canSelect = theme.status === 'complete' && !isActive
+  const canSelect = theme.status === 'complete' && !theme.comingSoon && !isActive
 
   return (
     <motion.div
@@ -57,12 +58,13 @@ function ThemeCard({ theme, isActive, isShaken, onClick }) {
       transition={{ duration: 0.35 }}
     >
       <Card
-        hoverable={!isActive}
+        hoverable={!isActive && !theme.comingSoon}
         accentColor={accent}
         onClick={onClick}
         style={{
-          opacity: (theme.status !== 'complete' || isActive) ? (isActive ? 1 : 0.72) : 1,
+          opacity: theme.comingSoon ? 0.55 : (theme.status !== 'complete' || isActive) ? (isActive ? 1 : 0.72) : 1,
           height: '100%',
+          cursor: theme.comingSoon ? 'default' : undefined,
         }}
       >
         {/* Palette swatches */}
@@ -167,6 +169,7 @@ export default function UIPicker({ isOpen, onClose }) {
 
   function handleCardClick(theme) {
     if (theme.id === themeId) return
+    if (theme.comingSoon) return
     if (theme.status === 'complete') {
       play('select')
       setTheme(theme.id)
