@@ -142,31 +142,55 @@ function AnimatedRoutes() {
         <Route path="/store"              element={<PageLayout><Store /></PageLayout>} />
         <Route path="/media"              element={<PageLayout><Media /></PageLayout>} />
         <Route path="/contact"            element={<PageLayout><Contact /></PageLayout>} />
-        <Route path="/admin"                        element={<Admin />} />
-        {/* Pantheon Wars — standalone, provider shared across all game routes */}
-        <Route element={<PantheonWarsShell />}>
-          <Route path="/games/pantheon-wars"               element={<PantheonDashboard />} />
-          <Route path="/games/pantheon-wars/quests"        element={<PantheonQuests />} />
-          <Route path="/games/pantheon-wars/signup"        element={<PantheonSignup />} />
-          <Route path="/games/pantheon-wars/login"         element={<PantheonLogin />} />
-          <Route path="/games/pantheon-wars/inventory"     element={<PantheonInventory />} />
-          <Route path="/games/pantheon-wars/shop"          element={<PantheonShop />} />
-          <Route path="/games/pantheon-wars/temples"       element={<PantheonTemples />} />
-          <Route path="/games/pantheon-wars/pvp"           element={<PantheonPvP />} />
-          <Route path="/games/pantheon-wars/pvp/log"      element={<PantheonPvPLog />} />
-          <Route path="/games/pantheon-wars/leaderboard"   element={<PantheonLeaderboard />} />
-          <Route path="/games/pantheon-wars/profile"       element={<PantheonProfile />} />
-        </Route>
-        <Route path="*"                           element={<PageLayout><NotFound /></PageLayout>} />
+        <Route path="/admin"              element={<Admin />} />
+        <Route path="*"                   element={<PageLayout><NotFound /></PageLayout>} />
       </Routes>
     </AnimatePresence>
+  )
+}
+
+// Standalone Pantheon Wars routing — lives outside AnimatedRoutes so PantheonWarsShell
+// never remounts during internal game navigation. The AnimatedRoutes key={pathname} pattern
+// would unmount/remount the shell (and stop the intro song) on every internal navigate.
+function PantheonWarsRoutes() {
+  return (
+    <Routes>
+      <Route element={<PantheonWarsShell />}>
+        <Route path="/games/pantheon-wars"             element={<PantheonDashboard />} />
+        <Route path="/games/pantheon-wars/quests"      element={<PantheonQuests />} />
+        <Route path="/games/pantheon-wars/signup"      element={<PantheonSignup />} />
+        <Route path="/games/pantheon-wars/login"       element={<PantheonLogin />} />
+        <Route path="/games/pantheon-wars/inventory"   element={<PantheonInventory />} />
+        <Route path="/games/pantheon-wars/shop"        element={<PantheonShop />} />
+        <Route path="/games/pantheon-wars/temples"     element={<PantheonTemples />} />
+        <Route path="/games/pantheon-wars/pvp"         element={<PantheonPvP />} />
+        <Route path="/games/pantheon-wars/pvp/log"     element={<PantheonPvPLog />} />
+        <Route path="/games/pantheon-wars/leaderboard" element={<PantheonLeaderboard />} />
+        <Route path="/games/pantheon-wars/profile"     element={<PantheonProfile />} />
+      </Route>
+    </Routes>
   )
 }
 
 function AppInner() {
   const { themeId } = useTheme()
   const { isOpen, close } = useTerminal()
+  const location = useLocation()
   const isDigital = themeId === 'digital'
+  const isGame = location.pathname.startsWith('/games/pantheon-wars')
+
+  // Game routes rendered in isolation — no AnimatePresence keying, no Digital chrome.
+  // This keeps PantheonWarsShell alive across all internal game navigation.
+  if (isGame) {
+    return (
+      <>
+        <AutoTrackers />
+        <Suspense fallback={<PageLoader />}>
+          <PantheonWarsRoutes />
+        </Suspense>
+      </>
+    )
+  }
 
   const routesEl = (
     <Suspense fallback={<PageLoader />}>
