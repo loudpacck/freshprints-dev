@@ -435,7 +435,7 @@ export default function StandardProjectPage() {
                   Get in Touch
                 </StandardButton>
                 {project.slug === 'pantheon' && (
-                  <StandardButton variant="secondary" href="/games/pantheon-wars">
+                  <StandardButton variant="secondary" onClick={() => navigate('/games/pantheon-wars', { state: { from: 'external' } })}>
                     Play the Web Companion →
                   </StandardButton>
                 )}

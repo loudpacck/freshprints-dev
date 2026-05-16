@@ -7,7 +7,7 @@ export default function ExperimentCard({ experiment, animationDelay = 0 }) {
 
   function handleClick() {
     if (experiment.external) {
-      navigate(experiment.externalUrl)
+      navigate(experiment.externalUrl, { state: { from: 'external' } })
     } else {
       navigate(`/lab/${experiment.slug}`)
     }

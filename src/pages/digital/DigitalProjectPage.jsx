@@ -204,7 +204,7 @@ export default function ProjectPage() {
                 </a>
               )}
               {project.slug === 'pantheon' && (
-                <Button variant="secondary" onClick={() => navigate('/games/pantheon-wars')}>
+                <Button variant="secondary" onClick={() => navigate('/games/pantheon-wars', { state: { from: 'external' } })}>
                   PLAY THE WEB COMPANION →
                 </Button>
               )}

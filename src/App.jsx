@@ -63,22 +63,27 @@ function PageLayout({ children }) {
 }
 
 // Provides game state + forces Pantheon theme while on game routes.
-// Shows the title card + intro song on every shell mount (i.e. every entry from outside
-// game routes). Internal game navigation does not remount this shell — no replay during gameplay.
+// Title card + intro only fire when the user enters from outside the game
+// (location.state.from === 'external'). Internal navigation never passes that state.
 function PantheonWarsShell() {
-  const [showTitleCard, setShowTitleCard] = useState(false)
+  const location = useLocation()
+  const cameFromOutside = location.state?.from === 'external'
+  const [showTitleCard, setShowTitleCard] = useState(cameFromOutside)
 
   useEffect(() => {
+    // Clear entry state so back/forward or internal navigation won't re-trigger.
+    if (cameFromOutside) {
+      window.history.replaceState({}, '', location.pathname)
+    }
+
     document.documentElement.dataset.ui = 'pantheon'
     soundManager.setActiveTheme('pantheon')
     soundManager.setPack('pantheon')
 
-    // Always show title card on mount — shell only mounts when entering from outside game routes.
-    // Arm ambience src so AmbienceManager knows what to play when intro ends.
-    // Intro song starts inside PWTitleCardSequence. fp-music-playback-change event chain
-    // handles ambience timing automatically.
-    ambienceManager.setSrc('/sounds/pantheon_wars/ambience.mp3')
-    setShowTitleCard(true)
+    if (cameFromOutside) {
+      // Arm ambience — AmbienceManager starts it automatically when intro song ends.
+      ambienceManager.setSrc('/sounds/pantheon_wars/ambience.mp3')
+    }
 
     return () => {
       const saved = localStorage.getItem('fp-theme')
@@ -90,7 +95,7 @@ function PantheonWarsShell() {
       ambienceManager.pause()
       musicManager.stop()
     }
-  }, [])
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   function handleTitleCardComplete() {
     setShowTitleCard(false)

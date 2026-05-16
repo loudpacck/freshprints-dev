@@ -21,7 +21,7 @@ function ExperimentCard({ experiment }) {
 
   function handleClick() {
     if (experiment.external) {
-      navigate(experiment.externalUrl)
+      navigate(experiment.externalUrl, { state: { from: 'external' } })
     } else {
       navigate(`/lab/${experiment.slug}`)
     }
