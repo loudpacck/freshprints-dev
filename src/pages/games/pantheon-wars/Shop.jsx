@@ -1,7 +1,9 @@
 import { useState, useEffect, useCallback } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import { usePantheonWars } from '@/contexts/PantheonWarsContext'
+import PWBackButton from '@/components/games/pantheon-wars/PWBackButton'
+import PWHubLink from '@/components/games/pantheon-wars/PWHubLink'
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -209,7 +211,7 @@ function Toast({ message, color, onDone }) {
       exit={{ opacity: 0, y: -10, scale: 0.96 }}
       transition={{ duration: 0.26, ease: [0.16, 1, 0.3, 1] }}
       style={{
-        position: 'fixed', top: 72, left: '50%', transform: 'translateX(-50%)',
+        position: 'fixed', top: 'calc(env(safe-area-inset-top, 0px) + 88px)', left: '50%', transform: 'translateX(-50%)',
         zIndex: 70,
         background: 'rgba(7,7,13,0.93)', backdropFilter: 'blur(12px)',
         border: `1px solid ${color}55`, borderRadius: 10,
@@ -338,20 +340,10 @@ export default function Shop() {
               / SHOP
             </span>
           </div>
-          <Link
-            to="/games/pantheon-wars"
-            style={{
-              fontFamily: "'IBM Plex Mono', monospace", fontSize: 10,
-              letterSpacing: '0.12em', textTransform: 'uppercase',
-              color: 'rgba(240,240,248,0.38)', textDecoration: 'none',
-              border: '1px solid rgba(255,255,255,0.1)', borderRadius: 6, padding: '6px 12px',
-            }}
-            onMouseEnter={e => { e.currentTarget.style.color = 'rgba(240,240,248,0.8)'; e.currentTarget.style.borderColor = 'rgba(255,255,255,0.25)' }}
-            onMouseLeave={e => { e.currentTarget.style.color = 'rgba(240,240,248,0.38)'; e.currentTarget.style.borderColor = 'rgba(255,255,255,0.1)' }}
-          >
-            ← Command Center
-          </Link>
+          <PWBackButton />
         </header>
+
+        <PWHubLink />
 
         {/* ── Main ──────────────────────────────────────────────────── */}
         <main style={{ flex: 1, maxWidth: 700, width: '100%', margin: '0 auto', padding: '24px 20px 64px' }}>

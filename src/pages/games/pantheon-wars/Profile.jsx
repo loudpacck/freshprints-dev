@@ -1,7 +1,9 @@
 import { useState, useEffect } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import { usePantheonWars } from '@/contexts/PantheonWarsContext'
+import PWBackButton from '@/components/games/pantheon-wars/PWBackButton'
+import PWHubLink from '@/components/games/pantheon-wars/PWHubLink'
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -9,11 +11,13 @@ const FACTION_COLOR = { olympians: '#F5C542', aesir: '#78C5F0', annunaki: '#CF44
 const FACTION_LABEL = { olympians: 'Olympians', aesir: 'Aesir', annunaki: 'Annunaki' }
 const CLASS_LABEL   = { warden: 'Warden', oracle: 'Oracle', slayer: 'Slayer', broker: 'Broker' }
 
-const ATTACK_COLOR    = '#F97316'
-const DEFENSE_COLOR   = '#22C55E'
-const VIOLET          = '#8B5CF6'
-const COALITION_COLOR = '#A78BFA'
-const COMPACT_COLOR   = '#FB923C'
+const ATTACK_COLOR     = '#F97316'
+const DEFENSE_COLOR    = '#22C55E'
+const ENERGY_COLOR     = '#00C8FF'
+const HEALTH_COLOR     = '#EF4444'
+const VIOLET           = '#8B5CF6'
+const COALITION_COLOR  = '#A78BFA'
+const COMPACT_COLOR    = '#FB923C'
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -68,7 +72,7 @@ function AllocToast({ toast, onDone }) {
       transition={{ duration: 0.26, ease: [0.16, 1, 0.3, 1] }}
       style={{
         position: 'fixed',
-        top: 72,
+        top: 'calc(env(safe-area-inset-top, 0px) + 88px)',
         left: '50%',
         transform: 'translateX(-50%)',
         zIndex: 50,
@@ -102,6 +106,16 @@ function AllocToast({ toast, onDone }) {
           {toast.defense > 0 && (
             <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 12, color: DEFENSE_COLOR }}>
               +{toast.defense} DEF
+            </span>
+          )}
+          {toast.energy_max > 0 && (
+            <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 12, color: ENERGY_COLOR }}>
+              +{toast.energy_max} E.MAX
+            </span>
+          )}
+          {toast.health_max > 0 && (
+            <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 12, color: HEALTH_COLOR }}>
+              +{toast.health_max} HP.MAX
             </span>
           )}
           <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 11, color: 'rgba(240,240,248,0.45)' }}>
@@ -260,19 +274,21 @@ export default function Profile() {
   const [displayStats, setDisplayStats] = useState(null)
   useEffect(() => { if (ctxStats) setDisplayStats(ctxStats) }, [ctxStats])
 
-  const [pendingAttack,   setPendingAttack]   = useState(0)
-  const [pendingDefense,  setPendingDefense]  = useState(0)
-  const [isSubmitting,    setIsSubmitting]    = useState(false)
-  const [isChoosing,      setIsChoosing]      = useState(false)
-  const [toast,           setToast]           = useState(null)
+  const [pendingAttack,     setPendingAttack]     = useState(0)
+  const [pendingDefense,    setPendingDefense]    = useState(0)
+  const [pendingEnergyMax,  setPendingEnergyMax]  = useState(0)
+  const [pendingHealthMax,  setPendingHealthMax]  = useState(0)
+  const [isSubmitting,      setIsSubmitting]      = useState(false)
+  const [isChoosing,        setIsChoosing]        = useState(false)
+  const [toast,             setToast]             = useState(null)
 
   useEffect(() => {
     if (!loading && !user) navigate('/games/pantheon-wars/login', { replace: true })
   }, [loading, user, navigate])
 
   const stats = displayStats
-  const availablePoints = stats ? stats.stat_points - pendingAttack - pendingDefense : 0
-  const totalPending    = pendingAttack + pendingDefense
+  const availablePoints = stats ? stats.stat_points - pendingAttack - pendingDefense - pendingEnergyMax - pendingHealthMax : 0
+  const totalPending    = pendingAttack + pendingDefense + pendingEnergyMax + pendingHealthMax
   const canAddMore      = availablePoints > 0
 
   async function handleAllocate() {
@@ -282,7 +298,12 @@ export default function Profile() {
       const res  = await fetch('/api/games/pantheon-wars/game?action=allocate', {
         method:  'POST',
         headers: { 'Content-Type': 'application/json' },
-        body:    JSON.stringify({ attack: pendingAttack, defense: pendingDefense }),
+        body:    JSON.stringify({
+          attack:     pendingAttack,
+          defense:    pendingDefense,
+          energy_max: pendingEnergyMax,
+          health_max: pendingHealthMax,
+        }),
       })
       const data = await res.json()
 
@@ -296,12 +317,24 @@ export default function Profile() {
         ...prev,
         attack:      data.newStats.attack,
         defense:     data.newStats.defense,
+        energy_max:  data.newStats.energy_max,
+        health_max:  data.newStats.health_max,
+        energy:      data.newStats.energy,
+        health:      data.newStats.health,
         stat_points: data.newStats.stat_points,
       }))
-      setToast({ type: 'success', attack: pendingAttack, defense: pendingDefense })
+      setToast({
+        type: 'success',
+        attack:     pendingAttack,
+        defense:    pendingDefense,
+        energy_max: pendingEnergyMax,
+        health_max: pendingHealthMax,
+      })
       setPendingAttack(0)
       setPendingDefense(0)
-      refresh() // sync context for Dashboard
+      setPendingEnergyMax(0)
+      setPendingHealthMax(0)
+      refresh()
     } catch {
       setToast({ type: 'error', message: 'Network error. Please try again.' })
     } finally {
@@ -342,9 +375,12 @@ export default function Profile() {
       <style>{`
         @keyframes pw-pulse { 0%,100%{opacity:1} 50%{opacity:0.38} }
         .pw-skel { background:rgba(255,255,255,0.07); animation:pw-pulse 1.6s ease-in-out infinite; }
-        @media (max-width: 540px) {
-          .pw-alloc-grid  { grid-template-columns: 1fr !important; }
+        @media (max-width: 640px) {
+          .pw-alloc-grid  { grid-template-columns: 1fr 1fr !important; }
           .pw-align-grid  { grid-template-columns: 1fr !important; }
+        }
+        @media (max-width: 380px) {
+          .pw-alloc-grid  { grid-template-columns: 1fr !important; }
         }
       `}</style>
 
@@ -404,32 +440,10 @@ export default function Profile() {
               / PROFILE
             </span>
           </div>
-          <Link
-            to="/games/pantheon-wars"
-            style={{
-              fontFamily: "'IBM Plex Mono', monospace",
-              fontSize: 10,
-              letterSpacing: '0.12em',
-              textTransform: 'uppercase',
-              color: 'rgba(240,240,248,0.38)',
-              textDecoration: 'none',
-              border: '1px solid rgba(255,255,255,0.1)',
-              borderRadius: 6,
-              padding: '6px 12px',
-              transition: 'color 120ms, border-color 120ms',
-            }}
-            onMouseEnter={e => {
-              e.currentTarget.style.color = 'rgba(240,240,248,0.8)'
-              e.currentTarget.style.borderColor = 'rgba(255,255,255,0.25)'
-            }}
-            onMouseLeave={e => {
-              e.currentTarget.style.color = 'rgba(240,240,248,0.38)'
-              e.currentTarget.style.borderColor = 'rgba(255,255,255,0.1)'
-            }}
-          >
-            ← Command Center
-          </Link>
+          <PWBackButton />
         </header>
+
+        <PWHubLink />
 
         {/* ── Main ───────────────────────────────────────────────────── */}
         <main style={{
@@ -657,7 +671,7 @@ export default function Profile() {
               <motion.section variants={fadeUp} style={{ marginBottom: 16 }}>
                 <div
                   className="pw-alloc-grid"
-                  style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}
+                  style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: 14 }}
                 >
                   <StatAllocCard
                     label="Attack"
@@ -676,6 +690,24 @@ export default function Profile() {
                     canAdd={canAddMore}
                     onIncrement={() => setPendingDefense(p => p + 1)}
                     onDecrement={() => setPendingDefense(p => Math.max(0, p - 1))}
+                  />
+                  <StatAllocCard
+                    label="Energy Max"
+                    color={ENERGY_COLOR}
+                    current={stats.energy_max}
+                    pending={pendingEnergyMax}
+                    canAdd={canAddMore}
+                    onIncrement={() => setPendingEnergyMax(p => p + 1)}
+                    onDecrement={() => setPendingEnergyMax(p => Math.max(0, p - 1))}
+                  />
+                  <StatAllocCard
+                    label="Health Max"
+                    color={HEALTH_COLOR}
+                    current={stats.health_max}
+                    pending={pendingHealthMax}
+                    canAdd={canAddMore}
+                    onIncrement={() => setPendingHealthMax(p => p + 1)}
+                    onDecrement={() => setPendingHealthMax(p => Math.max(0, p - 1))}
                   />
                 </div>
               </motion.section>
@@ -723,6 +755,26 @@ export default function Profile() {
                           +{pendingDefense} Defense
                         </span>
                       )}
+                      {pendingEnergyMax > 0 && (
+                        <span style={{
+                          fontFamily: "'IBM Plex Mono', monospace",
+                          fontSize: 11,
+                          color: ENERGY_COLOR,
+                          letterSpacing: '0.06em',
+                        }}>
+                          +{pendingEnergyMax} Energy Max
+                        </span>
+                      )}
+                      {pendingHealthMax > 0 && (
+                        <span style={{
+                          fontFamily: "'IBM Plex Mono', monospace",
+                          fontSize: 11,
+                          color: HEALTH_COLOR,
+                          letterSpacing: '0.06em',
+                        }}>
+                          +{pendingHealthMax} Health Max
+                        </span>
+                      )}
                       <span style={{
                         fontFamily: "'IBM Plex Mono', monospace",
                         fontSize: 10,
@@ -762,7 +814,7 @@ export default function Profile() {
                 </button>
                 {totalPending > 0 && (
                   <button
-                    onClick={() => { setPendingAttack(0); setPendingDefense(0) }}
+                    onClick={() => { setPendingAttack(0); setPendingDefense(0); setPendingEnergyMax(0); setPendingHealthMax(0) }}
                     disabled={isSubmitting}
                     style={{
                       padding: '14px 18px',

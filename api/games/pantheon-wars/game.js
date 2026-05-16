@@ -1,6 +1,6 @@
 import { sql } from '../../../lib/db.js'
 import { requireUser } from '../../../lib/pwAuth.js'
-import { regenPlayer, checkLevelUp, getEquipmentBonuses, calculateCombat } from '../../../lib/pwHelpers.js'
+import { regenPlayer, checkLevelUp, getEquipmentBonuses, calculateCombat, calculatePowerRating } from '../../../lib/pwHelpers.js'
 
 export const config = { runtime: 'nodejs' }
 
@@ -569,7 +569,43 @@ async function handleLeaderboard(req, res) {
       is_self:  row.id === req.userId,
     }))
 
-    return res.status(200).json({ entries: ranked, type, faction })
+    // If the requesting user isn't in the top 100, compute their approximate rank
+    let yourRank = null
+    if (req.userId && !ranked.some(r => r.is_self)) {
+      try {
+        if (type === 'mastery') {
+          const myRows = await sql`SELECT COALESCE(SUM(completions),0) AS val FROM pw_quest_progress WHERE user_id = ${req.userId}`
+          const mv = Number(myRows[0]?.val ?? 0)
+          const aboveRows = faction === 'all'
+            ? await sql`SELECT COUNT(*) AS cnt FROM (SELECT user_id, SUM(completions) AS total FROM pw_quest_progress GROUP BY user_id HAVING SUM(completions) > ${mv}) sub`
+            : await sql`SELECT COUNT(*) AS cnt FROM (SELECT qp.user_id, SUM(qp.completions) AS total FROM pw_quest_progress qp JOIN pw_users u ON u.id = qp.user_id WHERE u.faction = ${faction} GROUP BY qp.user_id HAVING SUM(qp.completions) > ${mv}) sub`
+          yourRank = Number(aboveRows[0]?.cnt ?? 0) + 1
+        } else if (type === 'glory') {
+          const myRows = await sql`SELECT glory AS val FROM pw_player_stats WHERE user_id = ${req.userId}`
+          const mv = Number(myRows[0]?.val ?? 0)
+          const aboveRows = faction === 'all'
+            ? await sql`SELECT COUNT(*) AS cnt FROM pw_player_stats WHERE glory > ${mv}`
+            : await sql`SELECT COUNT(*) AS cnt FROM pw_player_stats ps JOIN pw_users u ON u.id = ps.user_id WHERE ps.glory > ${mv} AND u.faction = ${faction}`
+          yourRank = Number(aboveRows[0]?.cnt ?? 0) + 1
+        } else if (type === 'drachma') {
+          const myRows = await sql`SELECT drachma_lifetime AS val FROM pw_player_stats WHERE user_id = ${req.userId}`
+          const mv = Number(myRows[0]?.val ?? 0)
+          const aboveRows = faction === 'all'
+            ? await sql`SELECT COUNT(*) AS cnt FROM pw_player_stats WHERE drachma_lifetime > ${mv}`
+            : await sql`SELECT COUNT(*) AS cnt FROM pw_player_stats ps JOIN pw_users u ON u.id = ps.user_id WHERE ps.drachma_lifetime > ${mv} AND u.faction = ${faction}`
+          yourRank = Number(aboveRows[0]?.cnt ?? 0) + 1
+        } else {
+          const myRows = await sql`SELECT level AS val FROM pw_player_stats WHERE user_id = ${req.userId}`
+          const mv = Number(myRows[0]?.val ?? 0)
+          const aboveRows = faction === 'all'
+            ? await sql`SELECT COUNT(*) AS cnt FROM pw_player_stats WHERE level > ${mv}`
+            : await sql`SELECT COUNT(*) AS cnt FROM pw_player_stats ps JOIN pw_users u ON u.id = ps.user_id WHERE ps.level > ${mv} AND u.faction = ${faction}`
+          yourRank = Number(aboveRows[0]?.cnt ?? 0) + 1
+        }
+      } catch { /* non-critical */ }
+    }
+
+    return res.status(200).json({ entries: ranked, type, faction, your_rank: yourRank })
   } catch (err) {
     console.error('Leaderboard error:', err)
     return res.status(500).json({ error: 'Failed to fetch leaderboard' })
@@ -581,14 +617,17 @@ async function handleLeaderboard(req, res) {
 async function handleAllocate(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' })
 
-  const { attack = 0, defense = 0 } = req.body || {}
+  const { attack = 0, defense = 0, energy_max = 0, health_max = 0 } = req.body || {}
   const a = Number(attack)
   const d = Number(defense)
+  const e = Number(energy_max)
+  const h = Number(health_max)
 
-  if (!Number.isInteger(a) || !Number.isInteger(d) || a < 0 || d < 0) {
+  if (!Number.isInteger(a) || !Number.isInteger(d) || !Number.isInteger(e) || !Number.isInteger(h) ||
+      a < 0 || d < 0 || e < 0 || h < 0) {
     return res.status(400).json({ error: 'Invalid allocation values' })
   }
-  const total = a + d
+  const total = a + d + e + h
   if (total === 0) return res.status(400).json({ error: 'No points to allocate' })
 
   try {
@@ -612,24 +651,39 @@ async function handleAllocate(req, res) {
 
     const newAttack     = stats.attack     + a
     const newDefense    = stats.defense    + d
+    const newEnergyMax  = stats.energy_max + e
+    const newHealthMax  = stats.health_max + h
     const newStatPoints = stats.stat_points - total
+    // When energy_max increases, top up current energy by same delta so the player isn't punished
+    const newEnergy = Math.min(stats.energy + e, newEnergyMax)
+    const newHealth = Math.min(stats.health + h, newHealthMax)
 
     await sql`
       UPDATE pw_player_stats SET
         attack         = ${newAttack},
         defense        = ${newDefense},
+        energy_max     = ${newEnergyMax},
+        health_max     = ${newHealthMax},
         stat_points    = ${newStatPoints},
         glory_lifetime = ${stats.glory_lifetime},
-        energy         = ${stats.energy},
-        health         = ${stats.health},
+        energy         = ${newEnergy},
+        health         = ${newHealth},
         last_updated   = ${stats.last_updated}
       WHERE user_id = ${req.userId}
     `
 
     return res.status(200).json({
       ok: true,
-      allocated: { attack: a, defense: d },
-      newStats: { attack: newAttack, defense: newDefense, stat_points: newStatPoints },
+      allocated: { attack: a, defense: d, energy_max: e, health_max: h },
+      newStats: {
+        attack:      newAttack,
+        defense:     newDefense,
+        energy_max:  newEnergyMax,
+        health_max:  newHealthMax,
+        stat_points: newStatPoints,
+        energy:      newEnergy,
+        health:      newHealth,
+      },
     })
   } catch (err) {
     console.error('[game?action=allocate]', err.message)
@@ -949,10 +1003,10 @@ async function handlePvPTargets(req, res) {
     if (attAlignment === 'coalition') {
       targets = await sql`
         SELECT sub.user_id, sub.username, sub.faction, sub.class, sub.alignment,
-               sub.level, sub.health, sub.health_max, sub.glory
+               sub.level, sub.health, sub.health_max, sub.glory, sub.attack, sub.defense
         FROM (
           SELECT u.id AS user_id, u.username, u.faction, u.class, u.alignment,
-                 ps.level, ps.health_max, ps.glory,
+                 ps.level, ps.health_max, ps.glory, ps.attack, ps.defense,
                  LEAST(ps.health_max, ps.health + FLOOR(EXTRACT(EPOCH FROM (NOW() - ps.last_updated)) / 180)::INT) AS health
           FROM pw_users u
           JOIN pw_player_stats ps ON ps.user_id = u.id
@@ -972,10 +1026,10 @@ async function handlePvPTargets(req, res) {
     } else if (attAlignment === 'compact') {
       targets = await sql`
         SELECT sub.user_id, sub.username, sub.faction, sub.class, sub.alignment,
-               sub.level, sub.health, sub.health_max, sub.glory
+               sub.level, sub.health, sub.health_max, sub.glory, sub.attack, sub.defense
         FROM (
           SELECT u.id AS user_id, u.username, u.faction, u.class, u.alignment,
-                 ps.level, ps.health_max, ps.glory,
+                 ps.level, ps.health_max, ps.glory, ps.attack, ps.defense,
                  LEAST(ps.health_max, ps.health + FLOOR(EXTRACT(EPOCH FROM (NOW() - ps.last_updated)) / 180)::INT) AS health
           FROM pw_users u
           JOIN pw_player_stats ps ON ps.user_id = u.id
@@ -996,10 +1050,10 @@ async function handlePvPTargets(req, res) {
       // Unaligned attacker (level < 10) — only level < 10 targets
       targets = await sql`
         SELECT sub.user_id, sub.username, sub.faction, sub.class, sub.alignment,
-               sub.level, sub.health, sub.health_max, sub.glory
+               sub.level, sub.health, sub.health_max, sub.glory, sub.attack, sub.defense
         FROM (
           SELECT u.id AS user_id, u.username, u.faction, u.class, u.alignment,
-                 ps.level, ps.health_max, ps.glory,
+                 ps.level, ps.health_max, ps.glory, ps.attack, ps.defense,
                  LEAST(ps.health_max, ps.health + FLOOR(EXTRACT(EPOCH FROM (NOW() - ps.last_updated)) / 180)::INT) AS health
           FROM pw_users u
           JOIN pw_player_stats ps ON ps.user_id = u.id
@@ -1018,7 +1072,16 @@ async function handlePvPTargets(req, res) {
       `
     }
 
-    return res.status(200).json({ targets, stats })
+    // Compute power ratings: attacker's own, then per target
+    const attEquip = await getEquipmentBonuses(sql, req.userId)
+    const myPowerRating = calculatePowerRating(stats, attEquip)
+
+    const targetsWithPower = await Promise.all(targets.map(async t => {
+      const equip = await getEquipmentBonuses(sql, t.user_id)
+      return { ...t, power_rating: calculatePowerRating(t, equip) }
+    }))
+
+    return res.status(200).json({ targets: targetsWithPower, stats, my_power_rating: myPowerRating })
   } catch (err) {
     console.error('PvP targets error:', err)
     return res.status(500).json({ error: 'Failed to fetch targets' })

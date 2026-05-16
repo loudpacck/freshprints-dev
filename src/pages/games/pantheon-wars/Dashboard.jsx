@@ -247,6 +247,9 @@ export default function Dashboard() {
 
   // null = loading, false = failed (render nothing), { total, count } = loaded
   const [templeIncome, setTempleIncome] = useState(null)
+  const [onboardingDismissed, setOnboardingDismissed] = useState(
+    () => localStorage.getItem('pw-onboarding-dismissed') === '1'
+  )
 
   useEffect(() => {
     if (!loading && !user) navigate('/games/pantheon-wars/login', { replace: true })
@@ -262,6 +265,11 @@ export default function Dashboard() {
       })
       .catch(() => setTempleIncome(false))
   }, [loading, user])
+
+  function dismissOnboarding() {
+    localStorage.setItem('pw-onboarding-dismissed', '1')
+    setOnboardingDismissed(true)
+  }
 
   async function handleLogout() {
     await logout()
@@ -446,6 +454,65 @@ export default function Dashboard() {
                   {user.username}
                 </h1>
               </motion.section>
+
+              {/* ── Onboarding banner ────────────────────────── */}
+              {!onboardingDismissed && stats.xp === 0 && stats.drachma === 500 && (
+                <motion.div
+                  variants={fadeUp}
+                  style={{
+                    background: 'rgba(0,200,255,0.07)',
+                    border: '1px solid rgba(0,200,255,0.22)',
+                    borderRadius: 10,
+                    padding: '14px 16px',
+                    marginBottom: 14,
+                    display: 'flex',
+                    alignItems: 'flex-start',
+                    gap: 12,
+                  }}
+                >
+                  <span style={{ fontSize: 18, lineHeight: 1, flexShrink: 0, marginTop: 1 }}>⚔</span>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <p style={{
+                      fontFamily: "'IBM Plex Mono', monospace",
+                      fontSize: 10,
+                      letterSpacing: '0.12em',
+                      textTransform: 'uppercase',
+                      color: '#00C8FF',
+                      margin: '0 0 4px',
+                    }}>
+                      New here? Start with Quests
+                    </p>
+                    <p style={{
+                      fontFamily: "'DM Sans', sans-serif",
+                      fontSize: 13,
+                      color: 'rgba(240,240,248,0.6)',
+                      margin: 0,
+                      lineHeight: 1.55,
+                    }}>
+                      Complete quests to earn XP, Drachma, and loot. Use the QUESTS button below to begin your rise.
+                    </p>
+                  </div>
+                  <button
+                    onClick={dismissOnboarding}
+                    aria-label="Dismiss"
+                    style={{
+                      background: 'none',
+                      border: 'none',
+                      color: 'rgba(240,240,248,0.3)',
+                      cursor: 'pointer',
+                      fontSize: 16,
+                      lineHeight: 1,
+                      padding: '0 2px',
+                      flexShrink: 0,
+                      transition: 'color 120ms',
+                    }}
+                    onMouseEnter={e => e.currentTarget.style.color = 'rgba(240,240,248,0.75)'}
+                    onMouseLeave={e => e.currentTarget.style.color = 'rgba(240,240,248,0.3)'}
+                  >
+                    ✕
+                  </button>
+                </motion.div>
+              )}
 
               {/* ── Level + XP bar ───────────────────────────── */}
               <motion.section

@@ -1,7 +1,9 @@
 import { useState, useEffect, useCallback } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import { usePantheonWars } from '@/contexts/PantheonWarsContext'
+import PWBackButton from '@/components/games/pantheon-wars/PWBackButton'
+import PWHubLink from '@/components/games/pantheon-wars/PWHubLink'
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -148,11 +150,12 @@ export default function Leaderboard() {
   const { user, loading: authLoading } = usePantheonWars()
   const navigate = useNavigate()
 
-  const [entries,  setEntries]  = useState([])
-  const [loading,  setLoading]  = useState(true)
-  const [error,    setError]    = useState(null)
-  const [type,     setType]     = useState('level')
-  const [faction,  setFaction]  = useState('all')
+  const [entries,   setEntries]   = useState([])
+  const [loading,   setLoading]   = useState(true)
+  const [error,     setError]     = useState(null)
+  const [type,      setType]      = useState('level')
+  const [faction,   setFaction]   = useState('all')
+  const [yourRank,  setYourRank]  = useState(null)
 
   useEffect(() => {
     if (!authLoading && !user) navigate('/games/pantheon-wars/login', { replace: true })
@@ -167,6 +170,7 @@ export default function Leaderboard() {
       if (!res.ok) { setError('Failed to load leaderboard.'); return }
       const data = await res.json()
       setEntries(data.entries)
+      setYourRank(data.your_rank ?? null)
     } catch { setError('Network error.') }
     finally   { setLoading(false) }
   }, [type, faction, navigate])
@@ -221,20 +225,10 @@ export default function Leaderboard() {
               / LEADERBOARD
             </span>
           </div>
-          <Link
-            to="/games/pantheon-wars"
-            style={{
-              fontFamily: "'IBM Plex Mono', monospace", fontSize: 10,
-              letterSpacing: '0.12em', textTransform: 'uppercase',
-              color: 'rgba(240,240,248,0.38)', textDecoration: 'none',
-              border: '1px solid rgba(255,255,255,0.1)', borderRadius: 6, padding: '6px 12px',
-            }}
-            onMouseEnter={e => { e.currentTarget.style.color = 'rgba(240,240,248,0.8)'; e.currentTarget.style.borderColor = 'rgba(255,255,255,0.25)' }}
-            onMouseLeave={e => { e.currentTarget.style.color = 'rgba(240,240,248,0.38)'; e.currentTarget.style.borderColor = 'rgba(255,255,255,0.1)' }}
-          >
-            ← Command Center
-          </Link>
+          <PWBackButton />
         </header>
+
+        <PWHubLink />
 
         {/* ── Main ──────────────────────────────────────────────────── */}
         <main style={{ flex: 1, maxWidth: 700, width: '100%', margin: '0 auto', padding: '24px 20px 64px' }}>
@@ -378,6 +372,28 @@ export default function Leaderboard() {
                     }}>
                       // TOP {entries.length} OF ALL TIME
                     </p>
+
+                    {/* Your rank (only shown when not in top 100) */}
+                    {yourRank !== null && !entries.some(e => e.is_self) && (
+                      <div style={{
+                        marginTop: 16,
+                        padding: '12px 16px',
+                        background: 'rgba(139,92,246,0.06)',
+                        border: '1px solid rgba(139,92,246,0.2)',
+                        borderRadius: 8,
+                        textAlign: 'center',
+                      }}>
+                        <span style={{
+                          fontFamily: "'IBM Plex Mono', monospace",
+                          fontSize: 10,
+                          letterSpacing: '0.12em',
+                          textTransform: 'uppercase',
+                          color: 'rgba(167,139,250,0.7)',
+                        }}>
+                          Your rank: #{fmt(yourRank)}
+                        </span>
+                      </div>
+                    )}
                   </>
                 )}
               </motion.div>

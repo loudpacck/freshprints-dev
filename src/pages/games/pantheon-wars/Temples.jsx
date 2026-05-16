@@ -2,6 +2,8 @@ import { useState, useEffect, useCallback } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import { usePantheonWars } from '@/contexts/PantheonWarsContext'
+import PWBackButton from '@/components/games/pantheon-wars/PWBackButton'
+import PWHubLink from '@/components/games/pantheon-wars/PWHubLink'
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -27,7 +29,7 @@ function TempleToast({ data, onDone }) {
       transition={{ duration: 0.28, ease: [0.16, 1, 0.3, 1] }}
       style={{
         position: 'fixed',
-        top: 72,
+        top: 'calc(env(safe-area-inset-top, 0px) + 88px)',
         left: '50%',
         transform: 'translateX(-50%)',
         zIndex: 50,
@@ -475,23 +477,10 @@ export default function Temples() {
               / TEMPLES
             </span>
           </div>
-          <Link
-            to="/games/pantheon-wars"
-            style={{
-              fontFamily: "'IBM Plex Mono', monospace",
-              fontSize: 10,
-              letterSpacing: '0.12em',
-              textTransform: 'uppercase',
-              color: 'rgba(240,240,248,0.38)',
-              textDecoration: 'none',
-              border: '1px solid rgba(255,255,255,0.1)',
-              borderRadius: 6,
-              padding: '6px 12px',
-            }}
-          >
-            ← Command Center
-          </Link>
+          <PWBackButton />
         </header>
+
+        <PWHubLink />
 
         {/* ── Main ───────────────────────────────────────────────────── */}
         <main style={{

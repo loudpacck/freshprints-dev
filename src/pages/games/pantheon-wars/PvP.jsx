@@ -2,6 +2,8 @@ import { useState, useEffect, useCallback } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import { usePantheonWars } from '@/contexts/PantheonWarsContext'
+import PWBackButton from '@/components/games/pantheon-wars/PWBackButton'
+import PWHubLink from '@/components/games/pantheon-wars/PWHubLink'
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -243,7 +245,29 @@ function AlignmentGate({ onChoose, isSubmitting }) {
 
 // ─── Target Card ──────────────────────────────────────────────────────────────
 
-function TargetCard({ target, onAttack, isAttacking }) {
+function PowerBadge({ targetPower, myPower }) {
+  if (!targetPower || !myPower) return null
+  const ratio = targetPower / myPower
+  const color = ratio > 1.1 ? '#EF4444' : ratio < (1 / 1.1) ? '#22C55E' : 'rgba(240,240,248,0.45)'
+  return (
+    <span style={{
+      fontFamily: "'IBM Plex Mono', monospace",
+      fontSize: 9,
+      letterSpacing: '0.1em',
+      textTransform: 'uppercase',
+      color,
+      background: 'rgba(255,255,255,0.05)',
+      border: `1px solid ${color === 'rgba(240,240,248,0.45)' ? 'rgba(255,255,255,0.12)' : color.replace(')', ', 0.3)')}`,
+      borderRadius: 4,
+      padding: '2px 7px',
+      whiteSpace: 'nowrap',
+    }}>
+      PWR {targetPower}
+    </span>
+  )
+}
+
+function TargetCard({ target, onAttack, isAttacking, myPowerRating }) {
   const factionColor = FACTION_COLOR[target.faction] ?? '#F0F0F8'
   const aColor = alignmentColor(target.alignment)
 
@@ -296,15 +320,17 @@ function TargetCard({ target, onAttack, isAttacking }) {
             />
           </div>
         </div>
-        <div style={{
-          fontFamily: "'IBM Plex Mono', monospace",
-          fontSize: 11,
-          letterSpacing: '0.08em',
-          color: '#8B5CF6',
-          whiteSpace: 'nowrap',
-          marginTop: 2,
-        }}>
-          LVL {target.level}
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 5, marginTop: 2 }}>
+          <span style={{
+            fontFamily: "'IBM Plex Mono', monospace",
+            fontSize: 11,
+            letterSpacing: '0.08em',
+            color: '#8B5CF6',
+            whiteSpace: 'nowrap',
+          }}>
+            LVL {target.level}
+          </span>
+          <PowerBadge targetPower={target.power_rating} myPower={myPowerRating} />
         </div>
       </div>
 
@@ -385,7 +411,7 @@ function CombatModal({ result, onClose }) {
           borderRadius: 16,
           padding: '28px 24px',
           width: '100%',
-          maxWidth: 420,
+          maxWidth: 'min(420px, 95vw)',
           boxShadow: `0 0 60px rgba(${isWin ? '34,197,94' : '239,68,68'},0.12)`,
         }}
       >
@@ -581,7 +607,7 @@ function PvPToast({ toast, onDone }) {
       exit={{ opacity: 0, y: -10, scale: 0.96 }}
       transition={{ duration: 0.26, ease: [0.16, 1, 0.3, 1] }}
       style={{
-        position: 'fixed', top: 72, left: '50%', transform: 'translateX(-50%)',
+        position: 'fixed', top: 'calc(env(safe-area-inset-top, 0px) + 88px)', left: '50%', transform: 'translateX(-50%)',
         zIndex: 60,
         background: 'rgba(7,7,13,0.93)',
         backdropFilter: 'blur(12px)',
@@ -763,21 +789,10 @@ export default function PvP() {
               / ARENA
             </span>
           </div>
-          <Link
-            to="/games/pantheon-wars"
-            style={{
-              fontFamily: "'IBM Plex Mono', monospace", fontSize: 10,
-              letterSpacing: '0.12em', textTransform: 'uppercase',
-              color: 'rgba(240,240,248,0.38)', textDecoration: 'none',
-              border: '1px solid rgba(255,255,255,0.1)', borderRadius: 6, padding: '6px 12px',
-              transition: 'color 120ms, border-color 120ms',
-            }}
-            onMouseEnter={e => { e.currentTarget.style.color = 'rgba(240,240,248,0.8)'; e.currentTarget.style.borderColor = 'rgba(255,255,255,0.25)' }}
-            onMouseLeave={e => { e.currentTarget.style.color = 'rgba(240,240,248,0.38)'; e.currentTarget.style.borderColor = 'rgba(255,255,255,0.1)' }}
-          >
-            ← Command Center
-          </Link>
+          <PWBackButton />
         </header>
+
+        <PWHubLink />
 
         {/* ── Main ────────────────────────────────────────────────── */}
         <main style={{ flex: 1, width: '100%', maxWidth: 640, margin: '0 auto', padding: '28px 20px 72px' }}>
@@ -941,6 +956,7 @@ export default function PvP() {
                             target={target}
                             onAttack={handleAttack}
                             isAttacking={attacking === target.user_id}
+                            myPowerRating={targetsData.my_power_rating}
                           />
                         ))}
                       </div>

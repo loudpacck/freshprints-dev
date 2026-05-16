@@ -205,3 +205,9 @@ CREATE TABLE IF NOT EXISTS pw_combat_log (
 CREATE INDEX IF NOT EXISTS idx_pw_combat_log_attacker ON pw_combat_log(attacker_id, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_pw_combat_log_defender ON pw_combat_log(defender_id, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_pw_combat_log_cooldown ON pw_combat_log(attacker_id, defender_id, created_at DESC);
+
+-- Phase 6: leaderboard indexes (apply via Neon console)
+CREATE INDEX IF NOT EXISTS idx_pw_player_stats_level      ON pw_player_stats(level DESC);
+CREATE INDEX IF NOT EXISTS idx_pw_player_stats_glory      ON pw_player_stats(glory DESC);
+CREATE INDEX IF NOT EXISTS idx_pw_player_stats_drachma_lt ON pw_player_stats(drachma_lifetime DESC);
+CREATE INDEX IF NOT EXISTS idx_pw_player_stats_glory_lt   ON pw_player_stats(glory_lifetime DESC);
