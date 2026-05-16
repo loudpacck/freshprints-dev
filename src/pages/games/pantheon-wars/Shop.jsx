@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import { usePantheonWars } from '@/contexts/PantheonWarsContext'
@@ -241,14 +241,16 @@ export default function Shop() {
   const navigate = useNavigate()
   const { play } = useSound()
 
-  const [drachmaItems, setDrachmaItems] = useState([])
-  const [gloryItems,   setGloryItems]   = useState([])
-  const [player,       setPlayer]       = useState(null)
-  const [loading,      setLoading]      = useState(true)
-  const [error,        setError]        = useState(null)
-  const [tab,          setTab]          = useState('drachma')  // 'drachma' | 'glory'
-  const [buying,       setBuying]       = useState(null)       // item_id being purchased
-  const [toast,        setToast]        = useState(null)
+  const [drachmaItems,      setDrachmaItems]      = useState([])
+  const [gloryItems,        setGloryItems]        = useState([])
+  const [player,            setPlayer]            = useState(null)
+  const [loading,           setLoading]           = useState(true)
+  const [error,             setError]             = useState(null)
+  const [tab,               setTab]               = useState('drachma')  // 'drachma' | 'glory'
+  const [buying,            setBuying]            = useState(null)       // item_id being purchased
+  const [toast,             setToast]             = useState(null)
+  const [rotationExpiresAt, setRotationExpiresAt] = useState(null)
+  const [countdown,         setCountdown]         = useState(null)
 
   useEffect(() => {
     if (!authLoading && !user) navigate('/games/pantheon-wars/login', { replace: true })
@@ -265,11 +267,33 @@ export default function Shop() {
       setDrachmaItems(data.drachma_items)
       setGloryItems(data.glory_items)
       setPlayer(data.player)
+      if (data.rotation_expires_at) setRotationExpiresAt(data.rotation_expires_at)
     } catch { setError('Network error.') }
     finally   { setLoading(false) }
   }, [navigate])
 
   useEffect(() => { fetchShop() }, [fetchShop])
+
+  // Countdown timer — ticks every second, auto-refetches when rotation expires.
+  useEffect(() => {
+    if (!rotationExpiresAt) return
+    function tick() {
+      const ms = rotationExpiresAt - Date.now()
+      if (ms <= 0) {
+        setCountdown('00:00:00')
+        fetchShop()
+        return
+      }
+      const total = Math.floor(ms / 1000)
+      const h = Math.floor(total / 3600).toString().padStart(2, '0')
+      const m = Math.floor((total % 3600) / 60).toString().padStart(2, '0')
+      const s = (total % 60).toString().padStart(2, '0')
+      setCountdown(`${h}:${m}:${s}`)
+    }
+    tick()
+    const id = setInterval(tick, 1000)
+    return () => clearInterval(id)
+  }, [rotationExpiresAt, fetchShop])
 
   async function handleBuy(item_id) {
     setBuying(item_id)
@@ -281,7 +305,12 @@ export default function Shop() {
       })
       const data = await res.json()
       if (!res.ok) {
-        setToast({ message: data.error || 'Purchase failed', color: '#F87171' })
+        if (data.error === 'item_not_in_rotation') {
+          setToast({ message: 'This item is no longer available — the shop has refreshed.', color: '#F87171' })
+          fetchShop()
+        } else {
+          setToast({ message: data.error || 'Purchase failed', color: '#F87171' })
+        }
         return
       }
       // Update local balances
@@ -391,6 +420,41 @@ export default function Shop() {
                   </button>
                 ))}
               </motion.div>
+
+              {/* Drachma rotation countdown */}
+              {tab === 'drachma' && countdown && (
+                <motion.div
+                  variants={fadeUp}
+                  style={{
+                    textAlign: 'center',
+                    marginBottom: 18,
+                    padding: '12px 0',
+                    borderBottom: '1px solid rgba(201,169,97,0.12)',
+                  }}
+                >
+                  <div style={{
+                    fontFamily: "var(--pw-font-display, 'Cinzel', serif)",
+                    fontSize: 10,
+                    letterSpacing: '0.16em',
+                    textTransform: 'uppercase',
+                    color: 'rgba(201,169,97,0.55)',
+                    marginBottom: 5,
+                  }}>
+                    TODAY'S OFFERING
+                  </div>
+                  <div style={{
+                    fontFamily: "'IBM Plex Mono', monospace",
+                    fontSize: 12,
+                    letterSpacing: '0.06em',
+                    color: 'rgba(240,240,248,0.4)',
+                  }}>
+                    Next refresh in{' '}
+                    <span style={{ color: '#C9A961', fontVariantNumeric: 'tabular-nums' }}>
+                      {countdown}
+                    </span>
+                  </div>
+                </motion.div>
+              )}
 
               {/* Item list */}
               <AnimatePresence mode="wait">

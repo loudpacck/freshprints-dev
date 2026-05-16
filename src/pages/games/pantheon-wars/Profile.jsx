@@ -34,6 +34,14 @@ function hexRgb(hex) {
   return `${r},${g},${b}`
 }
 
+function calcPwr(stats, equipBonuses) {
+  return Math.floor(
+    stats.attack + stats.defense +
+    (equipBonuses?.attack  || 0) + (equipBonuses?.defense || 0) +
+    stats.level * 2
+  )
+}
+
 // ─── Sub-components ───────────────────────────────────────────────────────────
 
 function Skeleton({ h = 20, w = '100%', r = 6 }) {
@@ -326,7 +334,7 @@ const stagger = {
 }
 
 export default function Profile() {
-  const { user, stats: ctxStats, loading, refresh } = usePantheonWars()
+  const { user, stats: ctxStats, equipBonuses, loading, refresh } = usePantheonWars()
   const navigate = useNavigate()
   const { play } = useSound()
 
@@ -598,6 +606,58 @@ export default function Profile() {
                   </div>
                 </div>
               </motion.section>
+
+              {/* B.5 — Power Rating tile */}
+              {equipBonuses && (
+                <motion.section
+                  variants={fadeUp}
+                  style={{
+                    background: 'rgba(201,169,97,0.05)',
+                    border: '1px solid rgba(201,169,97,0.18)',
+                    borderRadius: 12,
+                    padding: '14px 18px',
+                    marginBottom: 16,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    gap: 12,
+                  }}
+                >
+                  <div>
+                    <p style={{
+                      fontFamily: "'IBM Plex Mono', monospace",
+                      fontSize: 9,
+                      letterSpacing: '0.14em',
+                      textTransform: 'uppercase',
+                      color: 'rgba(201,169,97,0.65)',
+                      marginBottom: 5,
+                    }}>
+                      POWER RATING
+                    </p>
+                    <div style={{
+                      fontFamily: "'Bebas Neue', sans-serif",
+                      fontSize: 40,
+                      letterSpacing: '0.04em',
+                      color: '#C9A961',
+                      lineHeight: 1,
+                    }}>
+                      {calcPwr(stats, equipBonuses)}
+                    </div>
+                  </div>
+                  <div style={{
+                    fontFamily: "'IBM Plex Mono', monospace",
+                    fontSize: 9,
+                    letterSpacing: '0.08em',
+                    textTransform: 'uppercase',
+                    color: 'rgba(240,240,248,0.2)',
+                    maxWidth: 200,
+                    textAlign: 'right',
+                    lineHeight: 1.6,
+                  }}>
+                    ATK + DEF<br />+ Equipment<br />+ Level × 2
+                  </div>
+                </motion.section>
+              )}
 
               {/* C — Available points counter */}
               <motion.section

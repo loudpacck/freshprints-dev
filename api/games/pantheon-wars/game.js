@@ -1,6 +1,6 @@
 import { sql } from '../../../lib/db.js'
 import { requireUser } from '../../../lib/pwAuth.js'
-import { regenPlayer, checkLevelUp, getEquipmentBonuses, calculateCombat, calculatePowerRating } from '../../../lib/pwHelpers.js'
+import { regenPlayer, checkLevelUp, getEquipmentBonuses, calculateCombat, calculatePowerRating, getShopRotationSeed, getShopRotationExpiry, pickRotatedItems } from '../../../lib/pwHelpers.js'
 
 export const config = { runtime: 'nodejs' }
 
@@ -404,12 +404,16 @@ async function handleShop(req, res) {
       ORDER BY slot, level_required, rarity
     `
 
-    const drachma_items = items.filter(i => i.buy_price !== null)
-    const glory_items   = items.filter(i => i.glory_price !== null)
+    // Drachma shop rotates daily — 8 items picked deterministically from level-eligible pool.
+    // Same UTC day → same 8 items for all players at the same level. Glory shop is static.
+    const drachmaEligible = items.filter(i => i.buy_price !== null && i.level_required <= stats.level)
+    const drachma_items   = pickRotatedItems(drachmaEligible, getShopRotationSeed(), 8)
+    const glory_items     = items.filter(i => i.glory_price !== null)
 
     return res.status(200).json({
       drachma_items,
       glory_items,
+      rotation_expires_at: getShopRotationExpiry(),
       player: {
         drachma: stats.drachma,
         glory:   stats.glory,
@@ -462,6 +466,18 @@ async function handleBuy(req, res) {
     }
     if (item.faction_exclusive && item.faction_exclusive !== player.faction) {
       return res.status(400).json({ error: `This item is exclusive to the ${item.faction_exclusive} faction` })
+    }
+
+    // For drachma purchases, confirm the item is in today's rotated pool.
+    // Re-runs the same deterministic rotation the shop endpoint ran — no state needed.
+    if (currency === 'drachma') {
+      const eligibleRows = await sql`
+        SELECT id FROM pw_items WHERE buy_price IS NOT NULL AND level_required <= ${player.level}
+      `
+      const rotated = pickRotatedItems(eligibleRows, getShopRotationSeed(), 8)
+      if (!rotated.some(r => r.id === item_id)) {
+        return res.status(400).json({ error: 'item_not_in_rotation' })
+      }
     }
 
     const balance = currency === 'drachma' ? player.drachma : player.glory

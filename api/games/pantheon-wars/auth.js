@@ -5,7 +5,7 @@ import {
   getSessionFromCookie, revokeUserSession, buildClearSessionCookie,
   requireUser,
 } from '../../../lib/pwAuth.js'
-import { regenPlayer } from '../../../lib/pwHelpers.js'
+import { regenPlayer, getEquipmentBonuses } from '../../../lib/pwHelpers.js'
 
 export const config = { runtime: 'nodejs' }
 
@@ -162,6 +162,8 @@ async function handleMe(req, res) {
       `
     }
 
+    const equipBonuses = await getEquipmentBonuses(sql, req.userId)
+
     const user = {
       id:         row.id,
       username:   row.username,
@@ -173,7 +175,7 @@ async function handleMe(req, res) {
       last_login: row.last_login,
     }
 
-    return res.status(200).json({ user, stats: statsRegen })
+    return res.status(200).json({ user, stats: statsRegen, equipment_bonuses: equipBonuses })
   } catch (err) {
     console.error('Me error:', err)
     return res.status(500).json({ error: 'Failed to fetch profile' })

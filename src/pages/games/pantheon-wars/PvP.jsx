@@ -460,6 +460,17 @@ function CombatModal({ result, onClose }) {
           }}>
             vs {result.defender.username}
           </div>
+          <div style={{
+            fontFamily: "'DM Sans', sans-serif",
+            fontSize: 10,
+            color: 'rgba(240,240,248,0.22)',
+            marginTop: 8,
+            lineHeight: 1.55,
+            maxWidth: 320,
+            margin: '8px auto 0',
+          }}>
+            Combat rolls include random variance, faction bonuses, and class multipliers — they differ from baseline power rating.
+          </div>
         </div>
 
         {/* Power comparison */}
@@ -475,7 +486,7 @@ function CombatModal({ result, onClose }) {
         }}>
           <div style={{ textAlign: 'center' }}>
             <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 9, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--color-text-muted, #5C5446)', marginBottom: 4 }}>
-              YOUR POWER
+              ATTACK ROLL
             </div>
             <div style={{ fontFamily: "var(--pw-font-display, 'Cinzel', serif)", fontSize: 26, fontWeight: 700, letterSpacing: '0.04em', color: '#F97316', lineHeight: 1 }}>
               {result.attacker_power}
@@ -483,7 +494,7 @@ function CombatModal({ result, onClose }) {
           </div>
           <div style={{ textAlign: 'center' }}>
             <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 9, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--color-text-muted, #5C5446)', marginBottom: 4 }}>
-              THEIR POWER
+              DEFENSE ROLL
             </div>
             <div style={{ fontFamily: "var(--pw-font-display, 'Cinzel', serif)", fontSize: 26, fontWeight: 700, letterSpacing: '0.04em', color: '#22C55E', lineHeight: 1 }}>
               {result.defender_power}
@@ -849,6 +860,30 @@ export default function PvP() {
                         </div>
                       </div>
                     </div>
+                    {targetsData.my_power_rating != null && (
+                      <div style={{
+                        marginTop: 12,
+                        paddingTop: 12,
+                        borderTop: '1px solid rgba(255,255,255,0.06)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                      }}>
+                        <span style={{
+                          fontFamily: "'IBM Plex Mono', monospace", fontSize: 9,
+                          letterSpacing: '0.1em', textTransform: 'uppercase',
+                          color: 'rgba(240,240,248,0.3)',
+                        }}>
+                          YOUR POWER
+                        </span>
+                        <span style={{
+                          fontFamily: "'Bebas Neue', sans-serif", fontSize: 24,
+                          letterSpacing: '0.04em', color: '#C9A961', lineHeight: 1,
+                        }}>
+                          {targetsData.my_power_rating}
+                        </span>
+                      </div>
+                    )}
                     {localStats.health <= 0 && (
                       <p style={{
                         fontFamily: "'IBM Plex Mono', monospace", fontSize: 10,

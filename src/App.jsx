@@ -63,8 +63,8 @@ function PageLayout({ children }) {
 }
 
 // Provides game state + forces Pantheon theme while on game routes.
-// Manages the title card sequence (once per session via sessionStorage pw-titlecard-shown),
-// intro song (MusicManager), and looping ambience (AmbienceManager).
+// Shows the title card + intro song on every shell mount (i.e. every entry from outside
+// game routes). Internal game navigation does not remount this shell — no replay during gameplay.
 function PantheonWarsShell() {
   const [showTitleCard, setShowTitleCard] = useState(false)
 
@@ -73,17 +73,12 @@ function PantheonWarsShell() {
     soundManager.setActiveTheme('pantheon')
     soundManager.setPack('pantheon')
 
-    const shown = sessionStorage.getItem('pw-titlecard-shown')
-    if (!shown) {
-      // Arm ambience src so AmbienceManager knows what to play when intro ends.
-      // Intro song starts inside PWTitleCardSequence on its mount.
-      // fp-music-playback-change event chain handles ambience timing automatically.
-      ambienceManager.setSrc('/sounds/pantheon_wars/ambience.mp3')
-      setShowTitleCard(true)
-    } else {
-      // No title card — start ambience immediately
-      ambienceManager.play('/sounds/pantheon_wars/ambience.mp3')
-    }
+    // Always show title card on mount — shell only mounts when entering from outside game routes.
+    // Arm ambience src so AmbienceManager knows what to play when intro ends.
+    // Intro song starts inside PWTitleCardSequence. fp-music-playback-change event chain
+    // handles ambience timing automatically.
+    ambienceManager.setSrc('/sounds/pantheon_wars/ambience.mp3')
+    setShowTitleCard(true)
 
     return () => {
       const saved = localStorage.getItem('fp-theme')
@@ -98,7 +93,6 @@ function PantheonWarsShell() {
   }, [])
 
   function handleTitleCardComplete() {
-    sessionStorage.setItem('pw-titlecard-shown', '1')
     setShowTitleCard(false)
     // Do NOT start ambience here — it starts automatically when intro song ends
     // via the fp-music-playback-change { playing: false } event from MusicManager

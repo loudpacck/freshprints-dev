@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { musicManager } from '@/sound/MusicManager'
 
-// Title card plays once per session (controlled by sessionStorage key pw-titlecard-shown).
+// Title card plays on every shell mount (i.e. every entry into game routes from outside).
 // The <video> is muted so browser autoplay works; audio comes from MusicManager (intro.mp3).
 // Intro song starts when the video starts and plays through to its natural end,
 // continuing after the title card fades out. AmbienceManager auto-starts when intro ends
