@@ -1,7 +1,9 @@
 import { sql } from '../../../lib/db.js'
 import { requireUser } from '../../../lib/pwAuth.js'
 import {
-  regenPlayer, checkLevelUp, getEquipmentBonuses, calculateCombat, calculatePowerRating,
+  regenPlayer, checkLevelUp, getEquipmentBonuses,
+  calculateCombat, simulateCombat, getRaceClassCombatBonuses,
+  calculatePowerRating,
   getShopRotationSeed, getShopRotationExpiry, pickRotatedItems, getDailyRotationPool,
   getQuestRotationSeed, getQuestRotationExpiry,
   getAdventureRotationSeed, getAdventureRotationExpiry,
@@ -368,11 +370,7 @@ async function handleEquip(req, res) {
       WHERE inv.user_id = ${req.userId}
       ORDER BY i.slot, inv.equipped DESC, i.rarity DESC, i.level_required DESC
     `
-    const equippedItems = inventory.filter(r => r.equipped)
-    const equipment_bonuses = {
-      attack:  equippedItems.reduce((s, r) => s + r.attack_bonus,  0),
-      defense: equippedItems.reduce((s, r) => s + r.defense_bonus, 0),
-    }
+    const equipment_bonuses = await getEquipmentBonuses(sql, req.userId)
 
     return res.status(200).json({
       success: true,
@@ -414,11 +412,7 @@ async function handleUnequip(req, res) {
       WHERE inv.user_id = ${req.userId}
       ORDER BY i.slot, inv.equipped DESC, i.rarity DESC, i.level_required DESC
     `
-    const equippedItems = inventory.filter(r => r.equipped)
-    const equipment_bonuses = {
-      attack:  equippedItems.reduce((s, r) => s + r.attack_bonus,  0),
-      defense: equippedItems.reduce((s, r) => s + r.defense_bonus, 0),
-    }
+    const equipment_bonuses = await getEquipmentBonuses(sql, req.userId)
 
     return res.status(200).json({
       success: true,
