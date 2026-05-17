@@ -220,8 +220,8 @@ function OwnedTempleCard({ temple, onUpgrade, isUpgrading }) {
   )
 }
 
-function CatalogTempleCard({ temple, onBuy, isBuying }) {
-  const canInteract = temple.canBuy && !isBuying
+function CatalogTempleCard({ temple, onBuy, isBuying, isOwned }) {
+  const canInteract = temple.canBuy && !isBuying && !isOwned
 
   let buttonLabel = `${fmt(temple.base_cost)} ₯`
   let buttonColor = '#C9A961'
@@ -286,29 +286,46 @@ function CatalogTempleCard({ temple, onBuy, isBuying }) {
         </div>
       </div>
 
-      <motion.button
-        whileHover={canInteract ? { scale: 1.04 } : {}}
-        whileTap={canInteract ? { scale: 0.97 } : {}}
-        onClick={() => canInteract && onBuy(temple.type)}
-        disabled={!canInteract}
-        style={{
+      {isOwned ? (
+        <div style={{
           fontFamily: "'IBM Plex Mono', monospace",
-          fontSize: 10,
+          fontSize: 9,
           letterSpacing: '0.1em',
           textTransform: 'uppercase',
-          color: buttonColor,
-          background: 'transparent',
-          border: `1px solid ${borderColor}`,
+          color: '#A78BFA',
+          background: 'rgba(167,139,250,0.08)',
+          border: '1px solid rgba(167,139,250,0.25)',
           borderRadius: 6,
           padding: '8px 12px',
-          cursor: canInteract ? 'pointer' : 'not-allowed',
           whiteSpace: 'nowrap',
-          transition: 'color 150ms, border-color 150ms',
-          opacity: isBuying ? 0.6 : 1,
-        }}
-      >
-        {buttonLabel}
-      </motion.button>
+        }}>
+          OWNED
+        </div>
+      ) : (
+        <motion.button
+          whileHover={canInteract ? { scale: 1.04 } : {}}
+          whileTap={canInteract ? { scale: 0.97 } : {}}
+          onClick={() => canInteract && onBuy(temple.type)}
+          disabled={!canInteract}
+          style={{
+            fontFamily: "'IBM Plex Mono', monospace",
+            fontSize: 10,
+            letterSpacing: '0.1em',
+            textTransform: 'uppercase',
+            color: buttonColor,
+            background: 'transparent',
+            border: `1px solid ${borderColor}`,
+            borderRadius: 6,
+            padding: '8px 12px',
+            cursor: canInteract ? 'pointer' : 'not-allowed',
+            whiteSpace: 'nowrap',
+            transition: 'color 150ms, border-color 150ms',
+            opacity: isBuying ? 0.6 : 1,
+          }}
+        >
+          {buttonLabel}
+        </motion.button>
+      )}
     </div>
   )
 }
@@ -373,7 +390,10 @@ export default function Temples() {
       })
       const data = await res.json()
       if (!res.ok) {
-        setError(data.error || 'Purchase failed.')
+        const msg = data.error === 'already_owned'
+          ? 'You already own this temple. Upgrade it instead.'
+          : (data.error || 'Purchase failed.')
+        setError(msg)
         return
       }
       const templeEntry = catalog.find(c => c.type === templeType)
@@ -513,14 +533,18 @@ export default function Temples() {
                   // AVAILABLE
                 </p>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                  {catalog.map(t => (
-                    <CatalogTempleCard
-                      key={t.type}
-                      temple={t}
-                      onBuy={handleBuy}
-                      isBuying={buying === t.type}
-                    />
-                  ))}
+                  {catalog.map(t => {
+                    const isOwned = owned.some(o => o.temple_type === t.type)
+                    return (
+                      <CatalogTempleCard
+                        key={t.type}
+                        temple={t}
+                        onBuy={handleBuy}
+                        isBuying={buying === t.type}
+                        isOwned={isOwned}
+                      />
+                    )
+                  })}
                 </div>
               </motion.section>
 

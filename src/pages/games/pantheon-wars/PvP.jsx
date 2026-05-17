@@ -507,11 +507,11 @@ function CombatModal({ result, onClose }) {
           {isWin && result.xp_earned > 0 && (
             <ResultRow label="XP EARNED" value={`+${fmt(result.xp_earned)}`} color="#9B8AC4" />
           )}
-          {isWin && result.drachma_transferred > 0 && (
-            <ResultRow label="DRACHMA RAIDED" value={`+₯${fmt(result.drachma_transferred)}`} color="var(--color-accent-gold-bright, #F5D88B)" />
-          )}
           {isWin && result.glory_earned > 0 && (
             <ResultRow label="GLORY EARNED" value={`+${result.glory_earned}`} color="var(--color-warning, #D4A437)" />
+          )}
+          {!isWin && (
+            <ResultRow label="GLORY DEFENDED" value="+1" color="var(--color-warning, #D4A437)" />
           )}
           <ResultRow
             label="YOUR HP LOST"

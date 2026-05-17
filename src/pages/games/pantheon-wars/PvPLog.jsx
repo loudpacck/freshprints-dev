@@ -115,9 +115,6 @@ function CombatEntry({ entry }) {
               {entry.xp_earned > 0 && (
                 <StatChip label="XP" value={`+${fmt(entry.xp_earned)}`} color="#8B5CF6" />
               )}
-              {entry.drachma_transferred > 0 && (
-                <StatChip label="₯" value={`+${fmt(entry.drachma_transferred)}`} color="#C9A961" />
-              )}
               {entry.glory_earned > 0 && (
                 <StatChip label="Glory" value={`+${entry.glory_earned}`} color="#FBBF24" />
               )}
@@ -128,13 +125,8 @@ function CombatEntry({ entry }) {
             <StatChip label="HP" value={`-${entry.attacker_health_lost}`} color="#EF4444" />
           )}
           {!isAttacker && entry.result === 'win' && (
-            // Attacker won = we (defender) lost drachma + HP
-            <>
-              {entry.drachma_transferred > 0 && (
-                <StatChip label="₯ lost" value={`-${fmt(entry.drachma_transferred)}`} color="#EF4444" />
-              )}
-              <StatChip label="HP" value={`-${entry.defender_health_lost}`} color="#EF4444" />
-            </>
+            // Attacker won = we (defender) took HP damage
+            <StatChip label="HP" value={`-${entry.defender_health_lost}`} color="#EF4444" />
           )}
           {!isAttacker && entry.result === 'loss' && (
             // Attacker lost = we (defender) successfully defended, gained 1 glory

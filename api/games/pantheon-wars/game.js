@@ -135,7 +135,9 @@ async function handleComplete(req, res) {
     await sql`
       UPDATE pw_player_stats SET
         energy           = ${stats.energy},
+        energy_max       = ${stats.energy_max},
         health           = ${stats.health},
+        health_max       = ${stats.health_max},
         xp               = ${stats.xp},
         level            = ${stats.level},
         drachma          = ${stats.drachma},
@@ -404,9 +406,13 @@ async function handleShop(req, res) {
       ORDER BY slot, level_required, rarity
     `
 
-    // Drachma shop rotates daily — 8 items picked deterministically from level-eligible pool.
-    // Same UTC day → same 8 items for all players at the same level. Glory shop is static.
-    const drachmaEligible = items.filter(i => i.buy_price !== null && i.level_required <= stats.level)
+    // Drachma shop rotates daily — 8 items picked from common/uncommon/rare only.
+    // Epic/Legendary are PvP/quest-exclusive and never appear in the drachma shop.
+    const drachmaEligible = items.filter(i =>
+      i.buy_price !== null &&
+      i.level_required <= stats.level &&
+      ['common', 'uncommon', 'rare'].includes(i.rarity)
+    )
     const drachma_items   = pickRotatedItems(drachmaEligible, getShopRotationSeed(), 8)
     const glory_items     = items.filter(i => i.glory_price !== null)
 
@@ -472,7 +478,10 @@ async function handleBuy(req, res) {
     // Re-runs the same deterministic rotation the shop endpoint ran — no state needed.
     if (currency === 'drachma') {
       const eligibleRows = await sql`
-        SELECT id FROM pw_items WHERE buy_price IS NOT NULL AND level_required <= ${player.level}
+        SELECT id FROM pw_items
+        WHERE buy_price IS NOT NULL
+          AND level_required <= ${player.level}
+          AND rarity IN ('common', 'uncommon', 'rare')
       `
       const rotated = pickRotatedItems(eligibleRows, getShopRotationSeed(), 8)
       if (!rotated.some(r => r.id === item_id)) {
@@ -841,6 +850,15 @@ async function handleTemplesBuy(req, res) {
       return res.status(400).json({ error: 'level_too_low', level_required: temple.level_required })
     }
 
+    // Enforce one temple per type — upgrade instead of buying a second
+    const dupRows = await sql`
+      SELECT COUNT(*) AS cnt FROM pw_player_temples
+      WHERE user_id = ${req.userId} AND temple_type = ${temple_type}
+    `
+    if (Number(dupRows[0].cnt) > 0) {
+      return res.status(400).json({ error: 'already_owned', message: 'You already own this temple. Upgrade it instead.' })
+    }
+
     const owned = await fetchOwnedTemples(req.userId)
     let stats = regenPlayer(statsRows[0], owned)
 
@@ -1206,23 +1224,18 @@ async function handlePvPAttack(req, res) {
       defenderEquip: defEquip,
     })
 
-    const actualDrachma = Math.min(combat.drachma_transferred, defStats.drachma)
-
-    // Apply outcomes
+    // Apply outcomes — no drachma transfers in PvP
     if (combat.result === 'win') {
       attStats = {
         ...attStats,
-        xp:               attStats.xp + combat.xp_earned,
-        drachma:          attStats.drachma + actualDrachma,
-        drachma_lifetime: attStats.drachma_lifetime + actualDrachma,
-        glory:            attStats.glory + combat.glory_earned,
-        glory_lifetime:   attStats.glory_lifetime + combat.glory_earned,
-        health:           Math.max(0, attStats.health - combat.attacker_health_lost),
+        xp:             attStats.xp + combat.xp_earned,
+        glory:          attStats.glory + combat.glory_earned,
+        glory_lifetime: attStats.glory_lifetime + combat.glory_earned,
+        health:         Math.max(0, attStats.health - combat.attacker_health_lost),
       }
       defStats = {
         ...defStats,
-        drachma: Math.max(0, defStats.drachma - actualDrachma),
-        health:  Math.max(0, defStats.health - combat.defender_health_lost),
+        health: Math.max(0, defStats.health - combat.defender_health_lost),
       }
     } else {
       attStats = {
@@ -1246,6 +1259,7 @@ async function handlePvPAttack(req, res) {
         xp               = ${attStats.xp},
         level            = ${attStats.level},
         energy           = ${attStats.energy},
+        energy_max       = ${attStats.energy_max},
         health           = ${attStats.health},
         health_max       = ${attStats.health_max},
         drachma          = ${attStats.drachma},
@@ -1261,15 +1275,13 @@ async function handlePvPAttack(req, res) {
     await sql`
       UPDATE pw_player_stats SET
         health           = ${defStats.health},
-        drachma          = ${defStats.drachma},
         glory            = ${defStats.glory},
         glory_lifetime   = ${defStats.glory_lifetime},
-        drachma_lifetime = ${defStats.drachma_lifetime},
         last_updated     = ${defStats.last_updated}
       WHERE user_id = ${target_user_id}
     `
 
-    // Log combat
+    // Log combat (drachma_transferred always 0 — preserved for schema compatibility)
     await sql`
       INSERT INTO pw_combat_log (
         attacker_id, defender_id, attacker_power, defender_power, result,
@@ -1277,7 +1289,7 @@ async function handlePvPAttack(req, res) {
       ) VALUES (
         ${req.userId}, ${target_user_id},
         ${combat.attacker_power}, ${combat.defender_power}, ${combat.result},
-        ${combat.xp_earned}, ${actualDrachma}, ${combat.glory_earned},
+        ${combat.xp_earned}, 0, ${combat.glory_earned},
         ${combat.attacker_health_lost}, ${combat.defender_health_lost}
       )
     `
@@ -1287,7 +1299,7 @@ async function handlePvPAttack(req, res) {
       attacker_power:       combat.attacker_power,
       defender_power:       combat.defender_power,
       xp_earned:            combat.xp_earned,
-      drachma_transferred:  actualDrachma,
+      drachma_transferred:  0,
       glory_earned:         combat.glory_earned,
       attacker_health_lost: combat.attacker_health_lost,
       defender_health_lost: combat.defender_health_lost,

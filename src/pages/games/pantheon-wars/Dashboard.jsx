@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { usePantheonWars } from '@/contexts/PantheonWarsContext'
@@ -58,8 +58,62 @@ function Badge({ label, color, bg, border }) {
   )
 }
 
-function StatBar({ label, current, max, color, delay = 0 }) {
+function useRegenCountdown(regenInterval, lastUpdated, current, max, onTick) {
+  const [secsLeft, setSecsLeft] = useState(null)
+  const onTickRef = useRef(onTick)
+  const firedRef  = useRef(false)
+  useEffect(() => { onTickRef.current = onTick }, [onTick])
+
+  useEffect(() => {
+    if (!regenInterval || !lastUpdated) { setSecsLeft(null); return }
+    if (current >= max) { setSecsLeft(null); return }
+
+    firedRef.current = false
+
+    function compute() {
+      const nowMs = Date.now()
+      const lastMs = new Date(lastUpdated).getTime()
+      const elapsed = Math.floor((nowMs - lastMs) / 1000)
+      const nextTick = (Math.floor(elapsed / regenInterval) + 1) * regenInterval
+      return Math.max(0, nextTick - elapsed)
+    }
+
+    setSecsLeft(compute())
+    const id = setInterval(() => {
+      const s = compute()
+      setSecsLeft(s)
+      if (s <= 0 && !firedRef.current) {
+        firedRef.current = true
+        onTickRef.current?.()
+      }
+    }, 1000)
+    return () => clearInterval(id)
+  }, [regenInterval, lastUpdated, current, max])
+
+  return secsLeft
+}
+
+function fmtSecs(s) {
+  const m = Math.floor(s / 60)
+  const sec = s % 60
+  return `${m}:${String(sec).padStart(2, '0')}`
+}
+
+function StatBar({ label, current, max, color, delay = 0, regenInterval, lastUpdated, onTick }) {
   const pct = max > 0 ? Math.min(100, Math.round((current / max) * 100)) : 0
+  const secsLeft = useRegenCountdown(regenInterval, lastUpdated, current, max, onTick)
+
+  let countdownText = null
+  if (regenInterval) {
+    if (current >= max) {
+      countdownText = 'MAX'
+    } else if (secsLeft === null) {
+      countdownText = '—'
+    } else {
+      countdownText = `Next +1 in ${fmtSecs(secsLeft)}`
+    }
+  }
+
   return (
     <div style={{
       background: 'rgba(255,255,255,0.04)',
@@ -104,6 +158,18 @@ function StatBar({ label, current, max, color, delay = 0 }) {
           style={{ height: '100%', background: color, borderRadius: 3 }}
         />
       </div>
+      {countdownText && (
+        <div style={{
+          fontFamily: "'IBM Plex Mono', monospace",
+          fontSize: 9,
+          letterSpacing: '0.07em',
+          color: 'rgba(240,240,248,0.28)',
+          marginTop: 6,
+          textAlign: 'right',
+        }}>
+          {countdownText}
+        </div>
+      )}
     </div>
   )
 }
@@ -243,7 +309,7 @@ const stagger = {
 }
 
 export default function Dashboard() {
-  const { user, stats, loading, error, logout } = usePantheonWars()
+  const { user, stats, loading, error, logout, refresh } = usePantheonWars()
   const navigate = useNavigate()
 
   // null = loading, false = failed (render nothing), { total, count } = loaded
@@ -541,6 +607,9 @@ export default function Dashboard() {
                     max={stats.energy_max}
                     color="#C9A961"
                     delay={0.2}
+                    regenInterval={300}
+                    lastUpdated={stats.last_updated}
+                    onTick={refresh}
                   />
                 </div>
                 <div style={{ flex: 1 }}>
@@ -550,6 +619,9 @@ export default function Dashboard() {
                     max={stats.health_max}
                     color="#EF4444"
                     delay={0.32}
+                    regenInterval={180}
+                    lastUpdated={stats.last_updated}
+                    onTick={refresh}
                   />
                 </div>
               </motion.div>

@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
+import { usePantheonWars } from '@/contexts/PantheonWarsContext'
 
 const INPUT_BASE = {
   width: '100%',
@@ -28,6 +29,7 @@ const LABEL = {
 
 export default function PantheonLogin() {
   const navigate = useNavigate()
+  const { refresh } = usePantheonWars()
   const [email, setEmail]       = useState('')
   const [password, setPassword] = useState('')
   const [error, setError]       = useState('')
@@ -48,6 +50,7 @@ export default function PantheonLogin() {
       })
       const data = await res.json()
       if (!res.ok) { setError(data.error || 'Login failed. Please try again.'); return }
+      await refresh()
       navigate('/games/pantheon-wars')
     } catch {
       setError('Network error. Please try again.')
