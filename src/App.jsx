@@ -81,13 +81,9 @@ function PantheonWarsShell() {
     soundManager.setActiveTheme('pantheon')
     soundManager.setPack('pantheon')
 
-    if (cameFromOutside) {
-      // Arm only — intro music triggers start via fp-music-playback-change event chain.
-      ambienceManager.setSrc('/sounds/pantheon_wars/ambience.mp3')
-    } else {
-      // No intro sequence — start ambience immediately.
-      ambienceManager.play('/sounds/pantheon_wars/ambience.mp3')
-    }
+    // play() handles all cases: defers via _pendingResume if music is active,
+    // registers an interaction retry if autoplay is blocked, otherwise starts immediately.
+    ambienceManager.play('/sounds/pantheon_wars/ambience.mp3')
 
     return () => {
       const saved = localStorage.getItem('fp-theme')
