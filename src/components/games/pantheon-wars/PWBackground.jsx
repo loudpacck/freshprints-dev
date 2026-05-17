@@ -12,6 +12,7 @@ const VARIANTS = {
   pvplog:      { count: 45, baseSpeed: 0.25, color: [160,  90,  70], flashChance: 0 },
   leaderboard: { count: 58, baseSpeed: 0.22, color: [201, 169,  97], flashChance: 0 },
   profile:     { count: 55, baseSpeed: 0.18, color: [201, 169,  97], flashChance: 0 },
+  adventures:  { count: 55, baseSpeed: 0.22, color: [210, 150,  80], flashChance: 0.002 },
 }
 
 function makeParticle(canvas, cfg) {

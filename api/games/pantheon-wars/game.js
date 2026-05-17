@@ -1,6 +1,12 @@
 import { sql } from '../../../lib/db.js'
 import { requireUser } from '../../../lib/pwAuth.js'
-import { regenPlayer, checkLevelUp, getEquipmentBonuses, calculateCombat, calculatePowerRating, getShopRotationSeed, getShopRotationExpiry, pickRotatedItems, getDailyRotationPool } from '../../../lib/pwHelpers.js'
+import {
+  regenPlayer, checkLevelUp, getEquipmentBonuses, calculateCombat, calculatePowerRating,
+  getShopRotationSeed, getShopRotationExpiry, pickRotatedItems, getDailyRotationPool,
+  getQuestRotationSeed, getQuestRotationExpiry,
+  getAdventureRotationSeed, getAdventureRotationExpiry,
+  pickRotatedFromPool, checkAndCompleteAdventures,
+} from '../../../lib/pwHelpers.js'
 
 export const config = { runtime: 'nodejs' }
 
@@ -23,11 +29,13 @@ async function handleQuests(req, res) {
       `
     }
 
-    const quests = await sql`
+    const allEligible = await sql`
       SELECT
         q.id, q.name, q.description, q.tier, q.energy_cost,
         q.xp_reward, q.drachma_base, q.drachma_range,
         q.loot_chance, q.level_required, q.mastery_target,
+        q.faction_bonus, q.faction_bonus_type, q.faction_bonus_value,
+        q.class_bonus, q.class_bonus_type, q.class_bonus_value,
         COALESCE(p.completions, 0) AS completions
       FROM pw_quests q
       LEFT JOIN pw_quest_progress p
@@ -36,7 +44,14 @@ async function handleQuests(req, res) {
       ORDER BY q.tier, q.level_required, q.id
     `
 
-    return res.status(200).json({ quests, stats })
+    const quests = pickRotatedFromPool(allEligible, getQuestRotationSeed(), 5)
+
+    return res.status(200).json({
+      quests,
+      stats,
+      rotation_expires_at: getQuestRotationExpiry(),
+      pendingAdventureRewards: req.pendingAdventureRewards || null,
+    })
   } catch (err) {
     console.error('Quests error:', err)
     return res.status(500).json({ error: 'Failed to fetch quests' })
@@ -81,6 +96,19 @@ async function handleComplete(req, res) {
       return res.status(400).json({ error: 'Not enough energy' })
     }
 
+    // Validate quest is in the current rotation (same ORDER BY as handleQuests)
+    const eligibleRows = await sql`
+      SELECT id FROM pw_quests
+      WHERE level_required <= ${stats.level}
+      ORDER BY tier, level_required, id
+    `
+    const rotatedSet = new Set(
+      pickRotatedFromPool(eligibleRows, getQuestRotationSeed(), 5).map(r => r.id)
+    )
+    if (!rotatedSet.has(quest.id)) {
+      return res.status(400).json({ error: 'quest_not_in_rotation' })
+    }
+
     stats = { ...stats, energy: stats.energy - quest.energy_cost }
 
     const drachmaRoll = quest.drachma_range > 0
@@ -88,11 +116,38 @@ async function handleComplete(req, res) {
       : 0
     const baseDrachma = quest.drachma_base + drachmaRoll
 
+    // Global faction + class multipliers
     const xpMult      = faction === 'olympians' ? 1.05 : 1
     const drachmaMult = (faction === 'annunaki' ? 1.05 : 1) * (playerClass === 'broker' ? 1.1 : 1)
 
-    const earnedXp      = Math.floor(quest.xp_reward * xpMult)
-    const earnedDrachma = Math.floor(baseDrachma * drachmaMult)
+    let earnedXp      = Math.floor(quest.xp_reward * xpMult)
+    let earnedDrachma = Math.floor(baseDrachma * drachmaMult)
+    let effectiveLootChance = quest.loot_chance
+    let lootUpgradeChance   = 0
+
+    // Per-quest faction bonus
+    if (quest.faction_bonus && faction === quest.faction_bonus) {
+      const v = Number(quest.faction_bonus_value) || 0
+      switch (quest.faction_bonus_type) {
+        case 'xp':              earnedXp      = Math.floor(earnedXp * (1 + v / 100)); break
+        case 'drachma':         earnedDrachma = Math.floor(earnedDrachma * (1 + v / 100)); break
+        case 'loot_chance':     effectiveLootChance = Math.min(100, effectiveLootChance + v); break
+        case 'loot_upgrade':    lootUpgradeChance   = Math.max(lootUpgradeChance, v); break
+        case 'guaranteed_loot': effectiveLootChance = 100; break
+      }
+    }
+
+    // Per-quest class bonus
+    if (quest.class_bonus && playerClass === quest.class_bonus) {
+      const v = Number(quest.class_bonus_value) || 0
+      switch (quest.class_bonus_type) {
+        case 'xp':              earnedXp      = Math.floor(earnedXp * (1 + v / 100)); break
+        case 'drachma':         earnedDrachma = Math.floor(earnedDrachma * (1 + v / 100)); break
+        case 'loot_chance':     effectiveLootChance = Math.min(100, effectiveLootChance + v); break
+        case 'loot_upgrade':    lootUpgradeChance   = Math.max(lootUpgradeChance, v); break
+        case 'guaranteed_loot': effectiveLootChance = 100; break
+      }
+    }
 
     stats = {
       ...stats,
@@ -106,7 +161,7 @@ async function handleComplete(req, res) {
     const levelsGained = stats.level - prevLevel
 
     let lootItem = null
-    if (quest.loot_chance > 0 && Math.random() * 100 <= quest.loot_chance) {
+    if (effectiveLootChance > 0 && Math.random() * 100 <= effectiveLootChance) {
       const lootRows = await sql`
         SELECT i.id, i.name, i.rarity, i.slot, ql.drop_weight
         FROM pw_quest_loot ql
@@ -117,9 +172,18 @@ async function handleComplete(req, res) {
         const totalWeight = lootRows.reduce((sum, r) => sum + r.drop_weight, 0)
         let roll = Math.random() * totalWeight
         let picked = lootRows[lootRows.length - 1]
-        for (const row of lootRows) {
-          roll -= row.drop_weight
-          if (roll <= 0) { picked = row; break }
+        for (const r of lootRows) {
+          roll -= r.drop_weight
+          if (roll <= 0) { picked = r; break }
+        }
+        // Loot upgrade: escalate rarity within this quest's loot table
+        if (lootUpgradeChance > 0 && Math.random() * 100 <= lootUpgradeChance) {
+          const RARITY_NUM = { common: 1, uncommon: 2, rare: 3, epic: 4, legendary: 5 }
+          const pickedNum  = RARITY_NUM[picked.rarity] || 1
+          const candidates = lootRows.filter(r => (RARITY_NUM[r.rarity] || 0) > pickedNum)
+          if (candidates.length > 0) {
+            picked = candidates[Math.floor(Math.random() * candidates.length)]
+          }
         }
         await sql`INSERT INTO pw_inventory (user_id, item_id) VALUES (${req.userId}, ${picked.id})`
         lootItem = { id: picked.id, name: picked.name, rarity: picked.rarity, slot: picked.slot }
@@ -173,6 +237,7 @@ async function handleComplete(req, res) {
         defense:          stats.defense,
         stat_points:      stats.stat_points,
       },
+      pendingAdventureRewards: req.pendingAdventureRewards || null,
     })
   } catch (err) {
     console.error('Quest complete error:', err)
@@ -221,7 +286,12 @@ async function handleInventory(req, res) {
 
     const equipment_bonuses = await getEquipmentBonuses(sql, req.userId)
 
-    return res.status(200).json({ inventory, equipment_bonuses, stats })
+    return res.status(200).json({
+      inventory,
+      equipment_bonuses,
+      stats,
+      pendingAdventureRewards: req.pendingAdventureRewards || null,
+    })
   } catch (err) {
     console.error('Inventory error:', err)
     return res.status(500).json({ error: 'Failed to fetch inventory' })
@@ -287,7 +357,12 @@ async function handleEquip(req, res) {
       defense: equippedItems.reduce((s, r) => s + r.defense_bonus, 0),
     }
 
-    return res.status(200).json({ success: true, inventory, equipment_bonuses })
+    return res.status(200).json({
+      success: true,
+      inventory,
+      equipment_bonuses,
+      pendingAdventureRewards: req.pendingAdventureRewards || null,
+    })
   } catch (err) {
     console.error('Equip error:', err)
     return res.status(500).json({ error: 'Failed to equip item' })
@@ -328,7 +403,12 @@ async function handleUnequip(req, res) {
       defense: equippedItems.reduce((s, r) => s + r.defense_bonus, 0),
     }
 
-    return res.status(200).json({ success: true, inventory, equipment_bonuses })
+    return res.status(200).json({
+      success: true,
+      inventory,
+      equipment_bonuses,
+      pendingAdventureRewards: req.pendingAdventureRewards || null,
+    })
   } catch (err) {
     console.error('Unequip error:', err)
     return res.status(500).json({ error: 'Failed to unequip item' })
@@ -364,10 +444,11 @@ async function handleSell(req, res) {
     `
 
     return res.status(200).json({
-      success: true,
-      sold_item: item.name,
-      sell_price: item.sell_price,
+      success:     true,
+      sold_item:   item.name,
+      sell_price:  item.sell_price,
       new_drachma: updated[0].drachma,
+      pendingAdventureRewards: req.pendingAdventureRewards || null,
     })
   } catch (err) {
     console.error('Sell error:', err)
@@ -429,7 +510,7 @@ async function handleConsume(req, res) {
     `
 
     return res.status(200).json({
-      success: true,
+      success:  true,
       consumed: { name: item.name, health_restored: healthRestored, energy_restored: energyRestored },
       stats: {
         health:     stats.health,
@@ -437,6 +518,7 @@ async function handleConsume(req, res) {
         energy:     stats.energy,
         energy_max: stats.energy_max,
       },
+      pendingAdventureRewards: req.pendingAdventureRewards || null,
     })
   } catch (err) {
     console.error('Consume error:', err)
@@ -476,16 +558,14 @@ async function handleShop(req, res) {
       ORDER BY slot, level_required, rarity
     `
 
-    // Drachma shop rotates daily — 8 items from common/uncommon/rare non-consumables.
-    // Consumables are always available (never enter the rotation pool).
     const drachmaRotationPool = items.filter(i =>
       i.buy_price !== null &&
       i.level_required <= stats.level &&
       ['common', 'uncommon', 'rare'].includes(i.rarity) &&
       i.slot !== 'consumable'
     )
-    const rotation_items    = pickRotatedItems(drachmaRotationPool, getShopRotationSeed(), 8)
-    const always_available  = items.filter(i =>
+    const rotation_items   = pickRotatedItems(drachmaRotationPool, getShopRotationSeed(), 8)
+    const always_available = items.filter(i =>
       i.slot === 'consumable' &&
       i.buy_price !== null &&
       i.level_required <= stats.level
@@ -503,6 +583,7 @@ async function handleShop(req, res) {
         level:   stats.level,
         faction: rows[0].faction,
       },
+      pendingAdventureRewards: req.pendingAdventureRewards || null,
     })
   } catch (err) {
     console.error('Shop error:', err)
@@ -551,9 +632,6 @@ async function handleBuy(req, res) {
       return res.status(400).json({ error: `This item is exclusive to the ${item.faction_exclusive} faction` })
     }
 
-    // For drachma purchases, confirm the item is in today's rotated pool.
-    // Uses getDailyRotationPool — same query + ORDER BY as handleShop GET — so the
-    // pool is always identical regardless of how many items the player bought this session.
     if (currency === 'drachma' && item.slot !== 'consumable') {
       const rotated = await getDailyRotationPool(sql, player.level)
       if (!rotated.some(r => r.id === item_id)) {
@@ -577,10 +655,11 @@ async function handleBuy(req, res) {
     const updated = await sql`SELECT drachma, glory FROM pw_player_stats WHERE user_id = ${req.userId}`
 
     return res.status(200).json({
-      success: true,
-      purchased: { id: item.id, name: item.name, rarity: item.rarity, slot: item.slot },
+      success:     true,
+      purchased:   { id: item.id, name: item.name, rarity: item.rarity, slot: item.slot },
       new_drachma: updated[0].drachma,
       new_glory:   updated[0].glory,
+      pendingAdventureRewards: req.pendingAdventureRewards || null,
     })
   } catch (err) {
     console.error('Shop buy error:', err)
@@ -666,7 +745,6 @@ async function handleLeaderboard(req, res) {
       is_self:  row.id === req.userId,
     }))
 
-    // If the requesting user isn't in the top 100, compute their approximate rank
     let yourRank = null
     if (req.userId && !ranked.some(r => r.is_self)) {
       try {
@@ -702,7 +780,13 @@ async function handleLeaderboard(req, res) {
       } catch { /* non-critical */ }
     }
 
-    return res.status(200).json({ entries: ranked, type, faction, your_rank: yourRank })
+    return res.status(200).json({
+      entries: ranked,
+      type,
+      faction,
+      your_rank: yourRank,
+      pendingAdventureRewards: req.pendingAdventureRewards || null,
+    })
   } catch (err) {
     console.error('Leaderboard error:', err)
     return res.status(500).json({ error: 'Failed to fetch leaderboard' })
@@ -740,7 +824,7 @@ async function handleAllocate(req, res) {
 
     if (stats.stat_points < total) {
       return res.status(400).json({
-        error: 'Insufficient stat points',
+        error:     'Insufficient stat points',
         available: stats.stat_points,
         requested: total,
       })
@@ -751,7 +835,6 @@ async function handleAllocate(req, res) {
     const newEnergyMax  = stats.energy_max + e
     const newHealthMax  = stats.health_max + h
     const newStatPoints = stats.stat_points - total
-    // When energy_max increases, top up current energy by same delta so the player isn't punished
     const newEnergy = Math.min(stats.energy + e, newEnergyMax)
     const newHealth = Math.min(stats.health + h, newHealthMax)
 
@@ -770,7 +853,7 @@ async function handleAllocate(req, res) {
     `
 
     return res.status(200).json({
-      ok: true,
+      ok:        true,
       allocated: { attack: a, defense: d, energy_max: e, health_max: h },
       newStats: {
         attack:      newAttack,
@@ -781,6 +864,7 @@ async function handleAllocate(req, res) {
         energy:      newEnergy,
         health:      newHealth,
       },
+      pendingAdventureRewards: req.pendingAdventureRewards || null,
     })
   } catch (err) {
     console.error('[game?action=allocate]', err.message)
@@ -813,13 +897,13 @@ function shapeOwnedTemple(row, playerDrachma) {
   const upgradeCost    = row.upgrade_level < 10 ? Math.floor(row.base_cost * 0.5) : null
   const canUpgrade     = row.upgrade_level < 10 && playerDrachma >= upgradeCost
   return {
-    id:                     row.id,
-    temple_type:            row.temple_type,
-    name:                   row.name,
-    upgrade_level:          row.upgrade_level,
+    id:                      row.id,
+    temple_type:             row.temple_type,
+    name:                    row.name,
+    upgrade_level:           row.upgrade_level,
     current_income_per_hour: currentIncome,
-    upgrade_cost:           upgradeCost,
-    can_upgrade:            canUpgrade,
+    upgrade_cost:            upgradeCost,
+    can_upgrade:             canUpgrade,
   }
 }
 
@@ -862,10 +946,10 @@ async function handleTemples(req, res) {
     `
 
     const catalog = catalogRows.map(t => {
-      const levelOk   = playerLevel >= t.level_required
-      const fundsOk   = stats.drachma >= t.base_cost
-      const canBuy    = levelOk && fundsOk
-      const reason    = !canBuy ? (!levelOk ? 'level' : 'drachma') : null
+      const levelOk = playerLevel >= t.level_required
+      const fundsOk = stats.drachma >= t.base_cost
+      const canBuy  = levelOk && fundsOk
+      const reason  = !canBuy ? (!levelOk ? 'level' : 'drachma') : null
       return { ...t, canBuy, reason }
     })
 
@@ -874,7 +958,7 @@ async function handleTemples(req, res) {
 
     return res.status(200).json({
       catalog,
-      owned:                shapedOwned,
+      owned:                 shapedOwned,
       total_income_per_hour: totalIncome,
       stats: {
         level:            stats.level,
@@ -890,6 +974,7 @@ async function handleTemples(req, res) {
         defense:          stats.defense,
         stat_points:      stats.stat_points,
       },
+      pendingAdventureRewards: req.pendingAdventureRewards || null,
     })
   } catch (err) {
     console.error('Temples error:', err)
@@ -922,7 +1007,6 @@ async function handleTemplesBuy(req, res) {
       return res.status(400).json({ error: 'level_too_low', level_required: temple.level_required })
     }
 
-    // Enforce one temple per type — upgrade instead of buying a second
     const dupRows = await sql`
       SELECT COUNT(*) AS cnt FROM pw_player_temples
       WHERE user_id = ${req.userId} AND temple_type = ${temple_type}
@@ -959,7 +1043,11 @@ async function handleTemplesBuy(req, res) {
     const newTemple = { ...newRows[0], ...temple }
     const shaped    = shapeOwnedTemple(newTemple, stats.drachma)
 
-    return res.status(201).json({ stats, temple: shaped })
+    return res.status(201).json({
+      stats,
+      temple: shaped,
+      pendingAdventureRewards: req.pendingAdventureRewards || null,
+    })
   } catch (err) {
     console.error('Temples buy error:', err)
     return res.status(500).json({ error: 'Purchase failed' })
@@ -1022,7 +1110,11 @@ async function handleTemplesUpgrade(req, res) {
     const updatedPt = { ...updatedRows[0], ...pt, upgrade_level: updatedRows[0].upgrade_level }
     const shaped    = shapeOwnedTemple(updatedPt, stats.drachma)
 
-    return res.status(200).json({ stats, temple: shaped })
+    return res.status(200).json({
+      stats,
+      temple: shaped,
+      pendingAdventureRewards: req.pendingAdventureRewards || null,
+    })
   } catch (err) {
     console.error('Temples upgrade error:', err)
     return res.status(500).json({ error: 'Upgrade failed' })
@@ -1059,14 +1151,21 @@ async function handleAlignmentChoose(req, res) {
     return res.status(200).json({
       alignment,
       stats: {
-        level: stats.level, xp: stats.xp,
-        energy: stats.energy, energy_max: stats.energy_max,
-        health: stats.health, health_max: stats.health_max,
-        drachma: stats.drachma, drachma_lifetime: stats.drachma_lifetime,
-        glory: stats.glory, glory_lifetime: stats.glory_lifetime,
-        attack: stats.attack, defense: stats.defense,
-        stat_points: stats.stat_points,
+        level:            stats.level,
+        xp:               stats.xp,
+        energy:           stats.energy,
+        energy_max:       stats.energy_max,
+        health:           stats.health,
+        health_max:       stats.health_max,
+        drachma:          stats.drachma,
+        drachma_lifetime: stats.drachma_lifetime,
+        glory:            stats.glory,
+        glory_lifetime:   stats.glory_lifetime,
+        attack:           stats.attack,
+        defense:          stats.defense,
+        stat_points:      stats.stat_points,
       },
+      pendingAdventureRewards: req.pendingAdventureRewards || null,
     })
   } catch (err) {
     console.error('Alignment choose error:', err)
@@ -1095,9 +1194,13 @@ async function handlePvPTargets(req, res) {
     let stats = regenPlayer(userRow, ownedTemples)
     const attAlignment = userRow.alignment
 
-    // Unaligned at 10+ must choose alignment before attacking
     if (!attAlignment && stats.level >= 10) {
-      return res.status(200).json({ targets: [], stats, requires_alignment: true })
+      return res.status(200).json({
+        targets:            [],
+        stats,
+        requires_alignment: true,
+        pendingAdventureRewards: req.pendingAdventureRewards || null,
+      })
     }
 
     const limit  = Math.min(50, Math.max(1, parseInt(req.query.limit)  || 20))
@@ -1143,7 +1246,6 @@ async function handlePvPTargets(req, res) {
         LIMIT ${limit} OFFSET ${offset}
       `
     } else {
-      // Unaligned attacker (level < 10) — only level < 10 targets
       targets = await sql`
         SELECT sub.user_id, sub.username, sub.faction, sub.class, sub.alignment,
                sub.level, sub.health, sub.health_max, sub.glory, sub.attack, sub.defense
@@ -1163,7 +1265,6 @@ async function handlePvPTargets(req, res) {
       `
     }
 
-    // Compute power ratings: attacker's own, then per target
     const attEquip = await getEquipmentBonuses(sql, req.userId)
     const myPowerRating = calculatePowerRating(stats, attEquip)
 
@@ -1172,7 +1273,12 @@ async function handlePvPTargets(req, res) {
       return { ...t, power_rating: calculatePowerRating(t, equip) }
     }))
 
-    return res.status(200).json({ targets: targetsWithPower, stats, my_power_rating: myPowerRating })
+    return res.status(200).json({
+      targets:         targetsWithPower,
+      stats,
+      my_power_rating: myPowerRating,
+      pendingAdventureRewards: req.pendingAdventureRewards || null,
+    })
   } catch (err) {
     console.error('PvP targets error:', err)
     return res.status(500).json({ error: 'Failed to fetch targets' })
@@ -1192,7 +1298,6 @@ async function handlePvPAttack(req, res) {
   }
 
   try {
-    // Fetch attacker
     const attRows = await sql`
       SELECT u.id, u.faction, u.class, u.alignment,
              ps.level, ps.xp, ps.energy, ps.energy_max,
@@ -1204,7 +1309,6 @@ async function handlePvPAttack(req, res) {
     if (attRows.length === 0) return res.status(404).json({ error: 'Attacker not found' })
     const attUser = { faction: attRows[0].faction, class: attRows[0].class, alignment: attRows[0].alignment }
 
-    // Fetch defender
     const defRows = await sql`
       SELECT u.id, u.username, u.faction, u.class, u.alignment,
              ps.level, ps.xp, ps.energy, ps.energy_max,
@@ -1219,30 +1323,25 @@ async function handlePvPAttack(req, res) {
     const attLevel = attRows[0].level
     const defLevel = defRows[0].level
 
-    // Alignment gate
     if (!attUser.alignment && attLevel >= 10) {
       return res.status(400).json({ error: 'requires_alignment' })
     }
 
-    // Alignment matchup
     if (attUser.alignment) {
       const opposing = attUser.alignment === 'coalition' ? 'compact' : 'coalition'
       if (defUser.alignment !== opposing && defLevel >= 10) {
         return res.status(400).json({ error: 'invalid_alignment_matchup' })
       }
     } else {
-      // Unaligned attacker (level < 10) can only hit level < 10 targets
       if (defLevel >= 10) {
         return res.status(400).json({ error: 'invalid_alignment_matchup' })
       }
     }
 
-    // Level range
     if (Math.abs(attLevel - defLevel) > 10) {
       return res.status(400).json({ error: 'level_out_of_range' })
     }
 
-    // Fetch temples + regen both players
     const [attTemples, defTemples] = await Promise.all([
       fetchOwnedTemples(req.userId),
       fetchOwnedTemples(target_user_id),
@@ -1250,26 +1349,21 @@ async function handlePvPAttack(req, res) {
     let attStats = regenPlayer(attRows[0], attTemples)
     let defStats = regenPlayer(defRows[0], defTemples)
 
-    // Energy cost: 1 per 10 levels, minimum 1
     const energyCost = Math.max(1, Math.ceil(attStats.level / 10))
     if (attStats.energy < energyCost) {
       return res.status(400).json({ error: 'not_enough_energy', energy_required: energyCost })
     }
 
-    // Health check — must be above minimum-1 floor to attack
     if (attStats.health <= 0) return res.status(400).json({ error: 'attacker_no_health' })
     if (defStats.health <= 0) return res.status(400).json({ error: 'defender_no_health' })
 
-    // Deduct energy before combat
     attStats = { ...attStats, energy: attStats.energy - energyCost }
 
-    // Equipment bonuses
     const [attEquip, defEquip] = await Promise.all([
       getEquipmentBonuses(sql, req.userId),
       getEquipmentBonuses(sql, target_user_id),
     ])
 
-    // Combat
     const combat = calculateCombat({
       attacker:      { ...attUser, ...attStats },
       defender:      { ...defUser, ...defStats },
@@ -1277,7 +1371,6 @@ async function handlePvPAttack(req, res) {
       defenderEquip: defEquip,
     })
 
-    // Apply outcomes — HP clamped at 1 minimum, no drachma transfers
     if (combat.result === 'win') {
       attStats = {
         ...attStats,
@@ -1306,7 +1399,6 @@ async function handlePvPAttack(req, res) {
     attStats = checkLevelUp(attStats)
     const levelsGained = attStats.level - prevLevel
 
-    // Persist attacker
     await sql`
       UPDATE pw_player_stats SET
         xp               = ${attStats.xp},
@@ -1324,7 +1416,6 @@ async function handlePvPAttack(req, res) {
       WHERE user_id = ${req.userId}
     `
 
-    // Persist defender
     await sql`
       UPDATE pw_player_stats SET
         health           = ${defStats.health},
@@ -1334,7 +1425,6 @@ async function handlePvPAttack(req, res) {
       WHERE user_id = ${target_user_id}
     `
 
-    // Log combat (drachma_transferred always 0 — preserved for schema compatibility)
     await sql`
       INSERT INTO pw_combat_log (
         attacker_id, defender_id, attacker_power, defender_power, result,
@@ -1381,6 +1471,7 @@ async function handlePvPAttack(req, res) {
         defense:          attStats.defense,
         stat_points:      attStats.stat_points,
       },
+      pendingAdventureRewards: req.pendingAdventureRewards || null,
     })
   } catch (err) {
     console.error('PvP attack error:', err)
@@ -1429,10 +1520,309 @@ async function handlePvPLog(req, res) {
       defender_health_lost: e.defender_health_lost,
     }))
 
-    return res.status(200).json({ log })
+    return res.status(200).json({
+      log,
+      pendingAdventureRewards: req.pendingAdventureRewards || null,
+    })
   } catch (err) {
     console.error('PvP log error:', err)
     return res.status(500).json({ error: 'Failed to fetch combat log' })
+  }
+}
+
+// ── Adventures (GET) ──────────────────────────────────────────────────────────
+
+async function handleAdventures(req, res) {
+  if (req.method !== 'GET') return res.status(405).json({ error: 'Method not allowed' })
+
+  try {
+    const rows = await sql`
+      SELECT
+        u.faction, u.class AS player_class,
+        ps.level, ps.xp, ps.energy, ps.energy_max,
+        ps.health, ps.health_max, ps.drachma, ps.drachma_lifetime,
+        ps.glory, ps.glory_lifetime, ps.attack, ps.defense, ps.stat_points, ps.last_updated
+      FROM pw_users u
+      JOIN pw_player_stats ps ON ps.user_id = u.id
+      WHERE u.id = ${req.userId}
+    `
+    if (rows.length === 0) return res.status(404).json({ error: 'Player not found' })
+
+    const ownedTemples = await fetchOwnedTemples(req.userId)
+    let stats = regenPlayer(rows[0], ownedTemples)
+
+    if (
+      stats.energy  !== rows[0].energy  ||
+      stats.health  !== rows[0].health  ||
+      stats.drachma !== rows[0].drachma
+    ) {
+      await sql`
+        UPDATE pw_player_stats
+        SET energy           = ${stats.energy},
+            health           = ${stats.health},
+            drachma          = ${stats.drachma},
+            drachma_lifetime = ${stats.drachma_lifetime},
+            last_updated     = ${stats.last_updated}
+        WHERE user_id = ${req.userId}
+      `
+    }
+
+    // Active adventure — auto-complete already ran in top-level handler
+    const activeAdv = await sql`
+      SELECT pa.id, pa.adventure_id, pa.started_at, pa.completes_at,
+             a.name, a.description, a.duration_seconds
+      FROM pw_player_adventures pa
+      JOIN pw_adventures a ON a.id = pa.adventure_id
+      WHERE pa.user_id = ${req.userId} AND pa.status = 'active'
+      LIMIT 1
+    `
+    const active = activeAdv.length > 0 ? {
+      player_adventure_id: activeAdv[0].id,
+      adventure_id:        activeAdv[0].adventure_id,
+      name:                activeAdv[0].name,
+      description:         activeAdv[0].description,
+      duration_seconds:    activeAdv[0].duration_seconds,
+      started_at:          activeAdv[0].started_at,
+      completes_at:        activeAdv[0].completes_at,
+    } : null
+
+    const rotSeed = getAdventureRotationSeed()
+
+    const allAdventures = await sql`
+      SELECT id, slug, name, description, duration_seconds, energy_cost, xp_reward,
+             drachma_base, drachma_range, loot_chance, min_loot_rarity, level_required,
+             faction_bonus, faction_bonus_type, faction_bonus_value,
+             class_bonus, class_bonus_type, class_bonus_value
+      FROM pw_adventures
+      WHERE level_required <= ${stats.level}
+      ORDER BY level_required, id
+    `
+    const rotated = pickRotatedFromPool(allAdventures, rotSeed, 3)
+
+    // Adventures completed or abandoned this rotation
+    const attemptedRows = await sql`
+      SELECT adventure_id, status
+      FROM pw_player_adventures
+      WHERE user_id = ${req.userId}
+        AND rotation_seed_at_start = ${rotSeed}
+        AND status IN ('completed', 'abandoned')
+    `
+    const attemptedMap = new Map(attemptedRows.map(r => [r.adventure_id, r.status]))
+
+    const adventures = rotated.map(adv => {
+      if (active && active.adventure_id === adv.id) return { ...adv, player_status: 'active' }
+      const prior = attemptedMap.get(adv.id)
+      return { ...adv, player_status: prior ?? 'available' }
+    })
+
+    return res.status(200).json({
+      adventures,
+      active_adventure:    active,
+      rotation_expires_at: getAdventureRotationExpiry(),
+      stats: {
+        level:            stats.level,
+        xp:               stats.xp,
+        energy:           stats.energy,
+        energy_max:       stats.energy_max,
+        health:           stats.health,
+        health_max:       stats.health_max,
+        drachma:          stats.drachma,
+        drachma_lifetime: stats.drachma_lifetime,
+        glory:            stats.glory,
+        attack:           stats.attack,
+        defense:          stats.defense,
+        stat_points:      stats.stat_points,
+      },
+      pendingAdventureRewards: req.pendingAdventureRewards || null,
+    })
+  } catch (err) {
+    console.error('Adventures error:', err)
+    return res.status(500).json({ error: 'Failed to fetch adventures' })
+  }
+}
+
+// ── Adventures Start (POST) ───────────────────────────────────────────────────
+
+async function handleAdventuresStart(req, res) {
+  if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' })
+
+  const { adventure_id: rawId } = req.body ?? {}
+  if (!rawId) return res.status(400).json({ error: 'adventure_id is required' })
+  const adventure_id = Number(rawId)
+
+  try {
+    // One active adventure at a time
+    const activeRows = await sql`
+      SELECT id FROM pw_player_adventures
+      WHERE user_id = ${req.userId} AND status = 'active'
+      LIMIT 1
+    `
+    if (activeRows.length > 0) return res.status(400).json({ error: 'active_adventure_exists' })
+
+    const advRows = await sql`SELECT * FROM pw_adventures WHERE id = ${adventure_id}`
+    if (advRows.length === 0) return res.status(404).json({ error: 'Adventure not found' })
+    const adv = advRows[0]
+
+    const pRows = await sql`
+      SELECT ps.level, ps.energy, ps.energy_max, ps.health, ps.health_max,
+             ps.drachma, ps.drachma_lifetime, ps.last_updated
+      FROM pw_player_stats ps
+      WHERE ps.user_id = ${req.userId}
+    `
+    if (pRows.length === 0) return res.status(404).json({ error: 'Player not found' })
+
+    const ownedTemples = await fetchOwnedTemples(req.userId)
+    let stats = regenPlayer(pRows[0], ownedTemples)
+
+    if (stats.level < adv.level_required) {
+      return res.status(400).json({ error: 'level_too_low', level_required: adv.level_required })
+    }
+    if (stats.energy < adv.energy_cost) {
+      return res.status(400).json({ error: 'not_enough_energy', energy_required: adv.energy_cost })
+    }
+
+    // Confirm adventure is in the current rotation
+    const rotSeed = getAdventureRotationSeed()
+    const eligibleIds = await sql`
+      SELECT id FROM pw_adventures
+      WHERE level_required <= ${stats.level}
+      ORDER BY level_required, id
+    `
+    const rotated = pickRotatedFromPool(eligibleIds, rotSeed, 3)
+    if (!rotated.some(r => r.id === adventure_id)) {
+      return res.status(400).json({ error: 'adventure_not_in_rotation' })
+    }
+
+    // No repeat attempts this rotation
+    const attempted = await sql`
+      SELECT id FROM pw_player_adventures
+      WHERE user_id = ${req.userId}
+        AND adventure_id = ${adventure_id}
+        AND rotation_seed_at_start = ${rotSeed}
+        AND status IN ('completed', 'abandoned')
+      LIMIT 1
+    `
+    if (attempted.length > 0) return res.status(400).json({ error: 'already_attempted_this_rotation' })
+
+    stats = { ...stats, energy: stats.energy - adv.energy_cost }
+
+    await sql`
+      UPDATE pw_player_stats SET
+        energy           = ${stats.energy},
+        health           = ${stats.health},
+        drachma          = ${stats.drachma},
+        drachma_lifetime = ${stats.drachma_lifetime},
+        last_updated     = ${stats.last_updated}
+      WHERE user_id = ${req.userId}
+    `
+
+    const completesAt = new Date(Date.now() + adv.duration_seconds * 1000).toISOString()
+
+    const inserted = await sql`
+      INSERT INTO pw_player_adventures (user_id, adventure_id, completes_at, rotation_seed_at_start)
+      VALUES (${req.userId}, ${adventure_id}, ${completesAt}, ${rotSeed})
+      RETURNING id, started_at, completes_at
+    `
+
+    return res.status(200).json({
+      success: true,
+      adventure: {
+        player_adventure_id: inserted[0].id,
+        adventure_id:        adv.id,
+        name:                adv.name,
+        description:         adv.description,
+        duration_seconds:    adv.duration_seconds,
+        started_at:          inserted[0].started_at,
+        completes_at:        inserted[0].completes_at,
+      },
+      stats: {
+        energy:     stats.energy,
+        energy_max: stats.energy_max,
+        health:     stats.health,
+        health_max: stats.health_max,
+        drachma:    stats.drachma,
+      },
+      pendingAdventureRewards: req.pendingAdventureRewards || null,
+    })
+  } catch (err) {
+    console.error('Adventures start error:', err)
+    return res.status(500).json({ error: 'Failed to start adventure' })
+  }
+}
+
+// ── Adventures Abandon (POST) ─────────────────────────────────────────────────
+
+async function handleAdventuresAbandon(req, res) {
+  if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' })
+
+  const { player_adventure_id: rawId } = req.body ?? {}
+  if (!rawId) return res.status(400).json({ error: 'player_adventure_id is required' })
+  const player_adventure_id = Number(rawId)
+
+  try {
+    const rows = await sql`
+      SELECT pa.id, pa.status, a.name
+      FROM pw_player_adventures pa
+      JOIN pw_adventures a ON a.id = pa.adventure_id
+      WHERE pa.id = ${player_adventure_id} AND pa.user_id = ${req.userId}
+      LIMIT 1
+    `
+    if (rows.length === 0) return res.status(404).json({ error: 'Adventure not found' })
+    if (rows[0].status !== 'active') return res.status(400).json({ error: 'adventure_not_active' })
+
+    await sql`
+      UPDATE pw_player_adventures SET status = 'abandoned'
+      WHERE id = ${player_adventure_id}
+    `
+
+    return res.status(200).json({
+      success:             true,
+      abandoned_adventure: rows[0].name,
+      pendingAdventureRewards: req.pendingAdventureRewards || null,
+    })
+  } catch (err) {
+    console.error('Adventures abandon error:', err)
+    return res.status(500).json({ error: 'Failed to abandon adventure' })
+  }
+}
+
+// ── Adventures Claim (POST) ───────────────────────────────────────────────────
+
+async function handleAdventuresClaim(req, res) {
+  if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' })
+
+  try {
+    // Auto-complete already ran in the top-level handler.
+    // If it fired, rewards are already in req.pendingAdventureRewards.
+    if (req.pendingAdventureRewards) {
+      return res.status(200).json({
+        success: true,
+        rewards: req.pendingAdventureRewards,
+        pendingAdventureRewards: req.pendingAdventureRewards,
+      })
+    }
+
+    // No auto-complete — check if an active adventure exists and is actually ready
+    const readyRows = await sql`
+      SELECT id, completes_at FROM pw_player_adventures
+      WHERE user_id = ${req.userId} AND status = 'active'
+      LIMIT 1
+    `
+    if (readyRows.length === 0) return res.status(400).json({ error: 'no_active_adventure' })
+    if (new Date(readyRows[0].completes_at) > new Date()) {
+      return res.status(400).json({ error: 'adventure_not_ready', completes_at: readyRows[0].completes_at })
+    }
+
+    // Edge case: adventure ready but auto-complete missed it — run manually
+    const rewards = await checkAndCompleteAdventures(sql, req.userId)
+    return res.status(200).json({
+      success: true,
+      rewards,
+      pendingAdventureRewards: rewards,
+    })
+  } catch (err) {
+    console.error('Adventures claim error:', err)
+    return res.status(500).json({ error: 'Failed to claim adventure rewards' })
   }
 }
 
@@ -1440,23 +1830,32 @@ async function handlePvPLog(req, res) {
 
 export default requireUser(async function handler(req, res) {
   const { action } = req.query
-  if (action === 'quests')            return handleQuests(req, res)
-  if (action === 'complete')          return handleComplete(req, res)
-  if (action === 'inventory')         return handleInventory(req, res)
-  if (action === 'equip')             return handleEquip(req, res)
-  if (action === 'unequip')           return handleUnequip(req, res)
-  if (action === 'sell')              return handleSell(req, res)
-  if (action === 'consume')           return handleConsume(req, res)
-  if (action === 'shop')              return handleShop(req, res)
-  if (action === 'buy')               return handleBuy(req, res)
-  if (action === 'leaderboard')       return handleLeaderboard(req, res)
-  if (action === 'allocate')          return handleAllocate(req, res)
-  if (action === 'temples')           return handleTemples(req, res)
-  if (action === 'temples_buy')       return handleTemplesBuy(req, res)
-  if (action === 'temples_upgrade')   return handleTemplesUpgrade(req, res)
-  if (action === 'alignment_choose')  return handleAlignmentChoose(req, res)
-  if (action === 'pvp_targets')       return handlePvPTargets(req, res)
-  if (action === 'pvp_attack')        return handlePvPAttack(req, res)
-  if (action === 'pvp_log')           return handlePvPLog(req, res)
+
+  // Auto-complete any expired adventure before processing any action
+  req.pendingAdventureRewards = null
+  try { req.pendingAdventureRewards = await checkAndCompleteAdventures(sql, req.userId) } catch {}
+
+  if (action === 'quests')             return handleQuests(req, res)
+  if (action === 'complete')           return handleComplete(req, res)
+  if (action === 'inventory')          return handleInventory(req, res)
+  if (action === 'equip')              return handleEquip(req, res)
+  if (action === 'unequip')            return handleUnequip(req, res)
+  if (action === 'sell')               return handleSell(req, res)
+  if (action === 'consume')            return handleConsume(req, res)
+  if (action === 'shop')               return handleShop(req, res)
+  if (action === 'buy')                return handleBuy(req, res)
+  if (action === 'leaderboard')        return handleLeaderboard(req, res)
+  if (action === 'allocate')           return handleAllocate(req, res)
+  if (action === 'temples')            return handleTemples(req, res)
+  if (action === 'temples_buy')        return handleTemplesBuy(req, res)
+  if (action === 'temples_upgrade')    return handleTemplesUpgrade(req, res)
+  if (action === 'alignment_choose')   return handleAlignmentChoose(req, res)
+  if (action === 'pvp_targets')        return handlePvPTargets(req, res)
+  if (action === 'pvp_attack')         return handlePvPAttack(req, res)
+  if (action === 'pvp_log')            return handlePvPLog(req, res)
+  if (action === 'adventures')         return handleAdventures(req, res)
+  if (action === 'adventures_start')   return handleAdventuresStart(req, res)
+  if (action === 'adventures_abandon') return handleAdventuresAbandon(req, res)
+  if (action === 'adventures_claim')   return handleAdventuresClaim(req, res)
   return res.status(400).json({ error: 'Unknown action' })
 })

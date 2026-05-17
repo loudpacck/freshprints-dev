@@ -28,6 +28,32 @@ const TIER_COLOR = {
 
 function fmt(n) { return Number(n).toLocaleString() }
 
+function fmtCountdown(secs) {
+  if (secs == null || secs < 0) return '--:--:--'
+  const h = Math.floor(secs / 3600)
+  const m = Math.floor((secs % 3600) / 60)
+  const s = secs % 60
+  return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`
+}
+
+function useRotationCountdown(expiresAtMs, onExpired) {
+  const [secsLeft, setSecsLeft] = useState(null)
+  const cbRef = useRef(onExpired)
+  useEffect(() => { cbRef.current = onExpired }, [onExpired])
+  useEffect(() => {
+    if (!expiresAtMs) { setSecsLeft(null); return }
+    const compute = () => Math.max(0, Math.floor((expiresAtMs - Date.now()) / 1000))
+    setSecsLeft(compute())
+    const id = setInterval(() => {
+      const s = compute()
+      setSecsLeft(s)
+      if (s <= 0) { cbRef.current?.(); clearInterval(id) }
+    }, 1000)
+    return () => clearInterval(id)
+  }, [expiresAtMs])
+  return secsLeft
+}
+
 function masteryPct(completions, target) {
   return target > 0 ? Math.min(100, Math.round((completions / target) * 100)) : 0
 }
@@ -312,6 +338,56 @@ function RewardToast({ reward, level, onDone }) {
   )
 }
 
+function AdventureRewardToast({ reward, onDone }) {
+  const { play } = useSound()
+  useEffect(() => {
+    play('adventureComplete')
+    const t = setTimeout(onDone, 4200)
+    return () => clearTimeout(t)
+  }, [onDone, play])
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: -16, scale: 0.96 }}
+      animate={{ opacity: 1, y: 0, scale: 1 }}
+      exit={{ opacity: 0, y: -12, scale: 0.96 }}
+      transition={{ duration: 0.28, ease: [0.16, 1, 0.3, 1] }}
+      style={{
+        position: 'fixed',
+        top: 'calc(env(safe-area-inset-top, 0px) + 52px)',
+        left: '50%',
+        transform: 'translateX(-50%)',
+        zIndex: 61,
+        background: 'linear-gradient(180deg, var(--color-bg-elevated, #14101A), var(--color-bg-base, #0A0710))',
+        backdropFilter: 'blur(16px)',
+        border: '2px solid rgba(210,150,80,0.5)',
+        borderRadius: 6,
+        padding: '10px 20px',
+        display: 'flex',
+        alignItems: 'center',
+        gap: 16,
+        whiteSpace: 'nowrap',
+        boxShadow: '0 0 20px rgba(210,150,80,0.35), 0 4px 24px rgba(0,0,0,0.6)',
+      }}
+    >
+      <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, letterSpacing: '0.1em', color: 'rgba(210,150,80,0.7)', textTransform: 'uppercase' }}>
+        ⚑ {reward.adventure_name}
+      </span>
+      <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 12, color: '#9B8AC4' }}>+{fmt(reward.xp)} XP</span>
+      <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 12, color: '#C9A961' }}>+{fmt(reward.drachma)} ₯</span>
+      {reward.loot && (
+        <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 12, color: '#22C55E' }}>
+          ◆ {reward.loot.name}
+        </span>
+      )}
+      {reward.levelsGained > 0 && (
+        <span style={{ fontFamily: "var(--pw-font-display, 'Cinzel', serif)", fontSize: 13, fontWeight: 700, letterSpacing: '0.08em', color: '#D4A437' }}>
+          ★ LEVEL UP!
+        </span>
+      )}
+    </motion.div>
+  )
+}
+
 // ─── Quests page ──────────────────────────────────────────────────────────────
 
 const fadeUp = {
@@ -328,8 +404,10 @@ export default function Quests() {
   const [stats,     setStats]     = useState(null)
   const [loading,   setLoading]   = useState(true)
   const [error,     setError]     = useState(null)
-  const [completing, setCompleting] = useState(null)  // quest id being completed
-  const [toast,     setToast]     = useState(null)    // { reward, levelsGained }
+  const [completing,       setCompleting]       = useState(null)
+  const [toast,            setToast]            = useState(null)
+  const [advToast,         setAdvToast]         = useState(null)
+  const [rotationExpiresAt, setRotationExpiresAt] = useState(null)
 
   // Track completions locally to avoid re-fetching the whole list
   const completionsRef = useRef({})
@@ -348,7 +426,8 @@ export default function Quests() {
       const data = await res.json()
       setQuests(data.quests)
       setStats(data.stats)
-      // Seed completions ref
+      if (data.rotation_expires_at) setRotationExpiresAt(data.rotation_expires_at)
+      if (data.pendingAdventureRewards) setAdvToast(data.pendingAdventureRewards)
       const map = {}
       for (const q of data.quests) map[q.id] = q.completions
       completionsRef.current = map
@@ -384,8 +463,8 @@ export default function Quests() {
         q.id === questId ? { ...q, completions: data.completions } : q
       ))
 
-      // Show reward toast
       setToast({ reward: data.rewards, levelsGained: data.levelsGained })
+      if (data.pendingAdventureRewards) setAdvToast(data.pendingAdventureRewards)
 
       // SFX
       play('questComplete')
@@ -407,15 +486,25 @@ export default function Quests() {
   }
   const activeTiers = TIER_META.filter(t => byTier[t.tier]?.length > 0)
 
+  const rotationSecsLeft = useRotationCountdown(rotationExpiresAt, fetchQuests)
+
   return (
     <>
-      {/* Reward toast */}
       <AnimatePresence>
         {toast && (
           <RewardToast
             reward={toast.reward}
             level={toast.levelsGained}
             onDone={() => setToast(null)}
+          />
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {advToast && (
+          <AdventureRewardToast
+            reward={advToast}
+            onDone={() => setAdvToast(null)}
           />
         )}
       </AnimatePresence>
@@ -448,6 +537,25 @@ export default function Quests() {
               animate="visible"
               variants={{ hidden: {}, visible: { transition: { staggerChildren: 0.06 } } }}
             >
+              {/* Rotation countdown */}
+              <motion.div variants={fadeUp} style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                marginBottom: 12,
+                padding: '6px 10px',
+                background: 'rgba(255,255,255,0.02)',
+                border: '1px solid rgba(255,255,255,0.05)',
+                borderRadius: 6,
+              }}>
+                <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 9, letterSpacing: '0.1em', color: 'rgba(240,240,248,0.28)', textTransform: 'uppercase' }}>
+                  Showing 5 of {quests.length + '+'} quests
+                </span>
+                <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 9, letterSpacing: '0.08em', color: 'rgba(240,240,248,0.32)' }}>
+                  Next refresh: {fmtCountdown(rotationSecsLeft)}
+                </span>
+              </motion.div>
+
               {/* Energy bar */}
               <motion.div variants={fadeUp}>
                 <EnergyBar energy={stats.energy} energyMax={stats.energy_max} />

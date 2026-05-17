@@ -210,7 +210,8 @@ const pantheonPack = {
   combatWin:     makeSfx('/sounds/pantheon_wars/combatWin.mp3',     0.7),
   combatLose:    makeSfx('/sounds/pantheon_wars/combatLose.mp3',    0.7),
   questComplete: makeSfx('/sounds/pantheon_wars/questComplete.mp3', 0.6),
-  templeUpgrade: makeSfx('/sounds/pantheon_wars/temple_upgrade.mp3', 0.6),
+  templeUpgrade:     makeSfx('/sounds/pantheon_wars/temple_upgrade.mp3', 0.6),
+  adventureComplete: success,
 }
 
 soundManager.registerPack('pantheon', pantheonPack)

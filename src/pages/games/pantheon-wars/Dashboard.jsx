@@ -12,6 +12,7 @@ const CLASS_LABEL   = { warden: 'Warden', oracle: 'Oracle', slayer: 'Slayer', br
 
 const NAV_ITEMS = [
   { label: 'QUESTS',      glyph: '⚔',  path: '/games/pantheon-wars/quests'      },
+  { label: 'ADVENTURES',  glyph: '⚑',  path: '/games/pantheon-wars/adventures'  },
   { label: 'INVENTORY',   glyph: '◈',  path: '/games/pantheon-wars/inventory'                   },
   { label: 'SHOP',        glyph: '₯',  path: '/games/pantheon-wars/shop'                         },
   { label: 'TEMPLES',     glyph: '⬟',  path: '/games/pantheon-wars/temples'      },
