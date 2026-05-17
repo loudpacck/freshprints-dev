@@ -92,7 +92,7 @@ function PantheonWarsShell() {
       soundManager.setActiveTheme(safe)
       const packMap = { digital: 'digital', retro: 'retro' }
       soundManager.setPack(packMap[safe] ?? null)
-      ambienceManager.pause()
+      ambienceManager.stop()
       musicManager.stop()
     }
   }, []) // eslint-disable-line react-hooks/exhaustive-deps

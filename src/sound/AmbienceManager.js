@@ -1,5 +1,5 @@
 // Handles the looping background ambience track.
-// Listens to fp-music-playback-change: pauses when music starts, resumes when music ends.
+// Listens to fp-music-playback-change: fades out when music starts, resumes when music ends.
 // Mute state persisted under fp-ambience-muted-pantheon.
 
 class AmbienceManager {
@@ -8,19 +8,20 @@ class AmbienceManager {
     this._src = null
     this._muted = this._loadMuted()
     this._pendingResume = false
-    this._musicPlaying = false // tracks live state of MusicManager via events
+    this._musicPlaying = false
+    this._retryCleanup = null  // cancels any pending interaction-retry listeners
 
     if (typeof window !== 'undefined') {
       window.addEventListener('fp-music-playback-change', (e) => {
         this._musicPlaying = e.detail.playing
         if (e.detail.playing) {
-          // Music started — arm resume flag and silence ambience if running
+          // Music started — fade out ambience and arm resume
           if (this._src) this._pendingResume = true
           if (this._audio && !this._audio.paused) {
-            this._audio.pause()
+            this._fadeOut(800)
           }
         } else {
-          // Music ended/stopped — start ambience if armed
+          // Music ended/stopped — resume ambience if armed
           if (this._pendingResume && this._src && !this._muted) {
             this._pendingResume = false
             this._playInternal()
@@ -71,6 +72,25 @@ class AmbienceManager {
     requestAnimationFrame(tick)
   }
 
+  _fadeOut(durationMs = 800) {
+    if (!this._audio) return
+    const startVol = this._audio.volume
+    const startTime = performance.now()
+    const audio = this._audio  // capture ref so async tick doesn't use a replaced element
+    const tick = (now) => {
+      if (this._audio !== audio) return  // element was replaced — stop
+      const progress = Math.min((now - startTime) / durationMs, 1)
+      audio.volume = startVol * (1 - progress)
+      if (progress < 1) {
+        requestAnimationFrame(tick)
+      } else {
+        audio.pause()
+        audio.volume = 0.125  // reset for when it resumes
+      }
+    }
+    requestAnimationFrame(tick)
+  }
+
   _playInternal() {
     if (!this._src) return
     this._ensureAudio(this._src)
@@ -80,19 +100,32 @@ class AmbienceManager {
     }
   }
 
-  // Called once on first user interaction if autoplay was blocked on initial play().
+  _cancelRetry() {
+    if (this._retryCleanup) {
+      this._retryCleanup()
+      this._retryCleanup = null
+    }
+  }
+
   _setupInteractionRetry() {
+    this._cancelRetry()
     const retry = () => {
+      this._retryCleanup = null
       if (this._src && !this._muted && !this._musicPlaying) {
         this._playInternal()
       }
     }
-    window.addEventListener('click',   retry, { once: true })
-    window.addEventListener('keydown', retry, { once: true })
+    window.addEventListener('click',    retry, { once: true })
+    window.addEventListener('keydown',  retry, { once: true })
     window.addEventListener('touchend', retry, { once: true })
+    this._retryCleanup = () => {
+      window.removeEventListener('click',    retry)
+      window.removeEventListener('keydown',  retry)
+      window.removeEventListener('touchend', retry)
+    }
   }
 
-  // Start looping ambience. Safe to call any time — handles all edge cases:
+  // Start looping ambience. Handles all edge cases:
   //   - music currently playing → arms _pendingResume instead of starting
   //   - autoplay blocked → registers one-time interaction retry
   //   - already playing same src → no-op
@@ -101,14 +134,12 @@ class AmbienceManager {
     this._ensureAudio(src)
 
     if (this._musicPlaying) {
-      // Music is active — arm resume so ambience starts when music ends
       this._pendingResume = true
       return
     }
 
     if (!this._muted && this._audio.paused) {
       this._audio.play().catch(err => {
-        // Autoplay blocked by browser policy — retry on first interaction
         if (err && err.name === 'NotAllowedError') {
           this._setupInteractionRetry()
         }
@@ -118,6 +149,7 @@ class AmbienceManager {
   }
 
   pause() {
+    this._cancelRetry()
     if (this._audio && !this._audio.paused) {
       this._audio.pause()
     }
@@ -129,14 +161,16 @@ class AmbienceManager {
     }
   }
 
+  // Full stop — clears src and cancels all pending state. Call when leaving the game.
   stop() {
+    this._cancelRetry()
+    this._pendingResume = false
     if (this._audio) {
       this._audio.pause()
       this._audio.currentTime = 0
       this._audio = null
     }
     this._src = null
-    this._pendingResume = false
   }
 
   setVolume(v) {
@@ -149,17 +183,14 @@ class AmbienceManager {
     this._muted = !this._muted
     this._saveMuted()
     if (this._muted) {
-      // Silence in-place
+      this._cancelRetry()
       if (this._audio) this._audio.volume = 0
     } else {
       if (this._audio && !this._audio.paused) {
-        // Audio was running silently; restore volume
         this._audio.volume = 0.125
       } else if (this._src && !this._musicPlaying) {
-        // Audio was stopped or blocked; start it now (user gesture present)
         this._playInternal()
       } else if (this._src && this._musicPlaying) {
-        // Music is playing; arm resume for when it ends
         this._pendingResume = true
       }
     }
