@@ -274,9 +274,22 @@ function PowerBadge({ targetPower, myPower }) {
   )
 }
 
-function TargetCard({ target, onAttack, isAttacking, myPowerRating }) {
+function TargetCard({ target, onAttack, isAttacking, myPowerRating, myStats }) {
   const factionColor = FACTION_COLOR[target.faction] ?? '#F0F0F8'
   const aColor = alignmentColor(target.alignment)
+
+  const energyCost   = myStats ? Math.max(1, Math.ceil(myStats.level / 10)) : 1
+  const noEnergy     = myStats && myStats.energy < energyCost
+  const tooInjured   = myStats && myStats.health <= 1
+  const btnDisabled  = isAttacking || noEnergy || tooInjured
+
+  const btnLabel = isAttacking
+    ? 'ATTACKING...'
+    : noEnergy
+      ? `NOT ENOUGH ENERGY (need ${energyCost}⚡)`
+      : tooInjured
+        ? 'TOO INJURED — HEAL FIRST'
+        : `⚔ ATTACK (${energyCost}⚡)`
 
   return (
     <motion.div
@@ -358,27 +371,27 @@ function TargetCard({ target, onAttack, isAttacking, myPowerRating }) {
 
       {/* Attack button */}
       <button
-        onClick={() => onAttack(target.user_id)}
-        disabled={isAttacking}
+        onClick={() => !btnDisabled && onAttack(target.user_id)}
+        disabled={btnDisabled}
         style={{
           width: '100%',
           padding: '10px 0',
-          background: isAttacking
-            ? 'rgba(239,68,68,0.1)'
+          background: btnDisabled
+            ? 'rgba(239,68,68,0.07)'
             : 'linear-gradient(135deg, #EF4444, #DC2626)',
-          border: 'none',
+          border: btnDisabled ? '1px solid rgba(239,68,68,0.15)' : 'none',
           borderRadius: 8,
           fontFamily: "'Bebas Neue', sans-serif",
-          fontSize: 15,
-          letterSpacing: '0.1em',
-          color: isAttacking ? 'rgba(240,240,248,0.35)' : '#F0F0F8',
-          cursor: isAttacking ? 'not-allowed' : 'pointer',
+          fontSize: 14,
+          letterSpacing: '0.08em',
+          color: btnDisabled ? 'rgba(240,240,248,0.28)' : '#F0F0F8',
+          cursor: btnDisabled ? 'not-allowed' : 'pointer',
           transition: 'opacity 150ms',
         }}
-        onMouseEnter={e => { if (!isAttacking) e.currentTarget.style.opacity = '0.85' }}
+        onMouseEnter={e => { if (!btnDisabled) e.currentTarget.style.opacity = '0.85' }}
         onMouseLeave={e => { e.currentTarget.style.opacity = '1' }}
       >
-        {isAttacking ? 'ATTACKING...' : '⚔ ATTACK'}
+        {btnLabel}
       </button>
     </motion.div>
   )
@@ -504,6 +517,9 @@ function CombatModal({ result, onClose }) {
 
         {/* Rewards/losses */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 20 }}>
+          {result.energy_cost != null && (
+            <ResultRow label="ENERGY SPENT" value={`-${result.energy_cost}⚡`} color="rgba(34,211,238,0.7)" />
+          )}
           {isWin && result.xp_earned > 0 && (
             <ResultRow label="XP EARNED" value={`+${fmt(result.xp_earned)}`} color="#9B8AC4" />
           )}
@@ -514,13 +530,13 @@ function CombatModal({ result, onClose }) {
             <ResultRow label="GLORY DEFENDED" value="+1" color="var(--color-warning, #D4A437)" />
           )}
           <ResultRow
-            label="YOUR HP LOST"
+            label={result.attacker_mitigation > 0.01 ? `YOUR HP LOST (${Math.round(result.attacker_mitigation * 100)}% mit.)` : 'YOUR HP LOST'}
             value={`-${result.attacker_health_lost}`}
             color="var(--color-danger, #B8443A)"
           />
           {isWin && result.defender_health_lost > 0 && (
             <ResultRow
-              label="THEIR HP LOST"
+              label={result.defender_mitigation > 0.01 ? `THEIR HP LOST (${Math.round(result.defender_mitigation * 100)}% mit.)` : 'THEIR HP LOST'}
               value={`-${result.defender_health_lost}`}
               color="var(--color-text-muted, #5C5446)"
             />
@@ -744,9 +760,9 @@ export default function PvP() {
       const data = await res.json()
       if (!res.ok) {
         const msgs = {
-          attacker_no_health:      'You have no health remaining. Wait for it to regenerate.',
+          not_enough_energy:       `Not enough energy. This attack costs ${data.energy_required ?? '?'}⚡.`,
+          attacker_no_health:      'You have no health remaining. Wait for regen or use a health potion.',
           defender_no_health:      'Target has no health. Pick another target.',
-          cooldown:                `Cooldown active — wait ${data.seconds_remaining}s before attacking this player again.`,
           requires_alignment:      'You must choose your alignment before attacking.',
           invalid_alignment_matchup: 'Invalid target — check alignment rules.',
           level_out_of_range:      'Target is out of your level range (±10).',
@@ -884,13 +900,22 @@ export default function PvP() {
                         </span>
                       </div>
                     )}
-                    {localStats.health <= 0 && (
+                    {localStats.health <= 1 && (
                       <p style={{
                         fontFamily: "'IBM Plex Mono', monospace", fontSize: 10,
                         letterSpacing: '0.08em', textTransform: 'uppercase',
                         color: '#F87171', marginTop: 10, marginBottom: 0,
                       }}>
-                        ⚠ No health — you cannot attack. Regenerates 1 HP every 3 minutes.
+                        ⚠ Critically injured — heal before attacking. Use a potion or wait for HP regen.
+                      </p>
+                    )}
+                    {localStats.health > 1 && localStats.health < localStats.health_max * 0.25 && (
+                      <p style={{
+                        fontFamily: "'IBM Plex Mono', monospace", fontSize: 10,
+                        letterSpacing: '0.08em', textTransform: 'uppercase',
+                        color: '#F59E0B', marginTop: 10, marginBottom: 0,
+                      }}>
+                        ⚠ Low HP — combat losses could be dangerous. Consider using a health potion.
                       </p>
                     )}
                   </motion.section>
@@ -969,6 +994,7 @@ export default function PvP() {
                             onAttack={handleAttack}
                             isAttacking={attacking === target.user_id}
                             myPowerRating={targetsData.my_power_rating}
+                            myStats={localStats}
                           />
                         ))}
                       </div>

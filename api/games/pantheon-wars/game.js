@@ -375,6 +375,75 @@ async function handleSell(req, res) {
   }
 }
 
+// ── Consume (POST) ────────────────────────────────────────────────────────────
+
+async function handleConsume(req, res) {
+  if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' })
+
+  const { inventory_id } = req.body ?? {}
+  if (!inventory_id) return res.status(400).json({ error: 'inventory_id is required' })
+
+  try {
+    const rows = await sql`
+      SELECT inv.id, i.slot, i.name, i.consumable_effect, i.consumable_value
+      FROM pw_inventory inv
+      JOIN pw_items i ON i.id = inv.item_id
+      WHERE inv.id = ${inventory_id} AND inv.user_id = ${req.userId}
+    `
+    if (rows.length === 0) return res.status(404).json({ error: 'Item not found in inventory' })
+    const item = rows[0]
+    if (item.slot !== 'consumable') return res.status(400).json({ error: 'not_consumable' })
+
+    const statsRows = await sql`SELECT * FROM pw_player_stats WHERE user_id = ${req.userId}`
+    if (statsRows.length === 0) return res.status(404).json({ error: 'Player not found' })
+    let stats = regenPlayer(statsRows[0])
+
+    let healthRestored = 0
+    let energyRestored = 0
+
+    if (item.consumable_effect === 'restore_health') {
+      if (stats.health >= stats.health_max) {
+        return res.status(400).json({ error: 'already_full_health' })
+      }
+      const value = item.consumable_value >= 9000 ? stats.health_max : item.consumable_value
+      healthRestored = Math.min(value, stats.health_max - stats.health)
+      stats = { ...stats, health: stats.health + healthRestored }
+    } else if (item.consumable_effect === 'restore_full') {
+      if (stats.health >= stats.health_max && stats.energy >= stats.energy_max) {
+        return res.status(400).json({ error: 'already_full' })
+      }
+      healthRestored = stats.health_max - stats.health
+      energyRestored = stats.energy_max - stats.energy
+      stats = { ...stats, health: stats.health_max, energy: stats.energy_max }
+    } else {
+      return res.status(400).json({ error: 'unknown_effect' })
+    }
+
+    await sql`DELETE FROM pw_inventory WHERE id = ${inventory_id}`
+    await sql`
+      UPDATE pw_player_stats SET
+        health       = ${stats.health},
+        energy       = ${stats.energy},
+        last_updated = ${stats.last_updated}
+      WHERE user_id = ${req.userId}
+    `
+
+    return res.status(200).json({
+      success: true,
+      consumed: { name: item.name, health_restored: healthRestored, energy_restored: energyRestored },
+      stats: {
+        health:     stats.health,
+        health_max: stats.health_max,
+        energy:     stats.energy,
+        energy_max: stats.energy_max,
+      },
+    })
+  } catch (err) {
+    console.error('Consume error:', err)
+    return res.status(500).json({ error: 'Failed to consume item' })
+  }
+}
+
 // ── Shop (GET) ────────────────────────────────────────────────────────────────
 
 async function handleShop(req, res) {
@@ -400,24 +469,32 @@ async function handleShop(req, res) {
 
     const items = await sql`
       SELECT id, name, description, slot, attack_bonus, defense_bonus,
-             rarity, level_required, faction_exclusive, buy_price, sell_price, glory_price
+             rarity, level_required, faction_exclusive, buy_price, sell_price, glory_price,
+             consumable_effect, consumable_value
       FROM pw_items
       WHERE buy_price IS NOT NULL OR glory_price IS NOT NULL
       ORDER BY slot, level_required, rarity
     `
 
-    // Drachma shop rotates daily — 8 items picked from common/uncommon/rare only.
-    // Epic/Legendary are PvP/quest-exclusive and never appear in the drachma shop.
-    const drachmaEligible = items.filter(i =>
+    // Drachma shop rotates daily — 8 items from common/uncommon/rare non-consumables.
+    // Consumables are always available (never enter the rotation pool).
+    const drachmaRotationPool = items.filter(i =>
       i.buy_price !== null &&
       i.level_required <= stats.level &&
-      ['common', 'uncommon', 'rare'].includes(i.rarity)
+      ['common', 'uncommon', 'rare'].includes(i.rarity) &&
+      i.slot !== 'consumable'
     )
-    const drachma_items   = pickRotatedItems(drachmaEligible, getShopRotationSeed(), 8)
-    const glory_items     = items.filter(i => i.glory_price !== null)
+    const rotation_items    = pickRotatedItems(drachmaRotationPool, getShopRotationSeed(), 8)
+    const always_available  = items.filter(i =>
+      i.slot === 'consumable' &&
+      i.buy_price !== null &&
+      i.level_required <= stats.level
+    )
+    const glory_items = items.filter(i => i.glory_price !== null)
 
     return res.status(200).json({
-      drachma_items,
+      rotation_items,
+      always_available,
       glory_items,
       rotation_expires_at: getShopRotationExpiry(),
       player: {
@@ -474,14 +551,15 @@ async function handleBuy(req, res) {
       return res.status(400).json({ error: `This item is exclusive to the ${item.faction_exclusive} faction` })
     }
 
-    // For drachma purchases, confirm the item is in today's rotated pool.
-    // Re-runs the same deterministic rotation the shop endpoint ran — no state needed.
-    if (currency === 'drachma') {
+    // For drachma purchases, confirm the item is either in today's rotated pool
+    // or is a consumable (always available, bypasses rotation).
+    if (currency === 'drachma' && item.slot !== 'consumable') {
       const eligibleRows = await sql`
         SELECT id FROM pw_items
         WHERE buy_price IS NOT NULL
           AND level_required <= ${player.level}
           AND rarity IN ('common', 'uncommon', 'rare')
+          AND slot != 'consumable'
       `
       const rotated = pickRotatedItems(eligibleRows, getShopRotationSeed(), 8)
       if (!rotated.some(r => r.id === item_id)) {
@@ -1047,11 +1125,6 @@ async function handlePvPTargets(req, res) {
           WHERE u.id != ${req.userId}
             AND ps.level >= ${minLevel} AND ps.level <= ${maxLevel}
             AND (u.alignment = 'compact' OR ps.level < 10)
-            AND NOT EXISTS (
-              SELECT 1 FROM pw_combat_log cl
-              WHERE cl.attacker_id = ${req.userId} AND cl.defender_id = u.id
-                AND cl.created_at > NOW() - INTERVAL '5 minutes'
-            )
         ) sub
         WHERE sub.health > 0
         ORDER BY sub.level DESC
@@ -1070,11 +1143,6 @@ async function handlePvPTargets(req, res) {
           WHERE u.id != ${req.userId}
             AND ps.level >= ${minLevel} AND ps.level <= ${maxLevel}
             AND (u.alignment = 'coalition' OR ps.level < 10)
-            AND NOT EXISTS (
-              SELECT 1 FROM pw_combat_log cl
-              WHERE cl.attacker_id = ${req.userId} AND cl.defender_id = u.id
-                AND cl.created_at > NOW() - INTERVAL '5 minutes'
-            )
         ) sub
         WHERE sub.health > 0
         ORDER BY sub.level DESC
@@ -1094,11 +1162,6 @@ async function handlePvPTargets(req, res) {
           WHERE u.id != ${req.userId}
             AND ps.level >= ${minLevel} AND ps.level <= ${maxLevel}
             AND ps.level < 10
-            AND NOT EXISTS (
-              SELECT 1 FROM pw_combat_log cl
-              WHERE cl.attacker_id = ${req.userId} AND cl.defender_id = u.id
-                AND cl.created_at > NOW() - INTERVAL '5 minutes'
-            )
         ) sub
         WHERE sub.health > 0
         ORDER BY sub.level DESC
@@ -1193,22 +1256,18 @@ async function handlePvPAttack(req, res) {
     let attStats = regenPlayer(attRows[0], attTemples)
     let defStats = regenPlayer(defRows[0], defTemples)
 
-    // Health checks (after regen)
+    // Energy cost: 1 per 10 levels, minimum 1
+    const energyCost = Math.max(1, Math.ceil(attStats.level / 10))
+    if (attStats.energy < energyCost) {
+      return res.status(400).json({ error: 'not_enough_energy', energy_required: energyCost })
+    }
+
+    // Health check — must be above minimum-1 floor to attack
     if (attStats.health <= 0) return res.status(400).json({ error: 'attacker_no_health' })
     if (defStats.health <= 0) return res.status(400).json({ error: 'defender_no_health' })
 
-    // Cooldown check
-    const coolRows = await sql`
-      SELECT created_at FROM pw_combat_log
-      WHERE attacker_id = ${req.userId} AND defender_id = ${target_user_id}
-        AND created_at > NOW() - INTERVAL '5 minutes'
-      ORDER BY created_at DESC LIMIT 1
-    `
-    if (coolRows.length > 0) {
-      const expiresAt  = new Date(new Date(coolRows[0].created_at).getTime() + 5 * 60 * 1000)
-      const secondsLeft = Math.max(0, Math.ceil((expiresAt - new Date()) / 1000))
-      return res.status(400).json({ error: 'cooldown', seconds_remaining: secondsLeft })
-    }
+    // Deduct energy before combat
+    attStats = { ...attStats, energy: attStats.energy - energyCost }
 
     // Equipment bonuses
     const [attEquip, defEquip] = await Promise.all([
@@ -1224,23 +1283,23 @@ async function handlePvPAttack(req, res) {
       defenderEquip: defEquip,
     })
 
-    // Apply outcomes — no drachma transfers in PvP
+    // Apply outcomes — HP clamped at 1 minimum, no drachma transfers
     if (combat.result === 'win') {
       attStats = {
         ...attStats,
         xp:             attStats.xp + combat.xp_earned,
         glory:          attStats.glory + combat.glory_earned,
         glory_lifetime: attStats.glory_lifetime + combat.glory_earned,
-        health:         Math.max(0, attStats.health - combat.attacker_health_lost),
+        health:         Math.max(1, attStats.health - combat.attacker_health_lost),
       }
       defStats = {
         ...defStats,
-        health: Math.max(0, defStats.health - combat.defender_health_lost),
+        health: Math.max(1, defStats.health - combat.defender_health_lost),
       }
     } else {
       attStats = {
         ...attStats,
-        health: Math.max(0, attStats.health - combat.attacker_health_lost),
+        health: Math.max(1, attStats.health - combat.attacker_health_lost),
       }
       defStats = {
         ...defStats,
@@ -1303,6 +1362,9 @@ async function handlePvPAttack(req, res) {
       glory_earned:         combat.glory_earned,
       attacker_health_lost: combat.attacker_health_lost,
       defender_health_lost: combat.defender_health_lost,
+      energy_cost:          energyCost,
+      attacker_mitigation:  combat.attacker_mitigation,
+      defender_mitigation:  combat.defender_mitigation,
       levelsGained,
       defender: {
         username:    defUser.username,
@@ -1390,6 +1452,7 @@ export default requireUser(async function handler(req, res) {
   if (action === 'equip')             return handleEquip(req, res)
   if (action === 'unequip')           return handleUnequip(req, res)
   if (action === 'sell')              return handleSell(req, res)
+  if (action === 'consume')           return handleConsume(req, res)
   if (action === 'shop')              return handleShop(req, res)
   if (action === 'buy')               return handleBuy(req, res)
   if (action === 'leaderboard')       return handleLeaderboard(req, res)

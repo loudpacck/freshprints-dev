@@ -17,15 +17,16 @@ const RARITY_COLOR = {
 }
 
 const SLOT_GLYPH = {
-  weapon:    '⚔',
-  armor:     '◈',
-  artifact:  '✦',
-  mount:     '◎',
-  companion: '◆',
+  weapon:     '⚔',
+  armor:      '◈',
+  artifact:   '✦',
+  mount:      '◎',
+  companion:  '◆',
+  consumable: '⚗',
 }
 
 const SLOTS = ['weapon', 'armor', 'artifact', 'mount', 'companion']
-const FILTER_TABS = ['ALL', ...SLOTS.map(s => s.toUpperCase())]
+const FILTER_TABS = ['ALL', ...SLOTS.map(s => s.toUpperCase()), 'CONSUMABLE']
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -100,7 +101,7 @@ function EquipSlot({ slot, item }) {
   )
 }
 
-function ItemCard({ item, onEquip, onUnequip, onSell, busy }) {
+function ItemCard({ item, onEquip, onUnequip, onSell, onConsume, busy }) {
   const rarityColor = RARITY_COLOR[item.rarity] ?? '#F0F0F8'
   const rgb = hexRgb(rarityColor)
 
@@ -207,7 +208,14 @@ function ItemCard({ item, onEquip, onUnequip, onSell, busy }) {
 
       {/* Right: actions */}
       <div style={{ flexShrink: 0, display: 'flex', flexDirection: 'column', gap: 6 }}>
-        {item.equipped ? (
+        {item.slot === 'consumable' ? (
+          <ActionBtn
+            label="USE"
+            color="#22D3EE"
+            onClick={() => onConsume(item.inventory_id)}
+            disabled={busy}
+          />
+        ) : item.equipped ? (
           <ActionBtn
             label="UNEQUIP"
             color="#F97316"
@@ -223,7 +231,7 @@ function ItemCard({ item, onEquip, onUnequip, onSell, busy }) {
           />
         )}
         <ActionBtn
-          label={`SELL`}
+          label="SELL"
           color={item.equipped ? 'rgba(240,240,248,0.18)' : 'rgba(240,240,248,0.35)'}
           onClick={() => !item.equipped && onSell(item.inventory_id, item.name, item.sell_price)}
           disabled={busy || item.equipped}
@@ -496,16 +504,50 @@ export default function Inventory() {
     } finally { setBusy(false) }
   }
 
+  async function handleConsume(inventory_id) {
+    setBusy(true)
+    try {
+      const res  = await fetch('/api/games/pantheon-wars/game?action=consume', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ inventory_id }),
+      })
+      const data = await res.json()
+      if (!res.ok) {
+        const msgs = {
+          already_full_health: 'Already at full HP.',
+          already_full:        'Already at full HP and Energy.',
+          not_consumable:      'Item is not a consumable.',
+        }
+        setToast({ message: msgs[data.error] || data.error || 'Failed to use item', color: '#F87171' })
+        return
+      }
+      setInventory(prev => prev.filter(i => i.inventory_id !== inventory_id))
+      if (data.consumed.health_restored > 0 || data.consumed.energy_restored > 0) {
+        const parts = []
+        if (data.consumed.health_restored > 0) parts.push(`+${data.consumed.health_restored} HP`)
+        if (data.consumed.energy_restored  > 0) parts.push(`+${data.consumed.energy_restored} Energy`)
+        setToast({ message: `Used ${data.consumed.name} — ${parts.join(', ')}`, color: '#22D3EE' })
+      }
+      play('success')
+      refreshContext()
+    } finally { setBusy(false) }
+  }
+
   // Build equipped item map for slots display
   const equippedBySlot = {}
   for (const item of inventory) {
     if (item.equipped) equippedBySlot[item.slot] = item
   }
 
-  // Filter list
+  // Filter list (ALL excludes consumables — they show in their own section)
+  const equipmentItems  = inventory.filter(i => i.slot !== 'consumable')
+  const consumableItems = inventory.filter(i => i.slot === 'consumable')
   const filtered = filter === 'ALL'
-    ? inventory
-    : inventory.filter(i => i.slot === filter.toLowerCase())
+    ? equipmentItems
+    : filter === 'CONSUMABLE'
+      ? consumableItems
+      : inventory.filter(i => i.slot === filter.toLowerCase())
 
   return (
     <>
@@ -662,6 +704,7 @@ export default function Inventory() {
                         onEquip={handleEquip}
                         onUnequip={handleUnequip}
                         onSell={handleSellClick}
+                        onConsume={handleConsume}
                         busy={busy}
                       />
                     ))}
@@ -669,7 +712,7 @@ export default function Inventory() {
                 )}
               </AnimatePresence>
 
-              {inventory.length === 0 && !loading && (
+              {equipmentItems.length === 0 && consumableItems.length === 0 && !loading && (
                 <motion.div
                   variants={fadeUp}
                   style={{

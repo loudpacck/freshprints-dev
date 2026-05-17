@@ -19,11 +19,12 @@ const RARITY_COLOR = {
 const RARITY_ORDER = ['common', 'uncommon', 'rare', 'epic', 'legendary']
 
 const SLOT_GLYPH = {
-  weapon:    '⚔',
-  armor:     '◈',
-  artifact:  '✦',
-  mount:     '◎',
-  companion: '◆',
+  weapon:     '⚔',
+  armor:      '◈',
+  artifact:   '✦',
+  mount:      '◎',
+  companion:  '◆',
+  consumable: '⚗',
 }
 
 const FACTION_COLOR = { olympians: '#E8D080', aesir: '#8AB8D4', annunaki: '#C25E3C' }
@@ -241,7 +242,8 @@ export default function Shop() {
   const navigate = useNavigate()
   const { play } = useSound()
 
-  const [drachmaItems,      setDrachmaItems]      = useState([])
+  const [rotationItems,     setRotationItems]     = useState([])
+  const [alwaysAvailable,  setAlwaysAvailable]  = useState([])
   const [gloryItems,        setGloryItems]        = useState([])
   const [player,            setPlayer]            = useState(null)
   const [loading,           setLoading]           = useState(true)
@@ -264,7 +266,8 @@ export default function Shop() {
       if (res.status === 401) { navigate('/games/pantheon-wars/login', { replace: true }); return }
       if (!res.ok) { setError('Failed to load shop.'); return }
       const data = await res.json()
-      setDrachmaItems(data.drachma_items)
+      setRotationItems(data.rotation_items ?? [])
+      setAlwaysAvailable(data.always_available ?? [])
       setGloryItems(data.glory_items)
       setPlayer(data.player)
       if (data.rotation_expires_at) setRotationExpiresAt(data.rotation_expires_at)
@@ -325,10 +328,8 @@ export default function Shop() {
     } finally { setBuying(null) }
   }
 
-  const items       = tab === 'drachma' ? drachmaItems : gloryItems
-  const currLabel   = tab === 'drachma' ? '₯' : '★'
-  const balance     = player ? (tab === 'drachma' ? player.drachma : player.glory) : 0
-  const balColor    = tab === 'drachma' ? '#C9A961' : '#FBBF24'
+  const items     = tab === 'drachma' ? rotationItems : gloryItems
+  const balance   = player ? (tab === 'drachma' ? player.drachma : player.glory) : 0
 
   return (
     <>
@@ -394,7 +395,7 @@ export default function Shop() {
                 style={{ display: 'flex', gap: 8, marginBottom: 22 }}
               >
                 {[
-                  { key: 'drachma', label: '₯ DRACHMA SHOP', count: drachmaItems.length },
+                  { key: 'drachma', label: '₯ DRACHMA SHOP', count: rotationItems.length },
                   { key: 'glory',   label: '★ GLORY SHOP',   count: gloryItems.length },
                 ].map(t => (
                   <button
@@ -485,6 +486,37 @@ export default function Shop() {
                     }}>
                       // No items available.
                     </p>
+                  )}
+
+                  {/* Potions section — always shown in drachma tab */}
+                  {tab === 'drachma' && alwaysAvailable.length > 0 && (
+                    <>
+                      <div style={{
+                        marginTop: 12,
+                        paddingTop: 18,
+                        borderTop: '1px solid rgba(34,211,238,0.12)',
+                      }}>
+                        <p style={{
+                          fontFamily: "'IBM Plex Mono', monospace",
+                          fontSize: 9, letterSpacing: '0.16em', textTransform: 'uppercase',
+                          color: 'rgba(34,211,238,0.45)', marginBottom: 12,
+                        }}>
+                          ⚗ POTIONS — ALWAYS AVAILABLE
+                        </p>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                          {alwaysAvailable.map(item => (
+                            <ShopItem
+                              key={item.id}
+                              item={item}
+                              player={player}
+                              currency="drachma"
+                              onBuy={handleBuy}
+                              buying={buying === item.id}
+                            />
+                          ))}
+                        </div>
+                      </div>
+                    </>
                   )}
                 </motion.div>
               </AnimatePresence>
