@@ -5,7 +5,7 @@ export const siteStatus = {
   projects: [
     { name: 'Predictinator', status: 'ACTIVE',         note: 'Live and iterating' },
     { name: 'Plutus',        status: 'BETA',           note: 'Private beta' },
-    { name: 'Pantheon UE5',  status: 'IN_DEVELOPMENT', note: 'In development' },
+    { name: 'Pantheon UE5',  status: 'ACTIVE',         note: 'Active development' },
     { name: 'Jogger',        status: 'IN_DEVELOPMENT', note: 'UE5 endless runner — early development' },
     { name: 'Hot Potato',    status: 'ACTIVE',         note: '2,000+ monthly players on Roblox' },
     { name: 'Architect',     status: 'BETA',           note: 'AI drawing validation — working demo' },

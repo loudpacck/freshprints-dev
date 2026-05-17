@@ -9,6 +9,7 @@ export const experiments = [
     category: 'ai',
     component: 'PredictinatorWidget',
     accentColor: '#00C8FF',
+    thumbnail: '/thumbnails/predictinator/predictinator thumbnail.png',
   },
   {
     slug: 'plutus',
@@ -20,6 +21,7 @@ export const experiments = [
     category: 'software',
     component: 'PlutusSimulator',
     accentColor: '#22C55E',
+    thumbnail: null,
   },
   {
     slug: 'architect',
@@ -31,6 +33,7 @@ export const experiments = [
     category: 'ai',
     component: 'ArchitectDemo',
     accentColor: '#8B5CF6',
+    thumbnail: '/thumbnails/architect/archie tb.png',
   },
   {
     slug: 'cad-viewer',
@@ -42,12 +45,13 @@ export const experiments = [
     category: 'engineering',
     component: 'CADViewer',
     accentColor: '#A0A0B8',
+    thumbnail: null,
   },
   {
     slug: 'pantheon-wars',
     name: 'Pantheon Wars',
     shortName: 'PANTHEON WARS',
-    status: 'IN_DEVELOPMENT',
+    status: 'ACTIVE',
     classification: 'LIVE BROWSER GAME',
     description: 'A persistent multiplayer text RPG inspired by classic browser games. Choose a faction (Olympians, Aesir, Annunaki), pick a class, and rise through quest tiers earning XP, drachma, and glory. 40+ quests across 5 tiers with full leveling, regen mechanics, and faction/class bonuses. Built end to end — auth, database, game logic, UI.',
     category: 'games',
@@ -55,6 +59,7 @@ export const experiments = [
     accentColor: '#FFB347',
     external: true,
     externalUrl: '/games/pantheon-wars',
+    thumbnail: '/thumbnails/pantheon_wars/pantheon_wars.png',
   },
 ]
 

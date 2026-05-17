@@ -52,18 +52,28 @@ function ExperimentCard({ experiment }) {
         justifyContent: 'center',
         flexShrink: 0,
         position: 'relative',
+        overflow: 'hidden',
       }}>
-        <span style={{
-          fontFamily: 'var(--font-mono)',
-          fontSize: 'var(--text-2xl)',
-          fontWeight: 'var(--weight-bold)',
-          color: experiment.accentColor,
-          opacity: 0.35,
-          letterSpacing: '0.1em',
-          textTransform: 'uppercase',
-        }}>
-          {experiment.shortName}
-        </span>
+        {experiment.thumbnail ? (
+          <img
+            src={experiment.thumbnail}
+            alt={experiment.name}
+            style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+            onError={e => { e.currentTarget.style.display = 'none' }}
+          />
+        ) : (
+          <span style={{
+            fontFamily: 'var(--font-mono)',
+            fontSize: 'var(--text-2xl)',
+            fontWeight: 'var(--weight-bold)',
+            color: experiment.accentColor,
+            opacity: 0.35,
+            letterSpacing: '0.1em',
+            textTransform: 'uppercase',
+          }}>
+            {experiment.shortName}
+          </span>
+        )}
         {/* Status badge */}
         <div style={{
           position: 'absolute',
