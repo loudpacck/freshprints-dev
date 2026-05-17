@@ -82,8 +82,11 @@ function PantheonWarsShell() {
     soundManager.setPack('pantheon')
 
     if (cameFromOutside) {
-      // Arm ambience — AmbienceManager starts it automatically when intro song ends.
+      // Arm only — intro music triggers start via fp-music-playback-change event chain.
       ambienceManager.setSrc('/sounds/pantheon_wars/ambience.mp3')
+    } else {
+      // No intro sequence — start ambience immediately.
+      ambienceManager.play('/sounds/pantheon_wars/ambience.mp3')
     }
 
     return () => {

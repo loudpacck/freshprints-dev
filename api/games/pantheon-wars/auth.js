@@ -93,7 +93,8 @@ async function handleLogin(req, res) {
 
     const statsRows = await sql`
       SELECT level, xp, energy, energy_max, health, health_max,
-             drachma, drachma_lifetime, glory, attack, defense, stat_points, last_updated
+             drachma, drachma_lifetime, glory, attack, defense, stat_points, last_updated,
+             energy_regen_base, health_regen_base
       FROM pw_player_stats
       WHERE user_id = ${user.id}
     `
@@ -133,7 +134,7 @@ async function handleMe(req, res) {
         u.created_at, u.last_login,
         s.level, s.xp, s.energy, s.energy_max, s.health, s.health_max,
         s.drachma, s.drachma_lifetime, s.glory, s.glory_lifetime, s.attack, s.defense,
-        s.stat_points, s.last_updated
+        s.stat_points, s.last_updated, s.energy_regen_base, s.health_regen_base
       FROM pw_users u
       JOIN pw_player_stats s ON s.user_id = u.id
       WHERE u.id = ${req.userId}
@@ -150,13 +151,21 @@ async function handleMe(req, res) {
       glory: row.glory, glory_lifetime: row.glory_lifetime,
       attack: row.attack, defense: row.defense,
       stat_points: row.stat_points, last_updated: row.last_updated,
+      energy_regen_base: row.energy_regen_base, health_regen_base: row.health_regen_base,
     }
 
     const statsRegen = regenPlayer(statsRaw)
-    if (statsRegen.energy !== statsRaw.energy || statsRegen.health !== statsRaw.health) {
+    if (
+      statsRegen.energy !== statsRaw.energy ||
+      statsRegen.health !== statsRaw.health ||
+      statsRegen.energy_regen_base !== statsRaw.energy_regen_base ||
+      statsRegen.health_regen_base !== statsRaw.health_regen_base
+    ) {
       await sql`
         UPDATE pw_player_stats
         SET energy = ${statsRegen.energy}, health = ${statsRegen.health},
+            energy_regen_base = ${statsRegen.energy_regen_base},
+            health_regen_base = ${statsRegen.health_regen_base},
             last_updated = ${statsRegen.last_updated}
         WHERE user_id = ${req.userId}
       `

@@ -21,10 +21,17 @@ async function handleQuests(req, res) {
 
     let stats = regenPlayer(statsRows[0])
 
-    if (stats.energy !== statsRows[0].energy || stats.health !== statsRows[0].health) {
+    if (
+      stats.energy !== statsRows[0].energy || stats.health !== statsRows[0].health ||
+      stats.energy_regen_base !== statsRows[0].energy_regen_base ||
+      stats.health_regen_base !== statsRows[0].health_regen_base
+    ) {
       await sql`
         UPDATE pw_player_stats
-        SET energy = ${stats.energy}, health = ${stats.health}, last_updated = ${stats.last_updated}
+        SET energy = ${stats.energy}, health = ${stats.health},
+            energy_regen_base = ${stats.energy_regen_base},
+            health_regen_base = ${stats.health_regen_base},
+            last_updated = ${stats.last_updated}
         WHERE user_id = ${req.userId}
       `
     }
@@ -72,7 +79,8 @@ async function handleComplete(req, res) {
         u.faction, u.class,
         s.user_id, s.level, s.xp, s.energy, s.energy_max,
         s.health, s.health_max, s.drachma, s.drachma_lifetime,
-        s.glory, s.glory_lifetime, s.attack, s.defense, s.stat_points, s.last_updated
+        s.glory, s.glory_lifetime, s.attack, s.defense, s.stat_points, s.last_updated,
+        s.energy_regen_base, s.health_regen_base
       FROM pw_users u
       JOIN pw_player_stats s ON s.user_id = u.id
       WHERE u.id = ${req.userId}
@@ -198,17 +206,19 @@ async function handleComplete(req, res) {
 
     await sql`
       UPDATE pw_player_stats SET
-        energy           = ${stats.energy},
-        energy_max       = ${stats.energy_max},
-        health           = ${stats.health},
-        health_max       = ${stats.health_max},
-        xp               = ${stats.xp},
-        level            = ${stats.level},
-        drachma          = ${stats.drachma},
-        drachma_lifetime = ${stats.drachma_lifetime},
-        glory_lifetime   = ${stats.glory_lifetime},
-        stat_points      = ${stats.stat_points},
-        last_updated     = ${stats.last_updated}
+        energy             = ${stats.energy},
+        energy_max         = ${stats.energy_max},
+        health             = ${stats.health},
+        health_max         = ${stats.health_max},
+        xp                 = ${stats.xp},
+        level              = ${stats.level},
+        drachma            = ${stats.drachma},
+        drachma_lifetime   = ${stats.drachma_lifetime},
+        glory_lifetime     = ${stats.glory_lifetime},
+        stat_points        = ${stats.stat_points},
+        energy_regen_base  = ${stats.energy_regen_base},
+        health_regen_base  = ${stats.health_regen_base},
+        last_updated       = ${stats.last_updated}
       WHERE user_id = ${req.userId}
     `
 
@@ -255,10 +265,17 @@ async function handleInventory(req, res) {
     if (statsRows.length === 0) return res.status(404).json({ error: 'Player not found' })
 
     let stats = regenPlayer(statsRows[0])
-    if (stats.energy !== statsRows[0].energy || stats.health !== statsRows[0].health) {
+    if (
+      stats.energy !== statsRows[0].energy || stats.health !== statsRows[0].health ||
+      stats.energy_regen_base !== statsRows[0].energy_regen_base ||
+      stats.health_regen_base !== statsRows[0].health_regen_base
+    ) {
       await sql`
         UPDATE pw_player_stats
-        SET energy = ${stats.energy}, health = ${stats.health}, last_updated = ${stats.last_updated}
+        SET energy = ${stats.energy}, health = ${stats.health},
+            energy_regen_base = ${stats.energy_regen_base},
+            health_regen_base = ${stats.health_regen_base},
+            last_updated = ${stats.last_updated}
         WHERE user_id = ${req.userId}
       `
     }
@@ -503,9 +520,11 @@ async function handleConsume(req, res) {
     await sql`DELETE FROM pw_inventory WHERE id = ${inventory_id}`
     await sql`
       UPDATE pw_player_stats SET
-        health       = ${stats.health},
-        energy       = ${stats.energy},
-        last_updated = ${stats.last_updated}
+        health            = ${stats.health},
+        energy            = ${stats.energy},
+        energy_regen_base = ${stats.energy_regen_base},
+        health_regen_base = ${stats.health_regen_base},
+        last_updated      = ${stats.last_updated}
       WHERE user_id = ${req.userId}
     `
 
@@ -541,10 +560,17 @@ async function handleShop(req, res) {
     if (rows.length === 0) return res.status(404).json({ error: 'Player not found' })
 
     let stats = regenPlayer(rows[0])
-    if (stats.energy !== rows[0].energy || stats.health !== rows[0].health) {
+    if (
+      stats.energy !== rows[0].energy || stats.health !== rows[0].health ||
+      stats.energy_regen_base !== rows[0].energy_regen_base ||
+      stats.health_regen_base !== rows[0].health_regen_base
+    ) {
       await sql`
         UPDATE pw_player_stats
-        SET energy = ${stats.energy}, health = ${stats.health}, last_updated = ${stats.last_updated}
+        SET energy = ${stats.energy}, health = ${stats.health},
+            energy_regen_base = ${stats.energy_regen_base},
+            health_regen_base = ${stats.health_regen_base},
+            last_updated = ${stats.last_updated}
         WHERE user_id = ${req.userId}
       `
     }
@@ -814,7 +840,8 @@ async function handleAllocate(req, res) {
   try {
     const rows = await sql`
       SELECT stat_points, attack, defense, glory, glory_lifetime,
-             energy, energy_max, health, health_max, last_updated
+             energy, energy_max, health, health_max, last_updated,
+             energy_regen_base, health_regen_base
       FROM pw_player_stats
       WHERE user_id = ${req.userId}
     `
@@ -840,15 +867,17 @@ async function handleAllocate(req, res) {
 
     await sql`
       UPDATE pw_player_stats SET
-        attack         = ${newAttack},
-        defense        = ${newDefense},
-        energy_max     = ${newEnergyMax},
-        health_max     = ${newHealthMax},
-        stat_points    = ${newStatPoints},
-        glory_lifetime = ${stats.glory_lifetime},
-        energy         = ${newEnergy},
-        health         = ${newHealth},
-        last_updated   = ${stats.last_updated}
+        attack             = ${newAttack},
+        defense            = ${newDefense},
+        energy_max         = ${newEnergyMax},
+        health_max         = ${newHealthMax},
+        stat_points        = ${newStatPoints},
+        glory_lifetime     = ${stats.glory_lifetime},
+        energy             = ${newEnergy},
+        health             = ${newHealth},
+        energy_regen_base  = ${stats.energy_regen_base},
+        health_regen_base  = ${stats.health_regen_base},
+        last_updated       = ${stats.last_updated}
       WHERE user_id = ${req.userId}
     `
 
@@ -922,19 +951,23 @@ async function handleTemples(req, res) {
     let stats = regenPlayer(statsRows[0], owned)
 
     if (
-      stats.energy           !== statsRows[0].energy   ||
-      stats.health           !== statsRows[0].health   ||
-      stats.drachma          !== statsRows[0].drachma  ||
-      stats.drachma_lifetime !== statsRows[0].drachma_lifetime
+      stats.energy             !== statsRows[0].energy   ||
+      stats.health             !== statsRows[0].health   ||
+      stats.drachma            !== statsRows[0].drachma  ||
+      stats.drachma_lifetime   !== statsRows[0].drachma_lifetime ||
+      stats.energy_regen_base  !== statsRows[0].energy_regen_base ||
+      stats.health_regen_base  !== statsRows[0].health_regen_base
     ) {
       await sql`
         UPDATE pw_player_stats
-        SET energy           = ${stats.energy},
-            health           = ${stats.health},
-            drachma          = ${stats.drachma},
-            drachma_lifetime = ${stats.drachma_lifetime},
-            glory_lifetime   = ${stats.glory_lifetime},
-            last_updated     = ${stats.last_updated}
+        SET energy             = ${stats.energy},
+            health             = ${stats.health},
+            drachma            = ${stats.drachma},
+            drachma_lifetime   = ${stats.drachma_lifetime},
+            glory_lifetime     = ${stats.glory_lifetime},
+            energy_regen_base  = ${stats.energy_regen_base},
+            health_regen_base  = ${stats.health_regen_base},
+            last_updated       = ${stats.last_updated}
         WHERE user_id = ${req.userId}
       `
     }
@@ -1026,12 +1059,14 @@ async function handleTemplesBuy(req, res) {
 
     await sql`
       UPDATE pw_player_stats
-      SET drachma          = ${stats.drachma},
-          drachma_lifetime = ${stats.drachma_lifetime},
-          glory_lifetime   = ${stats.glory_lifetime},
-          energy           = ${stats.energy},
-          health           = ${stats.health},
-          last_updated     = ${stats.last_updated}
+      SET drachma            = ${stats.drachma},
+          drachma_lifetime   = ${stats.drachma_lifetime},
+          glory_lifetime     = ${stats.glory_lifetime},
+          energy             = ${stats.energy},
+          health             = ${stats.health},
+          energy_regen_base  = ${stats.energy_regen_base},
+          health_regen_base  = ${stats.health_regen_base},
+          last_updated       = ${stats.last_updated}
       WHERE user_id = ${req.userId}
     `
 
@@ -1092,12 +1127,14 @@ async function handleTemplesUpgrade(req, res) {
 
     await sql`
       UPDATE pw_player_stats
-      SET drachma          = ${stats.drachma},
-          drachma_lifetime = ${stats.drachma_lifetime},
-          glory_lifetime   = ${stats.glory_lifetime},
-          energy           = ${stats.energy},
-          health           = ${stats.health},
-          last_updated     = ${stats.last_updated}
+      SET drachma            = ${stats.drachma},
+          drachma_lifetime   = ${stats.drachma_lifetime},
+          glory_lifetime     = ${stats.glory_lifetime},
+          energy             = ${stats.energy},
+          health             = ${stats.health},
+          energy_regen_base  = ${stats.energy_regen_base},
+          health_regen_base  = ${stats.health_regen_base},
+          last_updated       = ${stats.last_updated}
       WHERE user_id = ${req.userId}
     `
 
@@ -1132,7 +1169,8 @@ async function handleAlignmentChoose(req, res) {
     const rows = await sql`
       SELECT u.alignment, ps.level, ps.energy, ps.energy_max, ps.health, ps.health_max,
              ps.drachma, ps.drachma_lifetime, ps.glory, ps.glory_lifetime,
-             ps.xp, ps.attack, ps.defense, ps.stat_points, ps.last_updated
+             ps.xp, ps.attack, ps.defense, ps.stat_points, ps.last_updated,
+             ps.energy_regen_base, ps.health_regen_base
       FROM pw_users u
       JOIN pw_player_stats ps ON ps.user_id = u.id
       WHERE u.id = ${req.userId}
@@ -1182,7 +1220,8 @@ async function handlePvPTargets(req, res) {
     const userRows = await sql`
       SELECT u.alignment, ps.level, ps.energy, ps.energy_max, ps.health, ps.health_max,
              ps.drachma, ps.drachma_lifetime, ps.glory, ps.glory_lifetime,
-             ps.xp, ps.attack, ps.defense, ps.stat_points, ps.last_updated
+             ps.xp, ps.attack, ps.defense, ps.stat_points, ps.last_updated,
+             ps.energy_regen_base, ps.health_regen_base
       FROM pw_users u
       JOIN pw_player_stats ps ON ps.user_id = u.id
       WHERE u.id = ${req.userId}
@@ -1302,7 +1341,8 @@ async function handlePvPAttack(req, res) {
       SELECT u.id, u.faction, u.class, u.alignment,
              ps.level, ps.xp, ps.energy, ps.energy_max,
              ps.health, ps.health_max, ps.drachma, ps.drachma_lifetime,
-             ps.glory, ps.glory_lifetime, ps.attack, ps.defense, ps.stat_points, ps.last_updated
+             ps.glory, ps.glory_lifetime, ps.attack, ps.defense, ps.stat_points, ps.last_updated,
+             ps.energy_regen_base, ps.health_regen_base
       FROM pw_users u JOIN pw_player_stats ps ON ps.user_id = u.id
       WHERE u.id = ${req.userId}
     `
@@ -1401,18 +1441,20 @@ async function handlePvPAttack(req, res) {
 
     await sql`
       UPDATE pw_player_stats SET
-        xp               = ${attStats.xp},
-        level            = ${attStats.level},
-        energy           = ${attStats.energy},
-        energy_max       = ${attStats.energy_max},
-        health           = ${attStats.health},
-        health_max       = ${attStats.health_max},
-        drachma          = ${attStats.drachma},
-        drachma_lifetime = ${attStats.drachma_lifetime},
-        glory            = ${attStats.glory},
-        glory_lifetime   = ${attStats.glory_lifetime},
-        stat_points      = ${attStats.stat_points},
-        last_updated     = ${attStats.last_updated}
+        xp                 = ${attStats.xp},
+        level              = ${attStats.level},
+        energy             = ${attStats.energy},
+        energy_max         = ${attStats.energy_max},
+        health             = ${attStats.health},
+        health_max         = ${attStats.health_max},
+        drachma            = ${attStats.drachma},
+        drachma_lifetime   = ${attStats.drachma_lifetime},
+        glory              = ${attStats.glory},
+        glory_lifetime     = ${attStats.glory_lifetime},
+        stat_points        = ${attStats.stat_points},
+        energy_regen_base  = ${attStats.energy_regen_base},
+        health_regen_base  = ${attStats.health_regen_base},
+        last_updated       = ${attStats.last_updated}
       WHERE user_id = ${req.userId}
     `
 
@@ -1541,7 +1583,8 @@ async function handleAdventures(req, res) {
         u.faction, u.class AS player_class,
         ps.level, ps.xp, ps.energy, ps.energy_max,
         ps.health, ps.health_max, ps.drachma, ps.drachma_lifetime,
-        ps.glory, ps.glory_lifetime, ps.attack, ps.defense, ps.stat_points, ps.last_updated
+        ps.glory, ps.glory_lifetime, ps.attack, ps.defense, ps.stat_points, ps.last_updated,
+        ps.energy_regen_base, ps.health_regen_base
       FROM pw_users u
       JOIN pw_player_stats ps ON ps.user_id = u.id
       WHERE u.id = ${req.userId}
@@ -1552,17 +1595,21 @@ async function handleAdventures(req, res) {
     let stats = regenPlayer(rows[0], ownedTemples)
 
     if (
-      stats.energy  !== rows[0].energy  ||
-      stats.health  !== rows[0].health  ||
-      stats.drachma !== rows[0].drachma
+      stats.energy             !== rows[0].energy  ||
+      stats.health             !== rows[0].health  ||
+      stats.drachma            !== rows[0].drachma ||
+      stats.energy_regen_base  !== rows[0].energy_regen_base ||
+      stats.health_regen_base  !== rows[0].health_regen_base
     ) {
       await sql`
         UPDATE pw_player_stats
-        SET energy           = ${stats.energy},
-            health           = ${stats.health},
-            drachma          = ${stats.drachma},
-            drachma_lifetime = ${stats.drachma_lifetime},
-            last_updated     = ${stats.last_updated}
+        SET energy             = ${stats.energy},
+            health             = ${stats.health},
+            drachma            = ${stats.drachma},
+            drachma_lifetime   = ${stats.drachma_lifetime},
+            energy_regen_base  = ${stats.energy_regen_base},
+            health_regen_base  = ${stats.health_regen_base},
+            last_updated       = ${stats.last_updated}
         WHERE user_id = ${req.userId}
       `
     }
@@ -1665,7 +1712,8 @@ async function handleAdventuresStart(req, res) {
 
     const pRows = await sql`
       SELECT ps.level, ps.energy, ps.energy_max, ps.health, ps.health_max,
-             ps.drachma, ps.drachma_lifetime, ps.last_updated
+             ps.drachma, ps.drachma_lifetime, ps.last_updated,
+             ps.energy_regen_base, ps.health_regen_base
       FROM pw_player_stats ps
       WHERE ps.user_id = ${req.userId}
     `
@@ -1708,11 +1756,13 @@ async function handleAdventuresStart(req, res) {
 
     await sql`
       UPDATE pw_player_stats SET
-        energy           = ${stats.energy},
-        health           = ${stats.health},
-        drachma          = ${stats.drachma},
-        drachma_lifetime = ${stats.drachma_lifetime},
-        last_updated     = ${stats.last_updated}
+        energy             = ${stats.energy},
+        health             = ${stats.health},
+        drachma            = ${stats.drachma},
+        drachma_lifetime   = ${stats.drachma_lifetime},
+        energy_regen_base  = ${stats.energy_regen_base},
+        health_regen_base  = ${stats.health_regen_base},
+        last_updated       = ${stats.last_updated}
       WHERE user_id = ${req.userId}
     `
 

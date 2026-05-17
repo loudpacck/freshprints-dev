@@ -609,7 +609,7 @@ export default function Dashboard() {
                     color="#C9A961"
                     delay={0.2}
                     regenInterval={300}
-                    lastUpdated={stats.last_updated}
+                    lastUpdated={stats.energy_regen_base ?? stats.last_updated}
                     onTick={refresh}
                   />
                 </div>
@@ -621,7 +621,7 @@ export default function Dashboard() {
                     color="#EF4444"
                     delay={0.32}
                     regenInterval={180}
-                    lastUpdated={stats.last_updated}
+                    lastUpdated={stats.health_regen_base ?? stats.last_updated}
                     onTick={refresh}
                   />
                 </div>
