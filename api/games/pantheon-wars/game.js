@@ -1,6 +1,6 @@
 import { sql } from '../../../lib/db.js'
 import { requireUser } from '../../../lib/pwAuth.js'
-import { regenPlayer, checkLevelUp, getEquipmentBonuses, calculateCombat, calculatePowerRating, getShopRotationSeed, getShopRotationExpiry, pickRotatedItems } from '../../../lib/pwHelpers.js'
+import { regenPlayer, checkLevelUp, getEquipmentBonuses, calculateCombat, calculatePowerRating, getShopRotationSeed, getShopRotationExpiry, pickRotatedItems, getDailyRotationPool } from '../../../lib/pwHelpers.js'
 
 export const config = { runtime: 'nodejs' }
 
@@ -551,17 +551,11 @@ async function handleBuy(req, res) {
       return res.status(400).json({ error: `This item is exclusive to the ${item.faction_exclusive} faction` })
     }
 
-    // For drachma purchases, confirm the item is either in today's rotated pool
-    // or is a consumable (always available, bypasses rotation).
+    // For drachma purchases, confirm the item is in today's rotated pool.
+    // Uses getDailyRotationPool — same query + ORDER BY as handleShop GET — so the
+    // pool is always identical regardless of how many items the player bought this session.
     if (currency === 'drachma' && item.slot !== 'consumable') {
-      const eligibleRows = await sql`
-        SELECT id FROM pw_items
-        WHERE buy_price IS NOT NULL
-          AND level_required <= ${player.level}
-          AND rarity IN ('common', 'uncommon', 'rare')
-          AND slot != 'consumable'
-      `
-      const rotated = pickRotatedItems(eligibleRows, getShopRotationSeed(), 8)
+      const rotated = await getDailyRotationPool(sql, player.level)
       if (!rotated.some(r => r.id === item_id)) {
         return res.status(400).json({ error: 'item_not_in_rotation' })
       }

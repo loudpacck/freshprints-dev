@@ -99,12 +99,14 @@ class MusicManager {
     this._saveMuted()
     if (this._audio) {
       if (this._muted) {
-        // Pause audio; do NOT emit playback-change — ambience should not resume while music is just muted
+        // Pause audio and signal AmbienceManager so it can start fading in while music is silent.
         this._audio.pause()
+        this._emitPlaybackChange(false)
       } else {
-        // Unmuting: resume from paused position
+        // Unmuting: resume from paused position and re-signal so AmbienceManager pauses again.
         if (this._audio.paused && !this._audio.ended) {
           this._audio.play().catch(() => {})
+          this._emitPlaybackChange(true)
         }
       }
     }

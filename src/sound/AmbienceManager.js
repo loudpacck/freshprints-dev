@@ -56,11 +56,27 @@ class AmbienceManager {
     }
   }
 
+  // Fade in from 0 to target volume over durationMs. Respects mute state throughout.
+  _fadeIn(durationMs = 2000) {
+    if (!this._audio) return
+    const target = this._muted ? 0 : 0.125
+    this._audio.volume = 0
+    const startTime = performance.now()
+    const tick = (now) => {
+      if (!this._audio) return
+      const progress = Math.min((now - startTime) / durationMs, 1)
+      this._audio.volume = target * progress
+      if (progress < 1) requestAnimationFrame(tick)
+    }
+    requestAnimationFrame(tick)
+  }
+
   _playInternal() {
     if (!this._src) return
     this._ensureAudio(this._src)
     if (this._audio.paused) {
       this._audio.play().catch(() => {})
+      this._fadeIn()
     }
   }
 
@@ -76,6 +92,7 @@ class AmbienceManager {
     this._ensureAudio(src)
     if (!this._muted && this._audio.paused) {
       this._audio.play().catch(() => {})
+      this._fadeIn()
     }
   }
 
@@ -111,9 +128,16 @@ class AmbienceManager {
     this._muted = !this._muted
     this._saveMuted()
     if (this._muted) {
-      this.pause()
-    } else if (this._src) {
-      this._playInternal()
+      // Silence in-place — keep the audio element running so unmute restores instantly.
+      if (this._audio) this._audio.volume = 0
+    } else {
+      if (this._audio) {
+        // Audio is still running (volume was just 0); snap back to target volume.
+        this._audio.volume = 0.125
+      } else if (this._src) {
+        // Audio was fully stopped; restart with fade-in.
+        this._playInternal()
+      }
     }
     this._emitStateChange()
     return this._muted
