@@ -187,18 +187,34 @@ CREATE INDEX IF NOT EXISTS idx_pw_player_temples_user ON pw_player_temples(user_
 ALTER TABLE pw_player_stats ADD COLUMN IF NOT EXISTS glory_lifetime INTEGER DEFAULT 0;
 
 -- Phase 5 PvP: combat log
+-- Phase 11 Pass 1 migration (round-combat-system.sql) adds:
+--   rounds JSONB DEFAULT NULL (populated by simulateCombat in handlePvPAttack)
+--   result widened to allow 'draw' in addition to 'win'/'loss'
+--
+-- rounds JSONB structure:
+-- [
+--   {
+--     "round": 1,
+--     "attacker_action": { "type": "hit"|"crit"|"miss", "damage": N, "blocked": bool },
+--     "defender_action": { "type": "hit"|"crit"|"miss"|"counter", "damage": N, "blocked": bool, "dodged": bool },
+--     "attacker_hp_after": N,
+--     "defender_hp_after": N
+--   },
+--   ...
+-- ]
 CREATE TABLE IF NOT EXISTS pw_combat_log (
     id SERIAL PRIMARY KEY,
     attacker_id UUID REFERENCES pw_users(id) ON DELETE CASCADE,
     defender_id UUID REFERENCES pw_users(id) ON DELETE CASCADE,
     attacker_power INTEGER NOT NULL,
     defender_power INTEGER NOT NULL,
-    result VARCHAR(10) NOT NULL CHECK (result IN ('win', 'loss')),
+    result VARCHAR(10) NOT NULL CHECK (result IN ('win', 'loss', 'draw')),
     xp_earned INTEGER DEFAULT 0,
     drachma_transferred INTEGER DEFAULT 0,
     glory_earned INTEGER DEFAULT 0,
     attacker_health_lost INTEGER DEFAULT 0,
     defender_health_lost INTEGER DEFAULT 0,
+    rounds JSONB DEFAULT NULL,
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
 

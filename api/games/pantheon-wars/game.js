@@ -2,7 +2,7 @@ import { sql } from '../../../lib/db.js'
 import { requireUser } from '../../../lib/pwAuth.js'
 import {
   regenPlayer, checkLevelUp, getEquipmentBonuses,
-  calculateCombat, simulateCombat, getRaceClassCombatBonuses,
+  simulateCombat,
   calculatePowerRating,
   getShopRotationSeed, getShopRotationExpiry, pickRotatedItems, getDailyRotationPool,
   getQuestRotationSeed, getQuestRotationExpiry,
@@ -507,6 +507,60 @@ async function handleConsume(req, res) {
       healthRestored = stats.health_max - stats.health
       energyRestored = stats.energy_max - stats.energy
       stats = { ...stats, health: stats.health_max, energy: stats.energy_max }
+    } else if (item.consumable_effect === 'realloc_stats') {
+      // Tablet of Reinvention — repeatable glory-shop stat reset
+      const level = stats.level || 1
+      const energyMaxBaseline = 20 + (level - 1) * 2
+      const healthMaxBaseline = 100 + (level - 1) * 10
+
+      const refundAttack    = Math.max(0, (stats.attack    || 5) - 5)
+      const refundDefense   = Math.max(0, (stats.defense   || 5) - 5)
+      const refundAgility   = Math.max(0, stats.agility    || 0)
+      const refundEnergyMax = Math.max(0, (stats.energy_max || energyMaxBaseline) - energyMaxBaseline)
+      const refundHealthMax = Math.max(0, (stats.health_max || healthMaxBaseline) - healthMaxBaseline)
+      const totalRefunded   = refundAttack + refundDefense + refundAgility + refundEnergyMax + refundHealthMax
+
+      const newStatPoints = (stats.stat_points || 0) + totalRefunded
+      const newEnergy     = Math.min(stats.energy || 0, energyMaxBaseline)
+      const newHealth     = Math.min(stats.health || 0, healthMaxBaseline)
+
+      await sql`DELETE FROM pw_inventory WHERE id = ${inventory_id}`
+      await sql`
+        UPDATE pw_player_stats SET
+          attack            = 5,
+          defense           = 5,
+          agility           = 0,
+          energy_max        = ${energyMaxBaseline},
+          health_max        = ${healthMaxBaseline},
+          energy            = ${newEnergy},
+          health            = ${newHealth},
+          stat_points       = ${newStatPoints},
+          energy_regen_base = ${stats.energy_regen_base},
+          health_regen_base = ${stats.health_regen_base},
+          last_updated      = ${stats.last_updated}
+        WHERE user_id = ${req.userId}
+      `
+
+      return res.status(200).json({
+        ok:      true,
+        consumed: {
+          id:             inventory_id,
+          name:           item.name,
+          effect:         'realloc_stats',
+          points_refunded: totalRefunded,
+        },
+        stats: {
+          attack:      5,
+          defense:     5,
+          agility:     0,
+          energy_max:  energyMaxBaseline,
+          health_max:  healthMaxBaseline,
+          energy:      newEnergy,
+          health:      newHealth,
+          stat_points: newStatPoints,
+        },
+        pendingAdventureRewards: req.pendingAdventureRewards || null,
+      })
     } else {
       return res.status(400).json({ error: 'unknown_effect' })
     }
@@ -818,22 +872,24 @@ async function handleLeaderboard(req, res) {
 async function handleAllocate(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' })
 
-  const { attack = 0, defense = 0, energy_max = 0, health_max = 0 } = req.body || {}
-  const a = Number(attack)
-  const d = Number(defense)
-  const e = Number(energy_max)
-  const h = Number(health_max)
+  const { attack = 0, defense = 0, energy_max = 0, health_max = 0, agility = 0 } = req.body || {}
+  const a   = Number(attack)
+  const d   = Number(defense)
+  const e   = Number(energy_max)
+  const h   = Number(health_max)
+  const agi = Number(agility)
 
-  if (!Number.isInteger(a) || !Number.isInteger(d) || !Number.isInteger(e) || !Number.isInteger(h) ||
-      a < 0 || d < 0 || e < 0 || h < 0) {
+  if (!Number.isInteger(a)   || !Number.isInteger(d) || !Number.isInteger(e) ||
+      !Number.isInteger(h)   || !Number.isInteger(agi) ||
+      a < 0 || d < 0 || e < 0 || h < 0 || agi < 0) {
     return res.status(400).json({ error: 'Invalid allocation values' })
   }
-  const total = a + d + e + h
+  const total = a + d + e + h + agi
   if (total === 0) return res.status(400).json({ error: 'No points to allocate' })
 
   try {
     const rows = await sql`
-      SELECT stat_points, attack, defense, glory, glory_lifetime,
+      SELECT stat_points, attack, defense, agility, glory, glory_lifetime,
              energy, energy_max, health, health_max, last_updated,
              energy_regen_base, health_regen_base
       FROM pw_player_stats
@@ -853,6 +909,7 @@ async function handleAllocate(req, res) {
 
     const newAttack     = stats.attack     + a
     const newDefense    = stats.defense    + d
+    const newAgility    = (stats.agility || 0) + agi
     const newEnergyMax  = stats.energy_max + e
     const newHealthMax  = stats.health_max + h
     const newStatPoints = stats.stat_points - total
@@ -863,6 +920,7 @@ async function handleAllocate(req, res) {
       UPDATE pw_player_stats SET
         attack             = ${newAttack},
         defense            = ${newDefense},
+        agility            = ${newAgility},
         energy_max         = ${newEnergyMax},
         health_max         = ${newHealthMax},
         stat_points        = ${newStatPoints},
@@ -877,10 +935,11 @@ async function handleAllocate(req, res) {
 
     return res.status(200).json({
       ok:        true,
-      allocated: { attack: a, defense: d, energy_max: e, health_max: h },
+      allocated: { attack: a, defense: d, agility: agi, energy_max: e, health_max: h },
       newStats: {
         attack:      newAttack,
         defense:     newDefense,
+        agility:     newAgility,
         energy_max:  newEnergyMax,
         health_max:  newHealthMax,
         stat_points: newStatPoints,
@@ -1335,7 +1394,8 @@ async function handlePvPAttack(req, res) {
       SELECT u.id, u.faction, u.class, u.alignment,
              ps.level, ps.xp, ps.energy, ps.energy_max,
              ps.health, ps.health_max, ps.drachma, ps.drachma_lifetime,
-             ps.glory, ps.glory_lifetime, ps.attack, ps.defense, ps.stat_points, ps.last_updated,
+             ps.glory, ps.glory_lifetime, ps.attack, ps.defense, ps.agility,
+             ps.stat_points, ps.last_updated,
              ps.energy_regen_base, ps.health_regen_base
       FROM pw_users u JOIN pw_player_stats ps ON ps.user_id = u.id
       WHERE u.id = ${req.userId}
@@ -1347,7 +1407,8 @@ async function handlePvPAttack(req, res) {
       SELECT u.id, u.username, u.faction, u.class, u.alignment,
              ps.level, ps.xp, ps.energy, ps.energy_max,
              ps.health, ps.health_max, ps.drachma, ps.drachma_lifetime,
-             ps.glory, ps.glory_lifetime, ps.attack, ps.defense, ps.stat_points, ps.last_updated
+             ps.glory, ps.glory_lifetime, ps.attack, ps.defense, ps.agility,
+             ps.stat_points, ps.last_updated
       FROM pw_users u JOIN pw_player_stats ps ON ps.user_id = u.id
       WHERE u.id = ${target_user_id}
     `
@@ -1398,12 +1459,25 @@ async function handlePvPAttack(req, res) {
       getEquipmentBonuses(sql, target_user_id),
     ])
 
-    const combat = calculateCombat({
+    const combat = simulateCombat({
       attacker:      { ...attUser, ...attStats },
       defender:      { ...defUser, ...defStats },
       attackerEquip: attEquip,
       defenderEquip: defEquip,
     })
+
+    // Compute defense mitigation values for backwards-compatible response fields
+    const defMitFn = (totalDef) => totalDef / (totalDef + 50) * 0.5
+    const attMit = defMitFn((attStats.defense || 0) + (attEquip.defense || 0))
+    const defMit = defMitFn((defStats.defense || 0) + (defEquip.defense || 0))
+
+    // Summary power values for combat log and response (sum of damage dealt each side)
+    const attackerPowerSummary = combat.rounds.reduce((s, r) => s + (r.attacker_action?.damage || 0), 0)
+    const defenderPowerSummary = combat.rounds.reduce((s, r) => s + (r.defender_action?.damage || 0), 0)
+
+    // Apply HP changes to both sides in all cases
+    attStats = { ...attStats, health: combat.final_attacker_hp }
+    defStats = { ...defStats, health: combat.final_defender_hp }
 
     if (combat.result === 'win') {
       attStats = {
@@ -1411,26 +1485,22 @@ async function handlePvPAttack(req, res) {
         xp:             attStats.xp + combat.xp_earned,
         glory:          attStats.glory + combat.glory_earned,
         glory_lifetime: attStats.glory_lifetime + combat.glory_earned,
-        health:         Math.max(1, attStats.health - combat.attacker_health_lost),
       }
-      defStats = {
-        ...defStats,
-        health: Math.max(1, defStats.health - combat.defender_health_lost),
-      }
-    } else {
-      attStats = {
-        ...attStats,
-        health: Math.max(1, attStats.health - combat.attacker_health_lost),
-      }
+    } else if (combat.result === 'loss') {
       defStats = {
         ...defStats,
         glory:          defStats.glory + combat.defender_glory_earned,
         glory_lifetime: defStats.glory_lifetime + combat.defender_glory_earned,
       }
+    } else {
+      // Draw — consolation XP for attacker, no glory either side
+      attStats = { ...attStats, xp: attStats.xp + combat.xp_earned }
     }
 
     const prevLevel = attStats.level
-    attStats = checkLevelUp(attStats)
+    if (combat.result === 'win' || combat.result === 'draw') {
+      attStats = checkLevelUp(attStats)
+    }
     const levelsGained = attStats.level - prevLevel
 
     await sql`
@@ -1464,28 +1534,32 @@ async function handlePvPAttack(req, res) {
     await sql`
       INSERT INTO pw_combat_log (
         attacker_id, defender_id, attacker_power, defender_power, result,
-        xp_earned, drachma_transferred, glory_earned, attacker_health_lost, defender_health_lost
+        xp_earned, drachma_transferred, glory_earned, attacker_health_lost, defender_health_lost,
+        rounds
       ) VALUES (
         ${req.userId}, ${target_user_id},
-        ${combat.attacker_power}, ${combat.defender_power}, ${combat.result},
+        ${attackerPowerSummary}, ${defenderPowerSummary}, ${combat.result},
         ${combat.xp_earned}, 0, ${combat.glory_earned},
-        ${combat.attacker_health_lost}, ${combat.defender_health_lost}
+        ${combat.attacker_health_lost}, ${combat.defender_health_lost},
+        ${JSON.stringify(combat.rounds)}
       )
     `
 
     return res.status(200).json({
       result:               combat.result,
-      attacker_power:       combat.attacker_power,
-      defender_power:       combat.defender_power,
+      attacker_power:       attackerPowerSummary,
+      defender_power:       defenderPowerSummary,
       xp_earned:            combat.xp_earned,
       drachma_transferred:  0,
       glory_earned:         combat.glory_earned,
       attacker_health_lost: combat.attacker_health_lost,
       defender_health_lost: combat.defender_health_lost,
       energy_cost:          energyCost,
-      attacker_mitigation:  combat.attacker_mitigation,
-      defender_mitigation:  combat.defender_mitigation,
+      attacker_mitigation:  attMit,
+      defender_mitigation:  defMit,
       levelsGained,
+      rounds:               combat.rounds,
+      defender_glory_earned: combat.defender_glory_earned,
       defender: {
         username:    defUser.username,
         faction:     defUser.faction,
@@ -1870,6 +1944,82 @@ async function handleAdventuresClaim(req, res) {
   }
 }
 
+// ── Free Stat Reset (POST) ────────────────────────────────────────────────────
+
+async function handleFreeStatReset(req, res) {
+  if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' })
+
+  try {
+    const rows = await sql`
+      SELECT level, xp, attack, defense, agility, energy, energy_max, health, health_max,
+             stat_points, stat_reset_available, glory, glory_lifetime, drachma, drachma_lifetime,
+             last_updated, energy_regen_base, health_regen_base
+      FROM pw_player_stats
+      WHERE user_id = ${req.userId}
+    `
+    if (rows.length === 0) return res.status(404).json({ error: 'Player not found' })
+
+    let stats = regenPlayer(rows[0])
+
+    if (!stats.stat_reset_available) {
+      return res.status(400).json({ error: 'free_reset_already_used' })
+    }
+
+    const level = stats.level || 1
+    const energyMaxBaseline = 20 + (level - 1) * 2
+    const healthMaxBaseline = 100 + (level - 1) * 10
+
+    const refundAttack    = Math.max(0, (stats.attack    || 5) - 5)
+    const refundDefense   = Math.max(0, (stats.defense   || 5) - 5)
+    const refundAgility   = Math.max(0, stats.agility    || 0)
+    const refundEnergyMax = Math.max(0, (stats.energy_max || energyMaxBaseline) - energyMaxBaseline)
+    const refundHealthMax = Math.max(0, (stats.health_max || healthMaxBaseline) - healthMaxBaseline)
+    const totalRefunded   = refundAttack + refundDefense + refundAgility + refundEnergyMax + refundHealthMax
+
+    const newStatPoints = (stats.stat_points || 0) + totalRefunded
+    const newEnergy     = Math.min(stats.energy || 0, energyMaxBaseline)
+    const newHealth     = Math.min(stats.health || 0, healthMaxBaseline)
+
+    await sql`
+      UPDATE pw_player_stats SET
+        attack               = 5,
+        defense              = 5,
+        agility              = 0,
+        energy_max           = ${energyMaxBaseline},
+        health_max           = ${healthMaxBaseline},
+        energy               = ${newEnergy},
+        health               = ${newHealth},
+        stat_points          = ${newStatPoints},
+        stat_reset_available = FALSE,
+        energy_regen_base    = ${stats.energy_regen_base},
+        health_regen_base    = ${stats.health_regen_base},
+        last_updated         = ${stats.last_updated}
+      WHERE user_id = ${req.userId}
+    `
+
+    return res.status(200).json({
+      ok:               true,
+      used_free_reset:  true,
+      points_refunded:  totalRefunded,
+      stats: {
+        attack:               5,
+        defense:              5,
+        agility:              0,
+        energy_max:           energyMaxBaseline,
+        health_max:           healthMaxBaseline,
+        energy:               newEnergy,
+        health:               newHealth,
+        stat_points:          newStatPoints,
+        stat_reset_available: false,
+      },
+      pendingAdventureRewards: req.pendingAdventureRewards || null,
+    })
+  } catch (err) {
+    console.error('[game?action=stat_reset_free]', err.message)
+    return res.status(500).json({ error: 'Stat reset failed' })
+  }
+}
+
 // ── Router ────────────────────────────────────────────────────────────────────
 
 export default requireUser(async function handler(req, res) {
@@ -1890,6 +2040,7 @@ export default requireUser(async function handler(req, res) {
   if (action === 'buy')                return handleBuy(req, res)
   if (action === 'leaderboard')        return handleLeaderboard(req, res)
   if (action === 'allocate')           return handleAllocate(req, res)
+  if (action === 'stat_reset_free')    return handleFreeStatReset(req, res)
   if (action === 'temples')            return handleTemples(req, res)
   if (action === 'temples_buy')        return handleTemplesBuy(req, res)
   if (action === 'temples_upgrade')    return handleTemplesUpgrade(req, res)
