@@ -1017,6 +1017,37 @@ export default function PvP() {
                         ))}
                       </div>
                     )}
+                    {user && (user.faction === 'aesir' || user.class === 'slayer') && (
+                      <div style={{
+                        marginTop: 10,
+                        paddingTop: 10,
+                        borderTop: '1px solid rgba(255,255,255,0.05)',
+                        display: 'flex', flexWrap: 'wrap', gap: 5,
+                      }}>
+                        {user.faction === 'aesir' && (
+                          <span style={{
+                            fontFamily: "'IBM Plex Mono', monospace", fontSize: 9,
+                            letterSpacing: '0.1em', textTransform: 'uppercase',
+                            color: '#8AB8D4', background: 'rgba(138,184,212,0.1)',
+                            border: '1px solid rgba(138,184,212,0.3)',
+                            borderRadius: 4, padding: '2px 7px',
+                          }}>
+                            AESIR +5% ATK
+                          </span>
+                        )}
+                        {user.class === 'slayer' && (
+                          <span style={{
+                            fontFamily: "'IBM Plex Mono', monospace", fontSize: 9,
+                            letterSpacing: '0.1em', textTransform: 'uppercase',
+                            color: '#F97316', background: 'rgba(249,115,22,0.1)',
+                            border: '1px solid rgba(249,115,22,0.3)',
+                            borderRadius: 4, padding: '2px 7px',
+                          }}>
+                            SLAYER +10% ATK
+                          </span>
+                        )}
+                      </div>
+                    )}
                     {localStats.health <= 1 && (
                       <p style={{
                         fontFamily: "'IBM Plex Mono', monospace", fontSize: 10,

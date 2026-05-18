@@ -128,13 +128,19 @@ async function handleComplete(req, res) {
     const baseDrachma = quest.drachma_base + drachmaRoll
 
     // Global faction + class multipliers
-    const xpMult      = faction === 'olympians' ? 1.05 : 1
+    const xpMult      = faction === 'olympians' ? 1.10 : 1
     const drachmaMult = (faction === 'annunaki' ? 1.05 : 1) * (playerClass === 'broker' ? 1.1 : 1)
 
     let earnedXp      = Math.floor(quest.xp_reward * xpMult)
     let earnedDrachma = Math.floor(baseDrachma * drachmaMult)
     let effectiveLootChance = quest.loot_chance
     let lootUpgradeChance   = 0
+
+    // Track bonuses applied for frontend display
+    const bonuses_applied = []
+    if (faction === 'olympians') bonuses_applied.push({ source: 'olympians', type: 'xp', value: 10 })
+    if (faction === 'annunaki')  bonuses_applied.push({ source: 'annunaki', type: 'drachma', value: 5 })
+    if (playerClass === 'broker') bonuses_applied.push({ source: 'broker', type: 'drachma', value: 10 })
 
     // Per-quest faction bonus
     if (quest.faction_bonus && faction === quest.faction_bonus) {
@@ -146,6 +152,7 @@ async function handleComplete(req, res) {
         case 'loot_upgrade':    lootUpgradeChance   = Math.max(lootUpgradeChance, v); break
         case 'guaranteed_loot': effectiveLootChance = 100; break
       }
+      bonuses_applied.push({ source: 'quest_faction', type: quest.faction_bonus_type, value: v })
     }
 
     // Per-quest class bonus
@@ -158,6 +165,7 @@ async function handleComplete(req, res) {
         case 'loot_upgrade':    lootUpgradeChance   = Math.max(lootUpgradeChance, v); break
         case 'guaranteed_loot': effectiveLootChance = 100; break
       }
+      bonuses_applied.push({ source: 'quest_class', type: quest.class_bonus_type, value: v })
     }
 
     stats = {
@@ -168,7 +176,7 @@ async function handleComplete(req, res) {
     }
 
     const prevLevel = stats.level
-    stats = checkLevelUp(stats)
+    stats = checkLevelUp(stats, playerClass)
     const levelsGained = stats.level - prevLevel
 
     let lootItem = null
@@ -233,7 +241,7 @@ async function handleComplete(req, res) {
 
     return res.status(200).json({
       success:      true,
-      rewards:      { xp: earnedXp, drachma: earnedDrachma, loot: lootItem },
+      rewards:      { xp: earnedXp, drachma: earnedDrachma, loot: lootItem, bonuses_applied },
       levelsGained,
       completions:  newCompletions,
       stats: {
@@ -601,12 +609,14 @@ async function handleShop(req, res) {
 
   try {
     const rows = await sql`
-      SELECT ps.*, u.faction
+      SELECT ps.*, u.faction, u.class AS player_class
       FROM pw_player_stats ps
       JOIN pw_users u ON u.id = ps.user_id
       WHERE ps.user_id = ${req.userId}
     `
     if (rows.length === 0) return res.status(404).json({ error: 'Player not found' })
+
+    const shopPlayerClass = rows[0].player_class
 
     let stats = regenPlayer(rows[0])
     if (
@@ -639,7 +649,14 @@ async function handleShop(req, res) {
       ['common', 'uncommon', 'rare'].includes(i.rarity) &&
       i.slot !== 'consumable'
     )
-    const rotation_items   = pickRotatedItems(drachmaRotationPool, getShopRotationSeed(), 8)
+    const rotation_items_raw = pickRotatedItems(drachmaRotationPool, getShopRotationSeed(), 8)
+    // Add effective_price for broker discount display
+    const rotation_items = rotation_items_raw.map(item => ({
+      ...item,
+      effective_price: shopPlayerClass === 'broker'
+        ? Math.floor(item.buy_price * 0.90)
+        : item.buy_price,
+    }))
     const always_available = items.filter(i =>
       i.slot === 'consumable' &&
       i.buy_price !== null &&
@@ -653,10 +670,11 @@ async function handleShop(req, res) {
       glory_items,
       rotation_expires_at: getShopRotationExpiry(),
       player: {
-        drachma: stats.drachma,
-        glory:   stats.glory,
-        level:   stats.level,
-        faction: rows[0].faction,
+        drachma:       stats.drachma,
+        glory:         stats.glory,
+        level:         stats.level,
+        faction:       rows[0].faction,
+        player_class:  shopPlayerClass,
       },
       pendingAdventureRewards: req.pendingAdventureRewards || null,
     })
@@ -691,7 +709,7 @@ async function handleBuy(req, res) {
     }
 
     const playerRows = await sql`
-      SELECT ps.level, ps.drachma, ps.glory, u.faction
+      SELECT ps.level, ps.drachma, ps.glory, u.faction, u.class AS player_class
       FROM pw_player_stats ps
       JOIN pw_users u ON u.id = ps.user_id
       WHERE ps.user_id = ${req.userId}
@@ -714,15 +732,20 @@ async function handleBuy(req, res) {
       }
     }
 
+    // Broker gets 10% drachma shop discount
+    const effectivePrice = currency === 'drachma' && player.player_class === 'broker'
+      ? Math.floor(item.buy_price * 0.90)
+      : price
+
     const balance = currency === 'drachma' ? player.drachma : player.glory
-    if (balance < price) {
-      return res.status(400).json({ error: `Insufficient ${currency}` })
+    if (balance < effectivePrice) {
+      return res.status(400).json({ error: `Insufficient ${currency}`, required: effectivePrice })
     }
 
     if (currency === 'drachma') {
-      await sql`UPDATE pw_player_stats SET drachma = drachma - ${price} WHERE user_id = ${req.userId}`
+      await sql`UPDATE pw_player_stats SET drachma = drachma - ${effectivePrice} WHERE user_id = ${req.userId}`
     } else {
-      await sql`UPDATE pw_player_stats SET glory = glory - ${price} WHERE user_id = ${req.userId}`
+      await sql`UPDATE pw_player_stats SET glory = glory - ${effectivePrice} WHERE user_id = ${req.userId}`
     }
 
     await sql`INSERT INTO pw_inventory (user_id, item_id) VALUES (${req.userId}, ${item_id})`
@@ -996,13 +1019,18 @@ async function handleTemples(req, res) {
   if (req.method !== 'GET') return res.status(405).json({ error: 'Method not allowed' })
 
   try {
-    const statsRows = await sql`SELECT * FROM pw_player_stats WHERE user_id = ${req.userId}`
+    const statsRows = await sql`
+      SELECT ps.*, u.faction, u.class AS player_class
+      FROM pw_player_stats ps
+      JOIN pw_users u ON u.id = ps.user_id
+      WHERE ps.user_id = ${req.userId}
+    `
     if (statsRows.length === 0) return res.status(404).json({ error: 'Player not found' })
 
     const playerLevel = statsRows[0].level
 
     const owned = await fetchOwnedTemples(req.userId)
-    let stats = regenPlayer(statsRows[0], owned)
+    let stats = regenPlayer(statsRows[0], owned, statsRows[0].player_class, statsRows[0].faction)
 
     if (
       stats.energy             !== statsRows[0].energy   ||
@@ -1085,7 +1113,12 @@ async function handleTemplesBuy(req, res) {
     if (templeRows.length === 0) return res.status(400).json({ error: 'invalid_temple' })
     const temple = templeRows[0]
 
-    const statsRows = await sql`SELECT * FROM pw_player_stats WHERE user_id = ${req.userId}`
+    const statsRows = await sql`
+      SELECT ps.*, u.faction, u.class AS player_class
+      FROM pw_player_stats ps
+      JOIN pw_users u ON u.id = ps.user_id
+      WHERE ps.user_id = ${req.userId}
+    `
     if (statsRows.length === 0) return res.status(404).json({ error: 'Player not found' })
 
     const playerLevel = statsRows[0].level
@@ -1103,7 +1136,7 @@ async function handleTemplesBuy(req, res) {
     }
 
     const owned = await fetchOwnedTemples(req.userId)
-    let stats = regenPlayer(statsRows[0], owned)
+    let stats = regenPlayer(statsRows[0], owned, statsRows[0].player_class, statsRows[0].faction)
 
     if (stats.drachma < temple.base_cost) {
       return res.status(400).json({ error: 'insufficient_drachma', cost: temple.base_cost })
@@ -1167,11 +1200,16 @@ async function handleTemplesUpgrade(req, res) {
 
     const upgradeCost = Math.floor(pt.base_cost * 0.5)
 
-    const statsRows = await sql`SELECT * FROM pw_player_stats WHERE user_id = ${req.userId}`
+    const statsRows = await sql`
+      SELECT ps.*, u.faction, u.class AS player_class
+      FROM pw_player_stats ps
+      JOIN pw_users u ON u.id = ps.user_id
+      WHERE ps.user_id = ${req.userId}
+    `
     if (statsRows.length === 0) return res.status(404).json({ error: 'Player not found' })
 
     const owned = await fetchOwnedTemples(req.userId)
-    let stats = regenPlayer(statsRows[0], owned)
+    let stats = regenPlayer(statsRows[0], owned, statsRows[0].player_class, statsRows[0].faction)
 
     if (stats.drachma < upgradeCost) {
       return res.status(400).json({ error: 'insufficient_drachma', cost: upgradeCost })
@@ -1285,7 +1323,7 @@ async function handlePvPTargets(req, res) {
 
     const userRow = userRows[0]
     const ownedTemples = await fetchOwnedTemples(req.userId)
-    let stats = regenPlayer(userRow, ownedTemples)
+    let stats = regenPlayer(userRow, ownedTemples, userRow.class, userRow.faction)
     const attAlignment = userRow.alignment
 
     if (!attAlignment && stats.level >= 10) {
@@ -1364,9 +1402,9 @@ async function handlePvPTargets(req, res) {
     const raceClassBonus = getRaceClassCombatBonuses(userRow.faction, userRow.class)
 
     const computed_bonuses = {
-      crit:    Math.min(95, (attEquip.crit_chance  || 0) + (raceClassBonus.crit_chance  || 0)),
-      dodge:   Math.min(60, (attEquip.dodge_chance || 0) + (raceClassBonus.dodge_chance || 0)),
-      block:   Math.min(60, (attEquip.block_chance || 0) + (raceClassBonus.block_chance || 0)),
+      crit:    Math.min(75, (attEquip.crit  || 0) + (raceClassBonus.crit  || 0)),
+      dodge:   Math.min(75, (attEquip.dodge || 0) + (raceClassBonus.dodge || 0)),
+      block:   Math.min(75, (attEquip.block || 0) + (raceClassBonus.block || 0)),
       agility: (stats.agility || 0) + (attEquip.agility || 0),
     }
 
@@ -1452,8 +1490,8 @@ async function handlePvPAttack(req, res) {
       fetchOwnedTemples(req.userId),
       fetchOwnedTemples(target_user_id),
     ])
-    let attStats = regenPlayer(attRows[0], attTemples)
-    let defStats = regenPlayer(defRows[0], defTemples)
+    let attStats = regenPlayer(attRows[0], attTemples, attRows[0].class, attRows[0].faction)
+    let defStats = regenPlayer(defRows[0], defTemples, defRows[0].class, defRows[0].faction)
 
     const energyCost = Math.max(1, Math.ceil(attStats.level / 10))
     if (attStats.energy < energyCost) {
@@ -1493,7 +1531,6 @@ async function handlePvPAttack(req, res) {
     if (combat.result === 'win') {
       attStats = {
         ...attStats,
-        xp:             attStats.xp + combat.xp_earned,
         glory:          attStats.glory + combat.glory_earned,
         glory_lifetime: attStats.glory_lifetime + combat.glory_earned,
       }
@@ -1503,16 +1540,9 @@ async function handlePvPAttack(req, res) {
         glory:          defStats.glory + combat.defender_glory_earned,
         glory_lifetime: defStats.glory_lifetime + combat.defender_glory_earned,
       }
-    } else {
-      // Draw — consolation XP for attacker, no glory either side
-      attStats = { ...attStats, xp: attStats.xp + combat.xp_earned }
     }
 
-    const prevLevel = attStats.level
-    if (combat.result === 'win' || combat.result === 'draw') {
-      attStats = checkLevelUp(attStats)
-    }
-    const levelsGained = attStats.level - prevLevel
+    const levelsGained = 0
 
     await sql`
       UPDATE pw_player_stats SET
@@ -1550,7 +1580,7 @@ async function handlePvPAttack(req, res) {
       ) VALUES (
         ${req.userId}, ${target_user_id},
         ${attackerPowerSummary}, ${defenderPowerSummary}, ${combat.result},
-        ${combat.xp_earned}, 0, ${combat.glory_earned},
+        0, 0, ${combat.glory_earned},
         ${combat.attacker_health_lost}, ${combat.defender_health_lost},
         ${JSON.stringify(combat.rounds)}
       )
@@ -1560,7 +1590,7 @@ async function handlePvPAttack(req, res) {
       result:               combat.result,
       attacker_power:       attackerPowerSummary,
       defender_power:       defenderPowerSummary,
-      xp_earned:            combat.xp_earned,
+      xp_earned:            0,
       drachma_transferred:  0,
       glory_earned:         combat.glory_earned,
       attacker_health_lost: combat.attacker_health_lost,
@@ -1671,7 +1701,7 @@ async function handleAdventures(req, res) {
     if (rows.length === 0) return res.status(404).json({ error: 'Player not found' })
 
     const ownedTemples = await fetchOwnedTemples(req.userId)
-    let stats = regenPlayer(rows[0], ownedTemples)
+    let stats = regenPlayer(rows[0], ownedTemples, rows[0].player_class, rows[0].faction)
 
     if (
       stats.energy             !== rows[0].energy  ||
@@ -1792,14 +1822,16 @@ async function handleAdventuresStart(req, res) {
     const pRows = await sql`
       SELECT ps.level, ps.energy, ps.energy_max, ps.health, ps.health_max,
              ps.drachma, ps.drachma_lifetime, ps.last_updated,
-             ps.energy_regen_base, ps.health_regen_base
+             ps.energy_regen_base, ps.health_regen_base,
+             u.faction, u.class AS player_class
       FROM pw_player_stats ps
+      JOIN pw_users u ON u.id = ps.user_id
       WHERE ps.user_id = ${req.userId}
     `
     if (pRows.length === 0) return res.status(404).json({ error: 'Player not found' })
 
     const ownedTemples = await fetchOwnedTemples(req.userId)
-    let stats = regenPlayer(pRows[0], ownedTemples)
+    let stats = regenPlayer(pRows[0], ownedTemples, pRows[0].player_class, pRows[0].faction)
 
     if (stats.level < adv.level_required) {
       return res.status(400).json({ error: 'level_too_low', level_required: adv.level_required })

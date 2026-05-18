@@ -68,6 +68,23 @@ function Badge({ label, color, bg, border }) {
   )
 }
 
+function BonusLine({ icon, text, color }) {
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
+      <span style={{ fontSize: 11, lineHeight: 1, minWidth: 14, textAlign: 'center' }}>{icon}</span>
+      <span style={{
+        fontFamily: "'IBM Plex Mono', monospace",
+        fontSize: 10,
+        letterSpacing: '0.06em',
+        color: color,
+        opacity: 0.85,
+      }}>
+        {text}
+      </span>
+    </div>
+  )
+}
+
 function AllocToast({ toast, onDone }) {
   useEffect(() => {
     const t = setTimeout(onDone, 3200)
@@ -1161,8 +1178,101 @@ export default function Profile() {
                 </motion.section>
               )}
 
-              {/* G — Alignment section */}
+              {/* G — Your Bonuses section */}
               <motion.section variants={fadeUp} style={{ marginTop: 32 }}>
+                <p style={{
+                  fontFamily: "'IBM Plex Mono', monospace",
+                  fontSize: 10,
+                  letterSpacing: '0.18em',
+                  textTransform: 'uppercase',
+                  color: 'rgba(240,240,248,0.3)',
+                  marginBottom: 14,
+                }}>
+                  // YOUR BONUSES
+                </p>
+                <div style={{
+                  display: 'grid',
+                  gridTemplateColumns: '1fr 1fr',
+                  gap: 12,
+                }}>
+                  {/* Faction bonuses */}
+                  <div style={{
+                    background: `rgba(${hexRgb(factionColor)},0.05)`,
+                    border: `1px solid rgba(${hexRgb(factionColor)},0.18)`,
+                    borderRadius: 12,
+                    padding: '16px 18px',
+                  }}>
+                    <div style={{
+                      fontFamily: "'IBM Plex Mono', monospace",
+                      fontSize: 9,
+                      letterSpacing: '0.14em',
+                      textTransform: 'uppercase',
+                      color: factionColor,
+                      opacity: 0.7,
+                      marginBottom: 12,
+                    }}>
+                      FACTION BONUSES
+                    </div>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
+                      {user.faction === 'olympians' && (<>
+                        <BonusLine icon="⚡" text="+10% XP from quests" color={factionColor} />
+                        <BonusLine icon="⚡" text="+10% XP from adventures" color={factionColor} />
+                      </>)}
+                      {user.faction === 'aesir' && (<>
+                        <BonusLine icon="⚡" text="+2 starting agility" color={factionColor} />
+                        <BonusLine icon="⚡" text="+5% ATK in PvP" color={factionColor} />
+                      </>)}
+                      {user.faction === 'annunaki' && (
+                        <BonusLine icon="⚡" text="+5% temple income" color={factionColor} />
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Class bonuses */}
+                  <div style={{
+                    background: 'rgba(201,169,97,0.05)',
+                    border: '1px solid rgba(201,169,97,0.18)',
+                    borderRadius: 12,
+                    padding: '16px 18px',
+                  }}>
+                    <div style={{
+                      fontFamily: "'IBM Plex Mono', monospace",
+                      fontSize: 9,
+                      letterSpacing: '0.14em',
+                      textTransform: 'uppercase',
+                      color: '#C9A961',
+                      opacity: 0.7,
+                      marginBottom: 12,
+                    }}>
+                      CLASS BONUSES
+                    </div>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
+                      {user.class === 'warden' && (<>
+                        <BonusLine icon="🛡" text="+5 starting defense" color="#C9A961" />
+                        <BonusLine icon="🛡" text="+1 DEF per level" color="#C9A961" />
+                        <BonusLine icon="🛡" text="+10% DEF in PvP" color="#C9A961" />
+                      </>)}
+                      {user.class === 'oracle' && (<>
+                        <BonusLine icon="🔮" text="+5 starting energy max" color="#C9A961" />
+                        <BonusLine icon="🔮" text="+1 energy max per level" color="#C9A961" />
+                      </>)}
+                      {user.class === 'slayer' && (<>
+                        <BonusLine icon="⚔" text="+5 starting attack" color="#C9A961" />
+                        <BonusLine icon="⚔" text="+1 ATK per level" color="#C9A961" />
+                        <BonusLine icon="⚔" text="+10% ATK in PvP" color="#C9A961" />
+                      </>)}
+                      {user.class === 'broker' && (<>
+                        <BonusLine icon="💰" text="+250 starting drachma" color="#C9A961" />
+                        <BonusLine icon="💰" text="-10% drachma shop prices" color="#C9A961" />
+                        <BonusLine icon="💰" text="+20% temple income" color="#C9A961" />
+                      </>)}
+                    </div>
+                  </div>
+                </div>
+              </motion.section>
+
+              {/* H — Alignment section */}
+              <motion.section variants={fadeUp} style={{ marginTop: 32, marginBottom: 32 }}>
                 <p style={{
                   fontFamily: "'IBM Plex Mono', monospace",
                   fontSize: 10,

@@ -5,7 +5,7 @@ import {
   getSessionFromCookie, revokeUserSession, buildClearSessionCookie,
   requireUser,
 } from '../../../lib/pwAuth.js'
-import { regenPlayer, getEquipmentBonuses } from '../../../lib/pwHelpers.js'
+import { regenPlayer, getEquipmentBonuses, getRaceClassCombatBonuses } from '../../../lib/pwHelpers.js'
 
 export const config = { runtime: 'nodejs' }
 
@@ -51,7 +51,29 @@ async function handleSignup(req, res) {
     `
     const user = userRows[0]
 
-    await sql`INSERT INTO pw_player_stats (user_id) VALUES (${user.id})`
+    // Starting stats with class and faction bonuses
+    let startAttack    = 5
+    let startDefense   = 5
+    let startAgility   = 0
+    let startEnergyMax = 20
+    let startEnergy    = 20
+    let startHealthMax = 100
+    let startHealth    = 100
+    let startDrachma   = 500
+
+    if (playerClass === 'warden') { startDefense   += 5 }
+    if (playerClass === 'oracle') { startEnergyMax += 5; startEnergy = startEnergyMax }
+    if (playerClass === 'slayer') { startAttack    += 5 }
+    if (playerClass === 'broker') { startDrachma   += 250 }
+    if (faction === 'aesir')      { startAgility   += 2 }
+
+    await sql`
+      INSERT INTO pw_player_stats
+        (user_id, attack, defense, agility, energy_max, energy, health_max, health, drachma)
+      VALUES
+        (${user.id}, ${startAttack}, ${startDefense}, ${startAgility},
+         ${startEnergyMax}, ${startEnergy}, ${startHealthMax}, ${startHealth}, ${startDrachma})
+    `
 
     await createUserSession(user.id, res)
 
@@ -172,6 +194,13 @@ async function handleMe(req, res) {
     }
 
     const equipBonuses = await getEquipmentBonuses(sql, req.userId)
+    const rcBonuses    = getRaceClassCombatBonuses(row.faction, row.class)
+    const computed_bonuses = {
+      crit:    Math.min(75, (equipBonuses.crit  || 0) + (rcBonuses.crit  || 0)),
+      dodge:   Math.min(75, (equipBonuses.dodge || 0) + (rcBonuses.dodge || 0)),
+      block:   Math.min(75, (equipBonuses.block || 0) + (rcBonuses.block || 0)),
+      agility: (statsRegen.agility || 0) + (equipBonuses.agility || 0),
+    }
 
     const user = {
       id:         row.id,
@@ -184,7 +213,7 @@ async function handleMe(req, res) {
       last_login: row.last_login,
     }
 
-    return res.status(200).json({ user, stats: statsRegen, equipment_bonuses: equipBonuses })
+    return res.status(200).json({ user, stats: statsRegen, equipment_bonuses: equipBonuses, computed_bonuses })
   } catch (err) {
     console.error('Me error:', err)
     return res.status(500).json({ error: 'Failed to fetch profile' })

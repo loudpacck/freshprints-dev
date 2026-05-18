@@ -48,12 +48,15 @@ function Skeleton({ h = 20, w = '100%', r = 6 }) {
 // ─── Sub-components ───────────────────────────────────────────────────────────
 
 function ShopItem({ item, player, currency, onBuy, buying }) {
-  const rarityColor = RARITY_COLOR[item.rarity] ?? '#F0F0F8'
-  const rgb         = hexRgb(rarityColor)
-  const price       = currency === 'drachma' ? item.buy_price : item.glory_price
-  const balance     = currency === 'drachma' ? player.drachma : player.glory
-  const priceLabel  = currency === 'drachma' ? `${fmt(price)} ₯` : `${price} ★`
-  const priceColor  = currency === 'drachma' ? '#C9A961' : '#FBBF24'
+  const rarityColor  = RARITY_COLOR[item.rarity] ?? '#F0F0F8'
+  const rgb          = hexRgb(rarityColor)
+  const isDiscounted = currency === 'drachma' && item.effective_price != null && item.effective_price !== item.buy_price
+  const price        = currency === 'drachma'
+    ? (isDiscounted ? item.effective_price : item.buy_price)
+    : item.glory_price
+  const balance      = currency === 'drachma' ? player.drachma : player.glory
+  const priceLabel   = currency === 'drachma' ? `${fmt(price)} ₯` : `${price} ★`
+  const priceColor   = currency === 'drachma' ? '#C9A961' : '#FBBF24'
 
   const levelLocked   = player.level < item.level_required
   const factionLocked = item.faction_exclusive && item.faction_exclusive !== player.faction
@@ -176,6 +179,28 @@ function ShopItem({ item, player, currency, onBuy, buying }) {
 
       {/* Buy button */}
       <div style={{ flexShrink: 0, display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 6 }}>
+        {isDiscounted && (
+          <span style={{
+            fontFamily: "'IBM Plex Mono', monospace",
+            fontSize: 8, letterSpacing: '0.1em', textTransform: 'uppercase',
+            color: '#22C55E', background: 'rgba(34,197,94,0.1)',
+            border: '1px solid rgba(34,197,94,0.3)',
+            borderRadius: 3, padding: '2px 5px', whiteSpace: 'nowrap',
+          }}>
+            BROKER −10%
+          </span>
+        )}
+        {isDiscounted && (
+          <span style={{
+            fontFamily: "'IBM Plex Mono', monospace",
+            fontSize: 11, letterSpacing: '0.02em',
+            color: 'rgba(240,240,248,0.25)',
+            textDecoration: 'line-through',
+            lineHeight: 1,
+          }}>
+            {fmt(item.buy_price)} ₯
+          </span>
+        )}
         <span style={{
           fontFamily: "'Bebas Neue', sans-serif",
           fontSize: 20, letterSpacing: '0.04em',

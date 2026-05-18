@@ -182,7 +182,22 @@ function MasteryBar({ completions, target, tierColor }) {
   )
 }
 
-function QuestCard({ quest, stats, onComplete, completing }) {
+function BonusTag({ label, color }) {
+  return (
+    <span style={{
+      fontFamily: "'IBM Plex Mono', monospace",
+      fontSize: 9, letterSpacing: '0.1em', textTransform: 'uppercase',
+      color,
+      background: `${color}18`,
+      border: `1px solid ${color}40`,
+      borderRadius: 4, padding: '2px 7px',
+    }}>
+      {label}
+    </span>
+  )
+}
+
+function QuestCard({ quest, stats, user, onComplete, completing }) {
   const canAfford = stats.energy >= quest.energy_cost
   const tierColor = TIER_COLOR[quest.tier] ?? '#F0F0F8'
   const isCompleting = completing === quest.id
@@ -246,6 +261,24 @@ function QuestCard({ quest, stats, onComplete, completing }) {
               </span>
             )}
           </div>
+
+          {/* Bonus chips */}
+          {user && (() => {
+            const chips = []
+            if (user.faction === 'olympians') chips.push(<BonusTag key="oly" label="+10% XP" color="#E8D080" />)
+            if (user.faction === 'annunaki')  chips.push(<BonusTag key="ann" label="+5% ₯" color="#C25E3C" />)
+            if (user.class   === 'broker')    chips.push(<BonusTag key="brk" label="+10% ₯" color="#C9A961" />)
+            if (quest.faction_bonus && user.faction === quest.faction_bonus) {
+              const t = quest.faction_bonus_type; const v = quest.faction_bonus_value
+              chips.push(<BonusTag key="qf" label={`${t === 'xp' ? '+' + v + '% XP' : t === 'drachma' ? '+' + v + '% ₯' : t === 'loot_chance' ? '+' + v + '% LOOT' : t === 'guaranteed_loot' ? '★ LOOT' : '+' + v + '% ' + t.toUpperCase()}`} color="#E8D080" />)
+            }
+            if (quest.class_bonus && user.class === quest.class_bonus) {
+              const t = quest.class_bonus_type; const v = quest.class_bonus_value
+              chips.push(<BonusTag key="qc" label={`${t === 'xp' ? '+' + v + '% XP' : t === 'drachma' ? '+' + v + '% ₯' : t === 'loot_chance' ? '+' + v + '% LOOT' : '+' + v + '% ' + t.toUpperCase()}`} color="#C9A961" />)
+            }
+            if (chips.length === 0) return null
+            return <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5, marginTop: 8 }}>{chips}</div>
+          })()}
 
           <MasteryBar
             completions={quest.completions}
@@ -327,6 +360,22 @@ function RewardToast({ reward, level, onDone }) {
           <span style={{ color: 'rgba(95,184,87,0.6)', fontSize: 10, marginLeft: 5 }}>
             [{reward.loot.rarity}]
           </span>
+        </span>
+      )}
+      {reward.bonuses_applied?.length > 0 && (
+        <span style={{ display: 'flex', gap: 5, alignItems: 'center' }}>
+          {reward.bonuses_applied.filter(b => b.source !== 'quest_faction' && b.source !== 'quest_class').map((b, i) => (
+            <span key={i} style={{
+              fontFamily: "'IBM Plex Mono', monospace",
+              fontSize: 9, letterSpacing: '0.08em', textTransform: 'uppercase',
+              color: b.source === 'olympians' ? '#E8D080' : b.source === 'annunaki' ? '#C25E3C' : '#C9A961',
+              background: b.source === 'olympians' ? 'rgba(232,208,128,0.12)' : b.source === 'annunaki' ? 'rgba(194,94,60,0.12)' : 'rgba(201,169,97,0.12)',
+              border: `1px solid ${b.source === 'olympians' ? 'rgba(232,208,128,0.3)' : b.source === 'annunaki' ? 'rgba(194,94,60,0.3)' : 'rgba(201,169,97,0.3)'}`,
+              borderRadius: 3, padding: '1px 5px',
+            }}>
+              {b.source === 'olympians' ? '+10% XP' : b.source === 'annunaki' ? '+5% ₯' : '+10% ₯'}
+            </span>
+          ))}
         </span>
       )}
       {level > 0 && (
@@ -603,6 +652,7 @@ export default function Quests() {
                           key={quest.id}
                           quest={quest}
                           stats={stats}
+                          user={user}
                           onComplete={handleComplete}
                           completing={completing}
                         />

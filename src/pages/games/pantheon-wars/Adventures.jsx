@@ -176,7 +176,7 @@ function ActiveAdventureCard({ adventure, onAbandon, onClaim, abandoning, claimi
   )
 }
 
-function AdventureCard({ adv, stats, onStart, starting, hasActive }) {
+function AdventureCard({ adv, stats, user, onStart, starting, hasActive }) {
   const status = adv.player_status  // 'available' | 'active' | 'completed' | 'abandoned'
   const canStart = (
     status === 'available' &&
@@ -254,23 +254,29 @@ function AdventureCard({ adv, stats, onStart, starting, hasActive }) {
             )}
           </div>
 
-          {/* Faction / class bonus tags */}
-          {(adv.faction_bonus || adv.class_bonus) && (
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5 }}>
-              {adv.faction_bonus && (
-                <BonusTag
-                  label={`${adv.faction_bonus} +${adv.faction_bonus_type === 'guaranteed_loot' ? 'guaranteed loot' : adv.faction_bonus_value + '% ' + adv.faction_bonus_type.replace('_', ' ')}`}
-                  color={adv.faction_bonus === 'olympians' ? '#E8D080' : adv.faction_bonus === 'aesir' ? '#8AB8D4' : '#C25E3C'}
-                />
-              )}
-              {adv.class_bonus && (
-                <BonusTag
-                  label={`${adv.class_bonus} +${adv.class_bonus_type === 'loot_upgrade' ? 'loot upgrade' : adv.class_bonus_value + '% ' + adv.class_bonus_type.replace('_', ' ')}`}
-                  color="#9B8AC4"
-                />
-              )}
-            </div>
-          )}
+          {/* Global + per-adventure bonus tags */}
+          {(() => {
+            const chips = []
+            if (user?.faction === 'olympians') chips.push(<BonusTag key="oly" label="+10% XP" color="#E8D080" />)
+            if (user?.faction === 'annunaki')  chips.push(<BonusTag key="ann" label="+5% ₯" color="#C25E3C" />)
+            if (user?.class   === 'broker')    chips.push(<BonusTag key="brk" label="+10% ₯" color="#C9A961" />)
+            if (adv.faction_bonus) chips.push(
+              <BonusTag
+                key="qf"
+                label={`${adv.faction_bonus} +${adv.faction_bonus_type === 'guaranteed_loot' ? 'guaranteed loot' : adv.faction_bonus_value + '% ' + adv.faction_bonus_type.replace('_', ' ')}`}
+                color={adv.faction_bonus === 'olympians' ? '#E8D080' : adv.faction_bonus === 'aesir' ? '#8AB8D4' : '#C25E3C'}
+              />
+            )
+            if (adv.class_bonus) chips.push(
+              <BonusTag
+                key="qc"
+                label={`${adv.class_bonus} +${adv.class_bonus_type === 'loot_upgrade' ? 'loot upgrade' : adv.class_bonus_value + '% ' + adv.class_bonus_type.replace('_', ' ')}`}
+                color="#9B8AC4"
+              />
+            )
+            if (chips.length === 0) return null
+            return <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5 }}>{chips}</div>
+          })()}
         </div>
 
         {/* Action */}
@@ -691,6 +697,7 @@ export default function Adventures() {
                   <AdventureCard
                     adv={adv}
                     stats={stats}
+                    user={user}
                     onStart={handleStart}
                     starting={starting}
                     hasActive={hasActive}
