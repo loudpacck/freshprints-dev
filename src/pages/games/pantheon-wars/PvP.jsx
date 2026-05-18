@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import { usePantheonWars } from '@/contexts/PantheonWarsContext'
@@ -399,24 +399,84 @@ function TargetCard({ target, onAttack, isAttacking, myPowerRating, myStats }) {
 
 // ─── Combat Modal ─────────────────────────────────────────────────────────────
 
-// Inline SVG filigree ornament for the combat modal
-function ModalFiligree() {
+const ROUND_TICK = 1500 // ms per round
+
+function getCallout(round) {
+  const a = round.attacker_action
+  const d = round.defender_action
+  if (a?.type === 'crit')   return { text: 'CRIT!',    color: '#F5D88B' }
+  if (a?.type === 'miss')   return { text: 'MISS',     color: 'rgba(240,240,248,0.35)' }
+  if (d?.type === 'counter') return { text: 'COUNTER!', color: '#EF4444' }
+  if (d?.dodged)            return { text: 'DODGED',   color: '#4FD1C5' }
+  if (d?.blocked)           return { text: 'BLOCKED',  color: '#8AB8D4' }
+  if (d?.type === 'crit')   return { text: 'CRIT!',    color: '#F5D88B' }
+  return null
+}
+
+function ResultRow({ label, value, color }) {
   return (
-    <svg width="80" height="14" viewBox="0 0 80 14" fill="none" aria-hidden="true" style={{ display: 'block', margin: '0 auto 12px' }}>
-      <line x1="0" y1="7" x2="28" y2="7" stroke="#6F5C32" strokeWidth="1"/>
-      <path d="M32 7 L36 3 L40 7 L36 11 Z" fill="#C9A961" opacity="0.7"/>
-      <circle cx="40" cy="7" r="2" fill="#F5D88B" opacity="0.9"/>
-      <path d="M44 7 L48 3 L52 7 L48 11 Z" fill="#C9A961" opacity="0.4"/>
-      <line x1="52" y1="7" x2="80" y2="7" stroke="#6F5C32" strokeWidth="1"/>
-    </svg>
+    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+      <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'rgba(240,240,248,0.35)' }}>
+        {label}
+      </span>
+      <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 12, color, fontWeight: 500 }}>
+        {value}
+      </span>
+    </div>
   )
 }
 
-function CombatModal({ result, onClose }) {
-  const isWin = result.result === 'win'
-  const titleColor  = isWin ? 'var(--color-success, #5FB857)' : 'var(--color-danger, #B8443A)'
-  const borderColor = isWin ? '2px solid rgba(95,184,87,0.7)'  : '2px solid rgba(184,68,58,0.7)'
-  const glowColor   = isWin ? '0 0 24px rgba(95,184,87,0.4)'  : '0 0 24px rgba(184,68,58,0.4)'
+function CombatModal({ result, onClose, play }) {
+  const rounds = Array.isArray(result.rounds) ? result.rounds : []
+  const hasRounds = rounds.length > 0
+
+  // Compute initial HP from final + total lost
+  const finalAttHp = hasRounds ? rounds[rounds.length - 1].attacker_hp_after : 0
+  const finalDefHp = hasRounds ? rounds[rounds.length - 1].defender_hp_after : 0
+  const initAttHp  = finalAttHp + (result.attacker_health_lost || 0)
+  const initDefHp  = finalDefHp + (result.defender_health_lost || 0)
+
+  const [phase,    setPhase]    = useState(hasRounds ? 'animating' : 'result')
+  const [roundIdx, setRoundIdx] = useState(0)
+  const [attHp,    setAttHp]    = useState(initAttHp)
+  const [defHp,    setDefHp]    = useState(initDefHp)
+  const [callout,  setCallout]  = useState(null)
+  const timerRef = useRef(null)
+
+  // Advance rounds
+  useEffect(() => {
+    if (phase !== 'animating' || !hasRounds) return
+    const r = rounds[roundIdx]
+    setAttHp(r.attacker_hp_after)
+    setDefHp(r.defender_hp_after)
+    const c = getCallout(r)
+    setCallout(c)
+    // play crit sound
+    if (c?.text === 'CRIT!') play('success')
+
+    timerRef.current = setTimeout(() => {
+      if (roundIdx < rounds.length - 1) {
+        setRoundIdx(i => i + 1)
+      } else {
+        setPhase('result')
+      }
+    }, ROUND_TICK)
+
+    return () => clearTimeout(timerRef.current)
+  }, [phase, roundIdx]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  function skipToResult() {
+    clearTimeout(timerRef.current)
+    setPhase('result')
+  }
+
+  const combatResult = result.result
+  const isWin  = combatResult === 'win'
+  const isDraw = combatResult === 'draw'
+  const titleText  = isWin ? 'VICTORY' : isDraw ? 'DRAW' : 'DEFEAT'
+  const titleColor = isWin ? '#5FB857' : isDraw ? '#C9A961' : '#B8443A'
+  const borderColor = isWin ? 'rgba(95,184,87,0.6)' : isDraw ? 'rgba(201,169,97,0.5)' : 'rgba(184,68,58,0.6)'
+  const glowColor   = isWin ? '0 0 24px rgba(95,184,87,0.35)' : isDraw ? '0 0 20px rgba(201,169,97,0.25)' : '0 0 24px rgba(184,68,58,0.35)'
 
   return (
     <motion.div
@@ -424,10 +484,10 @@ function CombatModal({ result, onClose }) {
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
       transition={{ duration: 0.2 }}
-      onClick={onClose}
+      onClick={phase === 'result' ? onClose : undefined}
       style={{
         position: 'fixed', inset: 0, zIndex: 50,
-        background: 'rgba(10,7,16,0.88)',
+        background: 'rgba(10,7,16,0.9)',
         backdropFilter: 'blur(10px)',
         display: 'flex', alignItems: 'center', justifyContent: 'center',
         padding: '20px',
@@ -440,202 +500,232 @@ function CombatModal({ result, onClose }) {
         transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
         onClick={e => e.stopPropagation()}
         style={{
-          background: 'linear-gradient(180deg, var(--color-bg-elevated, #14101A) 0%, var(--color-bg-base, #0A0710) 100%)',
-          border: borderColor,
+          background: 'linear-gradient(180deg, #14101A 0%, #0A0710 100%)',
+          border: `2px solid ${borderColor}`,
           borderRadius: 8,
-          padding: '28px 24px',
+          padding: '24px 22px',
           width: '100%',
-          maxWidth: 'min(420px, 95vw)',
+          maxWidth: 'min(440px, 95vw)',
           boxShadow: `${glowColor}, 0 8px 48px rgba(0,0,0,0.7)`,
         }}
       >
-        {/* Title with filigree */}
-        <div style={{ textAlign: 'center', marginBottom: 24 }}>
-          <ModalFiligree />
-          <div style={{
-            fontFamily: "var(--pw-font-display, 'Cinzel', serif)",
-            fontSize: 38,
-            fontWeight: 900,
-            letterSpacing: '0.12em',
-            color: titleColor,
-            lineHeight: 1,
-            textShadow: isWin ? '0 0 20px rgba(95,184,87,0.4)' : '0 0 20px rgba(184,68,58,0.4)',
-          }}>
-            {isWin ? 'VICTORY' : 'DEFEAT'}
-          </div>
-          <div style={{
-            fontFamily: "'IBM Plex Mono', monospace",
-            fontSize: 10,
-            letterSpacing: '0.12em',
-            textTransform: 'uppercase',
-            color: 'var(--color-text-muted, #5C5446)',
-            marginTop: 8,
-          }}>
-            vs {result.defender.username}
-          </div>
-          <div style={{
-            fontFamily: "'DM Sans', sans-serif",
-            fontSize: 10,
-            color: 'rgba(240,240,248,0.22)',
-            marginTop: 8,
-            lineHeight: 1.55,
-            maxWidth: 320,
-            margin: '8px auto 0',
-          }}>
-            Combat rolls include random variance, faction bonuses, and class multipliers — they differ from baseline power rating.
-          </div>
-        </div>
+        {/* ── ANIMATION PHASE ── */}
+        {phase === 'animating' && (
+          <>
+            {/* Round indicator */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 18 }}>
+              <span style={{
+                fontFamily: "'IBM Plex Mono', monospace", fontSize: 10,
+                letterSpacing: '0.14em', textTransform: 'uppercase',
+                color: 'rgba(240,240,248,0.4)',
+              }}>
+                ROUND {roundIdx + 1} / {rounds.length}
+              </span>
+              <button
+                onClick={skipToResult}
+                style={{
+                  fontFamily: "'IBM Plex Mono', monospace", fontSize: 9,
+                  letterSpacing: '0.1em', textTransform: 'uppercase',
+                  color: 'rgba(240,240,248,0.35)', background: 'none',
+                  border: '1px solid rgba(255,255,255,0.12)', borderRadius: 4,
+                  padding: '4px 10px', cursor: 'pointer',
+                }}
+              >
+                SKIP →
+              </button>
+            </div>
 
-        {/* Power comparison */}
-        <div style={{
-          background: 'rgba(255,255,255,0.03)',
-          border: '1px solid var(--color-border-frame, #3D2F1A)',
-          borderRadius: 6,
-          padding: '14px 16px',
-          display: 'grid',
-          gridTemplateColumns: '1fr 1fr',
-          gap: 12,
-          marginBottom: 16,
-        }}>
-          <div style={{ textAlign: 'center' }}>
-            <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 9, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--color-text-muted, #5C5446)', marginBottom: 4 }}>
-              ATTACK ROLL
+            {/* Combatant labels */}
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr auto 1fr', gap: 8, alignItems: 'center', marginBottom: 14 }}>
+              <div>
+                <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 9, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'rgba(240,240,248,0.3)', marginBottom: 3 }}>
+                  YOU
+                </div>
+                <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 22, letterSpacing: '0.04em', color: '#22C55E', lineHeight: 1 }}>
+                  {attHp}
+                </div>
+              </div>
+              <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 18, letterSpacing: '0.06em', color: 'rgba(240,240,248,0.2)', textAlign: 'center' }}>
+                VS
+              </div>
+              <div style={{ textAlign: 'right' }}>
+                <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 9, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'rgba(240,240,248,0.3)', marginBottom: 3 }}>
+                  {result.defender.username}
+                </div>
+                <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 22, letterSpacing: '0.04em', color: '#EF4444', lineHeight: 1 }}>
+                  {defHp}
+                </div>
+              </div>
             </div>
-            <div style={{ fontFamily: "var(--pw-font-display, 'Cinzel', serif)", fontSize: 26, fontWeight: 700, letterSpacing: '0.04em', color: '#F97316', lineHeight: 1 }}>
-              {result.attacker_power}
-            </div>
-          </div>
-          <div style={{ textAlign: 'center' }}>
-            <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 9, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--color-text-muted, #5C5446)', marginBottom: 4 }}>
-              DEFENSE ROLL
-            </div>
-            <div style={{ fontFamily: "var(--pw-font-display, 'Cinzel', serif)", fontSize: 26, fontWeight: 700, letterSpacing: '0.04em', color: '#22C55E', lineHeight: 1 }}>
-              {result.defender_power}
-            </div>
-          </div>
-        </div>
 
-        {/* Rewards/losses */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 20 }}>
-          {result.energy_cost != null && (
-            <ResultRow label="ENERGY SPENT" value={`-${result.energy_cost}⚡`} color="rgba(34,211,238,0.7)" />
-          )}
-          {isWin && result.xp_earned > 0 && (
-            <ResultRow label="XP EARNED" value={`+${fmt(result.xp_earned)}`} color="#9B8AC4" />
-          )}
-          {isWin && result.glory_earned > 0 && (
-            <ResultRow label="GLORY EARNED" value={`+${result.glory_earned}`} color="var(--color-warning, #D4A437)" />
-          )}
-          {!isWin && (
-            <ResultRow label="GLORY DEFENDED" value="+1" color="var(--color-warning, #D4A437)" />
-          )}
-          <ResultRow
-            label={result.attacker_mitigation > 0.01 ? `YOUR HP LOST (${Math.round(result.attacker_mitigation * 100)}% mit.)` : 'YOUR HP LOST'}
-            value={`-${result.attacker_health_lost}`}
-            color="var(--color-danger, #B8443A)"
-          />
-          {isWin && result.defender_health_lost > 0 && (
-            <ResultRow
-              label={result.defender_mitigation > 0.01 ? `THEIR HP LOST (${Math.round(result.defender_mitigation * 100)}% mit.)` : 'THEIR HP LOST'}
-              value={`-${result.defender_health_lost}`}
-              color="var(--color-text-muted, #5C5446)"
-            />
-          )}
-        </div>
+            {/* HP bars */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 16 }}>
+              {/* Attacker bar */}
+              <div style={{ height: 8, background: 'rgba(255,255,255,0.07)', borderRadius: 4, overflow: 'hidden' }}>
+                <div style={{
+                  width: `${initAttHp > 0 ? Math.max(0, (attHp / initAttHp) * 100) : 0}%`,
+                  height: '100%',
+                  background: 'linear-gradient(90deg, #166534, #22C55E)',
+                  borderRadius: 4,
+                  transition: `width ${ROUND_TICK * 0.55}ms ease`,
+                }} />
+              </div>
+              {/* Defender bar */}
+              <div style={{ height: 8, background: 'rgba(255,255,255,0.07)', borderRadius: 4, overflow: 'hidden' }}>
+                <div style={{
+                  width: `${initDefHp > 0 ? Math.max(0, (defHp / initDefHp) * 100) : 0}%`,
+                  height: '100%',
+                  background: 'linear-gradient(90deg, #7f1d1d, #EF4444)',
+                  borderRadius: 4,
+                  transition: `width ${ROUND_TICK * 0.55}ms ease`,
+                }} />
+              </div>
+            </div>
 
-        {/* Level up callout */}
-        {result.levelsGained > 0 && (
-          <div style={{
-            background: 'rgba(212,164,55,0.1)',
-            border: '1px solid rgba(212,164,55,0.4)',
-            borderRadius: 6,
-            padding: '10px 14px',
-            marginBottom: 16,
-            textAlign: 'center',
-          }}>
-            <span style={{
-              fontFamily: "var(--pw-font-display, 'Cinzel', serif)",
-              fontSize: 13,
-              fontWeight: 700,
-              letterSpacing: '0.1em',
-              color: 'var(--color-warning, #D4A437)',
-            }}>
-              ★ LEVEL UP × {result.levelsGained}!
-            </span>
-          </div>
+            {/* Callout */}
+            <div style={{ minHeight: 36, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <AnimatePresence mode="wait">
+                {callout && (
+                  <motion.span
+                    key={`${roundIdx}-${callout.text}`}
+                    initial={{ opacity: 0, y: -8, scale: 0.9 }}
+                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                    exit={{ opacity: 0, y: 6 }}
+                    transition={{ duration: 0.22 }}
+                    style={{
+                      fontFamily: "'Bebas Neue', sans-serif",
+                      fontSize: 28,
+                      letterSpacing: '0.1em',
+                      color: callout.color,
+                      textShadow: `0 0 16px ${callout.color}`,
+                    }}
+                  >
+                    {callout.text}
+                  </motion.span>
+                )}
+              </AnimatePresence>
+            </div>
+          </>
         )}
 
-        {/* Action buttons */}
-        <div style={{ display: 'flex', gap: 10 }}>
-          <button
-            onClick={onClose}
-            style={{
-              flex: 1,
-              padding: '12px 0',
-              background: isWin ? 'rgba(95,184,87,0.12)' : 'rgba(184,68,58,0.1)',
-              border: `1px solid ${isWin ? 'rgba(95,184,87,0.4)' : 'rgba(184,68,58,0.35)'}`,
-              borderRadius: 6,
-              fontFamily: "var(--pw-font-display, 'Cinzel', serif)",
-              fontSize: 13,
-              fontWeight: 600,
-              letterSpacing: '0.1em',
-              color: isWin ? 'var(--color-success, #5FB857)' : 'var(--color-danger, #B8443A)',
-              cursor: 'pointer',
-            }}
-          >
-            ATTACK AGAIN
-          </button>
-          <Link
-            to="/games/pantheon-wars/pvp/log"
-            style={{
-              flex: 1,
-              padding: '12px 0',
-              background: 'transparent',
-              border: '1px solid var(--color-border-frame, #3D2F1A)',
-              borderRadius: 6,
-              fontFamily: "var(--pw-font-display, 'Cinzel', serif)",
-              fontSize: 13,
-              fontWeight: 600,
-              letterSpacing: '0.1em',
-              color: 'var(--color-text-secondary, #A89B7E)',
-              textAlign: 'center',
-              textDecoration: 'none',
-              display: 'block',
-            }}
-          >
-            VIEW LOG
-          </Link>
-        </div>
+        {/* ── RESULT PHASE ── */}
+        {phase === 'result' && (
+          <>
+            {/* Title */}
+            <div style={{ textAlign: 'center', marginBottom: 20 }}>
+              <div style={{
+                fontFamily: "'Bebas Neue', sans-serif",
+                fontSize: 44,
+                letterSpacing: '0.1em',
+                color: titleColor,
+                lineHeight: 1,
+                textShadow: `0 0 24px ${titleColor}`,
+              }}>
+                {titleText}
+              </div>
+              <div style={{
+                fontFamily: "'IBM Plex Mono', monospace", fontSize: 10,
+                letterSpacing: '0.12em', textTransform: 'uppercase',
+                color: 'rgba(240,240,248,0.35)', marginTop: 6,
+              }}>
+                vs {result.defender.username}
+              </div>
+            </div>
+
+            {/* Power comparison */}
+            <div style={{
+              background: 'rgba(255,255,255,0.03)',
+              border: '1px solid rgba(255,255,255,0.09)',
+              borderRadius: 6, padding: '12px 16px',
+              display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12,
+              marginBottom: 14,
+            }}>
+              <div style={{ textAlign: 'center' }}>
+                <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 9, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'rgba(240,240,248,0.3)', marginBottom: 4 }}>
+                  ATK DEALT
+                </div>
+                <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 26, color: '#F97316', lineHeight: 1 }}>
+                  {result.attacker_power}
+                </div>
+              </div>
+              <div style={{ textAlign: 'center' }}>
+                <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 9, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'rgba(240,240,248,0.3)', marginBottom: 4 }}>
+                  DEF DEALT
+                </div>
+                <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 26, color: '#22C55E', lineHeight: 1 }}>
+                  {result.defender_power}
+                </div>
+              </div>
+            </div>
+
+            {/* Rewards */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 18 }}>
+              {result.energy_cost != null && (
+                <ResultRow label="ENERGY SPENT" value={`-${result.energy_cost}⚡`} color="rgba(34,211,238,0.7)" />
+              )}
+              {(isWin || isDraw) && result.xp_earned > 0 && (
+                <ResultRow label="XP EARNED" value={`+${fmt(result.xp_earned)}`} color="#9B8AC4" />
+              )}
+              {isWin && result.glory_earned > 0 && (
+                <ResultRow label="GLORY EARNED" value={`+${result.glory_earned}`} color="#D4A437" />
+              )}
+              {isDraw && (
+                <ResultRow label="RESULT" value="DRAW — no glory transfer" color="#C9A961" />
+              )}
+              {!isWin && !isDraw && (
+                <ResultRow label="GLORY DEFENDED" value="+1" color="#D4A437" />
+              )}
+              <ResultRow label="YOUR HP LOST" value={`-${result.attacker_health_lost}`} color="#B8443A" />
+              {result.defender_health_lost > 0 && (
+                <ResultRow label="THEIR HP LOST" value={`-${result.defender_health_lost}`} color="rgba(240,240,248,0.35)" />
+              )}
+            </div>
+
+            {/* Level up */}
+            {result.levelsGained > 0 && (
+              <div style={{
+                background: 'rgba(212,164,55,0.1)', border: '1px solid rgba(212,164,55,0.4)',
+                borderRadius: 6, padding: '10px 14px', marginBottom: 14, textAlign: 'center',
+              }}>
+                <span style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 18, letterSpacing: '0.1em', color: '#D4A437' }}>
+                  ★ LEVEL UP × {result.levelsGained}!
+                </span>
+              </div>
+            )}
+
+            {/* Buttons */}
+            <div style={{ display: 'flex', gap: 10 }}>
+              <button
+                onClick={onClose}
+                style={{
+                  flex: 1, padding: '12px 0',
+                  background: isWin ? 'rgba(95,184,87,0.12)' : isDraw ? 'rgba(201,169,97,0.1)' : 'rgba(184,68,58,0.1)',
+                  border: `1px solid ${isWin ? 'rgba(95,184,87,0.4)' : isDraw ? 'rgba(201,169,97,0.35)' : 'rgba(184,68,58,0.35)'}`,
+                  borderRadius: 6,
+                  fontFamily: "'Bebas Neue', sans-serif", fontSize: 16,
+                  letterSpacing: '0.1em', color: titleColor, cursor: 'pointer',
+                }}
+              >
+                ATTACK AGAIN
+              </button>
+              <Link
+                to="/games/pantheon-wars/pvp/log"
+                style={{
+                  flex: 1, padding: '12px 0',
+                  background: 'transparent', border: '1px solid rgba(255,255,255,0.1)',
+                  borderRadius: 6,
+                  fontFamily: "'Bebas Neue', sans-serif", fontSize: 16,
+                  letterSpacing: '0.1em', color: 'rgba(240,240,248,0.45)',
+                  textAlign: 'center', textDecoration: 'none', display: 'block',
+                }}
+              >
+                VIEW LOG
+              </Link>
+            </div>
+          </>
+        )}
       </motion.div>
     </motion.div>
-  )
-}
-
-function ResultRow({ label, value, color }) {
-  return (
-    <div style={{
-      display: 'flex',
-      justifyContent: 'space-between',
-      alignItems: 'center',
-    }}>
-      <span style={{
-        fontFamily: "'IBM Plex Mono', monospace",
-        fontSize: 10,
-        letterSpacing: '0.1em',
-        textTransform: 'uppercase',
-        color: 'rgba(240,240,248,0.35)',
-      }}>
-        {label}
-      </span>
-      <span style={{
-        fontFamily: "'IBM Plex Mono', monospace",
-        fontSize: 12,
-        color,
-        fontWeight: 500,
-      }}>
-        {value}
-      </span>
-    </div>
   )
 }
 
@@ -771,8 +861,11 @@ export default function PvP() {
         return
       }
       setCombatResult(data)
-      play(data.result === 'win' ? 'combatWin' : 'combatLose')
-      if (data.levelsGained > 0) setTimeout(() => play('levelUp'), 800)
+      // Sound plays after animation completes (ROUND_TICK * rounds + buffer)
+      const rounds = Array.isArray(data.rounds) ? data.rounds : []
+      const delay  = rounds.length > 0 ? rounds.length * ROUND_TICK + 400 : 0
+      setTimeout(() => play(data.result === 'win' ? 'combatWin' : 'combatLose'), delay)
+      if (data.levelsGained > 0) setTimeout(() => play('levelUp'), delay + 800)
       refresh()
       fetchTargets()
     } catch {
@@ -795,7 +888,7 @@ export default function PvP() {
       {/* Combat modal */}
       <AnimatePresence>
         {combatResult && (
-          <CombatModal result={combatResult} onClose={() => setCombatResult(null)} />
+          <CombatModal result={combatResult} onClose={() => setCombatResult(null)} play={play} />
         )}
       </AnimatePresence>
 
@@ -898,6 +991,30 @@ export default function PvP() {
                         }}>
                           {targetsData.my_power_rating}
                         </span>
+                      </div>
+                    )}
+                    {targetsData.computed_bonuses && (
+                      <div style={{
+                        marginTop: 10,
+                        paddingTop: 10,
+                        borderTop: '1px solid rgba(255,255,255,0.05)',
+                        display: 'flex', flexWrap: 'wrap', gap: '4px 14px',
+                      }}>
+                        {[
+                          { label: 'CRIT',  value: targetsData.computed_bonuses.crit,    color: '#F5D88B', suffix: '%' },
+                          { label: 'BLOCK', value: targetsData.computed_bonuses.block,   color: '#8AB8D4', suffix: '%' },
+                          { label: 'DODGE', value: targetsData.computed_bonuses.dodge,   color: '#4FD1C5', suffix: '%' },
+                          { label: 'AGI',   value: targetsData.computed_bonuses.agility, color: '#A78BFA', suffix: ''  },
+                        ].map(({ label, value, color, suffix }) => (
+                          <div key={label} style={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+                            <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 8, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'rgba(240,240,248,0.28)' }}>
+                              {label}
+                            </span>
+                            <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 11, color }}>
+                              {value}{suffix}
+                            </span>
+                          </div>
+                        ))}
                       </div>
                     )}
                     {localStats.health <= 1 && (

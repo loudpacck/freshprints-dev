@@ -142,16 +142,20 @@ function ShopItem({ item, player, currency, onBuy, buying }) {
           {item.description}
         </p>
 
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px 12px' }}>
-          {item.attack_bonus > 0 && (
-            <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, color: '#F97316' }}>
-              +{item.attack_bonus} ATK
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px 12px', alignItems: 'center' }}>
+          {item.slot === 'consumable' ? (
+            <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, color: '#22D3EE' }}>
+              {item.consumable_effect === 'realloc_stats' ? 'Resets all stat allocations' : item.consumable_effect ?? 'Use to consume'}
             </span>
-          )}
-          {item.defense_bonus > 0 && (
-            <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, color: '#22C55E' }}>
-              +{item.defense_bonus} DEF
-            </span>
+          ) : (
+            <>
+              {item.attack_bonus > 0 && <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, color: '#F97316' }}>+{item.attack_bonus} ATK</span>}
+              {item.defense_bonus > 0 && <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, color: '#22C55E' }}>+{item.defense_bonus} DEF</span>}
+              {item.agility_bonus > 0 && <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, color: '#A78BFA' }}>+{item.agility_bonus} AGI</span>}
+              {item.crit_chance > 0 && <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, color: '#F5D88B' }}>+{item.crit_chance}% CRIT</span>}
+              {item.block_chance > 0 && <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, color: '#8AB8D4' }}>+{item.block_chance}% BLOCK</span>}
+              {item.dodge_chance > 0 && <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, color: '#4FD1C5' }}>+{item.dodge_chance}% DODGE</span>}
+            </>
           )}
           <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, color: 'rgba(240,240,248,0.25)' }}>
             Level {item.level_required}+

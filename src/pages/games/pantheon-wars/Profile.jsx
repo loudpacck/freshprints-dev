@@ -15,6 +15,7 @@ const CLASS_LABEL   = { warden: 'Warden', oracle: 'Oracle', slayer: 'Slayer', br
 
 const ATTACK_COLOR     = '#F97316'
 const DEFENSE_COLOR    = '#22C55E'
+const AGILITY_COLOR    = '#A78BFA'
 const ENERGY_COLOR     = '#C9A961'
 const HEALTH_COLOR     = '#EF4444'
 const VIOLET           = '#8B5CF6'
@@ -116,6 +117,11 @@ function AllocToast({ toast, onDone }) {
           {toast.defense > 0 && (
             <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 12, color: DEFENSE_COLOR }}>
               +{toast.defense} DEF
+            </span>
+          )}
+          {toast.agility > 0 && (
+            <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 12, color: AGILITY_COLOR }}>
+              +{toast.agility} AGI
             </span>
           )}
           {toast.energy_max > 0 && (
@@ -265,6 +271,117 @@ function StatAllocCard({ label, color, current, pending, onIncrement, onDecremen
   )
 }
 
+// ─── Free reset confirmation modal ────────────────────────────────────────────
+
+function ResetModal({ onConfirm, onCancel, isConfirming }) {
+  return (
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      transition={{ duration: 0.18 }}
+      style={{
+        position: 'fixed',
+        inset: 0,
+        zIndex: 200,
+        background: 'rgba(7,7,13,0.82)',
+        backdropFilter: 'blur(8px)',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: '20px',
+      }}
+      onClick={e => { if (e.target === e.currentTarget) onCancel() }}
+    >
+      <motion.div
+        initial={{ opacity: 0, y: 16, scale: 0.97 }}
+        animate={{ opacity: 1, y: 0, scale: 1 }}
+        exit={{ opacity: 0, y: 12, scale: 0.97 }}
+        transition={{ duration: 0.22, ease: [0.16, 1, 0.3, 1] }}
+        style={{
+          background: 'rgba(14,14,22,0.98)',
+          border: '1px solid rgba(248,113,113,0.35)',
+          borderRadius: 14,
+          padding: '28px 28px 24px',
+          maxWidth: 400,
+          width: '100%',
+          boxShadow: '0 8px 48px rgba(0,0,0,0.6)',
+        }}
+      >
+        <div style={{
+          fontFamily: "'IBM Plex Mono', monospace",
+          fontSize: 10,
+          letterSpacing: '0.16em',
+          textTransform: 'uppercase',
+          color: 'rgba(248,113,113,0.65)',
+          marginBottom: 12,
+        }}>
+          // STAT RESET
+        </div>
+        <div style={{
+          fontFamily: "'Bebas Neue', sans-serif",
+          fontSize: 26,
+          letterSpacing: '0.08em',
+          color: '#F0F0F8',
+          lineHeight: 1,
+          marginBottom: 14,
+        }}>
+          RESET ALL STAT POINTS?
+        </div>
+        <p style={{
+          fontFamily: "'DM Sans', sans-serif",
+          fontSize: 13,
+          color: 'rgba(240,240,248,0.5)',
+          lineHeight: 1.55,
+          margin: '0 0 22px',
+        }}>
+          All allocated stats will revert to their baseline values and every spent point will be returned to your pool. This one-time free reset cannot be undone.
+        </p>
+        <div style={{ display: 'flex', gap: 10 }}>
+          <button
+            onClick={onCancel}
+            disabled={isConfirming}
+            style={{
+              flex: 1,
+              padding: '12px 0',
+              background: 'transparent',
+              border: '1px solid rgba(255,255,255,0.14)',
+              borderRadius: 8,
+              fontFamily: "'IBM Plex Mono', monospace",
+              fontSize: 11,
+              letterSpacing: '0.1em',
+              textTransform: 'uppercase',
+              color: 'rgba(240,240,248,0.5)',
+              cursor: isConfirming ? 'not-allowed' : 'pointer',
+            }}
+          >
+            CANCEL
+          </button>
+          <button
+            onClick={onConfirm}
+            disabled={isConfirming}
+            style={{
+              flex: 2,
+              padding: '12px 0',
+              background: isConfirming ? 'rgba(248,113,113,0.3)' : 'rgba(248,113,113,0.15)',
+              border: '1px solid rgba(248,113,113,0.5)',
+              borderRadius: 8,
+              fontFamily: "'Bebas Neue', sans-serif",
+              fontSize: 18,
+              letterSpacing: '0.1em',
+              color: isConfirming ? 'rgba(248,113,113,0.5)' : '#F87171',
+              cursor: isConfirming ? 'not-allowed' : 'pointer',
+              transition: 'background 150ms',
+            }}
+          >
+            {isConfirming ? 'RESETTING...' : 'CONFIRM RESET'}
+          </button>
+        </div>
+      </motion.div>
+    </motion.div>
+  )
+}
+
 // ─── Alignment chooser — plays alignment song on mount, stops on unmount ──────
 
 function AlignmentChooser({ onChoose, isChoosing }) {
@@ -344,10 +461,13 @@ export default function Profile() {
 
   const [pendingAttack,     setPendingAttack]     = useState(0)
   const [pendingDefense,    setPendingDefense]    = useState(0)
+  const [pendingAgility,    setPendingAgility]    = useState(0)
   const [pendingEnergyMax,  setPendingEnergyMax]  = useState(0)
   const [pendingHealthMax,  setPendingHealthMax]  = useState(0)
   const [isSubmitting,      setIsSubmitting]      = useState(false)
   const [isChoosing,        setIsChoosing]        = useState(false)
+  const [showResetModal,    setShowResetModal]    = useState(false)
+  const [isConfirmingReset, setIsConfirmingReset] = useState(false)
   const [toast,             setToast]             = useState(null)
 
   useEffect(() => {
@@ -355,8 +475,8 @@ export default function Profile() {
   }, [loading, user, navigate])
 
   const stats = displayStats
-  const availablePoints = stats ? stats.stat_points - pendingAttack - pendingDefense - pendingEnergyMax - pendingHealthMax : 0
-  const totalPending    = pendingAttack + pendingDefense + pendingEnergyMax + pendingHealthMax
+  const availablePoints = stats ? stats.stat_points - pendingAttack - pendingDefense - pendingAgility - pendingEnergyMax - pendingHealthMax : 0
+  const totalPending    = pendingAttack + pendingDefense + pendingAgility + pendingEnergyMax + pendingHealthMax
   const canAddMore      = availablePoints > 0
 
   async function handleAllocate() {
@@ -369,6 +489,7 @@ export default function Profile() {
         body:    JSON.stringify({
           attack:     pendingAttack,
           defense:    pendingDefense,
+          agility:    pendingAgility,
           energy_max: pendingEnergyMax,
           health_max: pendingHealthMax,
         }),
@@ -385,6 +506,7 @@ export default function Profile() {
         ...prev,
         attack:      data.newStats.attack,
         defense:     data.newStats.defense,
+        agility:     data.newStats.agility,
         energy_max:  data.newStats.energy_max,
         health_max:  data.newStats.health_max,
         energy:      data.newStats.energy,
@@ -392,15 +514,17 @@ export default function Profile() {
         stat_points: data.newStats.stat_points,
       }))
       setToast({
-        type: 'success',
+        type:       'success',
         attack:     pendingAttack,
         defense:    pendingDefense,
+        agility:    pendingAgility,
         energy_max: pendingEnergyMax,
         health_max: pendingHealthMax,
       })
       play('success')
       setPendingAttack(0)
       setPendingDefense(0)
+      setPendingAgility(0)
       setPendingEnergyMax(0)
       setPendingHealthMax(0)
       refresh()
@@ -435,6 +559,37 @@ export default function Profile() {
     }
   }
 
+  async function handleFreeReset() {
+    if (isConfirmingReset) return
+    setIsConfirmingReset(true)
+    try {
+      const res  = await fetch('/api/games/pantheon-wars/game?action=stat_reset_free', { method: 'POST' })
+      const data = await res.json()
+      if (!res.ok) {
+        const msg = data.error === 'free_reset_already_used'
+          ? 'Free reset already used'
+          : (data.error || 'Reset failed')
+        setToast({ type: 'error', message: msg })
+        setShowResetModal(false)
+        return
+      }
+      setDisplayStats(data.stats)
+      setPendingAttack(0)
+      setPendingDefense(0)
+      setPendingAgility(0)
+      setPendingEnergyMax(0)
+      setPendingHealthMax(0)
+      setShowResetModal(false)
+      setToast({ type: 'success', message: `Stats reset — ${data.points_refunded} point${data.points_refunded !== 1 ? 's' : ''} refunded` })
+      play('success')
+      refresh()
+    } catch {
+      setToast({ type: 'error', message: 'Network error. Try again.' })
+    } finally {
+      setIsConfirmingReset(false)
+    }
+  }
+
   const factionColor = user ? (FACTION_COLOR[user.faction] ?? '#F0F0F8') : '#F0F0F8'
   const xpMax = stats ? xpNeeded(stats.level) : 100
   const xpPct = stats ? Math.min(100, Math.round((stats.xp / xpMax) * 100)) : 0
@@ -442,6 +597,9 @@ export default function Profile() {
   return (
     <>
       <style>{`
+        @media (max-width: 799px) {
+          .pw-alloc-grid  { grid-template-columns: 1fr 1fr 1fr !important; }
+        }
         @media (max-width: 640px) {
           .pw-alloc-grid  { grid-template-columns: 1fr 1fr !important; }
           .pw-align-grid  { grid-template-columns: 1fr !important; }
@@ -455,6 +613,17 @@ export default function Profile() {
       <AnimatePresence>
         {toast && (
           <AllocToast toast={toast} onDone={() => setToast(null)} />
+        )}
+      </AnimatePresence>
+
+      {/* Free reset confirmation modal */}
+      <AnimatePresence>
+        {showResetModal && (
+          <ResetModal
+            onConfirm={handleFreeReset}
+            onCancel={() => setShowResetModal(false)}
+            isConfirming={isConfirmingReset}
+          />
         )}
       </AnimatePresence>
 
@@ -729,7 +898,7 @@ export default function Profile() {
               <motion.section variants={fadeUp} style={{ marginBottom: 16 }}>
                 <div
                   className="pw-alloc-grid"
-                  style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: 14 }}
+                  style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 14 }}
                 >
                   <StatAllocCard
                     label="Attack"
@@ -748,6 +917,15 @@ export default function Profile() {
                     canAdd={canAddMore}
                     onIncrement={() => setPendingDefense(p => p + 1)}
                     onDecrement={() => setPendingDefense(p => Math.max(0, p - 1))}
+                  />
+                  <StatAllocCard
+                    label="Agility"
+                    color={AGILITY_COLOR}
+                    current={stats.agility || 0}
+                    pending={pendingAgility}
+                    canAdd={canAddMore}
+                    onIncrement={() => setPendingAgility(p => p + 1)}
+                    onDecrement={() => setPendingAgility(p => Math.max(0, p - 1))}
                   />
                   <StatAllocCard
                     label="Energy Max"
@@ -813,6 +991,16 @@ export default function Profile() {
                           +{pendingDefense} Defense
                         </span>
                       )}
+                      {pendingAgility > 0 && (
+                        <span style={{
+                          fontFamily: "'IBM Plex Mono', monospace",
+                          fontSize: 11,
+                          color: AGILITY_COLOR,
+                          letterSpacing: '0.06em',
+                        }}>
+                          +{pendingAgility} Agility
+                        </span>
+                      )}
                       {pendingEnergyMax > 0 && (
                         <span style={{
                           fontFamily: "'IBM Plex Mono', monospace",
@@ -872,7 +1060,7 @@ export default function Profile() {
                 </button>
                 {totalPending > 0 && (
                   <button
-                    onClick={() => { setPendingAttack(0); setPendingDefense(0); setPendingEnergyMax(0); setPendingHealthMax(0) }}
+                    onClick={() => { setPendingAttack(0); setPendingDefense(0); setPendingAgility(0); setPendingEnergyMax(0); setPendingHealthMax(0) }}
                     disabled={isSubmitting}
                     style={{
                       padding: '14px 18px',
@@ -903,6 +1091,75 @@ export default function Profile() {
                   </button>
                 )}
               </motion.section>
+
+              {/* F.5 — Free stat reset offer */}
+              {stats.stat_reset_available && (
+                <motion.section
+                  variants={fadeUp}
+                  style={{
+                    marginTop: 20,
+                    background: 'rgba(248,113,113,0.05)',
+                    border: '1px solid rgba(248,113,113,0.25)',
+                    borderRadius: 12,
+                    padding: '16px 20px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 14,
+                    flexWrap: 'wrap',
+                  }}
+                >
+                  <div style={{ flex: 1, minWidth: 180 }}>
+                    <div style={{
+                      fontFamily: "'IBM Plex Mono', monospace",
+                      fontSize: 9,
+                      letterSpacing: '0.14em',
+                      textTransform: 'uppercase',
+                      color: 'rgba(248,113,113,0.6)',
+                      marginBottom: 5,
+                    }}>
+                      ONE-TIME OFFER
+                    </div>
+                    <div style={{
+                      fontFamily: "'Bebas Neue', sans-serif",
+                      fontSize: 18,
+                      letterSpacing: '0.07em',
+                      color: '#F87171',
+                      lineHeight: 1,
+                      marginBottom: 4,
+                    }}>
+                      FREE STAT RESET AVAILABLE
+                    </div>
+                    <div style={{
+                      fontFamily: "'DM Sans', sans-serif",
+                      fontSize: 11,
+                      color: 'rgba(240,240,248,0.35)',
+                      lineHeight: 1.45,
+                    }}>
+                      Reverts all stats to baseline and refunds every spent point. Cannot be undone.
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => setShowResetModal(true)}
+                    style={{
+                      padding: '10px 20px',
+                      background: 'rgba(248,113,113,0.1)',
+                      border: '1px solid rgba(248,113,113,0.4)',
+                      borderRadius: 8,
+                      fontFamily: "'Bebas Neue', sans-serif",
+                      fontSize: 16,
+                      letterSpacing: '0.1em',
+                      color: '#F87171',
+                      cursor: 'pointer',
+                      whiteSpace: 'nowrap',
+                      transition: 'background 150ms',
+                    }}
+                    onMouseEnter={e => { e.currentTarget.style.background = 'rgba(248,113,113,0.2)' }}
+                    onMouseLeave={e => { e.currentTarget.style.background = 'rgba(248,113,113,0.1)' }}
+                  >
+                    RESET STATS
+                  </button>
+                </motion.section>
+              )}
 
               {/* G — Alignment section */}
               <motion.section variants={fadeUp} style={{ marginTop: 32 }}>

@@ -28,6 +28,24 @@ const SLOT_GLYPH = {
 const SLOTS = ['weapon', 'armor', 'artifact', 'mount', 'companion']
 const FILTER_TABS = ['ALL', ...SLOTS.map(s => s.toUpperCase()), 'CONSUMABLE']
 
+const SLOT_TYPE_COLOR = {
+  weapon:     '#F97316',
+  armor:      '#22C55E',
+  artifact:   '#8B5CF6',
+  mount:      '#0EA5E9',
+  companion:  '#F472B6',
+  consumable: '#22D3EE',
+}
+
+const BONUS_CHIPS = [
+  { key: 'attack_bonus',   label: 'ATK',    color: '#F97316' },
+  { key: 'defense_bonus',  label: 'DEF',    color: '#22C55E' },
+  { key: 'agility_bonus',  label: 'AGI',    color: '#A78BFA' },
+  { key: 'crit_chance',    label: 'CRIT%',  color: '#F5D88B' },
+  { key: 'block_chance',   label: 'BLOCK%', color: '#8AB8D4' },
+  { key: 'dodge_chance',   label: 'DODGE%', color: '#4FD1C5' },
+]
+
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 function fmt(n) { return Number(n).toLocaleString() }
@@ -77,14 +95,12 @@ function EquipSlot({ slot, item }) {
           }}>
             {item.name}
           </div>
-          <div style={{
-            fontFamily: "'IBM Plex Mono', monospace",
-            fontSize: 9,
-            color: 'rgba(240,240,248,0.38)',
-          }}>
-            {item.attack_bonus > 0  ? `+${item.attack_bonus} ATK`  : ''}
-            {item.attack_bonus > 0 && item.defense_bonus > 0 ? ' ' : ''}
-            {item.defense_bonus > 0 ? `+${item.defense_bonus} DEF` : ''}
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '2px 6px', justifyContent: 'center' }}>
+            {BONUS_CHIPS.filter(b => (item[b.key] || 0) > 0).slice(0, 3).map(b => (
+              <span key={b.key} style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 8, color: b.color }}>
+                +{item[b.key]}{b.label}
+              </span>
+            ))}
           </div>
         </>
       ) : (
@@ -149,6 +165,21 @@ function ItemCard({ item, onEquip, onUnequip, onSell, onConsume, busy }) {
           }}>
             {item.name}
           </span>
+          {/* TYPE badge */}
+          <span style={{
+            fontFamily: "'IBM Plex Mono', monospace",
+            fontSize: 8,
+            letterSpacing: '0.1em',
+            textTransform: 'uppercase',
+            color: SLOT_TYPE_COLOR[item.slot] ?? '#F0F0F8',
+            background: `rgba(${hexRgb(SLOT_TYPE_COLOR[item.slot] ?? '#F0F0F8')}, 0.1)`,
+            border: `1px solid rgba(${hexRgb(SLOT_TYPE_COLOR[item.slot] ?? '#F0F0F8')}, 0.28)`,
+            borderRadius: 3,
+            padding: '2px 6px',
+          }}>
+            {item.slot.toUpperCase()}
+          </span>
+          {/* RARITY badge */}
           <span style={{
             fontFamily: "'IBM Plex Mono', monospace",
             fontSize: 8,
@@ -189,16 +220,17 @@ function ItemCard({ item, onEquip, onUnequip, onSell, onConsume, busy }) {
           {item.description}
         </p>
 
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px 12px' }}>
-          {item.attack_bonus > 0 && (
-            <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, color: '#F97316' }}>
-              +{item.attack_bonus} ATK
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px 12px', alignItems: 'center' }}>
+          {item.slot === 'consumable' ? (
+            <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, color: '#22D3EE' }}>
+              {item.consumable_effect === 'realloc_stats' ? 'Resets all stat allocations' : item.consumable_effect ?? 'Use to consume'}
             </span>
-          )}
-          {item.defense_bonus > 0 && (
-            <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, color: '#22C55E' }}>
-              +{item.defense_bonus} DEF
-            </span>
+          ) : (
+            BONUS_CHIPS.map(b => (item[b.key] || 0) > 0 ? (
+              <span key={b.key} style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, color: b.color }}>
+                +{item[b.key]} {b.label}
+              </span>
+            ) : null)
           )}
           <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, color: 'rgba(240,240,248,0.25)' }}>
             Sell: {fmt(item.sell_price)}₯
@@ -523,11 +555,17 @@ export default function Inventory() {
         return
       }
       setInventory(prev => prev.filter(i => i.inventory_id !== inventory_id))
-      if (data.consumed.health_restored > 0 || data.consumed.energy_restored > 0) {
+      if (data.consumed.effect === 'realloc_stats') {
+        if (data.stats) setStats(data.stats)
+        const n = data.consumed.points_refunded ?? 0
+        setToast({ message: `Stats reset — ${n} point${n !== 1 ? 's' : ''} refunded`, color: '#A78BFA' })
+      } else if ((data.consumed.health_restored || 0) > 0 || (data.consumed.energy_restored || 0) > 0) {
         const parts = []
         if (data.consumed.health_restored > 0) parts.push(`+${data.consumed.health_restored} HP`)
         if (data.consumed.energy_restored  > 0) parts.push(`+${data.consumed.energy_restored} Energy`)
         setToast({ message: `Used ${data.consumed.name} — ${parts.join(', ')}`, color: '#22D3EE' })
+      } else {
+        setToast({ message: `Used ${data.consumed.name}`, color: '#22D3EE' })
       }
       play('success')
       refreshContext()
@@ -602,7 +640,7 @@ export default function Inventory() {
             <motion.div initial="hidden" animate="visible" variants={{ hidden: {}, visible: { transition: { staggerChildren: 0.06 } } }}>
 
               {/* Equipment bonuses summary */}
-              {(bonuses.attack > 0 || bonuses.defense > 0) && (
+              {BONUS_CHIPS.some(b => (bonuses[b.key.replace('_bonus', '')] || bonuses[b.key] || 0) > 0) && (
                 <motion.div
                   variants={fadeUp}
                   className="pw-bonus-row"
@@ -611,22 +649,30 @@ export default function Inventory() {
                     background: 'rgba(255,255,255,0.025)',
                     border: '1px solid rgba(255,255,255,0.07)',
                     borderRadius: 10, padding: '12px 16px',
-                    alignItems: 'center',
+                    alignItems: 'center', flexWrap: 'wrap',
                   }}
                 >
                   <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 9, letterSpacing: '0.12em', textTransform: 'uppercase', color: 'rgba(240,240,248,0.3)' }}>
-                    Equipment bonuses
+                    Equipped bonuses
                   </span>
-                  <div style={{ display: 'flex', gap: 16, marginLeft: 4 }}>
+                  <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap' }}>
                     {bonuses.attack > 0 && (
-                      <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 12, color: '#F97316' }}>
-                        +{bonuses.attack} ATK
-                      </span>
+                      <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 12, color: '#F97316' }}>+{bonuses.attack} ATK</span>
                     )}
                     {bonuses.defense > 0 && (
-                      <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 12, color: '#22C55E' }}>
-                        +{bonuses.defense} DEF
-                      </span>
+                      <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 12, color: '#22C55E' }}>+{bonuses.defense} DEF</span>
+                    )}
+                    {bonuses.agility > 0 && (
+                      <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 12, color: '#A78BFA' }}>+{bonuses.agility} AGI</span>
+                    )}
+                    {bonuses.crit_chance > 0 && (
+                      <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 12, color: '#F5D88B' }}>+{bonuses.crit_chance}% CRIT</span>
+                    )}
+                    {bonuses.block_chance > 0 && (
+                      <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 12, color: '#8AB8D4' }}>+{bonuses.block_chance}% BLOCK</span>
+                    )}
+                    {bonuses.dodge_chance > 0 && (
+                      <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 12, color: '#4FD1C5' }}>+{bonuses.dodge_chance}% DODGE</span>
                     )}
                   </div>
                 </motion.div>

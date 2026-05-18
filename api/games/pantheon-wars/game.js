@@ -4,6 +4,7 @@ import {
   regenPlayer, checkLevelUp, getEquipmentBonuses,
   simulateCombat,
   calculatePowerRating,
+  getRaceClassCombatBonuses,
   getShopRotationSeed, getShopRotationExpiry, pickRotatedItems, getDailyRotationPool,
   getQuestRotationSeed, getQuestRotationExpiry,
   getAdventureRotationSeed, getAdventureRotationExpiry,
@@ -1271,9 +1272,10 @@ async function handlePvPTargets(req, res) {
 
   try {
     const userRows = await sql`
-      SELECT u.alignment, ps.level, ps.energy, ps.energy_max, ps.health, ps.health_max,
+      SELECT u.alignment, u.faction, u.class,
+             ps.level, ps.energy, ps.energy_max, ps.health, ps.health_max,
              ps.drachma, ps.drachma_lifetime, ps.glory, ps.glory_lifetime,
-             ps.xp, ps.attack, ps.defense, ps.stat_points, ps.last_updated,
+             ps.xp, ps.attack, ps.defense, ps.agility, ps.stat_points, ps.last_updated,
              ps.energy_regen_base, ps.health_regen_base
       FROM pw_users u
       JOIN pw_player_stats ps ON ps.user_id = u.id
@@ -1359,6 +1361,14 @@ async function handlePvPTargets(req, res) {
 
     const attEquip = await getEquipmentBonuses(sql, req.userId)
     const myPowerRating = calculatePowerRating(stats, attEquip)
+    const raceClassBonus = getRaceClassCombatBonuses(userRow.faction, userRow.class)
+
+    const computed_bonuses = {
+      crit:    Math.min(95, (attEquip.crit_chance  || 0) + (raceClassBonus.crit_chance  || 0)),
+      dodge:   Math.min(60, (attEquip.dodge_chance || 0) + (raceClassBonus.dodge_chance || 0)),
+      block:   Math.min(60, (attEquip.block_chance || 0) + (raceClassBonus.block_chance || 0)),
+      agility: (stats.agility || 0) + (attEquip.agility || 0),
+    }
 
     const targetsWithPower = await Promise.all(targets.map(async t => {
       const equip = await getEquipmentBonuses(sql, t.user_id)
@@ -1366,9 +1376,10 @@ async function handlePvPTargets(req, res) {
     }))
 
     return res.status(200).json({
-      targets:         targetsWithPower,
+      targets:          targetsWithPower,
       stats,
-      my_power_rating: myPowerRating,
+      my_power_rating:  myPowerRating,
+      computed_bonuses,
       pendingAdventureRewards: req.pendingAdventureRewards || null,
     })
   } catch (err) {

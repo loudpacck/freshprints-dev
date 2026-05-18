@@ -24,22 +24,38 @@ function Skeleton({ h = 20, w = '100%', r = 6 }) {
   return <div className="pw-skel" style={{ height: h, width: w, borderRadius: r }} />
 }
 
+function actionLabel(action) {
+  if (!action) return '—'
+  const t = action.type?.toUpperCase() ?? '?'
+  const mods = []
+  if (action.blocked) mods.push('BLK')
+  if (action.dodged)  mods.push('DGD')
+  const modStr = mods.length ? ` (${mods.join('/')})` : ''
+  return `${t}${modStr}`
+}
+
 function CombatEntry({ entry }) {
-  // perspective: 'attacker' | 'defender'
-  // result is from attacker POV — if defender, flip the outcome display
   const isAttacker = entry.perspective === 'attacker'
+  const isDraw     = entry.result === 'draw'
 
-  // Did the viewing player WIN?
-  const playerWon = isAttacker ? entry.result === 'win' : entry.result === 'loss'
+  // Did the viewing player WIN? Draws are neutral.
+  const playerWon  = isDraw ? false : (isAttacker ? entry.result === 'win' : entry.result === 'loss')
 
-  const outcomeColor  = playerWon ? '#22C55E' : '#EF4444'
-  const outcomeLabel  = playerWon ? 'VICTORY' : 'DEFEAT'
+  const outcomeColor  = isDraw ? '#C9A961' : playerWon ? '#22C55E' : '#EF4444'
+  const outcomeLabel  = isDraw ? 'DRAW'    : playerWon ? 'VICTORY' : 'DEFEAT'
+  const borderColor   = isDraw
+    ? 'rgba(201,169,97,0.12)'
+    : playerWon ? 'rgba(34,197,94,0.15)' : 'rgba(239,68,68,0.12)'
+
   const oppFactionColor = FACTION_COLOR[entry.opponent_faction] ?? '#F0F0F8'
+
+  const rounds = Array.isArray(entry.rounds) ? entry.rounds : null
+  const [expanded, setExpanded] = useState(false)
 
   return (
     <div style={{
       background: 'rgba(255,255,255,0.03)',
-      border: `1px solid ${playerWon ? 'rgba(34,197,94,0.15)' : 'rgba(239,68,68,0.12)'}`,
+      border: `1px solid ${borderColor}`,
       borderRadius: 10,
       padding: '14px 16px',
       display: 'flex',
@@ -109,30 +125,87 @@ function CombatEntry({ entry }) {
         </div>
 
         {/* Rewards / losses */}
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px 12px' }}>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px 12px', marginBottom: rounds ? 8 : 0 }}>
           {isAttacker && entry.result === 'win' && (
             <>
-              {entry.xp_earned > 0 && (
-                <StatChip label="XP" value={`+${fmt(entry.xp_earned)}`} color="#8B5CF6" />
-              )}
-              {entry.glory_earned > 0 && (
-                <StatChip label="Glory" value={`+${entry.glory_earned}`} color="#FBBF24" />
-              )}
+              {entry.xp_earned > 0 && <StatChip label="XP" value={`+${fmt(entry.xp_earned)}`} color="#8B5CF6" />}
+              {entry.glory_earned > 0 && <StatChip label="Glory" value={`+${entry.glory_earned}`} color="#FBBF24" />}
               <StatChip label="HP" value={`-${entry.attacker_health_lost}`} color="#EF4444" />
             </>
           )}
           {isAttacker && entry.result === 'loss' && (
             <StatChip label="HP" value={`-${entry.attacker_health_lost}`} color="#EF4444" />
           )}
+          {isAttacker && isDraw && entry.xp_earned > 0 && (
+            <StatChip label="XP" value={`+${fmt(entry.xp_earned)}`} color="#8B5CF6" />
+          )}
           {!isAttacker && entry.result === 'win' && (
-            // Attacker won = we (defender) took HP damage
             <StatChip label="HP" value={`-${entry.defender_health_lost}`} color="#EF4444" />
           )}
-          {!isAttacker && entry.result === 'loss' && (
-            // Attacker lost = we (defender) successfully defended, gained 1 glory
+          {!isAttacker && (entry.result === 'loss' || isDraw) && (
             <StatChip label="Glory" value="+1" color="#FBBF24" />
           )}
         </div>
+
+        {/* Rounds expand/collapse — only for entries with rounds data */}
+        {rounds && (
+          <>
+            <button
+              onClick={() => setExpanded(e => !e)}
+              style={{
+                fontFamily: "'IBM Plex Mono', monospace", fontSize: 9,
+                letterSpacing: '0.1em', textTransform: 'uppercase',
+                color: 'rgba(240,240,248,0.35)', background: 'none',
+                border: '1px solid rgba(255,255,255,0.09)', borderRadius: 4,
+                padding: '4px 10px', cursor: 'pointer',
+                transition: 'color 120ms, border-color 120ms',
+              }}
+              onMouseEnter={e => { e.currentTarget.style.color = 'rgba(240,240,248,0.65)'; e.currentTarget.style.borderColor = 'rgba(255,255,255,0.22)' }}
+              onMouseLeave={e => { e.currentTarget.style.color = 'rgba(240,240,248,0.35)'; e.currentTarget.style.borderColor = 'rgba(255,255,255,0.09)' }}
+            >
+              {expanded ? '▴' : '▾'} ROUNDS ({rounds.length})
+            </button>
+
+            {expanded && (
+              <div style={{ marginTop: 10, overflowX: 'auto' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse', fontFamily: "'IBM Plex Mono', monospace", fontSize: 9 }}>
+                  <thead>
+                    <tr>
+                      {['Rnd', 'Your Action', 'Dmg', 'Their Action', 'Dmg', 'Your HP', 'Their HP'].map(h => (
+                        <th key={h} style={{ textAlign: 'left', letterSpacing: '0.08em', textTransform: 'uppercase', color: 'rgba(240,240,248,0.3)', paddingBottom: 5, paddingRight: 10, whiteSpace: 'nowrap' }}>
+                          {h}
+                        </th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {rounds.map((r, i) => {
+                      const a = r.attacker_action
+                      const d = r.defender_action
+                      const aCrit = a?.type === 'crit'
+                      const dCrit = d?.type === 'crit'
+                      return (
+                        <tr key={i} style={{ borderTop: '1px solid rgba(255,255,255,0.05)' }}>
+                          <td style={{ padding: '4px 10px 4px 0', color: 'rgba(240,240,248,0.35)' }}>{r.round}</td>
+                          <td style={{ padding: '4px 10px 4px 0', color: aCrit ? '#F5D88B' : a?.type === 'miss' ? 'rgba(240,240,248,0.28)' : '#F97316', whiteSpace: 'nowrap' }}>
+                            {actionLabel(a)}
+                          </td>
+                          <td style={{ padding: '4px 10px 4px 0', color: '#F97316' }}>{a?.damage ?? 0}</td>
+                          <td style={{ padding: '4px 10px 4px 0', color: dCrit ? '#F5D88B' : d?.type === 'miss' ? 'rgba(240,240,248,0.28)' : d?.type === 'counter' ? '#EF4444' : '#22C55E', whiteSpace: 'nowrap' }}>
+                            {actionLabel(d)}
+                          </td>
+                          <td style={{ padding: '4px 10px 4px 0', color: '#22C55E' }}>{d?.damage ?? 0}</td>
+                          <td style={{ padding: '4px 10px 4px 0', color: 'rgba(240,240,248,0.55)' }}>{r.attacker_hp_after}</td>
+                          <td style={{ padding: '4px 0 4px 0',  color: 'rgba(240,240,248,0.55)' }}>{r.defender_hp_after}</td>
+                        </tr>
+                      )
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </>
+        )}
       </div>
     </div>
   )
