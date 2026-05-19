@@ -278,18 +278,38 @@ function TargetCard({ target, onAttack, isAttacking, myPowerRating, myStats }) {
   const factionColor = FACTION_COLOR[target.faction] ?? '#F0F0F8'
   const aColor = alignmentColor(target.alignment)
 
+  // Per-target cooldown countdown
+  const [cooldownSecs, setCooldownSecs] = useState(target.cooldown_seconds_remaining || 0)
+  useEffect(() => {
+    if (!target.cooldown_active) { setCooldownSecs(0); return }
+    setCooldownSecs(target.cooldown_seconds_remaining)
+    const id = setInterval(() => {
+      setCooldownSecs(prev => {
+        if (prev <= 1) { clearInterval(id); return 0 }
+        return prev - 1
+      })
+    }, 1000)
+    return () => clearInterval(id)
+  }, [target.cooldown_active, target.cooldown_seconds_remaining])
+
+  const onCooldown   = cooldownSecs > 0
   const energyCost   = myStats ? Math.max(1, Math.ceil(myStats.level / 10)) : 1
   const noEnergy     = myStats && myStats.energy < energyCost
   const tooInjured   = myStats && myStats.health <= 1
-  const btnDisabled  = isAttacking || noEnergy || tooInjured
+  const btnDisabled  = isAttacking || noEnergy || tooInjured || onCooldown
+
+  const cdMm = String(Math.floor(cooldownSecs / 60)).padStart(2, '0')
+  const cdSs = String(cooldownSecs % 60).padStart(2, '0')
 
   const btnLabel = isAttacking
     ? 'ATTACKING...'
-    : noEnergy
-      ? `NOT ENOUGH ENERGY (need ${energyCost}⚡)`
-      : tooInjured
-        ? 'TOO INJURED — HEAL FIRST'
-        : `⚔ ATTACK (${energyCost}⚡)`
+    : onCooldown
+      ? `COOLDOWN ${cdMm}:${cdSs}`
+      : noEnergy
+        ? `NOT ENOUGH ENERGY (need ${energyCost}⚡)`
+        : tooInjured
+          ? 'TOO INJURED — HEAL FIRST'
+          : `⚔ ATTACK (${energyCost}⚡)`
 
   return (
     <motion.div
@@ -377,14 +397,22 @@ function TargetCard({ target, onAttack, isAttacking, myPowerRating, myStats }) {
           width: '100%',
           padding: '10px 0',
           background: btnDisabled
-            ? 'rgba(239,68,68,0.07)'
+            ? onCooldown
+              ? 'rgba(111,92,50,0.18)'
+              : 'rgba(239,68,68,0.07)'
             : 'linear-gradient(135deg, #EF4444, #DC2626)',
-          border: btnDisabled ? '1px solid rgba(239,68,68,0.15)' : 'none',
+          border: btnDisabled
+            ? onCooldown
+              ? '1px solid rgba(111,92,50,0.4)'
+              : '1px solid rgba(239,68,68,0.15)'
+            : 'none',
           borderRadius: 8,
           fontFamily: "'Bebas Neue', sans-serif",
           fontSize: 14,
           letterSpacing: '0.08em',
-          color: btnDisabled ? 'rgba(240,240,248,0.28)' : '#F0F0F8',
+          color: btnDisabled
+            ? onCooldown ? '#6F5C32' : 'rgba(240,240,248,0.28)'
+            : '#F0F0F8',
           cursor: btnDisabled ? 'not-allowed' : 'pointer',
           transition: 'opacity 150ms',
         }}
@@ -397,20 +425,135 @@ function TargetCard({ target, onAttack, isAttacking, myPowerRating, myStats }) {
   )
 }
 
+// ─── Regen helpers (mirrored from Dashboard) ──────────────────────────────────
+
+function useRegenCountdown(regenInterval, lastUpdated, current, max, onTick) {
+  const [secsLeft, setSecsLeft] = useState(null)
+  const onTickRef = useRef(onTick)
+  const firedRef  = useRef(false)
+  useEffect(() => { onTickRef.current = onTick }, [onTick])
+  useEffect(() => {
+    if (!regenInterval || !lastUpdated) { setSecsLeft(null); return }
+    if (current >= max) { setSecsLeft(null); return }
+    firedRef.current = false
+    function compute() {
+      const elapsed = Math.floor((Date.now() - new Date(lastUpdated).getTime()) / 1000)
+      const nextTick = (Math.floor(elapsed / regenInterval) + 1) * regenInterval
+      return Math.max(0, nextTick - elapsed)
+    }
+    setSecsLeft(compute())
+    const id = setInterval(() => {
+      const s = compute()
+      setSecsLeft(s)
+      if (s <= 0 && !firedRef.current) { firedRef.current = true; onTickRef.current?.() }
+    }, 1000)
+    return () => clearInterval(id)
+  }, [regenInterval, lastUpdated, current, max])
+  return secsLeft
+}
+
+function fmtSecs(s) {
+  const m = Math.floor(s / 60)
+  return `${m}:${String(s % 60).padStart(2, '0')}`
+}
+
+function MiniEnergyBar({ current, max, regenInterval, lastUpdated, onTick }) {
+  const pct     = max > 0 ? Math.min(100, Math.round((current / max) * 100)) : 0
+  const secsLeft = useRegenCountdown(regenInterval, lastUpdated, current, max, onTick)
+  const countdown = current >= max ? 'MAX' : secsLeft === null ? '—' : `Next +1 in ${fmtSecs(secsLeft)}`
+  return (
+    <div style={{ width: '100%' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 4 }}>
+        <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 9, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'rgba(240,240,248,0.35)' }}>
+          ENERGY
+        </span>
+        <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 9, color: 'rgba(240,240,248,0.55)' }}>
+          {current} / {max}
+        </span>
+      </div>
+      <div style={{ height: 4, background: 'rgba(255,255,255,0.08)', borderRadius: 2, overflow: 'hidden' }}>
+        <div style={{ width: `${pct}%`, height: '100%', background: '#C9A961', borderRadius: 2, transition: 'width 0.6s ease' }} />
+      </div>
+      {regenInterval && (
+        <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 8, letterSpacing: '0.07em', color: 'rgba(240,240,248,0.25)', marginTop: 4, textAlign: 'right' }}>
+          {countdown}
+        </div>
+      )}
+    </div>
+  )
+}
+
 // ─── Combat Modal ─────────────────────────────────────────────────────────────
 
-const ROUND_TICK = 1500 // ms per round
+const TIMING = {
+  ROUND_ANNOUNCE:   600,  // "ROUND N" hold
+  ATTACKER_STRIKE:  800,  // attacker action
+  DAMAGE_FLOAT:     600,  // damage number rises
+  DEFENDER_RESPOND: 800,  // defender action
+  ROUND_PAUSE:      500,  // breath between rounds
+}
+// Total per-round ≈ 3300ms; 5 rounds ≈ 16.5s
 
-function getCallout(round) {
-  const a = round.attacker_action
-  const d = round.defender_action
-  if (a?.type === 'crit')   return { text: 'CRIT!',    color: '#F5D88B' }
-  if (a?.type === 'miss')   return { text: 'MISS',     color: 'rgba(240,240,248,0.35)' }
-  if (d?.type === 'counter') return { text: 'COUNTER!', color: '#EF4444' }
-  if (d?.dodged)            return { text: 'DODGED',   color: '#4FD1C5' }
-  if (d?.blocked)           return { text: 'BLOCKED',  color: '#8AB8D4' }
-  if (d?.type === 'crit')   return { text: 'CRIT!',    color: '#F5D88B' }
+function getAttackerCallout(action) {
+  if (!action) return null
+  if (action.type === 'crit') return { text: 'CRIT!', color: '#F5D88B' }
+  if (action.type === 'miss') return { text: 'MISS',  color: 'rgba(240,240,248,0.35)' }
   return null
+}
+
+function getDefenderCallout(action) {
+  if (!action) return null
+  if (action.type === 'counter') return { text: 'COUNTER!', color: '#EF4444' }
+  if (action.dodged)             return { text: 'DODGED',   color: '#4FD1C5' }
+  if (action.blocked)            return { text: 'BLOCKED',  color: '#8AB8D4' }
+  if (action.type === 'crit')    return { text: 'CRIT!',    color: '#F5D88B' }
+  return null
+}
+
+function getAttackerCommentary(round, attackerName, defenderName) {
+  const a = round.attacker_action
+  if (!a) return null
+  if (a.type === 'miss')              return `${defenderName} sidesteps the strike.`
+  if (a.type === 'crit' && a.blocked) return `${defenderName} braces — but the blow shatters through!`
+  if (a.type === 'crit')              return `${attackerName} lands a devastating blow!`
+  if (a.blocked)                      return `${defenderName} braces and absorbs the hit.`
+  return `${attackerName} strikes for ${a.damage}.`
+}
+
+function getDefenderCommentary(round, attackerName, defenderName) {
+  const d = round.defender_action
+  if (!d) return null
+  if (d.type === 'counter')           return `${defenderName} counters the dodge!`
+  if (d.type === 'miss' || d.dodged)  return `${attackerName} dodges the retaliation.`
+  if (d.type === 'crit' && d.blocked) return `${attackerName} deflects — but the critical strike cuts through!`
+  if (d.blocked)                      return `${attackerName} deflects the blow.`
+  if (d.type === 'crit')              return `${defenderName} strikes back with a critical hit!`
+  return `${defenderName} strikes back for ${d.damage}.`
+}
+
+function FloatingDamage({ damage, isCrit, side }) {
+  return (
+    <motion.div
+      initial={{ opacity: 1, y: 0 }}
+      animate={{ opacity: 0, y: -40 }}
+      transition={{ duration: 0.6, ease: 'easeOut' }}
+      style={{
+        position: 'absolute',
+        [side === 'defender' ? 'right' : 'left']: '25%',
+        top: '30%',
+        fontFamily: "'Bebas Neue', sans-serif",
+        fontSize: isCrit ? 30 : 22,
+        letterSpacing: '0.06em',
+        color: isCrit ? '#F5D88B' : '#EDE3CC',
+        textShadow: isCrit ? '0 0 16px rgba(245,216,139,0.8)' : 'none',
+        pointerEvents: 'none',
+        zIndex: 10,
+        lineHeight: 1,
+      }}
+    >
+      -{damage}{isCrit ? ' CRIT!' : ''}
+    </motion.div>
+  )
 }
 
 function ResultRow({ label, value, color }) {
@@ -427,54 +570,120 @@ function ResultRow({ label, value, color }) {
 }
 
 function CombatModal({ result, onClose, play }) {
-  const rounds = Array.isArray(result.rounds) ? result.rounds : []
+  const rounds    = Array.isArray(result.rounds) ? result.rounds : []
   const hasRounds = rounds.length > 0
+  const attName   = 'YOU'
+  const defName   = result.defender.username
 
-  // Compute initial HP from final + total lost
+  // Attacker starts at real pre-combat HP (backtracked from final + lost)
   const finalAttHp = hasRounds ? rounds[rounds.length - 1].attacker_hp_after : 0
-  const finalDefHp = hasRounds ? rounds[rounds.length - 1].defender_hp_after : 0
   const initAttHp  = finalAttHp + (result.attacker_health_lost || 0)
-  const initDefHp  = finalDefHp + (result.defender_health_lost || 0)
+  // Defender always starts at 100 HP in the visualization (Part C2)
+  const initDefHp  = 100
 
-  const [phase,    setPhase]    = useState(hasRounds ? 'animating' : 'result')
-  const [roundIdx, setRoundIdx] = useState(0)
-  const [attHp,    setAttHp]    = useState(initAttHp)
-  const [defHp,    setDefHp]    = useState(initDefHp)
-  const [callout,  setCallout]  = useState(null)
-  const timerRef = useRef(null)
+  const [phase,         setPhase]         = useState(hasRounds ? 'animating' : 'result')
+  const [currentRound,  setCurrentRound]  = useState(1)
+  const [attHp,         setAttHp]         = useState(initAttHp)
+  const [defHp,         setDefHp]         = useState(initDefHp)
+  const [callout,       setCallout]       = useState(null)
+  const [commentaryText, setCommentaryText] = useState(hasRounds ? 'Combat begins...' : null)
+  const [floatingDamage, setFloatingDamage] = useState(null)
+  const [hpShake,       setHpShake]       = useState({ att: false, def: false })
+  const timerRefs = useRef([])
 
-  // Advance rounds
-  useEffect(() => {
-    if (phase !== 'animating' || !hasRounds) return
-    const r = rounds[roundIdx]
-    setAttHp(r.attacker_hp_after)
-    setDefHp(r.defender_hp_after)
-    const c = getCallout(r)
-    setCallout(c)
-    // play crit sound
-    if (c?.text === 'CRIT!') play('success')
+  function addTimer(fn, delay) {
+    const id = setTimeout(fn, delay)
+    timerRefs.current.push(id)
+  }
 
-    timerRef.current = setTimeout(() => {
-      if (roundIdx < rounds.length - 1) {
-        setRoundIdx(i => i + 1)
-      } else {
-        setPhase('result')
-      }
-    }, ROUND_TICK)
-
-    return () => clearTimeout(timerRef.current)
-  }, [phase, roundIdx]) // eslint-disable-line react-hooks/exhaustive-deps
+  function cancelAllTimers() {
+    timerRefs.current.forEach(clearTimeout)
+    timerRefs.current = []
+  }
 
   function skipToResult() {
-    clearTimeout(timerRef.current)
+    cancelAllTimers()
     setPhase('result')
   }
+
+  function playRound(idx) {
+    const r        = rounds[idx]
+    const isLast   = idx === rounds.length - 1
+    const prevDefHp = idx === 0 ? initDefHp : rounds[idx - 1].defender_hp_after
+    const prevAttHp = idx === 0 ? initAttHp : rounds[idx - 1].attacker_hp_after
+
+    setCurrentRound(idx + 1)
+    setCallout(null)
+    setFloatingDamage(null)
+
+    addTimer(() => {
+      // Attacker strikes
+      setCallout(getAttackerCallout(r.attacker_action))
+      setCommentaryText(getAttackerCommentary(r, attName, defName))
+      if (r.attacker_action?.type === 'crit') play('success')
+
+      addTimer(() => {
+        // Attacker damage floats + HP bar updates
+        if (r.attacker_action && r.attacker_action.type !== 'miss') {
+          const dmg = r.attacker_action.damage
+          setFloatingDamage({ side: 'defender', damage: dmg, isCrit: r.attacker_action.type === 'crit' })
+          setDefHp(r.defender_hp_after)
+          if ((prevDefHp - r.defender_hp_after) / Math.max(initDefHp, 1) > 0.20) {
+            setHpShake(prev => ({ ...prev, def: true }))
+            addTimer(() => setHpShake(prev => ({ ...prev, def: false })), 300)
+          }
+        }
+
+        addTimer(() => {
+          // Defender responds
+          setFloatingDamage(null)
+          if (r.defender_action) {
+            setCallout(getDefenderCallout(r.defender_action))
+            setCommentaryText(getDefenderCommentary(r, attName, defName))
+            if (r.defender_action.type === 'crit') play('success')
+          }
+
+          addTimer(() => {
+            // Defender damage floats + HP bar updates
+            if (r.defender_action && r.defender_action.type !== 'miss' && r.defender_action.damage > 0) {
+              const dmg = r.defender_action.damage
+              setFloatingDamage({ side: 'attacker', damage: dmg, isCrit: r.defender_action.type === 'crit' })
+              setAttHp(r.attacker_hp_after)
+              if ((prevAttHp - r.attacker_hp_after) / Math.max(initAttHp, 1) > 0.20) {
+                setHpShake(prev => ({ ...prev, att: true }))
+                addTimer(() => setHpShake(prev => ({ ...prev, att: false })), 300)
+              }
+            }
+
+            addTimer(() => {
+              setFloatingDamage(null)
+              setCallout(null)
+
+              addTimer(() => {
+                if (!isLast) {
+                  playRound(idx + 1)
+                } else {
+                  setPhase('result')
+                }
+              }, TIMING.ROUND_PAUSE)
+            }, TIMING.DEFENDER_RESPOND)
+          }, TIMING.DAMAGE_FLOAT)
+        }, TIMING.DAMAGE_FLOAT)
+      }, TIMING.ATTACKER_STRIKE)
+    }, TIMING.ROUND_ANNOUNCE)
+  }
+
+  useEffect(() => {
+    if (!hasRounds) return
+    addTimer(() => playRound(0), TIMING.ROUND_ANNOUNCE)
+    return () => cancelAllTimers()
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   const combatResult = result.result
   const isWin  = combatResult === 'win'
   const isDraw = combatResult === 'draw'
-  const titleText  = isWin ? 'VICTORY' : isDraw ? 'DRAW' : 'DEFEAT'
-  const titleColor = isWin ? '#5FB857' : isDraw ? '#C9A961' : '#B8443A'
+  const titleText   = isWin ? 'VICTORY' : isDraw ? 'DRAW' : 'DEFEAT'
+  const titleColor  = isWin ? '#5FB857' : isDraw ? '#C9A961' : '#B8443A'
   const borderColor = isWin ? 'rgba(95,184,87,0.6)' : isDraw ? 'rgba(201,169,97,0.5)' : 'rgba(184,68,58,0.6)'
   const glowColor   = isWin ? '0 0 24px rgba(95,184,87,0.35)' : isDraw ? '0 0 20px rgba(201,169,97,0.25)' : '0 0 24px rgba(184,68,58,0.35)'
 
@@ -512,14 +721,14 @@ function CombatModal({ result, onClose, play }) {
         {/* ── ANIMATION PHASE ── */}
         {phase === 'animating' && (
           <>
-            {/* Round indicator */}
+            {/* Round indicator + skip */}
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 18 }}>
               <span style={{
                 fontFamily: "'IBM Plex Mono', monospace", fontSize: 10,
                 letterSpacing: '0.14em', textTransform: 'uppercase',
                 color: 'rgba(240,240,248,0.4)',
               }}>
-                ROUND {roundIdx + 1} / {rounds.length}
+                ROUND {currentRound} / {rounds.length}
               </span>
               <button
                 onClick={skipToResult}
@@ -539,7 +748,7 @@ function CombatModal({ result, onClose, play }) {
             <div style={{ display: 'grid', gridTemplateColumns: '1fr auto 1fr', gap: 8, alignItems: 'center', marginBottom: 14 }}>
               <div>
                 <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 9, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'rgba(240,240,248,0.3)', marginBottom: 3 }}>
-                  YOU
+                  {attName}
                 </div>
                 <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 22, letterSpacing: '0.04em', color: '#22C55E', lineHeight: 1 }}>
                   {attHp}
@@ -550,7 +759,7 @@ function CombatModal({ result, onClose, play }) {
               </div>
               <div style={{ textAlign: 'right' }}>
                 <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 9, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'rgba(240,240,248,0.3)', marginBottom: 3 }}>
-                  {result.defender.username}
+                  {defName}
                 </div>
                 <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 22, letterSpacing: '0.04em', color: '#EF4444', lineHeight: 1 }}>
                   {defHp}
@@ -558,28 +767,79 @@ function CombatModal({ result, onClose, play }) {
               </div>
             </div>
 
-            {/* HP bars */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 16 }}>
+            {/* HP bars — position relative so floating damage numbers can anchor here */}
+            <div style={{ position: 'relative', display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 10 }}>
               {/* Attacker bar */}
-              <div style={{ height: 8, background: 'rgba(255,255,255,0.07)', borderRadius: 4, overflow: 'hidden' }}>
-                <div style={{
-                  width: `${initAttHp > 0 ? Math.max(0, (attHp / initAttHp) * 100) : 0}%`,
-                  height: '100%',
-                  background: 'linear-gradient(90deg, #166534, #22C55E)',
-                  borderRadius: 4,
-                  transition: `width ${ROUND_TICK * 0.55}ms ease`,
-                }} />
-              </div>
+              <motion.div
+                animate={hpShake.att ? { x: [-4, 4, -4, 4, 0] } : {}}
+                transition={{ duration: 0.3 }}
+              >
+                <div style={{ height: 8, background: 'rgba(255,255,255,0.07)', borderRadius: 4, overflow: 'hidden' }}>
+                  <div style={{
+                    width: `${initAttHp > 0 ? Math.max(0, (attHp / initAttHp) * 100) : 0}%`,
+                    height: '100%',
+                    background: 'linear-gradient(90deg, #166534, #22C55E)',
+                    borderRadius: 4,
+                    transition: `width ${TIMING.ATTACKER_STRIKE * 0.6}ms ease`,
+                  }} />
+                </div>
+              </motion.div>
               {/* Defender bar */}
-              <div style={{ height: 8, background: 'rgba(255,255,255,0.07)', borderRadius: 4, overflow: 'hidden' }}>
-                <div style={{
-                  width: `${initDefHp > 0 ? Math.max(0, (defHp / initDefHp) * 100) : 0}%`,
-                  height: '100%',
-                  background: 'linear-gradient(90deg, #7f1d1d, #EF4444)',
-                  borderRadius: 4,
-                  transition: `width ${ROUND_TICK * 0.55}ms ease`,
-                }} />
-              </div>
+              <motion.div
+                animate={hpShake.def ? { x: [-4, 4, -4, 4, 0] } : {}}
+                transition={{ duration: 0.3 }}
+              >
+                <div style={{ height: 8, background: 'rgba(255,255,255,0.07)', borderRadius: 4, overflow: 'hidden' }}>
+                  <div style={{
+                    width: `${Math.max(0, (defHp / initDefHp) * 100)}%`,
+                    height: '100%',
+                    background: 'linear-gradient(90deg, #7f1d1d, #EF4444)',
+                    borderRadius: 4,
+                    transition: `width ${TIMING.ATTACKER_STRIKE * 0.6}ms ease`,
+                  }} />
+                </div>
+              </motion.div>
+              {/* Floating damage */}
+              <AnimatePresence>
+                {floatingDamage && (
+                  <FloatingDamage
+                    key={`${currentRound}-${floatingDamage.side}-${floatingDamage.damage}`}
+                    damage={floatingDamage.damage}
+                    isCrit={floatingDamage.isCrit}
+                    side={floatingDamage.side}
+                  />
+                )}
+              </AnimatePresence>
+            </div>
+
+            {/* Defender "always fresh" note */}
+            <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 8, letterSpacing: '0.07em', color: 'rgba(240,240,248,0.22)', textAlign: 'right', marginBottom: 10 }}>
+              ⚔ Defender's HP is always fresh
+            </div>
+
+            {/* Commentary */}
+            <div style={{ minHeight: 22, marginBottom: 6 }}>
+              <AnimatePresence mode="wait">
+                {commentaryText && (
+                  <motion.p
+                    key={commentaryText}
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    transition={{ duration: 0.2 }}
+                    style={{
+                      fontFamily: "'DM Sans', sans-serif",
+                      fontSize: 12,
+                      fontStyle: 'italic',
+                      color: 'rgba(240,240,248,0.45)',
+                      textAlign: 'center',
+                      margin: 0,
+                    }}
+                  >
+                    {commentaryText}
+                  </motion.p>
+                )}
+              </AnimatePresence>
             </div>
 
             {/* Callout */}
@@ -587,14 +847,14 @@ function CombatModal({ result, onClose, play }) {
               <AnimatePresence mode="wait">
                 {callout && (
                   <motion.span
-                    key={`${roundIdx}-${callout.text}`}
+                    key={`${currentRound}-${callout.text}`}
                     initial={{ opacity: 0, y: -8, scale: 0.9 }}
                     animate={{ opacity: 1, y: 0, scale: 1 }}
                     exit={{ opacity: 0, y: 6 }}
                     transition={{ duration: 0.22 }}
                     style={{
                       fontFamily: "'Bebas Neue', sans-serif",
-                      fontSize: 28,
+                      fontSize: 30,
                       letterSpacing: '0.1em',
                       color: callout.color,
                       textShadow: `0 0 16px ${callout.color}`,
@@ -628,7 +888,7 @@ function CombatModal({ result, onClose, play }) {
                 letterSpacing: '0.12em', textTransform: 'uppercase',
                 color: 'rgba(240,240,248,0.35)', marginTop: 6,
               }}>
-                vs {result.defender.username}
+                vs {defName}
               </div>
             </div>
 
@@ -663,9 +923,6 @@ function CombatModal({ result, onClose, play }) {
               {result.energy_cost != null && (
                 <ResultRow label="ENERGY SPENT" value={`-${result.energy_cost}⚡`} color="rgba(34,211,238,0.7)" />
               )}
-              {(isWin || isDraw) && result.xp_earned > 0 && (
-                <ResultRow label="XP EARNED" value={`+${fmt(result.xp_earned)}`} color="#9B8AC4" />
-              )}
               {isWin && result.glory_earned > 0 && (
                 <ResultRow label="GLORY EARNED" value={`+${result.glory_earned}`} color="#D4A437" />
               )}
@@ -677,21 +934,9 @@ function CombatModal({ result, onClose, play }) {
               )}
               <ResultRow label="YOUR HP LOST" value={`-${result.attacker_health_lost}`} color="#B8443A" />
               {result.defender_health_lost > 0 && (
-                <ResultRow label="THEIR HP LOST" value={`-${result.defender_health_lost}`} color="rgba(240,240,248,0.35)" />
+                <ResultRow label="DMG DEALT" value={`${result.defender_health_lost}`} color="rgba(240,240,248,0.35)" />
               )}
             </div>
-
-            {/* Level up */}
-            {result.levelsGained > 0 && (
-              <div style={{
-                background: 'rgba(212,164,55,0.1)', border: '1px solid rgba(212,164,55,0.4)',
-                borderRadius: 6, padding: '10px 14px', marginBottom: 14, textAlign: 'center',
-              }}>
-                <span style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 18, letterSpacing: '0.1em', color: '#D4A437' }}>
-                  ★ LEVEL UP × {result.levelsGained}!
-                </span>
-              </div>
-            )}
 
             {/* Buttons */}
             <div style={{ display: 'flex', gap: 10 }}>
@@ -850,22 +1095,23 @@ export default function PvP() {
       const data = await res.json()
       if (!res.ok) {
         const msgs = {
-          not_enough_energy:       `Not enough energy. This attack costs ${data.energy_required ?? '?'}⚡.`,
-          attacker_no_health:      'You have no health remaining. Wait for regen or use a health potion.',
-          defender_no_health:      'Target has no health. Pick another target.',
-          requires_alignment:      'You must choose your alignment before attacking.',
+          not_enough_energy:         `Not enough energy. This attack costs ${data.energy_required ?? '?'}⚡.`,
+          attacker_no_health:        'You have no health remaining. Wait for regen or use a health potion.',
+          defender_no_health:        'Target has no health. Pick another target.',
+          requires_alignment:        'You must choose your alignment before attacking.',
           invalid_alignment_matchup: 'Invalid target — check alignment rules.',
-          level_out_of_range:      'Target is out of your level range (±10).',
+          level_out_of_range:        'Target is out of your level range.',
+          level_gap_too_large:       data.message || 'You cannot attack players significantly below your level.',
+          cooldown_active:           `Attack on cooldown. Try again in ${data.seconds_remaining ?? '?'}s.`,
         }
         setToast({ type: 'error', message: msgs[data.error] || data.error || 'Attack failed.' })
         return
       }
       setCombatResult(data)
-      // Sound plays after animation completes (ROUND_TICK * rounds + buffer)
+      // Sound delay matches new sub-tick animation (~3300ms/round)
       const rounds = Array.isArray(data.rounds) ? data.rounds : []
-      const delay  = rounds.length > 0 ? rounds.length * ROUND_TICK + 400 : 0
+      const delay  = rounds.length > 0 ? rounds.length * (TIMING.ROUND_ANNOUNCE + TIMING.ATTACKER_STRIKE + TIMING.DAMAGE_FLOAT * 2 + TIMING.DEFENDER_RESPOND + TIMING.ROUND_PAUSE) + 400 : 0
       setTimeout(() => play(data.result === 'win' ? 'combatWin' : 'combatLose'), delay)
-      if (data.levelsGained > 0) setTimeout(() => play('levelUp'), delay + 800)
       refresh()
       fetchTargets()
     } catch {
@@ -952,7 +1198,16 @@ export default function PvP() {
                       )}
                     </div>
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, alignItems: 'center' }}>
-                      <MiniHealthBar current={localStats.health} max={localStats.health_max} color="#EF4444" />
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                        <MiniHealthBar current={localStats.health} max={localStats.health_max} color="#EF4444" />
+                        <MiniEnergyBar
+                          current={localStats.energy}
+                          max={localStats.energy_max}
+                          regenInterval={300}
+                          lastUpdated={localStats.energy_regen_base ?? localStats.last_updated}
+                          onTick={() => {}}
+                        />
+                      </div>
                       <div style={{ textAlign: 'right' }}>
                         <div style={{
                           fontFamily: "'IBM Plex Mono', monospace", fontSize: 9,

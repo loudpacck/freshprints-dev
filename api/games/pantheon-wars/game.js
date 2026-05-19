@@ -1351,8 +1351,9 @@ async function handlePvPTargets(req, res) {
 
     const limit  = Math.min(50, Math.max(1, parseInt(req.query.limit)  || 20))
     const offset = Math.max(0, parseInt(req.query.offset) || 0)
-    const minLevel = Math.max(1, stats.level - 10)
-    const maxLevel = stats.level + 10
+    // Asymmetric range: can't attack more than 4 levels below; can attack much higher (brave choice, capped at +50)
+    const minLevel = Math.max(1, stats.level - 4)
+    const maxLevel = stats.level + 50
 
     let targets
     if (attAlignment === 'coalition') {
@@ -1427,8 +1428,31 @@ async function handlePvPTargets(req, res) {
       return { ...t, power_rating: calculatePowerRating(t, equip) }
     }))
 
+    // Batch cooldown check — uses idx_pw_combat_log_cooldown index, avoids N+1
+    const targetIds = targetsWithPower.map(t => t.user_id)
+    const recentAttacks = targetIds.length > 0 ? await sql`
+      SELECT DISTINCT ON (defender_id) defender_id, created_at
+      FROM pw_combat_log
+      WHERE attacker_id = ${req.userId}
+        AND defender_id = ANY(${targetIds}::uuid[])
+        AND created_at > NOW() - INTERVAL '5 minutes'
+      ORDER BY defender_id, created_at DESC
+    ` : []
+
+    const cooldownMap = {}
+    for (const row of recentAttacks) {
+      const secsRemaining = Math.ceil(300 - (Date.now() - new Date(row.created_at).getTime()) / 1000)
+      cooldownMap[row.defender_id] = Math.max(0, secsRemaining)
+    }
+
+    const targetsWithCooldowns = targetsWithPower.map(t => ({
+      ...t,
+      cooldown_active:            !!cooldownMap[t.user_id],
+      cooldown_seconds_remaining: cooldownMap[t.user_id] || 0,
+    }))
+
     return res.status(200).json({
-      targets:          targetsWithPower,
+      targets:          targetsWithCooldowns,
       stats,
       my_power_rating:  myPowerRating,
       computed_bonuses,
@@ -1496,8 +1520,31 @@ async function handlePvPAttack(req, res) {
       }
     }
 
-    if (Math.abs(attLevel - defLevel) > 10) {
-      return res.status(400).json({ error: 'level_out_of_range' })
+    // Higher player attacking lower: block if gap >= 5. Lower attacking higher: always allowed.
+    if (attLevel > defLevel && (attLevel - defLevel) >= 5) {
+      return res.status(400).json({
+        error: 'level_gap_too_large',
+        message: `You cannot attack players more than 4 levels below you. Target is level ${defLevel}.`,
+      })
+    }
+
+    // Per-target 5-minute cooldown — uses idx_pw_combat_log_cooldown index
+    const recentAttack = await sql`
+      SELECT created_at FROM pw_combat_log
+      WHERE attacker_id = ${req.userId}
+        AND defender_id = ${target_user_id}
+        AND created_at > NOW() - INTERVAL '5 minutes'
+      ORDER BY created_at DESC
+      LIMIT 1
+    `
+    if (recentAttack.length > 0) {
+      const secondsRemaining = Math.ceil(
+        300 - (Date.now() - new Date(recentAttack[0].created_at).getTime()) / 1000
+      )
+      return res.status(400).json({
+        error: 'cooldown_active',
+        seconds_remaining: Math.max(0, secondsRemaining),
+      })
     }
 
     const [attTemples, defTemples] = await Promise.all([
@@ -1517,6 +1564,9 @@ async function handlePvPAttack(req, res) {
 
     attStats = { ...attStats, energy: attStats.energy - energyCost }
 
+    // Defender always fights at 100 HP in simulation — real HP is never written to DB from combat
+    const defStatsForCombat = { ...defStats, health: 100, health_max: Math.max(defStats.health_max, 100) }
+
     const [attEquip, defEquip] = await Promise.all([
       getEquipmentBonuses(sql, req.userId),
       getEquipmentBonuses(sql, target_user_id),
@@ -1524,7 +1574,7 @@ async function handlePvPAttack(req, res) {
 
     const combat = simulateCombat({
       attacker:      { ...attUser, ...attStats },
-      defender:      { ...defUser, ...defStats },
+      defender:      { ...defUser, ...defStatsForCombat },
       attackerEquip: attEquip,
       defenderEquip: defEquip,
     })
@@ -1538,9 +1588,8 @@ async function handlePvPAttack(req, res) {
     const attackerPowerSummary = combat.rounds.reduce((s, r) => s + (r.attacker_action?.damage || 0), 0)
     const defenderPowerSummary = combat.rounds.reduce((s, r) => s + (r.defender_action?.damage || 0), 0)
 
-    // Apply HP changes to both sides in all cases
+    // Apply attacker HP change; defender real HP is unchanged (simulation uses virtual 100 HP)
     attStats = { ...attStats, health: combat.final_attacker_hp }
-    defStats = { ...defStats, health: combat.final_defender_hp }
 
     if (combat.result === 'win') {
       attStats = {
@@ -1555,8 +1604,6 @@ async function handlePvPAttack(req, res) {
         glory_lifetime: defStats.glory_lifetime + combat.defender_glory_earned,
       }
     }
-
-    const levelsGained = 0
 
     await sql`
       UPDATE pw_player_stats SET
@@ -1577,12 +1624,11 @@ async function handlePvPAttack(req, res) {
       WHERE user_id = ${req.userId}
     `
 
+    // Defender health and last_updated are intentionally not written — real HP is unchanged by combat
     await sql`
       UPDATE pw_player_stats SET
-        health           = ${defStats.health},
-        glory            = ${defStats.glory},
-        glory_lifetime   = ${defStats.glory_lifetime},
-        last_updated     = ${defStats.last_updated}
+        glory          = ${defStats.glory},
+        glory_lifetime = ${defStats.glory_lifetime}
       WHERE user_id = ${target_user_id}
     `
 
@@ -1612,7 +1658,6 @@ async function handlePvPAttack(req, res) {
       energy_cost:          energyCost,
       attacker_mitigation:  attMit,
       defender_mitigation:  defMit,
-      levelsGained,
       rounds:               combat.rounds,
       defender_glory_earned: combat.defender_glory_earned,
       defender: {
