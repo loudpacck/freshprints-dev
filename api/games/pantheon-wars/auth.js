@@ -161,7 +161,7 @@ async function handleMe(req, res) {
         u.id, u.username, u.email, u.faction, u.class, u.alignment,
         u.created_at, u.last_login,
         s.level, s.xp, s.energy, s.energy_max, s.health, s.health_max,
-        s.drachma, s.drachma_lifetime, s.glory, s.glory_lifetime, s.attack, s.defense,
+        s.drachma, s.drachma_lifetime, s.glory, s.glory_lifetime, s.attack, s.defense, s.agility,
         s.stat_points, s.last_updated, s.energy_regen_base, s.health_regen_base
       FROM pw_users u
       JOIN pw_player_stats s ON s.user_id = u.id
@@ -177,7 +177,7 @@ async function handleMe(req, res) {
       health: row.health, health_max: row.health_max,
       drachma: row.drachma, drachma_lifetime: row.drachma_lifetime,
       glory: row.glory, glory_lifetime: row.glory_lifetime,
-      attack: row.attack, defense: row.defense,
+      attack: row.attack, defense: row.defense, agility: row.agility,
       stat_points: row.stat_points, last_updated: row.last_updated,
       energy_regen_base: row.energy_regen_base, health_regen_base: row.health_regen_base,
     }
