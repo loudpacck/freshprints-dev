@@ -733,11 +733,27 @@ async function handleShop(req, res) {
     const gloryEquipPool = gloryRows.filter(i => i.slot !== 'consumable')
     const glory_rotation_items = pickRotatedItems(gloryEquipPool, getGloryRotationSeed(), 4)
 
+    // Equipped items for gear comparison in the shop UI
+    const equippedRows = await sql`
+      SELECT inv.id, i.name, i.slot, i.rarity,
+             i.attack_bonus, i.defense_bonus, i.agility_bonus,
+             i.crit_chance, i.block_chance, i.dodge_chance,
+             i.level_required, i.faction_exclusive
+      FROM pw_inventory inv
+      JOIN pw_items i ON i.id = inv.item_id
+      WHERE inv.user_id = ${req.userId} AND inv.equipped = true
+    `
+    const equipped_by_slot = {}
+    for (const row of equippedRows) {
+      equipped_by_slot[row.slot] = row
+    }
+
     return res.status(200).json({
       rotation_items,
       always_available,
       glory_rotation_items,
       glory_always_available,
+      equipped_by_slot,
       rotation_expires_at:       getShopRotationExpiry(),
       glory_rotation_expires_at: getGloryRotationExpiry(),
       rotation_seed: getShopRotationSeed(),
