@@ -61,7 +61,7 @@ function Skeleton({ h = 20, w = '100%', r = 6 }) {
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
 
-function ShopItem({ item, player, currency, onBuy, buying }) {
+function ShopItem({ item, player, currency, onBuy, buying, dailyLimitReached }) {
   const rarityColor  = RARITY_COLOR[item.rarity] ?? '#F0F0F8'
   const rgb          = hexRgb(rarityColor)
   const isDiscounted = currency === 'drachma' && item.effective_price != null && item.effective_price !== item.buy_price
@@ -81,7 +81,7 @@ function ShopItem({ item, player, currency, onBuy, buying }) {
     <motion.div
       layout
       initial={{ opacity: 0, y: 6 }}
-      animate={{ opacity: locked ? 0.45 : 1, y: 0 }}
+      animate={{ opacity: locked ? 0.45 : dailyLimitReached ? 0.6 : 1, y: 0 }}
       style={{
         background: 'rgba(255,255,255,0.025)',
         border: `1px solid ${locked ? 'rgba(255,255,255,0.06)' : 'rgba(255,255,255,0.08)'}`,
@@ -224,20 +224,20 @@ function ShopItem({ item, player, currency, onBuy, buying }) {
           {priceLabel}
         </span>
         <button
-          onClick={() => !locked && !cantAfford && !buying && onBuy(item.id)}
-          disabled={locked || cantAfford || buying}
+          onClick={() => !locked && !cantAfford && !dailyLimitReached && !buying && onBuy(item.id)}
+          disabled={locked || cantAfford || dailyLimitReached || buying}
           style={{
             fontFamily: "'IBM Plex Mono', monospace",
             fontSize: 9, letterSpacing: '0.1em', textTransform: 'uppercase',
-            color: locked || cantAfford ? 'rgba(240,240,248,0.18)' : priceColor,
+            color: locked || cantAfford || dailyLimitReached ? 'rgba(240,240,248,0.18)' : priceColor,
             background: 'transparent',
-            border: `1px solid ${locked || cantAfford ? 'rgba(255,255,255,0.07)' : `rgba(${hexRgb(priceColor)}, 0.4)`}`,
+            border: `1px solid ${locked || cantAfford || dailyLimitReached ? 'rgba(255,255,255,0.07)' : `rgba(${hexRgb(priceColor)}, 0.4)`}`,
             borderRadius: 5, padding: '6px 12px',
-            cursor: locked || cantAfford || buying ? 'not-allowed' : 'pointer',
+            cursor: locked || cantAfford || dailyLimitReached || buying ? 'not-allowed' : 'pointer',
             whiteSpace: 'nowrap', transition: 'opacity 120ms',
           }}
         >
-          {buying ? '···' : (cantAfford && !locked) ? 'FUNDS' : 'BUY'}
+          {buying ? '···' : dailyLimitReached ? 'LIMIT' : (cantAfford && !locked) ? 'FUNDS' : 'BUY'}
         </button>
       </div>
     </motion.div>
@@ -285,21 +285,22 @@ export default function Shop() {
   const navigate = useNavigate()
   const { play } = useSound()
 
-  const [rotationItems,          setRotationItems]          = useState([])
-  const [alwaysAvailable,        setAlwaysAvailable]        = useState([])
-  const [gloryRotationItems,     setGloryRotationItems]     = useState([])
-  const [gloryAlwaysAvailable,   setGloryAlwaysAvailable]   = useState([])
-  const [player,                 setPlayer]                 = useState(null)
-  const [loading,                setLoading]                = useState(true)
-  const [error,                  setError]                  = useState(null)
-  const [tab,                    setTab]                    = useState('drachma')  // 'drachma' | 'glory'
-  const [buying,                 setBuying]                 = useState(null)       // item_id being purchased
-  const [toast,                  setToast]                  = useState(null)
-  const [rotationExpiresAt,      setRotationExpiresAt]      = useState(null)
-  const [gloryRotationExpiresAt, setGloryRotationExpiresAt] = useState(null)
-  const [rotationSeed,           setRotationSeed]           = useState(null)
-  const [countdown,              setCountdown]              = useState(null)
-  const [gloryCountdown,         setGloryCountdown]         = useState(null)
+  const [rotationItems,           setRotationItems]           = useState([])
+  const [alwaysAvailable,         setAlwaysAvailable]         = useState([])
+  const [gloryRotationItems,      setGloryRotationItems]      = useState([])
+  const [gloryAlwaysAvailable,    setGloryAlwaysAvailable]    = useState([])
+  const [player,                  setPlayer]                  = useState(null)
+  const [loading,                 setLoading]                 = useState(true)
+  const [error,                   setError]                   = useState(null)
+  const [tab,                     setTab]                     = useState('drachma')  // 'drachma' | 'glory'
+  const [buying,                  setBuying]                  = useState(null)       // item_id being purchased
+  const [toast,                   setToast]                   = useState(null)
+  const [rotationExpiresAt,       setRotationExpiresAt]       = useState(null)
+  const [gloryRotationExpiresAt,  setGloryRotationExpiresAt]  = useState(null)
+  const [rotationSeed,            setRotationSeed]            = useState(null)
+  const [countdown,               setCountdown]               = useState(null)
+  const [gloryCountdown,          setGloryCountdown]          = useState(null)
+  const [energyPurchasesToday,    setEnergyPurchasesToday]    = useState(0)
 
   useEffect(() => {
     if (!authLoading && !user) navigate('/games/pantheon-wars/login', { replace: true })
@@ -318,6 +319,7 @@ export default function Shop() {
       setGloryRotationItems(data.glory_rotation_items ?? [])
       setGloryAlwaysAvailable(data.glory_always_available ?? [])
       setPlayer(data.player)
+      setEnergyPurchasesToday(data.player?.energy_potion_purchases_today ?? 0)
       if (data.rotation_expires_at)       setRotationExpiresAt(data.rotation_expires_at)
       if (data.glory_rotation_expires_at) setGloryRotationExpiresAt(data.glory_rotation_expires_at)
       if (data.rotation_seed != null) setRotationSeed(data.rotation_seed)
@@ -385,6 +387,8 @@ export default function Shop() {
         } else if (data.error === 'item_not_in_rotation') {
           setToast({ message: 'This item is no longer available — the shop has refreshed.', color: '#F87171' })
           fetchShop()
+        } else if (data.error === 'daily_purchase_limit_reached') {
+          setToast({ message: 'Daily limit reached — energy potions reset at midnight UTC', color: '#F87171' })
         } else {
           setToast({ message: data.error || 'Purchase failed', color: '#F87171' })
         }
@@ -396,6 +400,11 @@ export default function Shop() {
         drachma: data.new_drachma,
         glory:   data.new_glory,
       }))
+      // Increment energy potion counter locally if applicable
+      const boughtItem = alwaysAvailable.find(i => i.id === item_id)
+      if (boughtItem?.consumable_effect === 'restore_energy_pct') {
+        setEnergyPurchasesToday(prev => Math.min(5, prev + 1))
+      }
       setToast({ message: `${data.purchased.name} acquired`, color: RARITY_COLOR[data.purchased.rarity] ?? '#C9A961' })
       play('purchase')
       refreshContext()
@@ -602,13 +611,24 @@ export default function Shop() {
                           paddingTop: 18,
                           borderTop: '1px solid rgba(34,211,238,0.12)',
                         }}>
-                          <p style={{
-                            fontFamily: "'IBM Plex Mono', monospace",
-                            fontSize: 9, letterSpacing: '0.16em', textTransform: 'uppercase',
-                            color: 'rgba(34,211,238,0.45)', marginBottom: 12,
-                          }}>
-                            ⚗ POTIONS — ALWAYS AVAILABLE
-                          </p>
+                          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 6, marginBottom: 12 }}>
+                            <p style={{
+                              fontFamily: "'IBM Plex Mono', monospace",
+                              fontSize: 9, letterSpacing: '0.16em', textTransform: 'uppercase',
+                              color: 'rgba(34,211,238,0.45)', margin: 0,
+                            }}>
+                              ⚗ POTIONS — ALWAYS AVAILABLE
+                            </p>
+                            <span style={{
+                              fontFamily: "'IBM Plex Mono', monospace",
+                              fontSize: 9, letterSpacing: '0.08em',
+                              color: energyPurchasesToday >= 5 ? '#F87171' : 'rgba(240,240,248,0.3)',
+                            }}>
+                              {energyPurchasesToday >= 5
+                                ? 'Energy limit reached — resets at midnight UTC'
+                                : `${energyPurchasesToday}/5 energy purchases today`}
+                            </span>
+                          </div>
                           <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
                             {alwaysAvailable.map(item => (
                               <ShopItem
@@ -618,6 +638,7 @@ export default function Shop() {
                                 currency="drachma"
                                 onBuy={handleBuy}
                                 buying={buying === item.id}
+                                dailyLimitReached={item.consumable_effect === 'restore_energy_pct' && energyPurchasesToday >= 5}
                               />
                             ))}
                           </div>

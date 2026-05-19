@@ -131,7 +131,7 @@ function EquipSlot({ slot, item }) {
   )
 }
 
-function ItemCard({ item, onEquip, onUnequip, onSell, onConsume, busy }) {
+function ItemCard({ item, onEquip, onUnequip, onSell, onConsume, busy, energyUsesToday }) {
   const rarityColor = RARITY_COLOR[item.rarity] ?? '#F0F0F8'
   const rgb = hexRgb(rarityColor)
 
@@ -254,14 +254,31 @@ function ItemCard({ item, onEquip, onUnequip, onSell, onConsume, busy }) {
 
       {/* Right: actions */}
       <div style={{ flexShrink: 0, display: 'flex', flexDirection: 'column', gap: 6 }}>
-        {item.slot === 'consumable' ? (
-          <ActionBtn
-            label="USE"
-            color="#22D3EE"
-            onClick={() => onConsume(item.inventory_id)}
-            disabled={busy}
-          />
-        ) : item.equipped ? (
+        {item.slot === 'consumable' ? (() => {
+          const energyLimited = item.consumable_effect === 'restore_energy_pct' && energyUsesToday >= 10
+          return (
+            <>
+              <ActionBtn
+                label={energyLimited ? 'LIMIT' : 'USE'}
+                color={energyLimited ? 'rgba(240,240,248,0.18)' : '#22D3EE'}
+                onClick={() => !energyLimited && onConsume(item.inventory_id)}
+                disabled={busy || energyLimited}
+              />
+              {item.consumable_effect === 'restore_energy_pct' && (
+                <span style={{
+                  fontFamily: "'IBM Plex Mono', monospace",
+                  fontSize: 8,
+                  color: energyLimited ? '#F87171' : 'rgba(240,240,248,0.28)',
+                  textAlign: 'right',
+                  lineHeight: 1.3,
+                  whiteSpace: 'nowrap',
+                }}>
+                  {energyUsesToday}/10 today
+                </span>
+              )}
+            </>
+          )
+        })() : item.equipped ? (
           <ActionBtn
             label="UNEQUIP"
             color="#F97316"
@@ -462,15 +479,16 @@ export default function Inventory() {
   const navigate = useNavigate()
   const { play } = useSound()
 
-  const [inventory,  setInventory]  = useState([])
-  const [bonuses,    setBonuses]    = useState({ attack: 0, defense: 0 })
-  const [stats,      setStats]      = useState(null)
-  const [loading,    setLoading]    = useState(true)
-  const [error,      setError]      = useState(null)
-  const [filter,     setFilter]     = useState('ALL')
-  const [busy,       setBusy]       = useState(false)
-  const [toast,      setToast]      = useState(null)
-  const [sellModal,  setSellModal]  = useState(null) // { inventory_id, name, price }
+  const [inventory,        setInventory]        = useState([])
+  const [bonuses,          setBonuses]          = useState({ attack: 0, defense: 0 })
+  const [stats,            setStats]            = useState(null)
+  const [loading,          setLoading]          = useState(true)
+  const [error,            setError]            = useState(null)
+  const [filter,           setFilter]           = useState('ALL')
+  const [busy,             setBusy]             = useState(false)
+  const [toast,            setToast]            = useState(null)
+  const [sellModal,        setSellModal]        = useState(null) // { inventory_id, name, price }
+  const [energyUsesToday,  setEnergyUsesToday]  = useState(0)
 
   useEffect(() => {
     if (!authLoading && !user) navigate('/games/pantheon-wars/login', { replace: true })
@@ -487,6 +505,7 @@ export default function Inventory() {
       setInventory(data.inventory)
       setBonuses(data.equipment_bonuses)
       setStats(data.stats)
+      setEnergyUsesToday(data.stats?.energy_potion_uses_today ?? 0)
     } catch { setError('Network error.') }
     finally   { setLoading(false) }
   }, [navigate])
@@ -561,10 +580,11 @@ export default function Inventory() {
       const data = await res.json()
       if (!res.ok) {
         const msgs = {
-          already_full_health:  'Already at full HP.',
-          already_full_energy:  'Already at full Energy.',
-          already_full:         'Already at full HP and Energy.',
-          not_consumable:       'Item is not a consumable.',
+          already_full_health:     'Already at full HP.',
+          already_full_energy:     'Already at full Energy.',
+          already_full:            'Already at full HP and Energy.',
+          not_consumable:          'Item is not a consumable.',
+          daily_use_limit_reached: 'Daily limit reached — energy potions reset at midnight UTC.',
         }
         setToast({ message: msgs[data.error] || data.error || 'Failed to use item', color: '#F87171' })
         return
@@ -579,6 +599,9 @@ export default function Inventory() {
         if (data.consumed.health_restored > 0) parts.push(`+${data.consumed.health_restored} HP`)
         if (data.consumed.energy_restored  > 0) parts.push(`+${data.consumed.energy_restored} Energy`)
         setToast({ message: `Used ${data.consumed.name} — ${parts.join(', ')}`, color: '#22D3EE' })
+        if (data.stats?.energy_potion_uses_today != null) {
+          setEnergyUsesToday(data.stats.energy_potion_uses_today)
+        }
       } else {
         setToast({ message: `Used ${data.consumed.name}`, color: '#22D3EE' })
       }
@@ -767,6 +790,7 @@ export default function Inventory() {
                         onSell={handleSellClick}
                         onConsume={handleConsume}
                         busy={busy}
+                        energyUsesToday={energyUsesToday}
                       />
                     ))}
                   </motion.div>

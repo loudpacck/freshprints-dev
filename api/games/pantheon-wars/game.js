@@ -304,10 +304,16 @@ async function handleInventory(req, res) {
         i.slot,
         i.attack_bonus,
         i.defense_bonus,
+        i.agility_bonus,
+        i.crit_chance,
+        i.block_chance,
+        i.dodge_chance,
         i.rarity,
         i.level_required,
         i.faction_exclusive,
-        i.sell_price
+        i.sell_price,
+        i.consumable_effect,
+        i.consumable_value
       FROM pw_inventory inv
       JOIN pw_items i ON i.id = inv.item_id
       WHERE inv.user_id = ${req.userId}
@@ -316,10 +322,15 @@ async function handleInventory(req, res) {
 
     const equipment_bonuses = await getEquipmentBonuses(sql, req.userId)
 
+    const invStats = resetDailyCountersIfNeeded(stats)
+
     return res.status(200).json({
       inventory,
       equipment_bonuses,
-      stats,
+      stats: {
+        ...invStats,
+        energy_potion_uses_today: invStats.energy_potion_uses_today ?? 0,
+      },
       pendingAdventureRewards: req.pendingAdventureRewards || null,
     })
   } catch (err) {
@@ -478,6 +489,21 @@ async function handleSell(req, res) {
   }
 }
 
+// ── Daily counter reset helper ────────────────────────────────────────────────
+
+function resetDailyCountersIfNeeded(stats) {
+  const TODAY_SEED = Math.floor(Date.now() / 86400000)
+  if ((stats.energy_potion_reset_day ?? 0) !== TODAY_SEED) {
+    return {
+      ...stats,
+      energy_potion_purchases_today: 0,
+      energy_potion_uses_today:      0,
+      energy_potion_reset_day:       TODAY_SEED,
+    }
+  }
+  return stats
+}
+
 // ── Consume (POST) ────────────────────────────────────────────────────────────
 
 async function handleConsume(req, res) {
@@ -509,6 +535,9 @@ async function handleConsume(req, res) {
     let healthRestored = 0
     let energyRestored = 0
 
+    // Apply daily counter reset before any energy potion checks
+    stats = resetDailyCountersIfNeeded(stats)
+
     if (item.consumable_effect === 'restore_health_pct') {
       if (stats.health >= stats.health_max) {
         return res.status(400).json({ error: 'already_full_health' })
@@ -517,12 +546,21 @@ async function handleConsume(req, res) {
       healthRestored = Math.min(restoreAmount, stats.health_max - stats.health)
       stats = { ...stats, health: stats.health + healthRestored }
     } else if (item.consumable_effect === 'restore_energy_pct') {
+      const usesToday = stats.energy_potion_uses_today ?? 0
+      if (usesToday >= 10) {
+        const resets_at = (Math.floor(Date.now() / 86400000) + 1) * 86400000
+        return res.status(400).json({ error: 'daily_use_limit_reached', resets_at })
+      }
       if (stats.energy >= stats.energy_max) {
         return res.status(400).json({ error: 'already_full_energy' })
       }
       const restoreAmount = Math.floor(stats.energy_max * (item.consumable_value / 100))
       energyRestored = Math.min(restoreAmount, stats.energy_max - stats.energy)
-      stats = { ...stats, energy: stats.energy + energyRestored }
+      stats = {
+        ...stats,
+        energy: stats.energy + energyRestored,
+        energy_potion_uses_today: usesToday + 1,
+      }
     } else if (item.consumable_effect === 'restore_health') {
       if (stats.health >= stats.health_max) {
         return res.status(400).json({ error: 'already_full_health' })
@@ -599,11 +637,13 @@ async function handleConsume(req, res) {
     await sql`DELETE FROM pw_inventory WHERE id = ${inventory_id}`
     await sql`
       UPDATE pw_player_stats SET
-        health            = ${stats.health},
-        energy            = ${stats.energy},
-        energy_regen_base = ${stats.energy_regen_base},
-        health_regen_base = ${stats.health_regen_base},
-        last_updated      = ${stats.last_updated}
+        health                       = ${stats.health},
+        energy                       = ${stats.energy},
+        energy_regen_base            = ${stats.energy_regen_base},
+        health_regen_base            = ${stats.health_regen_base},
+        last_updated                 = ${stats.last_updated},
+        energy_potion_uses_today     = ${stats.energy_potion_uses_today ?? 0},
+        energy_potion_reset_day      = ${stats.energy_potion_reset_day ?? Math.floor(Date.now() / 86400000)}
       WHERE user_id = ${req.userId}
     `
 
@@ -611,10 +651,11 @@ async function handleConsume(req, res) {
       success:  true,
       consumed: { id: inventory_id, name: item.name, health_restored: healthRestored, energy_restored: energyRestored },
       stats: {
-        health:     stats.health,
-        health_max: stats.health_max,
-        energy:     stats.energy,
-        energy_max: stats.energy_max,
+        health:                    stats.health,
+        health_max:                stats.health_max,
+        energy:                    stats.energy,
+        energy_max:                stats.energy_max,
+        energy_potion_uses_today:  stats.energy_potion_uses_today ?? 0,
       },
       pendingAdventureRewards: req.pendingAdventureRewards || null,
     })
@@ -655,6 +696,8 @@ async function handleShop(req, res) {
         WHERE user_id = ${req.userId}
       `
     }
+
+    stats = resetDailyCountersIfNeeded(stats)
 
     // Drachma rotation — unified with handleBuy via getDailyRotationPool
     const rotationRaw = await getDailyRotationPool(sql, stats.level, 5)
@@ -699,11 +742,13 @@ async function handleShop(req, res) {
       glory_rotation_expires_at: getGloryRotationExpiry(),
       rotation_seed: getShopRotationSeed(),
       player: {
-        drachma:       stats.drachma,
-        glory:         stats.glory,
-        level:         stats.level,
-        faction:       rows[0].faction,
-        player_class:  shopPlayerClass,
+        drachma:                       stats.drachma,
+        glory:                         stats.glory,
+        level:                         stats.level,
+        faction:                       rows[0].faction,
+        player_class:                  shopPlayerClass,
+        energy_potion_purchases_today: stats.energy_potion_purchases_today ?? 0,
+        energy_potion_uses_today:      stats.energy_potion_uses_today ?? 0,
       },
       pendingAdventureRewards: req.pendingAdventureRewards || null,
     })
@@ -726,7 +771,7 @@ async function handleBuy(req, res) {
 
   try {
     const itemRows = await sql`
-      SELECT id, name, rarity, slot, level_required, faction_exclusive, buy_price, glory_price
+      SELECT id, name, rarity, slot, level_required, faction_exclusive, buy_price, glory_price, consumable_effect
       FROM pw_items WHERE id = ${item_id}
     `
     if (itemRows.length === 0) return res.status(404).json({ error: 'Item not found' })
@@ -738,14 +783,16 @@ async function handleBuy(req, res) {
     }
 
     const playerRows = await sql`
-      SELECT ps.level, ps.drachma, ps.glory, u.faction, u.class AS player_class
+      SELECT ps.level, ps.drachma, ps.glory,
+             ps.energy_potion_purchases_today, ps.energy_potion_uses_today, ps.energy_potion_reset_day,
+             u.faction, u.class AS player_class
       FROM pw_player_stats ps
       JOIN pw_users u ON u.id = ps.user_id
       WHERE ps.user_id = ${req.userId}
     `
     if (playerRows.length === 0) return res.status(404).json({ error: 'Player not found' })
 
-    const player = playerRows[0]
+    let player = resetDailyCountersIfNeeded(playerRows[0])
 
     if (player.level < item.level_required) {
       return res.status(400).json({ error: `Requires level ${item.level_required}` })
@@ -777,6 +824,15 @@ async function handleBuy(req, res) {
       }
     }
 
+    // Energy potion purchase limit: max 5 per UTC day
+    if (item.consumable_effect === 'restore_energy_pct') {
+      const purchasesToday = player.energy_potion_purchases_today ?? 0
+      if (purchasesToday >= 5) {
+        const resets_at = (Math.floor(Date.now() / 86400000) + 1) * 86400000
+        return res.status(400).json({ error: 'daily_purchase_limit_reached', resets_at })
+      }
+    }
+
     // Broker gets 10% drachma shop discount
     const effectivePrice = currency === 'drachma' && player.player_class === 'broker'
       ? Math.floor(item.buy_price * 0.90)
@@ -794,6 +850,18 @@ async function handleBuy(req, res) {
     }
 
     await sql`INSERT INTO pw_inventory (user_id, item_id) VALUES (${req.userId}, ${item_id})`
+
+    // Increment energy potion purchase counter
+    if (item.consumable_effect === 'restore_energy_pct') {
+      const newPurchases = (player.energy_potion_purchases_today ?? 0) + 1
+      const todaySeed    = Math.floor(Date.now() / 86400000)
+      await sql`
+        UPDATE pw_player_stats
+        SET energy_potion_purchases_today = ${newPurchases},
+            energy_potion_reset_day       = ${todaySeed}
+        WHERE user_id = ${req.userId}
+      `
+    }
 
     const updated = await sql`SELECT drachma, glory FROM pw_player_stats WHERE user_id = ${req.userId}`
 
