@@ -537,11 +537,12 @@ export default function Adventures() {
         body: JSON.stringify({ adventure_id: adventureId }),
       })
       const data = await res.json()
-      if (!res.ok) return
-      if (data.pendingAdventureRewards) setToast(data.pendingAdventureRewards)
-      play('select')
+      if (res.ok) {
+        if (data.pendingAdventureRewards) setToast(data.pendingAdventureRewards)
+        play('select')
+        refreshContext()
+      }
       await fetchAdventures()
-      refreshContext()
     } finally {
       setStarting(null)
     }
@@ -575,11 +576,12 @@ export default function Adventures() {
         headers: { 'Content-Type': 'application/json' },
       })
       const data = await res.json()
-      if (!res.ok) return
-      const rewards = data.rewards ?? data.pendingAdventureRewards
-      if (rewards) setToast(rewards)
+      if (res.ok) {
+        const rewards = data.rewards ?? data.pendingAdventureRewards
+        if (rewards) setToast(rewards)
+        refreshContext()
+      }
       await fetchAdventures()
-      refreshContext()
     } finally {
       setClaiming(false)
     }

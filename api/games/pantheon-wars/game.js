@@ -9,6 +9,7 @@ import {
   getQuestRotationSeed, getQuestRotationExpiry,
   getAdventureRotationSeed, getAdventureRotationExpiry,
   pickRotatedFromPool, checkAndCompleteAdventures,
+  computeResetBaselines,
 } from '../../../lib/pwHelpers.js'
 
 export const config = { runtime: 'nodejs' }
@@ -495,7 +496,12 @@ async function handleConsume(req, res) {
     const item = rows[0]
     if (item.slot !== 'consumable') return res.status(400).json({ error: 'not_consumable' })
 
-    const statsRows = await sql`SELECT * FROM pw_player_stats WHERE user_id = ${req.userId}`
+    const statsRows = await sql`
+      SELECT ps.*, u.class, u.faction
+      FROM pw_player_stats ps
+      JOIN pw_users u ON u.id = ps.user_id
+      WHERE ps.user_id = ${req.userId}
+    `
     if (statsRows.length === 0) return res.status(404).json({ error: 'Player not found' })
     let stats = regenPlayer(statsRows[0])
 
@@ -517,16 +523,17 @@ async function handleConsume(req, res) {
       energyRestored = stats.energy_max - stats.energy
       stats = { ...stats, health: stats.health_max, energy: stats.energy_max }
     } else if (item.consumable_effect === 'realloc_stats') {
-      // Tablet of Reinvention — repeatable glory-shop stat reset
-      const level = stats.level || 1
-      const energyMaxBaseline = 20 + (level - 1) * 2
-      const healthMaxBaseline = 100 + (level - 1) * 10
+      // Scroll/Tablet of Reinvention — stat reset consumable
+      const playerClass = statsRows[0].class
+      const faction     = statsRows[0].faction
+      const { attackBaseline, defenseBaseline, agilityBaseline, energyMaxBaseline, healthMaxBaseline } =
+        computeResetBaselines(stats, playerClass, faction)
 
-      const refundAttack    = Math.max(0, (stats.attack    || 5) - 5)
-      const refundDefense   = Math.max(0, (stats.defense   || 5) - 5)
-      const refundAgility   = Math.max(0, stats.agility    || 0)
-      const refundEnergyMax = Math.max(0, (stats.energy_max || energyMaxBaseline) - energyMaxBaseline)
-      const refundHealthMax = Math.max(0, (stats.health_max || healthMaxBaseline) - healthMaxBaseline)
+      const refundAttack    = Math.max(0, (stats.attack    ?? attackBaseline)    - attackBaseline)
+      const refundDefense   = Math.max(0, (stats.defense   ?? defenseBaseline)   - defenseBaseline)
+      const refundAgility   = Math.max(0, (stats.agility   ?? agilityBaseline)   - agilityBaseline)
+      const refundEnergyMax = Math.max(0, (stats.energy_max ?? energyMaxBaseline) - energyMaxBaseline)
+      const refundHealthMax = Math.max(0, (stats.health_max ?? healthMaxBaseline) - healthMaxBaseline)
       const totalRefunded   = refundAttack + refundDefense + refundAgility + refundEnergyMax + refundHealthMax
 
       const newStatPoints = (stats.stat_points || 0) + totalRefunded
@@ -536,9 +543,9 @@ async function handleConsume(req, res) {
       await sql`DELETE FROM pw_inventory WHERE id = ${inventory_id}`
       await sql`
         UPDATE pw_player_stats SET
-          attack            = 5,
-          defense           = 5,
-          agility           = 0,
+          attack            = ${attackBaseline},
+          defense           = ${defenseBaseline},
+          agility           = ${agilityBaseline},
           energy_max        = ${energyMaxBaseline},
           health_max        = ${healthMaxBaseline},
           energy            = ${newEnergy},
@@ -559,9 +566,9 @@ async function handleConsume(req, res) {
           points_refunded: totalRefunded,
         },
         stats: {
-          attack:      5,
-          defense:     5,
-          agility:     0,
+          attack:      attackBaseline,
+          defense:     defenseBaseline,
+          agility:     agilityBaseline,
           energy_max:  energyMaxBaseline,
           health_max:  healthMaxBaseline,
           energy:      newEnergy,
@@ -640,7 +647,7 @@ async function handleShop(req, res) {
              consumable_effect, consumable_value
       FROM pw_items
       WHERE buy_price IS NOT NULL OR glory_price IS NOT NULL
-      ORDER BY slot, level_required, rarity
+      ORDER BY slot, level_required, rarity, id
     `
 
     const drachmaRotationPool = items.filter(i =>
@@ -669,6 +676,7 @@ async function handleShop(req, res) {
       always_available,
       glory_items,
       rotation_expires_at: getShopRotationExpiry(),
+      rotation_seed: getShopRotationSeed(),
       player: {
         drachma:       stats.drachma,
         glory:         stats.glory,
@@ -689,7 +697,7 @@ async function handleShop(req, res) {
 async function handleBuy(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' })
 
-  const { item_id, currency } = req.body ?? {}
+  const { item_id, currency, rotation_seed } = req.body ?? {}
   if (!item_id) return res.status(400).json({ error: 'item_id is required' })
   if (!['drachma', 'glory'].includes(currency)) {
     return res.status(400).json({ error: 'currency must be "drachma" or "glory"' })
@@ -726,6 +734,12 @@ async function handleBuy(req, res) {
     }
 
     if (currency === 'drachma' && item.slot !== 'consumable') {
+      // If the client passed a rotation_seed, check it matches before doing the DB query.
+      // Mismatch means UTC midnight rolled over between GET and POST — friendly error so
+      // the frontend can reload the shop rather than showing a confusing message.
+      if (rotation_seed != null && rotation_seed !== getShopRotationSeed()) {
+        return res.status(400).json({ error: 'rotation_expired', message: 'The shop has just refreshed. Loading new items...' })
+      }
       const rotated = await getDailyRotationPool(sql, player.level)
       if (!rotated.some(r => r.id === item_id)) {
         return res.status(400).json({ error: 'item_not_in_rotation' })
@@ -1994,11 +2008,14 @@ async function handleFreeStatReset(req, res) {
 
   try {
     const rows = await sql`
-      SELECT level, xp, attack, defense, agility, energy, energy_max, health, health_max,
-             stat_points, stat_reset_available, glory, glory_lifetime, drachma, drachma_lifetime,
-             last_updated, energy_regen_base, health_regen_base
-      FROM pw_player_stats
-      WHERE user_id = ${req.userId}
+      SELECT ps.level, ps.xp, ps.attack, ps.defense, ps.agility, ps.energy, ps.energy_max,
+             ps.health, ps.health_max, ps.stat_points, ps.stat_reset_available, ps.glory,
+             ps.glory_lifetime, ps.drachma, ps.drachma_lifetime, ps.last_updated,
+             ps.energy_regen_base, ps.health_regen_base,
+             u.class, u.faction
+      FROM pw_player_stats ps
+      JOIN pw_users u ON u.id = ps.user_id
+      WHERE ps.user_id = ${req.userId}
     `
     if (rows.length === 0) return res.status(404).json({ error: 'Player not found' })
 
@@ -2008,15 +2025,16 @@ async function handleFreeStatReset(req, res) {
       return res.status(400).json({ error: 'free_reset_already_used' })
     }
 
-    const level = stats.level || 1
-    const energyMaxBaseline = 20 + (level - 1) * 2
-    const healthMaxBaseline = 100 + (level - 1) * 10
+    const playerClass = rows[0].class
+    const faction     = rows[0].faction
+    const { attackBaseline, defenseBaseline, agilityBaseline, energyMaxBaseline, healthMaxBaseline } =
+      computeResetBaselines(stats, playerClass, faction)
 
-    const refundAttack    = Math.max(0, (stats.attack    || 5) - 5)
-    const refundDefense   = Math.max(0, (stats.defense   || 5) - 5)
-    const refundAgility   = Math.max(0, stats.agility    || 0)
-    const refundEnergyMax = Math.max(0, (stats.energy_max || energyMaxBaseline) - energyMaxBaseline)
-    const refundHealthMax = Math.max(0, (stats.health_max || healthMaxBaseline) - healthMaxBaseline)
+    const refundAttack    = Math.max(0, (stats.attack    ?? attackBaseline)    - attackBaseline)
+    const refundDefense   = Math.max(0, (stats.defense   ?? defenseBaseline)   - defenseBaseline)
+    const refundAgility   = Math.max(0, (stats.agility   ?? agilityBaseline)   - agilityBaseline)
+    const refundEnergyMax = Math.max(0, (stats.energy_max ?? energyMaxBaseline) - energyMaxBaseline)
+    const refundHealthMax = Math.max(0, (stats.health_max ?? healthMaxBaseline) - healthMaxBaseline)
     const totalRefunded   = refundAttack + refundDefense + refundAgility + refundEnergyMax + refundHealthMax
 
     const newStatPoints = (stats.stat_points || 0) + totalRefunded
@@ -2025,9 +2043,9 @@ async function handleFreeStatReset(req, res) {
 
     await sql`
       UPDATE pw_player_stats SET
-        attack               = 5,
-        defense              = 5,
-        agility              = 0,
+        attack               = ${attackBaseline},
+        defense              = ${defenseBaseline},
+        agility              = ${agilityBaseline},
         energy_max           = ${energyMaxBaseline},
         health_max           = ${healthMaxBaseline},
         energy               = ${newEnergy},
@@ -2045,9 +2063,9 @@ async function handleFreeStatReset(req, res) {
       used_free_reset:  true,
       points_refunded:  totalRefunded,
       stats: {
-        attack:               5,
-        defense:              5,
-        agility:              0,
+        attack:               attackBaseline,
+        defense:              defenseBaseline,
+        agility:              agilityBaseline,
         energy_max:           energyMaxBaseline,
         health_max:           healthMaxBaseline,
         energy:               newEnergy,

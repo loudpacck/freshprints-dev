@@ -281,6 +281,7 @@ export default function Shop() {
   const [buying,            setBuying]            = useState(null)       // item_id being purchased
   const [toast,             setToast]             = useState(null)
   const [rotationExpiresAt, setRotationExpiresAt] = useState(null)
+  const [rotationSeed,      setRotationSeed]      = useState(null)
   const [countdown,         setCountdown]         = useState(null)
 
   useEffect(() => {
@@ -300,6 +301,7 @@ export default function Shop() {
       setGloryItems(data.glory_items)
       setPlayer(data.player)
       if (data.rotation_expires_at) setRotationExpiresAt(data.rotation_expires_at)
+      if (data.rotation_seed != null) setRotationSeed(data.rotation_seed)
     } catch { setError('Network error.') }
     finally   { setLoading(false) }
   }, [navigate])
@@ -333,11 +335,14 @@ export default function Shop() {
       const res  = await fetch('/api/games/pantheon-wars/game?action=buy', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ item_id, currency: tab }),
+        body: JSON.stringify({ item_id, currency: tab, rotation_seed: rotationSeed }),
       })
       const data = await res.json()
       if (!res.ok) {
-        if (data.error === 'item_not_in_rotation') {
+        if (data.error === 'rotation_expired') {
+          setToast({ message: 'Shop just refreshed — loading new items', color: '#C9A961' })
+          fetchShop()
+        } else if (data.error === 'item_not_in_rotation') {
           setToast({ message: 'This item is no longer available — the shop has refreshed.', color: '#F87171' })
           fetchShop()
         } else {

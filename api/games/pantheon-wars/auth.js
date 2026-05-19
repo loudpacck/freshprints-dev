@@ -75,6 +75,12 @@ async function handleSignup(req, res) {
          ${startEnergyMax}, ${startEnergy}, ${startHealthMax}, ${startHealth}, ${startDrachma})
     `
 
+    // Give the Scroll of Reinvention to every new player (free one-time stat reset)
+    await sql`
+      INSERT INTO pw_inventory (user_id, item_id)
+      SELECT ${user.id}, id FROM pw_items WHERE name = 'Scroll of Reinvention'
+    `
+
     await createUserSession(user.id, res)
 
     return res.status(201).json({ user })
