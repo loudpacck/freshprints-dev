@@ -128,7 +128,7 @@ function TotalIncomeCard({ totalIncome, ownedCount, drachma }) {
 }
 
 function OwnedTempleCard({ temple, onUpgrade, isUpgrading }) {
-  const incomeDelta = Math.round(temple.income_per_hour * 0.25) // GDD: +25% per level, where income_per_hour is base
+  const incomeDelta = temple.income_delta ?? 0
 
   return (
     <div style={{
@@ -156,14 +156,14 @@ function OwnedTempleCard({ temple, onUpgrade, isUpgrading }) {
             fontSize: 8,
             letterSpacing: '0.1em',
             textTransform: 'uppercase',
-            color: temple.upgrade_level >= 10 ? '#FBBF24' : '#A78BFA',
-            background: temple.upgrade_level >= 10 ? 'rgba(251,191,36,0.1)' : 'rgba(167,139,250,0.1)',
-            border: `1px solid ${temple.upgrade_level >= 10 ? 'rgba(251,191,36,0.3)' : 'rgba(167,139,250,0.3)'}`,
+            color: temple.upgrade_level >= 25 ? '#FBBF24' : '#A78BFA',
+            background: temple.upgrade_level >= 25 ? 'rgba(251,191,36,0.1)' : 'rgba(167,139,250,0.1)',
+            border: `1px solid ${temple.upgrade_level >= 25 ? 'rgba(251,191,36,0.3)' : 'rgba(167,139,250,0.3)'}`,
             borderRadius: 4,
             padding: '2px 6px',
             whiteSpace: 'nowrap',
           }}>
-            {temple.upgrade_level >= 10 ? 'MAX' : `LVL ${temple.upgrade_level}`}
+            {temple.upgrade_level >= 25 ? 'MAX' : `LVL ${temple.upgrade_level}`}
           </span>
         </div>
         <div style={{
@@ -176,7 +176,7 @@ function OwnedTempleCard({ temple, onUpgrade, isUpgrading }) {
         </div>
       </div>
 
-      {temple.upgrade_level >= 10 ? (
+      {temple.upgrade_level >= 25 ? (
         <div style={{
           fontFamily: "'IBM Plex Mono', monospace",
           fontSize: 9,

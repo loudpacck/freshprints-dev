@@ -50,6 +50,20 @@ const BONUS_CHIPS = [
 
 function fmt(n) { return Number(n).toLocaleString() }
 
+const EFFECT_LABELS = {
+  restore_health_pct: (v) => `Restores ${v}% of your max health`,
+  restore_energy_pct: (v) => `Restores ${v}% of your max energy`,
+  restore_health:     (v) => v >= 9000 ? 'Fully restores health' : `Restores ${v} HP`,
+  restore_full:       ()  => 'Fully restores health and energy',
+  realloc_stats:      ()  => 'Resets all allocated stat points',
+}
+
+function getEffectLabel(effect, value) {
+  const fn = EFFECT_LABELS[effect]
+  if (!fn) return effect ?? 'Use to consume'
+  return fn(value)
+}
+
 function cap(s) { return s ? s.charAt(0).toUpperCase() + s.slice(1) : '' }
 
 function Skeleton({ h = 20, w = '100%', r = 6 }) {
@@ -223,7 +237,7 @@ function ItemCard({ item, onEquip, onUnequip, onSell, onConsume, busy }) {
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px 12px', alignItems: 'center' }}>
           {item.slot === 'consumable' ? (
             <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, color: '#22D3EE' }}>
-              {item.consumable_effect === 'realloc_stats' ? 'Resets all stat allocations' : item.consumable_effect ?? 'Use to consume'}
+              {getEffectLabel(item.consumable_effect, item.consumable_value)}
             </span>
           ) : (
             BONUS_CHIPS.map(b => (item[b.key] || 0) > 0 ? (
@@ -547,9 +561,10 @@ export default function Inventory() {
       const data = await res.json()
       if (!res.ok) {
         const msgs = {
-          already_full_health: 'Already at full HP.',
-          already_full:        'Already at full HP and Energy.',
-          not_consumable:      'Item is not a consumable.',
+          already_full_health:  'Already at full HP.',
+          already_full_energy:  'Already at full Energy.',
+          already_full:         'Already at full HP and Energy.',
+          not_consumable:       'Item is not a consumable.',
         }
         setToast({ message: msgs[data.error] || data.error || 'Failed to use item', color: '#F87171' })
         return

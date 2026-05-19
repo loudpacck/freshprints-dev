@@ -160,7 +160,7 @@ function AllocToast({ toast, onDone }) {
   )
 }
 
-function StatAllocCard({ label, color, current, pending, onIncrement, onDecrement, canAdd, style }) {
+function StatAllocCard({ label, desc, color, current, pending, onIncrement, onDecrement, canAdd, style }) {
   const rgb = hexRgb(color)
   const isActive = pending > 0
 
@@ -177,16 +177,30 @@ function StatAllocCard({ label, color, current, pending, onIncrement, onDecremen
       boxShadow: isActive ? `0 0 24px rgba(${rgb}, 0.12)` : 'none',
       ...style,
     }}>
-      {/* Stat label */}
-      <div style={{
-        fontFamily: "'IBM Plex Mono', monospace",
-        fontSize: 10,
-        letterSpacing: '0.14em',
-        textTransform: 'uppercase',
-        color: color,
-        opacity: 0.8,
-      }}>
-        {label}
+      {/* Stat label + description */}
+      <div>
+        <div style={{
+          fontFamily: "'IBM Plex Mono', monospace",
+          fontSize: 10,
+          letterSpacing: '0.14em',
+          textTransform: 'uppercase',
+          color: color,
+          opacity: 0.8,
+        }}>
+          {label}
+        </div>
+        {desc && (
+          <span style={{
+            fontFamily: "var(--pw-font-body, 'DM Sans', sans-serif)",
+            fontSize: 10,
+            color: 'var(--color-text-muted, rgba(240,240,248,0.4))',
+            lineHeight: 1.3,
+            display: 'block',
+            marginTop: 4,
+          }}>
+            {desc}
+          </span>
+        )}
       </div>
 
       {/* Current value */}
@@ -919,6 +933,7 @@ export default function Profile() {
                 >
                   <StatAllocCard
                     label="Attack"
+                    desc="Increases damage dealt in combat. Slayers get +1 per level."
                     color={ATTACK_COLOR}
                     current={stats.attack}
                     pending={pendingAttack}
@@ -928,6 +943,7 @@ export default function Profile() {
                   />
                   <StatAllocCard
                     label="Defense"
+                    desc="Reduces damage taken in combat. Wardens get +1 per level."
                     color={DEFENSE_COLOR}
                     current={stats.defense}
                     pending={pendingDefense}
@@ -937,6 +953,7 @@ export default function Profile() {
                   />
                   <StatAllocCard
                     label="Agility"
+                    desc="Increases dodge and counter-attack chance. Aesir start with +2."
                     color={AGILITY_COLOR}
                     current={stats.agility || 0}
                     pending={pendingAgility}
@@ -946,6 +963,7 @@ export default function Profile() {
                   />
                   <StatAllocCard
                     label="Energy Max"
+                    desc="Sets your maximum energy for quests. Oracles get +1 per level."
                     color={ENERGY_COLOR}
                     current={stats.energy_max}
                     pending={pendingEnergyMax}
@@ -955,6 +973,7 @@ export default function Profile() {
                   />
                   <StatAllocCard
                     label="Health Max"
+                    desc="Sets your maximum health for combat. Restored on level-up."
                     color={HEALTH_COLOR}
                     current={stats.health_max}
                     pending={pendingHealthMax}

@@ -33,6 +33,20 @@ const FACTION_COLOR = { olympians: '#E8D080', aesir: '#8AB8D4', annunaki: '#C25E
 
 function fmt(n) { return Number(n).toLocaleString() }
 
+const EFFECT_LABELS = {
+  restore_health_pct: (v) => `Restores ${v}% of your max health`,
+  restore_energy_pct: (v) => `Restores ${v}% of your max energy`,
+  restore_health:     (v) => v >= 9000 ? 'Fully restores health' : `Restores ${v} HP`,
+  restore_full:       ()  => 'Fully restores health and energy',
+  realloc_stats:      ()  => 'Resets all allocated stat points',
+}
+
+function getEffectLabel(effect, value) {
+  const fn = EFFECT_LABELS[effect]
+  if (!fn) return effect ?? 'Use to consume'
+  return fn(value)
+}
+
 function hexRgb(hex) {
   if (!hex || hex[0] !== '#') return '240,240,248'
   const r = parseInt(hex.slice(1, 3), 16)
@@ -148,7 +162,7 @@ function ShopItem({ item, player, currency, onBuy, buying }) {
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px 12px', alignItems: 'center' }}>
           {item.slot === 'consumable' ? (
             <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, color: '#22D3EE' }}>
-              {item.consumable_effect === 'realloc_stats' ? 'Resets all stat allocations' : item.consumable_effect ?? 'Use to consume'}
+              {getEffectLabel(item.consumable_effect, item.consumable_value)}
             </span>
           ) : (
             <>
@@ -271,18 +285,21 @@ export default function Shop() {
   const navigate = useNavigate()
   const { play } = useSound()
 
-  const [rotationItems,     setRotationItems]     = useState([])
-  const [alwaysAvailable,  setAlwaysAvailable]  = useState([])
-  const [gloryItems,        setGloryItems]        = useState([])
-  const [player,            setPlayer]            = useState(null)
-  const [loading,           setLoading]           = useState(true)
-  const [error,             setError]             = useState(null)
-  const [tab,               setTab]               = useState('drachma')  // 'drachma' | 'glory'
-  const [buying,            setBuying]            = useState(null)       // item_id being purchased
-  const [toast,             setToast]             = useState(null)
-  const [rotationExpiresAt, setRotationExpiresAt] = useState(null)
-  const [rotationSeed,      setRotationSeed]      = useState(null)
-  const [countdown,         setCountdown]         = useState(null)
+  const [rotationItems,          setRotationItems]          = useState([])
+  const [alwaysAvailable,        setAlwaysAvailable]        = useState([])
+  const [gloryRotationItems,     setGloryRotationItems]     = useState([])
+  const [gloryAlwaysAvailable,   setGloryAlwaysAvailable]   = useState([])
+  const [player,                 setPlayer]                 = useState(null)
+  const [loading,                setLoading]                = useState(true)
+  const [error,                  setError]                  = useState(null)
+  const [tab,                    setTab]                    = useState('drachma')  // 'drachma' | 'glory'
+  const [buying,                 setBuying]                 = useState(null)       // item_id being purchased
+  const [toast,                  setToast]                  = useState(null)
+  const [rotationExpiresAt,      setRotationExpiresAt]      = useState(null)
+  const [gloryRotationExpiresAt, setGloryRotationExpiresAt] = useState(null)
+  const [rotationSeed,           setRotationSeed]           = useState(null)
+  const [countdown,              setCountdown]              = useState(null)
+  const [gloryCountdown,         setGloryCountdown]         = useState(null)
 
   useEffect(() => {
     if (!authLoading && !user) navigate('/games/pantheon-wars/login', { replace: true })
@@ -298,9 +315,11 @@ export default function Shop() {
       const data = await res.json()
       setRotationItems(data.rotation_items ?? [])
       setAlwaysAvailable(data.always_available ?? [])
-      setGloryItems(data.glory_items)
+      setGloryRotationItems(data.glory_rotation_items ?? [])
+      setGloryAlwaysAvailable(data.glory_always_available ?? [])
       setPlayer(data.player)
-      if (data.rotation_expires_at) setRotationExpiresAt(data.rotation_expires_at)
+      if (data.rotation_expires_at)       setRotationExpiresAt(data.rotation_expires_at)
+      if (data.glory_rotation_expires_at) setGloryRotationExpiresAt(data.glory_rotation_expires_at)
       if (data.rotation_seed != null) setRotationSeed(data.rotation_seed)
     } catch { setError('Network error.') }
     finally   { setLoading(false) }
@@ -308,7 +327,7 @@ export default function Shop() {
 
   useEffect(() => { fetchShop() }, [fetchShop])
 
-  // Countdown timer — ticks every second, auto-refetches when rotation expires.
+  // Drachma countdown — ticks every second, auto-refetches when rotation expires.
   useEffect(() => {
     if (!rotationExpiresAt) return
     function tick() {
@@ -328,6 +347,27 @@ export default function Shop() {
     const id = setInterval(tick, 1000)
     return () => clearInterval(id)
   }, [rotationExpiresAt, fetchShop])
+
+  // Glory countdown — same pattern, separate state.
+  useEffect(() => {
+    if (!gloryRotationExpiresAt) return
+    function tick() {
+      const ms = gloryRotationExpiresAt - Date.now()
+      if (ms <= 0) {
+        setGloryCountdown('00:00:00')
+        fetchShop()
+        return
+      }
+      const total = Math.floor(ms / 1000)
+      const h = Math.floor(total / 3600).toString().padStart(2, '0')
+      const m = Math.floor((total % 3600) / 60).toString().padStart(2, '0')
+      const s = (total % 60).toString().padStart(2, '0')
+      setGloryCountdown(`${h}:${m}:${s}`)
+    }
+    tick()
+    const id = setInterval(tick, 1000)
+    return () => clearInterval(id)
+  }, [gloryRotationExpiresAt, fetchShop])
 
   async function handleBuy(item_id) {
     setBuying(item_id)
@@ -362,7 +402,6 @@ export default function Shop() {
     } finally { setBuying(null) }
   }
 
-  const items     = tab === 'drachma' ? rotationItems : gloryItems
   const balance   = player ? (tab === 'drachma' ? player.drachma : player.glory) : 0
 
   return (
@@ -430,7 +469,7 @@ export default function Shop() {
               >
                 {[
                   { key: 'drachma', label: '₯ DRACHMA SHOP', count: rotationItems.length },
-                  { key: 'glory',   label: '★ GLORY SHOP',   count: gloryItems.length },
+                  { key: 'glory',   label: '★ GLORY SHOP',   count: gloryRotationItems.length + gloryAlwaysAvailable.length },
                 ].map(t => (
                   <button
                     key={t.key}
@@ -456,7 +495,7 @@ export default function Shop() {
                 ))}
               </motion.div>
 
-              {/* Drachma rotation countdown */}
+              {/* Countdown — drachma tab */}
               {tab === 'drachma' && countdown && (
                 <motion.div
                   variants={fadeUp}
@@ -491,6 +530,41 @@ export default function Shop() {
                 </motion.div>
               )}
 
+              {/* Countdown — glory tab */}
+              {tab === 'glory' && gloryCountdown && (
+                <motion.div
+                  variants={fadeUp}
+                  style={{
+                    textAlign: 'center',
+                    marginBottom: 18,
+                    padding: '12px 0',
+                    borderBottom: '1px solid rgba(251,191,36,0.12)',
+                  }}
+                >
+                  <div style={{
+                    fontFamily: "var(--pw-font-display, 'Cinzel', serif)",
+                    fontSize: 10,
+                    letterSpacing: '0.16em',
+                    textTransform: 'uppercase',
+                    color: 'rgba(251,191,36,0.55)',
+                    marginBottom: 5,
+                  }}>
+                    TODAY'S GLORY OFFERINGS
+                  </div>
+                  <div style={{
+                    fontFamily: "'IBM Plex Mono', monospace",
+                    fontSize: 12,
+                    letterSpacing: '0.06em',
+                    color: 'rgba(240,240,248,0.4)',
+                  }}>
+                    Next refresh in{' '}
+                    <span style={{ color: '#FBBF24', fontVariantNumeric: 'tabular-nums' }}>
+                      {gloryCountdown}
+                    </span>
+                  </div>
+                </motion.div>
+              )}
+
               {/* Item list */}
               <AnimatePresence mode="wait">
                 <motion.div
@@ -501,55 +575,105 @@ export default function Shop() {
                   transition={{ duration: 0.22 }}
                   style={{ display: 'flex', flexDirection: 'column', gap: 10 }}
                 >
-                  {items.map(item => (
-                    <ShopItem
-                      key={item.id}
-                      item={item}
-                      player={player}
-                      currency={tab}
-                      onBuy={handleBuy}
-                      buying={buying === item.id}
-                    />
-                  ))}
-
-                  {items.length === 0 && (
-                    <p style={{
-                      fontFamily: "'IBM Plex Mono', monospace",
-                      fontSize: 11, color: 'rgba(240,240,248,0.25)',
-                      textAlign: 'center', marginTop: 40,
-                    }}>
-                      // No items available.
-                    </p>
-                  )}
-
-                  {/* Potions section — always shown in drachma tab */}
-                  {tab === 'drachma' && alwaysAvailable.length > 0 && (
+                  {tab === 'drachma' && (
                     <>
-                      <div style={{
-                        marginTop: 12,
-                        paddingTop: 18,
-                        borderTop: '1px solid rgba(34,211,238,0.12)',
-                      }}>
+                      {rotationItems.length === 0 && alwaysAvailable.length === 0 && (
                         <p style={{
                           fontFamily: "'IBM Plex Mono', monospace",
-                          fontSize: 9, letterSpacing: '0.16em', textTransform: 'uppercase',
-                          color: 'rgba(34,211,238,0.45)', marginBottom: 12,
+                          fontSize: 11, color: 'rgba(240,240,248,0.25)',
+                          textAlign: 'center', marginTop: 40,
                         }}>
-                          ⚗ POTIONS — ALWAYS AVAILABLE
+                          // No items available.
                         </p>
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                          {alwaysAvailable.map(item => (
-                            <ShopItem
-                              key={item.id}
-                              item={item}
-                              player={player}
-                              currency="drachma"
-                              onBuy={handleBuy}
-                              buying={buying === item.id}
-                            />
-                          ))}
+                      )}
+                      {rotationItems.map(item => (
+                        <ShopItem
+                          key={item.id}
+                          item={item}
+                          player={player}
+                          currency="drachma"
+                          onBuy={handleBuy}
+                          buying={buying === item.id}
+                        />
+                      ))}
+                      {alwaysAvailable.length > 0 && (
+                        <div style={{
+                          marginTop: 12,
+                          paddingTop: 18,
+                          borderTop: '1px solid rgba(34,211,238,0.12)',
+                        }}>
+                          <p style={{
+                            fontFamily: "'IBM Plex Mono', monospace",
+                            fontSize: 9, letterSpacing: '0.16em', textTransform: 'uppercase',
+                            color: 'rgba(34,211,238,0.45)', marginBottom: 12,
+                          }}>
+                            ⚗ POTIONS — ALWAYS AVAILABLE
+                          </p>
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                            {alwaysAvailable.map(item => (
+                              <ShopItem
+                                key={item.id}
+                                item={item}
+                                player={player}
+                                currency="drachma"
+                                onBuy={handleBuy}
+                                buying={buying === item.id}
+                              />
+                            ))}
+                          </div>
                         </div>
-                      </div>
+                      )}
+                    </>
+                  )}
+
+                  {tab === 'glory' && (
+                    <>
+                      {gloryRotationItems.length === 0 && gloryAlwaysAvailable.length === 0 && (
+                        <p style={{
+                          fontFamily: "'IBM Plex Mono', monospace",
+                          fontSize: 11, color: 'rgba(240,240,248,0.25)',
+                          textAlign: 'center', marginTop: 40,
+                        }}>
+                          // No items available.
+                        </p>
+                      )}
+                      {gloryRotationItems.map(item => (
+                        <ShopItem
+                          key={item.id}
+                          item={item}
+                          player={player}
+                          currency="glory"
+                          onBuy={handleBuy}
+                          buying={buying === item.id}
+                        />
+                      ))}
+                      {gloryAlwaysAvailable.length > 0 && (
+                        <div style={{
+                          marginTop: 12,
+                          paddingTop: 18,
+                          borderTop: '1px solid rgba(251,191,36,0.12)',
+                        }}>
+                          <p style={{
+                            fontFamily: "'IBM Plex Mono', monospace",
+                            fontSize: 9, letterSpacing: '0.16em', textTransform: 'uppercase',
+                            color: 'rgba(251,191,36,0.45)', marginBottom: 12,
+                          }}>
+                            ⚗ ALWAYS AVAILABLE
+                          </p>
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                            {gloryAlwaysAvailable.map(item => (
+                              <ShopItem
+                                key={item.id}
+                                item={item}
+                                player={player}
+                                currency="glory"
+                                onBuy={handleBuy}
+                                buying={buying === item.id}
+                              />
+                            ))}
+                          </div>
+                        </div>
+                      )}
                     </>
                   )}
                 </motion.div>

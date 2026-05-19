@@ -6,6 +6,7 @@ import {
   calculatePowerRating,
   getRaceClassCombatBonuses,
   getShopRotationSeed, getShopRotationExpiry, pickRotatedItems, getDailyRotationPool,
+  getGloryRotationSeed, getGloryRotationExpiry,
   getQuestRotationSeed, getQuestRotationExpiry,
   getAdventureRotationSeed, getAdventureRotationExpiry,
   pickRotatedFromPool, checkAndCompleteAdventures,
@@ -508,7 +509,21 @@ async function handleConsume(req, res) {
     let healthRestored = 0
     let energyRestored = 0
 
-    if (item.consumable_effect === 'restore_health') {
+    if (item.consumable_effect === 'restore_health_pct') {
+      if (stats.health >= stats.health_max) {
+        return res.status(400).json({ error: 'already_full_health' })
+      }
+      const restoreAmount = Math.floor(stats.health_max * (item.consumable_value / 100))
+      healthRestored = Math.min(restoreAmount, stats.health_max - stats.health)
+      stats = { ...stats, health: stats.health + healthRestored }
+    } else if (item.consumable_effect === 'restore_energy_pct') {
+      if (stats.energy >= stats.energy_max) {
+        return res.status(400).json({ error: 'already_full_energy' })
+      }
+      const restoreAmount = Math.floor(stats.energy_max * (item.consumable_value / 100))
+      energyRestored = Math.min(restoreAmount, stats.energy_max - stats.energy)
+      stats = { ...stats, energy: stats.energy + energyRestored }
+    } else if (item.consumable_effect === 'restore_health') {
       if (stats.health >= stats.health_max) {
         return res.status(400).json({ error: 'already_full_health' })
       }
@@ -594,7 +609,7 @@ async function handleConsume(req, res) {
 
     return res.status(200).json({
       success:  true,
-      consumed: { name: item.name, health_restored: healthRestored, energy_restored: energyRestored },
+      consumed: { id: inventory_id, name: item.name, health_restored: healthRestored, energy_restored: energyRestored },
       stats: {
         health:     stats.health,
         health_max: stats.health_max,
@@ -641,41 +656,47 @@ async function handleShop(req, res) {
       `
     }
 
-    const items = await sql`
-      SELECT id, name, description, slot, attack_bonus, defense_bonus,
-             rarity, level_required, faction_exclusive, buy_price, sell_price, glory_price,
-             consumable_effect, consumable_value
-      FROM pw_items
-      WHERE buy_price IS NOT NULL OR glory_price IS NOT NULL
-      ORDER BY slot, level_required, rarity, id
-    `
-
-    const drachmaRotationPool = items.filter(i =>
-      i.buy_price !== null &&
-      i.level_required <= stats.level &&
-      ['common', 'uncommon', 'rare'].includes(i.rarity) &&
-      i.slot !== 'consumable'
-    )
-    const rotation_items_raw = pickRotatedItems(drachmaRotationPool, getShopRotationSeed(), 8)
-    // Add effective_price for broker discount display
-    const rotation_items = rotation_items_raw.map(item => ({
+    // Drachma rotation — unified with handleBuy via getDailyRotationPool
+    const rotationRaw = await getDailyRotationPool(sql, stats.level, 5)
+    const rotation_items = rotationRaw.map(item => ({
       ...item,
       effective_price: shopPlayerClass === 'broker'
         ? Math.floor(item.buy_price * 0.90)
         : item.buy_price,
     }))
-    const always_available = items.filter(i =>
-      i.slot === 'consumable' &&
-      i.buy_price !== null &&
-      i.level_required <= stats.level
-    )
-    const glory_items = items.filter(i => i.glory_price !== null)
+
+    // Drachma always_available: all consumables with a buy_price, level-gated
+    const always_available = await sql`
+      SELECT id, name, description, slot, attack_bonus, defense_bonus, agility_bonus,
+             crit_chance, block_chance, dodge_chance,
+             rarity, level_required, faction_exclusive, buy_price, sell_price, glory_price,
+             consumable_effect, consumable_value
+      FROM pw_items
+      WHERE slot = 'consumable' AND buy_price IS NOT NULL AND level_required <= ${stats.level}
+      ORDER BY level_required, id
+    `
+
+    // Glory items — consumables always shown, equipment rotates daily
+    const gloryRows = await sql`
+      SELECT id, name, description, slot, attack_bonus, defense_bonus, agility_bonus,
+             crit_chance, block_chance, dodge_chance,
+             rarity, level_required, faction_exclusive, buy_price, sell_price, glory_price,
+             consumable_effect, consumable_value
+      FROM pw_items
+      WHERE glory_price IS NOT NULL
+      ORDER BY slot, level_required, id
+    `
+    const glory_always_available = gloryRows.filter(i => i.slot === 'consumable')
+    const gloryEquipPool = gloryRows.filter(i => i.slot !== 'consumable')
+    const glory_rotation_items = pickRotatedItems(gloryEquipPool, getGloryRotationSeed(), 4)
 
     return res.status(200).json({
       rotation_items,
       always_available,
-      glory_items,
-      rotation_expires_at: getShopRotationExpiry(),
+      glory_rotation_items,
+      glory_always_available,
+      rotation_expires_at:       getShopRotationExpiry(),
+      glory_rotation_expires_at: getGloryRotationExpiry(),
       rotation_seed: getShopRotationSeed(),
       player: {
         drachma:       stats.drachma,
@@ -740,9 +761,19 @@ async function handleBuy(req, res) {
       if (rotation_seed != null && rotation_seed !== getShopRotationSeed()) {
         return res.status(400).json({ error: 'rotation_expired', message: 'The shop has just refreshed. Loading new items...' })
       }
-      const rotated = await getDailyRotationPool(sql, player.level)
+      const rotated = await getDailyRotationPool(sql, player.level, 5)
       if (!rotated.some(r => r.id === item_id)) {
         return res.status(400).json({ error: 'item_not_in_rotation' })
+      }
+    }
+
+    if (currency === 'glory' && item.slot !== 'consumable') {
+      const gloryEquipRows = await sql`
+        SELECT id FROM pw_items WHERE glory_price IS NOT NULL AND slot != 'consumable'
+      `
+      const gloryRotated = pickRotatedItems(gloryEquipRows, getGloryRotationSeed(), 4)
+      if (!gloryRotated.some(r => r.id === item_id)) {
+        return res.status(400).json({ error: 'glory_item_not_in_rotation' })
       }
     }
 
@@ -1012,10 +1043,26 @@ async function fetchOwnedTemples(userId) {
   `
 }
 
+const MAX_TEMPLE_LEVEL = 25
+
+function templeIncomeMultiplier(level) {
+  return 1 + 0.234 * Math.pow(level, 1.03)
+}
+
+// Tiered upgrade cost: levels 0-9 → 0.5×, levels 10-19 → 1.0×, levels 20-24 → 2.0×
+function getUpgradeCost(baseCost, currentLevel) {
+  const multiplier = currentLevel < 10 ? 0.5 : currentLevel < 20 ? 1.0 : 2.0
+  return Math.floor(baseCost * multiplier)
+}
+
 function shapeOwnedTemple(row, playerDrachma) {
-  const currentIncome  = Math.round(row.income_per_hour * (1 + 0.25 * row.upgrade_level))
-  const upgradeCost    = row.upgrade_level < 10 ? Math.floor(row.base_cost * 0.5) : null
-  const canUpgrade     = row.upgrade_level < 10 && playerDrachma >= upgradeCost
+  const currentIncome  = Math.round(row.income_per_hour * templeIncomeMultiplier(row.upgrade_level))
+  const upgradeCost    = row.upgrade_level < MAX_TEMPLE_LEVEL ? getUpgradeCost(row.base_cost, row.upgrade_level) : null
+  const canUpgrade     = row.upgrade_level < MAX_TEMPLE_LEVEL && playerDrachma >= upgradeCost
+  const nextIncome     = row.upgrade_level < MAX_TEMPLE_LEVEL
+    ? Math.round(row.income_per_hour * templeIncomeMultiplier(row.upgrade_level + 1))
+    : null
+  const incomeDelta    = nextIncome !== null ? nextIncome - currentIncome : 0
   return {
     id:                      row.id,
     temple_type:             row.temple_type,
@@ -1024,6 +1071,7 @@ function shapeOwnedTemple(row, playerDrachma) {
     current_income_per_hour: currentIncome,
     upgrade_cost:            upgradeCost,
     can_upgrade:             canUpgrade,
+    income_delta:            incomeDelta,
   }
 }
 
@@ -1210,9 +1258,9 @@ async function handleTemplesUpgrade(req, res) {
     if (ptRows.length === 0) return res.status(404).json({ error: 'not_found' })
     const pt = ptRows[0]
 
-    if (pt.upgrade_level >= 10) return res.status(400).json({ error: 'max_level' })
+    if (pt.upgrade_level >= MAX_TEMPLE_LEVEL) return res.status(400).json({ error: 'max_level' })
 
-    const upgradeCost = Math.floor(pt.base_cost * 0.5)
+    const upgradeCost = getUpgradeCost(pt.base_cost, pt.upgrade_level)
 
     const statsRows = await sql`
       SELECT ps.*, u.faction, u.class AS player_class
