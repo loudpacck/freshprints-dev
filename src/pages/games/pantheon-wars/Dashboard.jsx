@@ -21,6 +21,127 @@ const NAV_ITEMS = [
   { label: 'PROFILE',     glyph: '◎',  path: '/games/pantheon-wars/profile'      },
 ]
 
+// ─── Titan tile helpers ───────────────────────────────────────────────────────
+
+function fmtTitanCountdown(targetIso) {
+  const ms  = new Date(targetIso).getTime() - Date.now()
+  const s   = Math.max(0, Math.floor(ms / 1000))
+  const h   = Math.floor(s / 3600)
+  const m   = Math.floor((s % 3600) / 60)
+  const sec = s % 60
+  if (h > 0) return `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(sec).padStart(2,'0')}`
+  return `${String(m).padStart(2,'0')}:${String(sec).padStart(2,'0')}`
+}
+
+function TitanCountdown({ event }) {
+  const [display, setDisplay] = useState('—')
+  const [label, setLabel]     = useState('')
+
+  useEffect(() => {
+    if (!event) { setLabel(''); setDisplay('—'); return }
+    function compute() {
+      if (event.status === 'queue' && event.queue_closes_at) {
+        setLabel('QUEUE CLOSES IN')
+        setDisplay(fmtTitanCountdown(event.queue_closes_at))
+      } else if (event.status === 'active' && event.fight_ends_at) {
+        setLabel('FIGHT ENDS IN')
+        setDisplay(fmtTitanCountdown(event.fight_ends_at))
+      } else {
+        setLabel('')
+        setDisplay('—')
+      }
+    }
+    compute()
+    const id = setInterval(compute, 1000)
+    return () => clearInterval(id)
+  }, [event?.status, event?.queue_closes_at, event?.fight_ends_at])
+
+  if (!label) return null
+  return (
+    <div>
+      <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 9, letterSpacing: '0.16em', color: 'rgba(240,240,248,0.3)', textTransform: 'uppercase', marginBottom: 3 }}>
+        {label}
+      </div>
+      <div style={{ fontFamily: "'Cinzel', serif", fontSize: 22, color: '#C9A961', letterSpacing: '0.06em', lineHeight: 1 }}>
+        {display}
+      </div>
+    </div>
+  )
+}
+
+function SkeletonTile() {
+  return <div className="pw-skel" style={{ height: 90, borderRadius: 10, marginBottom: 18 }} />
+}
+
+function TitanFeaturedTile() {
+  const [titanStatus, setTitanStatus] = useState(null)
+  const [tileLoading, setTileLoading] = useState(true)
+  const navigate = useNavigate()
+
+  useEffect(() => {
+    fetch('/api/games/pantheon-wars/game?action=titan_status')
+      .then(r => r.json())
+      .then(data => { setTitanStatus(data); setTileLoading(false) })
+      .catch(() => setTileLoading(false))
+  }, [])
+
+  useEffect(() => {
+    const id = setInterval(() => {
+      fetch('/api/games/pantheon-wars/game?action=titan_status')
+        .then(r => r.json())
+        .then(data => setTitanStatus(data))
+        .catch(() => {})
+    }, 60000)
+    return () => clearInterval(id)
+  }, [])
+
+  if (tileLoading) return <SkeletonTile />
+
+  const event = titanStatus?.current_event
+
+  return (
+    <motion.div
+      whileHover={{ scale: 1.015 }}
+      whileTap={{ scale: 0.99 }}
+      onClick={() => navigate('/games/pantheon-wars/titan')}
+      style={{
+        cursor: 'pointer',
+        marginBottom: 18,
+        padding: '18px 18px',
+        background: 'linear-gradient(135deg, rgba(180,60,80,0.11), rgba(60,20,30,0.22))',
+        border: '1px solid rgba(180,60,80,0.38)',
+        borderRadius: 10,
+        position: 'relative',
+        overflow: 'hidden',
+      }}
+    >
+      <div style={{ position: 'absolute', top: -8, right: -8, opacity: 0.09, fontSize: 70, lineHeight: 1, color: '#EDE3CC', pointerEvents: 'none' }}>
+        ☉
+      </div>
+      <div style={{ position: 'relative', zIndex: 1 }}>
+        <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 9, color: '#C9A961', letterSpacing: '0.18em', textTransform: 'uppercase', marginBottom: 5 }}>
+          ☉ TITAN EVENT
+        </div>
+        <div style={{ fontFamily: "'Cinzel', serif", fontSize: 18, color: '#EDE3CC', marginBottom: 3, lineHeight: 1.1 }}>
+          {event?.titan?.name || 'Awaiting the next Titan...'}
+        </div>
+        {event?.titan && (
+          <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 9, color: 'rgba(240,240,248,0.35)', letterSpacing: '0.1em', marginBottom: 8 }}>
+            {event.titan.difficulty?.toUpperCase()} · {event.titan.pantheon?.toUpperCase()}
+          </div>
+        )}
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', flexWrap: 'wrap', gap: 8 }}>
+          <TitanCountdown event={event} />
+          <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 9, color: 'rgba(240,240,248,0.28)', letterSpacing: '0.09em', textAlign: 'right' }}>
+            {event ? `${event.participant_count ?? 0} in queue` : ''}
+            <div style={{ color: 'rgba(180,60,80,0.7)', marginTop: 2 }}>ENTER →</div>
+          </div>
+        </div>
+      </div>
+    </motion.div>
+  )
+}
+
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 function xpNeeded(level) {
@@ -756,6 +877,11 @@ export default function Dashboard() {
                   </Link>
                 </motion.div>
               )}
+
+              {/* ── Titan featured tile ─────────────────────── */}
+              <motion.section variants={fadeUp}>
+                <TitanFeaturedTile />
+              </motion.section>
 
               {/* ── Navigation grid ──────────────────────────── */}
               <motion.section variants={fadeUp}>

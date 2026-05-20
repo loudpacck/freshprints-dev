@@ -46,6 +46,7 @@ const PantheonPvPLog      = lazy(() => import('@/pages/games/pantheon-wars/PvPLo
 const PantheonLeaderboard = lazy(() => import('@/pages/games/pantheon-wars/Leaderboard'))
 const PantheonProfile     = lazy(() => import('@/pages/games/pantheon-wars/Profile'))
 const PantheonAdventures  = lazy(() => import('@/pages/games/pantheon-wars/Adventures'))
+const PantheonTitan       = lazy(() => import('@/pages/games/pantheon-wars/Titan'))
 
 function PageLoader() {
   return (
@@ -168,6 +169,7 @@ function PantheonWarsRoutes() {
         <Route path="/games/pantheon-wars/leaderboard" element={<PantheonLeaderboard />} />
         <Route path="/games/pantheon-wars/profile"      element={<PantheonProfile />} />
         <Route path="/games/pantheon-wars/adventures"  element={<PantheonAdventures />} />
+        <Route path="/games/pantheon-wars/titan"       element={<PantheonTitan />} />
       </Route>
     </Routes>
   )

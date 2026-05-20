@@ -2,10 +2,17 @@ import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import AdminOverview from '@/components/admin/AdminOverview'
+import AdminTitanPanel from '@/components/admin/AdminTitanPanel'
+
+const NAV_ITEMS = [
+  { id: 'overview', label: 'OVERVIEW' },
+  { id: 'titan',    label: 'TITAN' },
+]
 
 export default function Admin() {
   const navigate = useNavigate()
   const [checking, setChecking] = useState(true)
+  const [activeSection, setActiveSection] = useState('overview')
 
   useEffect(() => {
     fetch('/api/auth/check')
@@ -135,20 +142,32 @@ export default function Admin() {
           padding: 'var(--space-6) var(--space-4)',
           flexShrink: 0,
         }} className="admin-sidebar">
-          <nav>
-            <div style={{
-              fontFamily: 'var(--font-mono)',
-              fontSize: 'var(--text-xs)',
-              color: 'var(--color-accent-primary)',
-              letterSpacing: 'var(--tracking-wider)',
-              textTransform: 'uppercase',
-              padding: 'var(--space-2) var(--space-3)',
-              background: 'rgba(0, 200, 255, 0.08)',
-              borderLeft: '2px solid var(--color-accent-primary)',
-              borderRadius: '0 var(--radius-sm) var(--radius-sm) 0',
-            }}>
-              OVERVIEW
-            </div>
+          <nav style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+            {NAV_ITEMS.map(item => (
+              <button
+                key={item.id}
+                onClick={() => setActiveSection(item.id)}
+                style={{
+                  fontFamily: 'var(--font-mono)',
+                  fontSize: 'var(--text-xs)',
+                  letterSpacing: 'var(--tracking-wider)',
+                  textTransform: 'uppercase',
+                  padding: 'var(--space-2) var(--space-3)',
+                  background: activeSection === item.id ? 'rgba(0,200,255,0.08)' : 'none',
+                  borderLeft: activeSection === item.id ? '2px solid var(--color-accent-primary)' : '2px solid transparent',
+                  borderTop: 'none',
+                  borderRight: 'none',
+                  borderBottom: 'none',
+                  borderRadius: '0 var(--radius-sm) var(--radius-sm) 0',
+                  color: activeSection === item.id ? 'var(--color-accent-primary)' : 'var(--color-text-muted)',
+                  cursor: 'pointer',
+                  textAlign: 'left',
+                  transition: 'color 150ms, background 150ms',
+                }}
+              >
+                {item.label}
+              </button>
+            ))}
           </nav>
         </aside>
 
@@ -159,17 +178,22 @@ export default function Admin() {
           overflowY: 'auto',
           minWidth: 0,
         }}>
-          <p style={{
-            fontFamily: 'var(--font-mono)',
-            fontSize: 'var(--text-xs)',
-            color: 'var(--color-text-muted)',
-            letterSpacing: 'var(--tracking-wider)',
-            textTransform: 'uppercase',
-            marginBottom: 'var(--space-6)',
-          }}>
-            // OVERVIEW
-          </p>
-          <AdminOverview />
+          {activeSection === 'overview' && (
+            <>
+              <p style={{
+                fontFamily: 'var(--font-mono)',
+                fontSize: 'var(--text-xs)',
+                color: 'var(--color-text-muted)',
+                letterSpacing: 'var(--tracking-wider)',
+                textTransform: 'uppercase',
+                marginBottom: 'var(--space-6)',
+              }}>
+                // OVERVIEW
+              </p>
+              <AdminOverview />
+            </>
+          )}
+          {activeSection === 'titan' && <AdminTitanPanel />}
         </main>
       </div>
 
