@@ -56,7 +56,7 @@ function formatDrachma(n) {
 
 const loreStyle = {
   fontFamily: "'Cormorant Garamond', serif",
-  fontSize: 13,
+  fontSize: 16,
   fontStyle: 'italic',
   color: 'var(--color-text-secondary)',
   lineHeight: 1.5,
@@ -66,7 +66,7 @@ const loreStyle = {
 
 const descStyle = {
   fontFamily: "'DM Sans', sans-serif",
-  fontSize: 13,
+  fontSize: 15,
   color: 'var(--color-text-secondary)',
   lineHeight: 1.5,
   marginBottom: 10,
@@ -506,6 +506,8 @@ function TownshipToast({ toast, onClose }) {
         left: '50%',
         transform: 'translateX(-50%)',
         zIndex: 60,
+        maxWidth: 'calc(100vw - 32px)',
+        width: 'max-content',
         background: 'linear-gradient(180deg, var(--color-bg-elevated, #14101A), var(--color-bg-base, #0A0710))',
         backdropFilter: 'blur(12px)',
         border: `2px solid ${borderColor}`,
@@ -513,8 +515,8 @@ function TownshipToast({ toast, onClose }) {
         padding: '12px 22px',
         display: 'flex',
         alignItems: 'center',
+        flexWrap: 'wrap',
         gap: 14,
-        whiteSpace: 'nowrap',
         boxShadow: '0 0 18px rgba(201,169,97,0.3), 0 4px 24px rgba(0,0,0,0.6)',
       }}
     >

@@ -50,6 +50,7 @@ const PantheonTownship    = lazy(() => import('@/pages/games/pantheon-wars/Towns
 const PantheonTitan       = lazy(() => import('@/pages/games/pantheon-wars/Titan'))
 const PantheonForgotPw    = lazy(() => import('@/pages/games/pantheon-wars/ForgotPassword'))
 const PantheonResetPw     = lazy(() => import('@/pages/games/pantheon-wars/ResetPassword'))
+const PantheonComingSoon  = lazy(() => import('@/pages/games/pantheon-wars/ComingSoon'))
 
 function PageLoader() {
   return (
@@ -176,6 +177,9 @@ function PantheonWarsRoutes() {
         <Route path="/games/pantheon-wars/titan"           element={<PantheonTitan />} />
         <Route path="/games/pantheon-wars/forgot-password" element={<PantheonForgotPw />} />
         <Route path="/games/pantheon-wars/reset-password"  element={<PantheonResetPw />} />
+        <Route path="/games/pantheon-wars/codex"    element={<PantheonComingSoon title="CODEX" message="The Codex will catalog every Titan, faction, and profession of the realm. Return when the scribes have finished their work." />} />
+        <Route path="/games/pantheon-wars/alliance" element={<PantheonComingSoon title="ALLIANCE" message="Soon, warriors will band together under shared banners. The Alliance system is forthcoming." />} />
+        <Route path="/games/pantheon-wars/store"    element={<PantheonComingSoon title="STORE" message="Premium offerings will be available here in the future." />} />
       </Route>
     </Routes>
   )

@@ -17,9 +17,12 @@ const NAV_ITEMS = [
   { label: 'SHOP',        glyph: '₯',  path: '/games/pantheon-wars/shop'        },
   { label: 'TEMPLES',     glyph: '⬟',  path: '/games/pantheon-wars/temples'     },
   { label: 'TOWNSHIP',    glyph: '🏛',  path: '/games/pantheon-wars/township',   glyphStyle: { filter: 'grayscale(1)' } },
-  { label: 'ARENA',       glyph: '⚡',  path: '/games/pantheon-wars/pvp'         },
+  { label: 'ARENA',       glyph: '⚡',  path: '/games/pantheon-wars/pvp',         glyphStyle: { filter: 'grayscale(1) brightness(1.3)' } },
   { label: 'LEADERBOARD', glyph: '★',  path: '/games/pantheon-wars/leaderboard' },
   { label: 'PROFILE',     glyph: '◎',  path: '/games/pantheon-wars/profile'     },
+  { label: 'CODEX',    glyph: '📜', glyphStyle: { filter: 'grayscale(1) brightness(1.3)' }, path: '/games/pantheon-wars/codex',    comingSoon: true },
+  { label: 'ALLIANCE', glyph: '⚜', glyphStyle: { filter: 'grayscale(1) brightness(1.3)' }, path: '/games/pantheon-wars/alliance', comingSoon: true },
+  { label: 'STORE',    glyph: '$', glyphStyle: { color: '#A8A89C' },                       path: '/games/pantheon-wars/store',    comingSoon: true },
 ]
 
 // ─── Titan tile helpers ───────────────────────────────────────────────────────
@@ -437,6 +440,8 @@ function TownshipCompleteToast({ upgrade, onDone }) {
         left: '50%',
         transform: 'translateX(-50%)',
         zIndex: 60,
+        maxWidth: 'calc(100vw - 32px)',
+        width: 'max-content',
         background: 'linear-gradient(180deg, var(--color-bg-elevated, #14101A), var(--color-bg-base, #0A0710))',
         backdropFilter: 'blur(12px)',
         border: '2px solid rgba(201,169,97,0.5)',
@@ -444,8 +449,8 @@ function TownshipCompleteToast({ upgrade, onDone }) {
         padding: '12px 22px',
         display: 'flex',
         alignItems: 'center',
+        flexWrap: 'wrap',
         gap: 14,
-        whiteSpace: 'nowrap',
         boxShadow: '0 0 18px rgba(201,169,97,0.3), 0 4px 24px rgba(0,0,0,0.6)',
       }}
     >

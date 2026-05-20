@@ -946,6 +946,9 @@ function CombatModal({ result, onClose, play }) {
                 <ResultRow label="GLORY EARNED (COMPACT)" value={`+${result.consolation_glory}`} color="#C25E3C" />
               )}
               <ResultRow label="YOUR HP LOST" value={`-${result.attacker_health_lost}`} color="#B8443A" />
+              {isWin && result.health_restored > 0 && (
+                <ResultRow label="HEALTH RESTORED" value={`+${result.health_restored}`} color="#22C55E" />
+              )}
               {result.defender_health_lost > 0 && (
                 <ResultRow label="DMG DEALT" value={`${result.defender_health_lost}`} color="rgba(240,240,248,0.35)" />
               )}
@@ -1009,12 +1012,13 @@ function PvPToast({ toast, onDone }) {
       style={{
         position: 'fixed', top: 'calc(env(safe-area-inset-top, 0px) + 88px)', left: '50%', transform: 'translateX(-50%)',
         zIndex: 60,
+        maxWidth: 'calc(100vw - 32px)',
+        width: 'max-content',
         background: 'linear-gradient(180deg, var(--color-bg-elevated, #14101A), var(--color-bg-base, #0A0710))',
         backdropFilter: 'blur(16px)',
         border: `2px solid ${borderColor}`,
         borderRadius: 6,
         padding: '11px 20px',
-        whiteSpace: 'nowrap',
         boxShadow: '0 0 16px rgba(201,169,97,0.35), 0 4px 24px rgba(0,0,0,0.6)',
       }}
     >

@@ -494,9 +494,9 @@ function AlignmentCard({ data, onChoose, isChoosing }) {
       <p style={{
         fontFamily: "'Cormorant Garamond', 'DM Sans', serif",
         fontStyle: 'italic',
-        fontSize: 13,
+        fontSize: 16,
         color: 'rgba(240,240,248,0.52)',
-        lineHeight: 1.62,
+        lineHeight: 1.5,
         margin: 0,
       }}>
         {lore}
@@ -521,7 +521,7 @@ function AlignmentCard({ data, onChoose, isChoosing }) {
         </div>
         <p style={{
           fontFamily: "'DM Sans', sans-serif",
-          fontSize: 11,
+          fontSize: 15,
           color: 'rgba(240,240,248,0.38)',
           lineHeight: 1.5,
           margin: 0,

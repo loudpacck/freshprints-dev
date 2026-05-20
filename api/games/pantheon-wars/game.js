@@ -1808,15 +1808,18 @@ async function handlePvPAttack(req, res) {
 
     let finalGlory = combat.glory_earned
     let consolationGlory = 0
+    let healthRestored = 0
 
     if (combat.result === 'win') {
       if (attUser.alignment === 'compact') {
         finalGlory = Math.ceil(combat.glory_earned * 1.10)
       }
+      healthRestored = Math.floor(attStats.health_max * 0.30)
       attStats = {
         ...attStats,
         glory:          attStats.glory + finalGlory,
         glory_lifetime: attStats.glory_lifetime + finalGlory,
+        health:         Math.min(attStats.health_max, attStats.health + healthRestored),
       }
     } else if (combat.result === 'loss') {
       defStats = {
@@ -1888,6 +1891,7 @@ async function handlePvPAttack(req, res) {
       consolation_glory:    consolationGlory,
       attacker_health_lost: combat.attacker_health_lost,
       defender_health_lost: combat.defender_health_lost,
+      health_restored:      healthRestored,
       energy_cost:          energyCost,
       attacker_mitigation:  attMit,
       defender_mitigation:  defMit,

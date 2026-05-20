@@ -336,6 +336,8 @@ function RewardToast({ reward, level, onDone }) {
         left: '50%',
         transform: 'translateX(-50%)',
         zIndex: 60,
+        maxWidth: 'calc(100vw - 32px)',
+        width: 'max-content',
         background: 'linear-gradient(180deg, var(--color-bg-elevated, #14101A), var(--color-bg-base, #0A0710))',
         backdropFilter: 'blur(16px)',
         border: '2px solid var(--color-accent-gold-dim, #6F5C32)',
@@ -343,8 +345,8 @@ function RewardToast({ reward, level, onDone }) {
         padding: '12px 22px',
         display: 'flex',
         alignItems: 'center',
+        flexWrap: 'wrap',
         gap: 18,
-        whiteSpace: 'nowrap',
         boxShadow: '0 0 16px rgba(201,169,97,0.45), 0 4px 24px rgba(0,0,0,0.6)',
       }}
     >
@@ -406,6 +408,8 @@ function AdventureRewardToast({ reward, onDone }) {
         left: '50%',
         transform: 'translateX(-50%)',
         zIndex: 61,
+        maxWidth: 'calc(100vw - 32px)',
+        width: 'max-content',
         background: 'linear-gradient(180deg, var(--color-bg-elevated, #14101A), var(--color-bg-base, #0A0710))',
         backdropFilter: 'blur(16px)',
         border: '2px solid rgba(210,150,80,0.5)',
@@ -413,8 +417,8 @@ function AdventureRewardToast({ reward, onDone }) {
         padding: '10px 20px',
         display: 'flex',
         alignItems: 'center',
+        flexWrap: 'wrap',
         gap: 16,
-        whiteSpace: 'nowrap',
         boxShadow: '0 0 20px rgba(210,150,80,0.35), 0 4px 24px rgba(0,0,0,0.6)',
       }}
     >
