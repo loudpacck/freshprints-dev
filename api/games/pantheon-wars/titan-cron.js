@@ -43,9 +43,12 @@ async function fetchEquipBonusesBatch(userIds) {
 }
 
 export default async function handler(req, res) {
-  const isCron = req.headers['x-vercel-cron'] === '1' || req.headers['x-vercel-cron'] === 1
+  const cronSecret = process.env.CRON_SECRET
+  const authHeader = req.headers.authorization || ''
+  const isCron = cronSecret && authHeader === `Bearer ${cronSecret}`
 
   if (!isCron) {
+    // Fallback to admin auth for manual triggers via /admin
     if (!(await requireAdmin(req, res))) return
   }
 

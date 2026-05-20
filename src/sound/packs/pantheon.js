@@ -182,7 +182,7 @@ function lootDrop(ctx, mv) {
 function makeSfx(src, volMult) {
   return function(_ctx, mv) {
     const audio = new Audio(src)
-    audio.volume = Math.min(1, mv * volMult)
+    audio.volume = Math.max(0, Math.min(1, mv * volMult))
     audio.play().catch(() => {})
   }
 }

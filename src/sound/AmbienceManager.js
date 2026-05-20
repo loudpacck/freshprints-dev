@@ -66,7 +66,7 @@ class AmbienceManager {
     const tick = (now) => {
       if (!this._audio) return
       const progress = Math.min((now - startTime) / durationMs, 1)
-      this._audio.volume = target * progress
+      this._audio.volume = Math.max(0, Math.min(1, target * progress))
       if (progress < 1) requestAnimationFrame(tick)
     }
     requestAnimationFrame(tick)
@@ -80,7 +80,7 @@ class AmbienceManager {
     const tick = (now) => {
       if (this._audio !== audio) return  // element was replaced — stop
       const progress = Math.min((now - startTime) / durationMs, 1)
-      audio.volume = startVol * (1 - progress)
+      audio.volume = Math.max(0, Math.min(1, startVol * (1 - progress)))
       if (progress < 1) {
         requestAnimationFrame(tick)
       } else {
@@ -174,7 +174,7 @@ class AmbienceManager {
   }
 
   setVolume(v) {
-    if (this._audio) this._audio.volume = v
+    if (this._audio) this._audio.volume = Math.max(0, Math.min(1, v))
   }
 
   isMuted() { return this._muted }

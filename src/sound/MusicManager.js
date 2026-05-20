@@ -53,7 +53,7 @@ class MusicManager {
     }
 
     const audio = new Audio(src)
-    audio.volume = this._muted ? 0 : volume
+    audio.volume = this._muted ? 0 : Math.max(0, Math.min(1, volume))
     this._audio = audio
 
     audio.addEventListener('ended', () => {
@@ -88,7 +88,7 @@ class MusicManager {
   }
 
   setVolume(v) {
-    if (this._audio) this._audio.volume = v
+    if (this._audio) this._audio.volume = Math.max(0, Math.min(1, v))
   }
 
   isMuted() { return this._muted }
