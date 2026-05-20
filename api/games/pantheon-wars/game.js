@@ -15,6 +15,7 @@ import {
   getPlayerTownships, aggregateTownshipBonuses,
   computeXpReward, computeDrachmaReward,
   getTownshipBonusValue, getTownshipUpgradeCost, getTownshipUpgradeSeconds,
+  rollTitanLootRarity,
 } from '../../../lib/pwHelpers.js'
 
 export const config = { runtime: 'nodejs' }
@@ -775,7 +776,7 @@ async function handleShop(req, res) {
     `
     const glory_always_available = gloryRows.filter(i => i.slot === 'consumable')
     const gloryEquipPool = gloryRows.filter(i => i.slot !== 'consumable')
-    const glory_rotation_items = pickRotatedItems(gloryEquipPool, getGloryRotationSeed(), 4)
+    const glory_rotation_items = pickRotatedItems(gloryEquipPool, getGloryRotationSeed(), 3)
 
     // Equipped items for gear comparison in the shop UI
     const equippedRows = await sql`
@@ -879,7 +880,7 @@ async function handleBuy(req, res) {
       const gloryEquipRows = await sql`
         SELECT id FROM pw_items WHERE glory_price IS NOT NULL AND slot != 'consumable'
       `
-      const gloryRotated = pickRotatedItems(gloryEquipRows, getGloryRotationSeed(), 4)
+      const gloryRotated = pickRotatedItems(gloryEquipRows, getGloryRotationSeed(), 3)
       if (!gloryRotated.some(r => r.id === item_id)) {
         return res.status(400).json({ error: 'glory_item_not_in_rotation' })
       }
@@ -2596,19 +2597,12 @@ async function handleTitanClaim(req, res) {
     // Resolve grant_loot → actual item
     let lootId = null
     if (rewards.grant_loot) {
-      const rarityOrder = ['common', 'uncommon', 'rare', 'epic', 'legendary']
-      let minRarity = titan.loot_rarity_floor
-      if (row.reward_tier === 'top' && Math.random() < 0.3) {
-        const idx = rarityOrder.indexOf(minRarity)
-        if (idx < rarityOrder.length - 1) minRarity = rarityOrder[idx + 1]
-      }
-      const minIdx = rarityOrder.indexOf(minRarity)
-      const allowedRarities = rarityOrder.slice(Math.max(0, minIdx))
+      const rolledRarity = rollTitanLootRarity(titan.difficulty, row.contribution_rank)
 
       const lootRows = await sql`
         SELECT id FROM pw_items
         WHERE slot IN ('weapon', 'armor', 'artifact', 'mount', 'companion')
-          AND rarity = ANY(${allowedRarities}::text[])
+          AND rarity = ${rolledRarity}
           AND level_required <= ${stats.level}
           AND (faction_exclusive IS NULL OR faction_exclusive = ${faction})
         ORDER BY RANDOM()
