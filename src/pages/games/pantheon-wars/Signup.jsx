@@ -198,6 +198,17 @@ function ClassCard({ cls, selected, onSelect }) {
   )
 }
 
+// ─── Security questions ───────────────────────────────────────────────────────
+
+const SECURITY_QUESTIONS = [
+  "What was the name of your first pet?",
+  "What city were you born in?",
+  "What is your mother's maiden name?",
+  "What was the name of your childhood best friend?",
+  "What was the make of your first car?",
+  "What street did you grow up on?",
+]
+
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 const INPUT_BASE = {
@@ -238,7 +249,7 @@ const fadeUp  = { hidden: { opacity: 0, y: 18 }, visible: { opacity: 1, y: 0, tr
 
 export default function PantheonSignup() {
   const navigate  = useNavigate()
-  const [fields, setFields]   = useState({ username: '', email: '', password: '' })
+  const [fields, setFields]   = useState({ username: '', email: '', password: '', security_question: SECURITY_QUESTIONS[0], security_answer: '' })
   const [faction, setFaction] = useState(null)
   const [cls, setCls]         = useState(null)
   const [error, setError]     = useState('')
@@ -256,6 +267,10 @@ export default function PantheonSignup() {
     setError('')
     if (!faction) { setError('Choose a faction to continue.'); return }
     if (!cls)     { setError('Choose a class to continue.'); return }
+    if (!fields.security_answer.trim() || fields.security_answer.trim().length < 3) {
+      setError('Security answer must be at least 3 characters.')
+      return
+    }
     setBusy(true)
     try {
       const res  = await fetch('/api/games/pantheon-wars/auth?action=signup', {
@@ -416,6 +431,57 @@ export default function PantheonSignup() {
                       onBlur={onBlur}
                       style={INPUT_BASE}
                     />
+                  </div>
+
+                  <div style={{ borderTop: '1px solid rgba(255,255,255,0.06)', paddingTop: 16 }}>
+                    <p style={{ ...LABEL, marginBottom: 12, color: 'rgba(240,240,248,0.35)' }}>
+                      // Security Recovery
+                    </p>
+                    <div style={{ marginBottom: 12 }}>
+                      <label style={LABEL} htmlFor="pw-sec-q">Security Question</label>
+                      <select
+                        id="pw-sec-q"
+                        required
+                        value={fields.security_question}
+                        onChange={field('security_question')}
+                        style={{
+                          ...INPUT_BASE,
+                          appearance: 'none',
+                          WebkitAppearance: 'none',
+                          cursor: 'pointer',
+                        }}
+                      >
+                        {SECURITY_QUESTIONS.map(q => (
+                          <option key={q} value={q}>{q}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div>
+                      <label style={LABEL} htmlFor="pw-sec-a">Your Answer</label>
+                      <input
+                        id="pw-sec-a"
+                        className="pw-input"
+                        type="text"
+                        required
+                        autoComplete="off"
+                        placeholder="Your answer (visible)"
+                        value={fields.security_answer}
+                        onChange={field('security_answer')}
+                        onFocus={onFocus}
+                        onBlur={onBlur}
+                        style={INPUT_BASE}
+                      />
+                    </div>
+                    <p style={{
+                      fontFamily: "'IBM Plex Mono', monospace",
+                      fontSize: 9,
+                      letterSpacing: '0.08em',
+                      color: 'rgba(240,240,248,0.28)',
+                      textTransform: 'uppercase',
+                      marginTop: 8,
+                    }}>
+                      Used to recover your account if you forget your email.
+                    </p>
                   </div>
                 </div>
               </motion.section>

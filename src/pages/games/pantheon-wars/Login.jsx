@@ -175,7 +175,25 @@ export default function PantheonLogin() {
                   />
                 </div>
                 <div>
-                  <label style={LABEL} htmlFor="pw-login-password">Password</label>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 7 }}>
+                    <label style={{ ...LABEL, marginBottom: 0 }} htmlFor="pw-login-password">Password</label>
+                    <Link
+                      to="/games/pantheon-wars/forgot-password"
+                      style={{
+                        fontFamily: "'IBM Plex Mono', monospace",
+                        fontSize: 9,
+                        letterSpacing: '0.1em',
+                        color: 'rgba(240,240,248,0.32)',
+                        textDecoration: 'none',
+                        textTransform: 'uppercase',
+                        transition: 'color 120ms',
+                      }}
+                      onMouseEnter={e => e.currentTarget.style.color = '#F5C542'}
+                      onMouseLeave={e => e.currentTarget.style.color = 'rgba(240,240,248,0.32)'}
+                    >
+                      Forgot password?
+                    </Link>
+                  </div>
                   <input
                     id="pw-login-password"
                     className="pw-login-input"

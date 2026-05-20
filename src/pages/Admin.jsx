@@ -3,29 +3,286 @@ import { useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import AdminOverview from '@/components/admin/AdminOverview'
 import AdminTitanPanel from '@/components/admin/AdminTitanPanel'
+import AdminModeratorPanel from '@/components/admin/AdminModeratorPanel'
+
+// ── Moderator-only: account lookup ─────────────────────────────────────────────
+
+function ModAccountLookup() {
+  const [query, setQuery]     = useState('')
+  const [results, setResults] = useState(null)
+  const [loading, setLoading] = useState(false)
+  const [error, setError]     = useState('')
+
+  async function handleSearch(e) {
+    e.preventDefault()
+    if (!query.trim() || query.trim().length < 2) {
+      setError('Enter at least 2 characters.')
+      return
+    }
+    setError('')
+    setLoading(true)
+    try {
+      const r = await fetch(`/api/auth/moderator?action=lookup_player&q=${encodeURIComponent(query.trim())}`)
+      const d = await r.json()
+      if (r.ok) setResults(d.players || [])
+      else setError(d.error || 'Lookup failed.')
+    } catch {
+      setError('Network error.')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const tdStyle = {
+    fontFamily: 'var(--font-mono)',
+    fontSize: 'var(--text-xs)',
+    color: 'var(--color-text-secondary)',
+    padding: '8px 10px',
+    borderBottom: '1px solid var(--color-border-subtle)',
+    verticalAlign: 'middle',
+  }
+
+  return (
+    <div>
+      <p style={{
+        fontFamily: 'var(--font-mono)',
+        fontSize: 'var(--text-xs)',
+        color: 'var(--color-text-muted)',
+        letterSpacing: 'var(--tracking-wider)',
+        textTransform: 'uppercase',
+        marginBottom: 'var(--space-6)',
+      }}>
+        // ACCOUNT LOOKUP
+      </p>
+
+      <form onSubmit={handleSearch} style={{ display: 'flex', gap: 'var(--space-3)', marginBottom: 'var(--space-5)', flexWrap: 'wrap' }}>
+        <input
+          type="text"
+          placeholder="Search username or email..."
+          value={query}
+          onChange={e => setQuery(e.target.value)}
+          autoFocus
+          style={{
+            flex: 1,
+            minWidth: 200,
+            fontFamily: 'var(--font-mono)',
+            fontSize: 'var(--text-xs)',
+            color: 'var(--color-text-primary)',
+            background: 'var(--color-bg-base)',
+            border: '1px solid var(--color-border-subtle)',
+            borderRadius: 'var(--radius-sm)',
+            padding: 'var(--space-3) var(--space-4)',
+            outline: 'none',
+            letterSpacing: 'var(--tracking-wider)',
+          }}
+        />
+        <button
+          type="submit"
+          disabled={loading}
+          style={{
+            fontFamily: 'var(--font-mono)',
+            fontSize: 'var(--text-xs)',
+            letterSpacing: 'var(--tracking-wider)',
+            textTransform: 'uppercase',
+            padding: 'var(--space-3) var(--space-5)',
+            background: 'rgba(0,200,255,0.08)',
+            border: '1px solid rgba(0,200,255,0.3)',
+            borderRadius: 'var(--radius-sm)',
+            color: 'var(--color-accent-primary)',
+            cursor: loading ? 'not-allowed' : 'pointer',
+            opacity: loading ? 0.6 : 1,
+          }}
+        >
+          {loading ? '...' : 'SEARCH'}
+        </button>
+      </form>
+
+      {error && (
+        <p style={{ fontFamily: 'var(--font-mono)', fontSize: 'var(--text-xs)', color: 'rgb(239,68,68)', marginBottom: 'var(--space-4)' }}>
+          // {error}
+        </p>
+      )}
+
+      {results !== null && (
+        results.length === 0 ? (
+          <p style={{ fontFamily: 'var(--font-mono)', fontSize: 'var(--text-xs)', color: 'var(--color-text-muted)' }}>
+            No players found for &quot;{query}&quot;.
+          </p>
+        ) : (
+          <div style={{ overflowX: 'auto' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+              <thead>
+                <tr>
+                  {['Username', 'Email', 'Faction', 'Class', 'Level', 'Created'].map(h => (
+                    <th key={h} style={{
+                      fontFamily: 'var(--font-mono)',
+                      fontSize: 'var(--text-xs)',
+                      letterSpacing: 'var(--tracking-wider)',
+                      textTransform: 'uppercase',
+                      color: 'var(--color-text-muted)',
+                      padding: '6px 10px',
+                      textAlign: 'left',
+                      borderBottom: '1px solid var(--color-border-subtle)',
+                      whiteSpace: 'nowrap',
+                    }}>{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {results.map(p => (
+                  <tr key={p.id}>
+                    <td style={{ ...tdStyle, color: 'var(--color-text-primary)' }}>{p.username}</td>
+                    <td style={tdStyle}>{p.email}</td>
+                    <td style={tdStyle}>{p.faction}</td>
+                    <td style={tdStyle}>{p.class}</td>
+                    <td style={{ ...tdStyle, color: 'var(--color-accent-primary)' }}>{p.level ?? '—'}</td>
+                    <td style={tdStyle}>{new Date(p.created_at).toLocaleDateString()}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )
+      )}
+    </div>
+  )
+}
+
+// ── Moderator dashboard ────────────────────────────────────────────────────────
+
+function ModDashboard({ modUsername, onLogout }) {
+  return (
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      transition={{ duration: 0.3 }}
+      style={{
+        minHeight: '100vh',
+        background: 'var(--color-bg-base)',
+        display: 'flex',
+        flexDirection: 'column',
+      }}
+    >
+      <header style={{
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        padding: 'var(--space-4) var(--space-8)',
+        borderBottom: '1px solid var(--color-border-subtle)',
+        background: 'var(--color-bg-elevated)',
+        position: 'sticky',
+        top: 0,
+        zIndex: 10,
+        flexWrap: 'wrap',
+        gap: 'var(--space-3)',
+      }}>
+        <div>
+          <span style={{
+            fontFamily: 'var(--font-mono)',
+            fontSize: 'var(--text-xs)',
+            color: '#C9A961',
+            letterSpacing: 'var(--tracking-wider)',
+            textTransform: 'uppercase',
+            marginRight: 'var(--space-3)',
+          }}>
+            //
+          </span>
+          <span style={{
+            fontFamily: 'var(--font-display)',
+            fontSize: 'var(--text-lg)',
+            color: 'var(--color-text-primary)',
+            letterSpacing: 'var(--tracking-wide)',
+          }}>
+            PANTHEON WARS — MODERATOR
+          </span>
+          <span style={{
+            fontFamily: 'var(--font-mono)',
+            fontSize: 'var(--text-xs)',
+            color: '#C9A961',
+            letterSpacing: 'var(--tracking-wider)',
+            marginLeft: 'var(--space-3)',
+          }}>
+            {modUsername}
+          </span>
+        </div>
+        <button
+          onClick={onLogout}
+          style={{
+            fontFamily: 'var(--font-mono)',
+            fontSize: 'var(--text-xs)',
+            fontWeight: 'var(--weight-medium)',
+            letterSpacing: 'var(--tracking-wider)',
+            textTransform: 'uppercase',
+            color: 'var(--color-text-muted)',
+            background: 'none',
+            border: '1px solid var(--color-border-subtle)',
+            borderRadius: 'var(--radius-sm)',
+            padding: 'var(--space-2) var(--space-4)',
+            cursor: 'pointer',
+            transition: 'color var(--duration-base), border-color var(--duration-base)',
+          }}
+          onMouseEnter={e => {
+            e.currentTarget.style.color = 'var(--color-text-primary)'
+            e.currentTarget.style.borderColor = 'var(--color-border-default)'
+          }}
+          onMouseLeave={e => {
+            e.currentTarget.style.color = 'var(--color-text-muted)'
+            e.currentTarget.style.borderColor = 'var(--color-border-subtle)'
+          }}
+        >
+          LOGOUT
+        </button>
+      </header>
+
+      <main style={{ flex: 1, padding: 'var(--space-8)', overflowY: 'auto', maxWidth: 900 }}>
+        <ModAccountLookup />
+      </main>
+    </motion.div>
+  )
+}
+
+// ── Admin nav items ────────────────────────────────────────────────────────────
 
 const NAV_ITEMS = [
-  { id: 'overview', label: 'OVERVIEW' },
-  { id: 'titan',    label: 'TITAN' },
+  { id: 'overview',   label: 'OVERVIEW' },
+  { id: 'titan',      label: 'TITAN' },
+  { id: 'moderator',  label: 'MODERATOR' },
 ]
+
+// ── Main page ──────────────────────────────────────────────────────────────────
 
 export default function Admin() {
   const navigate = useNavigate()
-  const [checking, setChecking] = useState(true)
+  const [checking, setChecking]         = useState(true)
+  const [authType, setAuthType]         = useState(null) // 'admin' | 'mod'
+  const [modUsername, setModUsername]   = useState('')
   const [activeSection, setActiveSection] = useState('overview')
 
   useEffect(() => {
-    fetch('/api/auth/check')
-      .then(r => r.json())
-      .then(d => {
-        if (!d.authenticated) navigate('/', { replace: true })
-        else setChecking(false)
-      })
-      .catch(() => navigate('/', { replace: true }))
+    Promise.all([
+      fetch('/api/auth/check').then(r => r.json()).catch(() => ({ authenticated: false })),
+      fetch('/api/auth/moderator?action=check').then(r => r.json()).catch(() => ({ authenticated: false })),
+    ]).then(([adminData, modData]) => {
+      if (adminData.authenticated) {
+        setAuthType('admin')
+        setChecking(false)
+      } else if (modData.authenticated) {
+        setAuthType('mod')
+        setModUsername(modData.username || '')
+        setChecking(false)
+      } else {
+        navigate('/', { replace: true })
+      }
+    })
   }, [navigate])
 
   async function handleLogout() {
-    await fetch('/api/auth/logout', { method: 'POST' })
+    if (authType === 'admin') {
+      await fetch('/api/auth/logout', { method: 'POST' })
+    } else {
+      await fetch('/api/auth/moderator?action=logout', { method: 'POST' })
+    }
     navigate('/')
   }
 
@@ -50,6 +307,12 @@ export default function Admin() {
     )
   }
 
+  // Moderator view — no sidebar, account lookup only
+  if (authType === 'mod') {
+    return <ModDashboard modUsername={modUsername} onLogout={handleLogout} />
+  }
+
+  // Admin view — full dashboard
   return (
     <motion.div
       initial={{ opacity: 0 }}
@@ -194,6 +457,7 @@ export default function Admin() {
             </>
           )}
           {activeSection === 'titan' && <AdminTitanPanel />}
+          {activeSection === 'moderator' && <AdminModeratorPanel />}
         </main>
       </div>
 

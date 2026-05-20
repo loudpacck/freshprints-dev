@@ -1,3 +1,4 @@
+import bcrypt from 'bcryptjs'
 import { sql } from '../../../lib/db.js'
 import {
   hashPassword, verifyPassword,
@@ -17,10 +18,19 @@ const VALID_CLASSES  = ['warden', 'oracle', 'slayer', 'broker']
 async function handleSignup(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' })
 
-  const { username, email, password, faction, class: playerClass } = req.body || {}
+  const { username, email, password, faction, class: playerClass, security_question, security_answer } = req.body || {}
 
   if (!username || !email || !password || !faction || !playerClass) {
     return res.status(400).json({ error: 'Missing required fields: username, email, password, faction, class' })
+  }
+  if (!security_question || !security_answer) {
+    return res.status(400).json({ error: 'Missing required fields: security_question, security_answer' })
+  }
+  if (security_answer.trim().length < 3) {
+    return res.status(400).json({ error: 'Security answer must be at least 3 characters.' })
+  }
+  if (security_answer.trim().length > 100) {
+    return res.status(400).json({ error: 'Security answer must be 100 characters or fewer.' })
   }
   if (!VALID_FACTIONS.includes(faction)) {
     return res.status(400).json({ error: `Invalid faction. Must be one of: ${VALID_FACTIONS.join(', ')}` })
@@ -43,10 +53,11 @@ async function handleSignup(req, res) {
     }
 
     const passwordHash = await hashPassword(password)
+    const answerHash   = await bcrypt.hash(security_answer.toLowerCase().trim(), 12)
 
     const userRows = await sql`
-      INSERT INTO pw_users (username, email, password_hash, faction, class)
-      VALUES (${username}, ${email}, ${passwordHash}, ${faction}, ${playerClass})
+      INSERT INTO pw_users (username, email, password_hash, faction, class, security_question, security_answer_hash)
+      VALUES (${username}, ${email}, ${passwordHash}, ${faction}, ${playerClass}, ${security_question}, ${answerHash})
       RETURNING id, username, email, faction, class, alignment, created_at, last_login
     `
     const user = userRows[0]
@@ -85,8 +96,11 @@ async function handleSignup(req, res) {
 
     return res.status(201).json({ user })
   } catch (err) {
+    if (err.code === '23505') {
+      return res.status(409).json({ error: 'Username or email already taken.' })
+    }
     console.error('Signup error:', err)
-    return res.status(500).json({ error: 'Failed to create account' })
+    return res.status(500).json({ error: 'Failed to create account.' })
   }
 }
 

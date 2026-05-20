@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { useSound } from '@/sound/useSound'
 import UIPicker from './UIPicker'
 import AdminLoginModal from '@/components/admin/AdminLoginModal'
+import ModeratorLoginModal from '@/components/admin/ModeratorLoginModal'
 
 function SpeakerIcon() {
   return (
@@ -43,6 +44,15 @@ function LockIcon() {
   )
 }
 
+function ShieldIcon() {
+  return (
+    <svg width="13" height="13" viewBox="0 0 20 20" fill="none" aria-hidden="true">
+      <path d="M10 2L3 5v5c0 4.5 3 8 7 9 4-1 7-4.5 7-9V5L10 2z" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round"/>
+      <path d="M7.5 10l2 2 3-3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+    </svg>
+  )
+}
+
 const btnStyle = {
   display: 'inline-flex',
   alignItems: 'center',
@@ -65,7 +75,8 @@ const btnStyle = {
 export default function HubSystemControls({ reduced }) {
   const { isMuted, toggleMute, play } = useSound()
   const [pickerOpen, setPickerOpen] = useState(false)
-  const [adminOpen, setAdminOpen] = useState(false)
+  const [adminOpen, setAdminOpen]   = useState(false)
+  const [modOpen, setModOpen]       = useState(false)
 
   function handleSound() {
     const wasMuted = isMuted
@@ -88,6 +99,17 @@ export default function HubSystemControls({ reduced }) {
           zIndex: 'var(--z-sticky)',
         }}
       >
+        <motion.button
+          onClick={() => { play('modalOpen'); setModOpen(true) }}
+          className="hub-control-btn"
+          style={btnStyle}
+          whileHover={{ color: '#C9A961', borderColor: '#C9A961' }}
+          aria-label="Open moderator panel"
+        >
+          <ShieldIcon />
+          MOD
+        </motion.button>
+
         <motion.button
           onClick={() => { play('modalOpen'); setAdminOpen(true) }}
           className="hub-control-btn"
@@ -125,6 +147,7 @@ export default function HubSystemControls({ reduced }) {
       <UIPicker isOpen={pickerOpen} onClose={() => setPickerOpen(false)} />
 
       <AnimatePresence>
+        {modOpen   && <ModeratorLoginModal onClose={() => setModOpen(false)} />}
         {adminOpen && <AdminLoginModal onClose={() => setAdminOpen(false)} />}
       </AnimatePresence>
     </>

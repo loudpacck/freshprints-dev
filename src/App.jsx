@@ -47,6 +47,8 @@ const PantheonLeaderboard = lazy(() => import('@/pages/games/pantheon-wars/Leade
 const PantheonProfile     = lazy(() => import('@/pages/games/pantheon-wars/Profile'))
 const PantheonAdventures  = lazy(() => import('@/pages/games/pantheon-wars/Adventures'))
 const PantheonTitan       = lazy(() => import('@/pages/games/pantheon-wars/Titan'))
+const PantheonForgotPw    = lazy(() => import('@/pages/games/pantheon-wars/ForgotPassword'))
+const PantheonResetPw     = lazy(() => import('@/pages/games/pantheon-wars/ResetPassword'))
 
 function PageLoader() {
   return (
@@ -168,8 +170,10 @@ function PantheonWarsRoutes() {
         <Route path="/games/pantheon-wars/pvp/log"     element={<PantheonPvPLog />} />
         <Route path="/games/pantheon-wars/leaderboard" element={<PantheonLeaderboard />} />
         <Route path="/games/pantheon-wars/profile"      element={<PantheonProfile />} />
-        <Route path="/games/pantheon-wars/adventures"  element={<PantheonAdventures />} />
-        <Route path="/games/pantheon-wars/titan"       element={<PantheonTitan />} />
+        <Route path="/games/pantheon-wars/adventures"       element={<PantheonAdventures />} />
+        <Route path="/games/pantheon-wars/titan"           element={<PantheonTitan />} />
+        <Route path="/games/pantheon-wars/forgot-password" element={<PantheonForgotPw />} />
+        <Route path="/games/pantheon-wars/reset-password"  element={<PantheonResetPw />} />
       </Route>
     </Routes>
   )
