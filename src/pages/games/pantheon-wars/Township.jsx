@@ -33,8 +33,9 @@ function getBonusLabel(bonusType) {
 }
 
 function formatDuration(seconds) {
-  if (seconds < 60) return `${seconds}s`
-  const minutes = Math.floor(seconds / 60)
+  const s = Number(seconds) || 0
+  if (s < 60) return `${s}s`
+  const minutes = Math.floor(s / 60)
   if (minutes < 60) return `${minutes}m`
   const hours = Math.floor(minutes / 60)
   const remMin = minutes % 60
@@ -45,9 +46,10 @@ function formatDuration(seconds) {
 }
 
 function formatDrachma(n) {
-  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(2)}M`
-  if (n >= 1_000) return `${(n / 1_000).toFixed(1)}k`
-  return n.toString()
+  const num = Number(n) || 0
+  if (num >= 1_000_000) return `${(num / 1_000_000).toFixed(2)}M`
+  if (num >= 1_000) return `${(num / 1_000).toFixed(1)}k`
+  return num.toString()
 }
 
 // ─── Text styles ──────────────────────────────────────────────────────────────
@@ -83,7 +85,8 @@ const lockedRowStyle = {
 
 function BonusValue({ value, unit, type }) {
   const label = getBonusLabel(type)
-  const formattedValue = unit === '%' ? `+${value.toFixed(1)}%` : `+${Math.floor(value)}`
+  const numValue = Number(value) || 0
+  const formattedValue = unit === '%' ? `+${numValue.toFixed(1)}%` : `+${Math.floor(numValue)}`
   return (
     <span style={{ color: '#FFB347', fontFamily: "'Cinzel', serif", fontWeight: 600 }}>
       {formattedValue} {label}
