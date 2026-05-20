@@ -402,7 +402,7 @@ export default function Temples() {
         name: templeEntry?.name ?? templeType,
         cost: templeEntry?.base_cost ?? 0,
       })
-      play('purchase')
+      play('templeFoundation')
       await fetchTemples()
       refreshContext()
     } catch {

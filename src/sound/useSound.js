@@ -5,6 +5,7 @@ export function useSound() {
   const [isMuted, setIsMuted] = useState(() => soundManager.getMuted())
 
   const play = useCallback((name) => soundManager.play(name), [])
+  const playAtVolume = useCallback((name, scale) => soundManager.playAtVolume(name, scale), [])
 
   const toggleMute = useCallback(() => {
     const newState = soundManager.toggleMute()
@@ -29,5 +30,5 @@ export function useSound() {
     }
   }, [])
 
-  return { play, isMuted, toggleMute }
+  return { play, playAtVolume, isMuted, toggleMute }
 }

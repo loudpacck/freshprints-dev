@@ -83,6 +83,34 @@ class SoundManager {
     }
   }
 
+  playAtVolume(name, scale) {
+    if (this.muted || this._prefersReducedMotion()) return
+    const pack = this.packs[this.activePack]
+    if (!pack) return
+    const gen = pack[name]
+    if (!gen) return
+    const ctx = this._ensureContext()
+    if (!ctx) return
+    if (ctx.state === 'suspended') ctx.resume().catch(() => {})
+    try {
+      gen(ctx, this.masterVolume * Math.max(0, Math.min(1, scale)))
+    } catch (e) {
+      console.warn('[sound] error playing:', name, e)
+    }
+  }
+
+  preloadPack(packName) {
+    const pack = this.packs[packName]
+    if (!pack) return
+    for (const key of Object.keys(pack)) {
+      const entry = pack[key]
+      if (entry?.preloadUrl) {
+        const audio = new Audio(entry.preloadUrl)
+        audio.preload = 'auto'
+      }
+    }
+  }
+
   toggleMute() {
     this.muted = !this.muted
     this._saveMuted()

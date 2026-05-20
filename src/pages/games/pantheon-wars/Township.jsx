@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import PWPageShell from '../../../components/games/pantheon-wars/PWPageShell'
 import PWBackButton from '../../../components/games/pantheon-wars/PWBackButton'
 import { usePantheonWars } from '../../../contexts/PantheonWarsContext'
+import { useSound } from '../../../sound/useSound'
 
 // ─── Utilities ────────────────────────────────────────────────────────────────
 
@@ -536,6 +537,7 @@ function TownshipToast({ toast, onClose }) {
 
 export default function Township() {
   const { refresh: refreshContext } = usePantheonWars()
+  const { play } = useSound()
   const [data, setData] = useState(null)
   const [loading, setLoading] = useState(true)
   const [busy, setBusy] = useState(null)
@@ -554,13 +556,14 @@ export default function Township() {
         if (json.pendingTownshipUpgrades?.upgrades?.length) {
           const u = json.pendingTownshipUpgrades.upgrades[0]
           setToast({ type: 'upgrade_complete', name: u.name, new_level: u.new_level })
+          play('upgradeComplete')
           refreshContext()
         }
       }
     } finally {
       setLoading(false)
     }
-  }, [refreshContext])
+  }, [refreshContext, play])
 
   useEffect(() => {
     fetchTownship()
@@ -590,6 +593,7 @@ export default function Township() {
       const json = await res.json()
       if (res.ok) {
         setToast({ type: 'established', name: getTownshipName(data, upgradeType) })
+        play('templeFoundation')
         refreshContext()
         await fetchTownship()
       } else {

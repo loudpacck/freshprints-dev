@@ -618,9 +618,12 @@ function CombatModal({ result, onClose, play }) {
 
     addTimer(() => {
       // Attacker strikes
+      play('roundBegin')
       setCallout(getAttackerCallout(r.attacker_action))
       setCommentaryText(getAttackerCommentary(r, attName, defName))
-      if (r.attacker_action?.type === 'crit') play('success')
+      if (r.attacker_action?.type === 'crit')        play('swordCrit')
+      else if (r.attacker_action?.type === 'block')  play('shieldBlock')
+      else if (r.attacker_action?.type !== 'miss')   play('swordHit')
 
       addTimer(() => {
         // Attacker damage floats + HP bar updates
@@ -640,7 +643,10 @@ function CombatModal({ result, onClose, play }) {
           if (r.defender_action) {
             setCallout(getDefenderCallout(r.defender_action))
             setCommentaryText(getDefenderCommentary(r, attName, defName))
-            if (r.defender_action.type === 'crit') play('success')
+            if (r.defender_action.type === 'crit')       play('swordCrit')
+            else if (r.defender_action.type === 'dodge')  play('dodge')
+            else if (r.defender_action.type === 'block')  play('shieldBlock')
+            else if (r.defender_action.type !== 'miss')   play('swordHit')
           }
 
           addTimer(() => {
@@ -1102,6 +1108,7 @@ export default function PvP() {
 
   async function handleAttack(targetUserId) {
     if (attacking) return
+    play('attackInitiate')
     setAttacking(targetUserId)
     try {
       const res = await fetch('/api/games/pantheon-wars/game?action=pvp_attack', {

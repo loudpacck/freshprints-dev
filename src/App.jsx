@@ -85,6 +85,7 @@ function PantheonWarsShell() {
     document.documentElement.dataset.ui = 'pantheon'
     soundManager.setActiveTheme('pantheon')
     soundManager.setPack('pantheon')
+    soundManager.preloadPack('pantheon')
 
     // play() handles all cases: defers via _pendingResume if music is active,
     // registers an interaction retry if autoplay is blocked, otherwise starts immediately.

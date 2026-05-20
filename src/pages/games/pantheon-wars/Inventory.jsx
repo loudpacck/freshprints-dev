@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import { usePantheonWars } from '@/contexts/PantheonWarsContext'
@@ -46,6 +46,15 @@ const BONUS_CHIPS = [
   { key: 'dodge_chance',   label: 'DODGE%', color: '#4FD1C5' },
 ]
 
+const STAT_DEFS = [
+  { key: 'attack_bonus',  label: 'ATK',   color: '#F97316', pct: false },
+  { key: 'defense_bonus', label: 'DEF',   color: '#22C55E', pct: false },
+  { key: 'agility_bonus', label: 'AGI',   color: '#A78BFA', pct: false },
+  { key: 'crit_chance',   label: 'CRIT',  color: '#F5D88B', pct: true  },
+  { key: 'block_chance',  label: 'BLOCK', color: '#8AB8D4', pct: true  },
+  { key: 'dodge_chance',  label: 'DODGE', color: '#4FD1C5', pct: true  },
+]
+
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 function fmt(n) { return Number(n).toLocaleString() }
@@ -64,10 +73,205 @@ function getEffectLabel(effect, value) {
   return fn(value)
 }
 
-function cap(s) { return s ? s.charAt(0).toUpperCase() + s.slice(1) : '' }
+function hexRgb(hex) {
+  if (!hex || hex[0] !== '#') return '240,240,248'
+  const r = parseInt(hex.slice(1, 3), 16)
+  const g = parseInt(hex.slice(3, 5), 16)
+  const b = parseInt(hex.slice(5, 7), 16)
+  return `${r},${g},${b}`
+}
 
 function Skeleton({ h = 20, w = '100%', r = 6 }) {
   return <div className="pw-skel" style={{ height: h, width: w, borderRadius: r }} />
+}
+
+function useIsMobile() {
+  const [isMobile, setIsMobile] = useState(() => window.innerWidth < 768)
+  useEffect(() => {
+    const fn = () => setIsMobile(window.innerWidth < 768)
+    window.addEventListener('resize', fn)
+    return () => window.removeEventListener('resize', fn)
+  }, [])
+  return isMobile
+}
+
+// ─── Gear Comparison ──────────────────────────────────────────────────────────
+
+function getVisibleStats(invItem, equippedItem) {
+  return STAT_DEFS.filter(s => {
+    const a = invItem[s.key] ?? 0
+    const b = equippedItem ? (equippedItem[s.key] ?? 0) : 0
+    return a > 0 || b > 0
+  })
+}
+
+function StatColumn({ item, visibleStats, label, labelColor, slotName }) {
+  return (
+    <div>
+      <div style={{
+        fontFamily: "'IBM Plex Mono', monospace",
+        fontSize: 8, letterSpacing: '0.1em', textTransform: 'uppercase',
+        color: labelColor, marginBottom: 6,
+      }}>
+        {label}
+      </div>
+      {item ? (
+        <>
+          <div style={{
+            fontFamily: "'Bebas Neue', sans-serif",
+            fontSize: 13, letterSpacing: '0.04em',
+            color: RARITY_COLOR[item.rarity] ?? '#F0F0F8',
+            marginBottom: 6, lineHeight: 1.2,
+          }}>
+            {item.name}
+          </div>
+          {visibleStats.map(s => (
+            <div key={s.key} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 3 }}>
+              <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 9, color: 'rgba(240,240,248,0.4)' }}>
+                {s.label}
+              </span>
+              <span style={{
+                fontFamily: "'IBM Plex Mono', monospace", fontSize: 9,
+                color: (item[s.key] ?? 0) > 0 ? s.color : 'rgba(240,240,248,0.18)',
+              }}>
+                {item[s.key] ?? 0}{s.pct ? '%' : ''}
+              </span>
+            </div>
+          ))}
+        </>
+      ) : (
+        <>
+          <div style={{
+            fontFamily: "'IBM Plex Mono', monospace",
+            fontSize: 9, letterSpacing: '0.08em', textTransform: 'uppercase',
+            color: 'rgba(240,240,248,0.2)', marginBottom: 4,
+          }}>
+            {slotName}
+          </div>
+          <div style={{
+            fontFamily: "'DM Sans', sans-serif",
+            fontSize: 11, color: 'rgba(240,240,248,0.28)',
+            fontStyle: 'italic', marginBottom: 6,
+          }}>
+            Nothing equipped
+          </div>
+          {visibleStats.map(s => (
+            <div key={s.key} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 3 }}>
+              <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 9, color: 'rgba(240,240,248,0.4)' }}>
+                {s.label}
+              </span>
+              <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 9, color: 'rgba(240,240,248,0.18)' }}>
+                0{s.pct ? '%' : ''}
+              </span>
+            </div>
+          ))}
+        </>
+      )}
+    </div>
+  )
+}
+
+function DiffRow({ invItem, equippedItem, visibleStats }) {
+  const chips = visibleStats.map(s => {
+    const invVal = invItem[s.key] ?? 0
+    const eqVal  = equippedItem ? (equippedItem[s.key] ?? 0) : 0
+    const delta  = invVal - eqVal
+    const sign   = delta > 0 ? '+' : ''
+    const color  = delta > 0 ? '#22C55E' : delta < 0 ? '#F87171' : 'rgba(240,240,248,0.35)'
+    const bg     = delta > 0 ? 'rgba(34,197,94,0.08)' : delta < 0 ? 'rgba(248,113,113,0.08)' : 'rgba(255,255,255,0.04)'
+    const bdr    = delta > 0 ? 'rgba(34,197,94,0.2)'  : delta < 0 ? 'rgba(248,113,113,0.2)'  : 'rgba(255,255,255,0.1)'
+    return (
+      <span key={s.key} style={{
+        fontFamily: "'IBM Plex Mono', monospace",
+        fontSize: 9, letterSpacing: '0.04em', color,
+        background: bg, border: `1px solid ${bdr}`,
+        borderRadius: 3, padding: '2px 6px', whiteSpace: 'nowrap',
+      }}>
+        {s.label} {sign}{delta}{s.pct ? '%' : ''}
+      </span>
+    )
+  })
+
+  return (
+    <div style={{
+      borderTop: '1px solid rgba(255,255,255,0.07)',
+      paddingTop: 10,
+      display: 'flex', flexWrap: 'wrap', gap: 5,
+    }}>
+      {chips}
+    </div>
+  )
+}
+
+function ComparisonPanelContent({ invItem, equippedItem }) {
+  const visibleStats = getVisibleStats(invItem, equippedItem)
+  if (visibleStats.length === 0) return null
+
+  return (
+    <>
+      <div style={{
+        fontFamily: "var(--pw-font-display, 'Cinzel', serif)",
+        fontSize: 9, letterSpacing: '0.16em', textTransform: 'uppercase',
+        color: 'rgba(201,169,97,0.6)',
+        marginBottom: 12,
+        borderBottom: '1px solid rgba(255,255,255,0.07)',
+        paddingBottom: 8,
+      }}>
+        ⚔ COMPARE
+      </div>
+      <div style={{
+        display: 'grid', gridTemplateColumns: '1fr 1px 1fr', gap: '0 10px',
+        marginBottom: 12,
+      }}>
+        <StatColumn
+          item={invItem}
+          visibleStats={visibleStats}
+          label="This Item"
+          labelColor="#22D3EE"
+          slotName={invItem.slot}
+        />
+        <div style={{ background: 'rgba(255,255,255,0.07)', alignSelf: 'stretch' }} />
+        <StatColumn
+          item={equippedItem}
+          visibleStats={visibleStats}
+          label="Equipped"
+          labelColor="rgba(240,240,248,0.35)"
+          slotName={invItem.slot}
+        />
+      </div>
+      <DiffRow invItem={invItem} equippedItem={equippedItem} visibleStats={visibleStats} />
+    </>
+  )
+}
+
+function ComparisonPanel({ invItem, equippedItem, pos }) {
+  return (
+    <div style={{
+      position: 'fixed',
+      top: pos.top, left: pos.left,
+      width: 280, zIndex: 50,
+      background: 'rgba(8,5,14,0.97)',
+      border: '1px solid rgba(201,169,97,0.25)',
+      borderRadius: 10, padding: '14px 16px',
+      boxShadow: '0 8px 32px rgba(0,0,0,0.8), 0 0 0 1px rgba(201,169,97,0.06)',
+      pointerEvents: 'none',
+    }}>
+      <ComparisonPanelContent invItem={invItem} equippedItem={equippedItem} />
+    </div>
+  )
+}
+
+function MobileComparison({ invItem, equippedItem }) {
+  return (
+    <div style={{
+      marginTop: 8,
+      background: 'rgba(8,5,14,0.97)',
+      border: '1px solid rgba(201,169,97,0.2)',
+      borderRadius: 10, padding: '14px 16px',
+    }}>
+      <ComparisonPanelContent invItem={invItem} equippedItem={equippedItem} />
+    </div>
+  )
 }
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
@@ -131,177 +335,258 @@ function EquipSlot({ slot, item }) {
   )
 }
 
-function ItemCard({ item, onEquip, onUnequip, onSell, onConsume, busy, energyUsesToday }) {
+function ItemCard({ item, onEquip, onUnequip, onSell, onConsume, busy, energyUsesToday, equippedBySlot, isMobile, expandedItemId, onToggleExpand }) {
+  const wrapperRef = useRef(null)
+  const [hovered,  setHovered]  = useState(false)
+  const [panelPos, setPanelPos] = useState({ top: 0, left: 0 })
+
   const rarityColor = RARITY_COLOR[item.rarity] ?? '#F0F0F8'
   const rgb = hexRgb(rarityColor)
 
-  return (
-    <motion.div
-      layout
-      initial={{ opacity: 0, y: 6 }}
-      animate={{ opacity: 1, y: 0 }}
-      style={{
-        background: item.equipped ? `rgba(${rgb}, 0.05)` : 'rgba(255,255,255,0.025)',
-        border: `1px solid ${item.equipped ? `rgba(${rgb}, 0.3)` : 'rgba(255,255,255,0.07)'}`,
-        borderRadius: 10,
-        padding: '14px 16px',
-        display: 'flex',
-        gap: 14,
-        alignItems: 'flex-start',
-        transition: 'background 200ms, border-color 200ms',
-      }}
-    >
-      {/* Left: slot glyph */}
-      <div style={{
-        flexShrink: 0,
-        width: 36,
-        height: 36,
-        borderRadius: 8,
-        background: item.equipped ? `rgba(${rgb}, 0.15)` : 'rgba(255,255,255,0.05)',
-        border: `1px solid rgba(${rgb}, ${item.equipped ? 0.35 : 0.15})`,
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        fontSize: 16,
-      }}>
-        {SLOT_GLYPH[item.slot]}
-      </div>
+  const isEquipment  = item.slot !== 'consumable'
+  const isExpanded   = expandedItemId === item.inventory_id
+  const equippedItem = isEquipment ? (equippedBySlot?.[item.slot] ?? null) : null
+  // Don't show compare panel for the item that IS currently equipped
+  const showCompare  = isEquipment && !(item.equipped && !equippedItem) && !(item.equipped)
 
-      {/* Center: item info */}
-      <div style={{ flex: 1, minWidth: 0 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 7, flexWrap: 'wrap', marginBottom: 3 }}>
-          <span style={{
-            fontFamily: "'Bebas Neue', sans-serif",
-            fontSize: 18,
-            letterSpacing: '0.05em',
-            color: '#F0F0F8',
-            lineHeight: 1,
-          }}>
-            {item.name}
-          </span>
-          {/* TYPE badge */}
-          <span style={{
-            fontFamily: "'IBM Plex Mono', monospace",
-            fontSize: 8,
-            letterSpacing: '0.1em',
-            textTransform: 'uppercase',
-            color: SLOT_TYPE_COLOR[item.slot] ?? '#F0F0F8',
-            background: `rgba(${hexRgb(SLOT_TYPE_COLOR[item.slot] ?? '#F0F0F8')}, 0.1)`,
-            border: `1px solid rgba(${hexRgb(SLOT_TYPE_COLOR[item.slot] ?? '#F0F0F8')}, 0.28)`,
-            borderRadius: 3,
-            padding: '2px 6px',
-          }}>
-            {item.slot.toUpperCase()}
-          </span>
-          {/* RARITY badge */}
-          <span style={{
-            fontFamily: "'IBM Plex Mono', monospace",
-            fontSize: 8,
-            letterSpacing: '0.1em',
-            textTransform: 'uppercase',
-            color: rarityColor,
-            background: `rgba(${rgb}, 0.12)`,
-            border: `1px solid rgba(${rgb}, 0.3)`,
-            borderRadius: 3,
-            padding: '2px 6px',
-          }}>
-            {item.rarity}
-          </span>
-          {item.equipped && (
+  function handleMouseEnter() {
+    if (isMobile || !showCompare) return
+    const rect = wrapperRef.current?.getBoundingClientRect()
+    if (rect) {
+      const pw = 284
+      const flipped = rect.right + pw + 16 > window.innerWidth
+      setPanelPos({
+        top:  Math.min(rect.top, window.innerHeight - 320),
+        left: flipped ? rect.left - pw - 12 : rect.right + 12,
+      })
+    }
+    setHovered(true)
+  }
+
+  function handleMouseLeave() {
+    setHovered(false)
+  }
+
+  function handleWrapperClick(e) {
+    if (!isMobile || !showCompare) return
+    e.stopPropagation()
+    onToggleExpand(item.inventory_id)
+  }
+
+  return (
+    <div
+      ref={wrapperRef}
+      style={{ position: 'relative' }}
+      onMouseEnter={handleMouseEnter}
+      onMouseLeave={handleMouseLeave}
+      onClick={handleWrapperClick}
+    >
+      <motion.div
+        layout
+        initial={{ opacity: 0, y: 6 }}
+        animate={{ opacity: 1, y: 0 }}
+        style={{
+          background: item.equipped ? `rgba(${rgb}, 0.05)` : 'rgba(255,255,255,0.025)',
+          border: `1px solid ${item.equipped ? `rgba(${rgb}, 0.3)` : 'rgba(255,255,255,0.07)'}`,
+          borderRadius: 10,
+          padding: '14px 16px',
+          display: 'flex',
+          gap: 14,
+          alignItems: 'flex-start',
+          transition: 'background 200ms, border-color 200ms',
+          cursor: isMobile && showCompare ? 'pointer' : 'default',
+        }}
+      >
+        {/* Left: slot glyph */}
+        <div style={{
+          flexShrink: 0,
+          width: 36,
+          height: 36,
+          borderRadius: 8,
+          background: item.equipped ? `rgba(${rgb}, 0.15)` : 'rgba(255,255,255,0.05)',
+          border: `1px solid rgba(${rgb}, ${item.equipped ? 0.35 : 0.15})`,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          fontSize: 16,
+        }}>
+          {SLOT_GLYPH[item.slot]}
+        </div>
+
+        {/* Center: item info */}
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 7, flexWrap: 'wrap', marginBottom: 3 }}>
+            <span style={{
+              fontFamily: "'Bebas Neue', sans-serif",
+              fontSize: 18,
+              letterSpacing: '0.05em',
+              color: '#F0F0F8',
+              lineHeight: 1,
+            }}>
+              {item.name}
+            </span>
+            {/* TYPE badge */}
             <span style={{
               fontFamily: "'IBM Plex Mono', monospace",
               fontSize: 8,
               letterSpacing: '0.1em',
               textTransform: 'uppercase',
-              color: '#22C55E',
-              background: 'rgba(34,197,94,0.1)',
-              border: '1px solid rgba(34,197,94,0.3)',
+              color: SLOT_TYPE_COLOR[item.slot] ?? '#F0F0F8',
+              background: `rgba(${hexRgb(SLOT_TYPE_COLOR[item.slot] ?? '#F0F0F8')}, 0.1)`,
+              border: `1px solid rgba(${hexRgb(SLOT_TYPE_COLOR[item.slot] ?? '#F0F0F8')}, 0.28)`,
               borderRadius: 3,
               padding: '2px 6px',
             }}>
-              EQUIPPED
+              {item.slot.toUpperCase()}
             </span>
-          )}
-        </div>
-
-        <p style={{
-          fontFamily: "'DM Sans', sans-serif",
-          fontSize: 12,
-          color: 'rgba(240,240,248,0.42)',
-          margin: '0 0 7px',
-          lineHeight: 1.45,
-        }}>
-          {item.description}
-        </p>
-
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px 12px', alignItems: 'center' }}>
-          {item.slot === 'consumable' ? (
-            <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, color: '#22D3EE' }}>
-              {getEffectLabel(item.consumable_effect, item.consumable_value)}
+            {/* RARITY badge */}
+            <span style={{
+              fontFamily: "'IBM Plex Mono', monospace",
+              fontSize: 8,
+              letterSpacing: '0.1em',
+              textTransform: 'uppercase',
+              color: rarityColor,
+              background: `rgba(${rgb}, 0.12)`,
+              border: `1px solid rgba(${rgb}, 0.3)`,
+              borderRadius: 3,
+              padding: '2px 6px',
+            }}>
+              {item.rarity}
             </span>
-          ) : (
-            BONUS_CHIPS.map(b => (item[b.key] || 0) > 0 ? (
-              <span key={b.key} style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, color: b.color }}>
-                +{item[b.key]} {b.label}
+            {item.equipped && (
+              <span style={{
+                fontFamily: "'IBM Plex Mono', monospace",
+                fontSize: 8,
+                letterSpacing: '0.1em',
+                textTransform: 'uppercase',
+                color: '#22C55E',
+                background: 'rgba(34,197,94,0.1)',
+                border: '1px solid rgba(34,197,94,0.3)',
+                borderRadius: 3,
+                padding: '2px 6px',
+              }}>
+                EQUIPPED
               </span>
-            ) : null)
-          )}
-          <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, color: 'rgba(240,240,248,0.25)' }}>
-            Sell: {fmt(item.sell_price)}₯
-          </span>
-        </div>
-      </div>
+            )}
+          </div>
 
-      {/* Right: actions */}
-      <div style={{ flexShrink: 0, display: 'flex', flexDirection: 'column', gap: 6 }}>
-        {item.slot === 'consumable' ? (() => {
-          const energyLimited = item.consumable_effect === 'restore_energy_pct' && energyUsesToday >= 10
-          return (
-            <>
-              <ActionBtn
-                label={energyLimited ? 'LIMIT' : 'USE'}
-                color={energyLimited ? 'rgba(240,240,248,0.18)' : '#22D3EE'}
-                onClick={() => !energyLimited && onConsume(item.inventory_id)}
-                disabled={busy || energyLimited}
-              />
-              {item.consumable_effect === 'restore_energy_pct' && (
-                <span style={{
-                  fontFamily: "'IBM Plex Mono', monospace",
-                  fontSize: 8,
-                  color: energyLimited ? '#F87171' : 'rgba(240,240,248,0.28)',
-                  textAlign: 'right',
-                  lineHeight: 1.3,
-                  whiteSpace: 'nowrap',
-                }}>
-                  {energyUsesToday}/10 today
+          <p style={{
+            fontFamily: "'DM Sans', sans-serif",
+            fontSize: 12,
+            color: 'rgba(240,240,248,0.42)',
+            margin: '0 0 7px',
+            lineHeight: 1.45,
+          }}>
+            {item.description}
+          </p>
+
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px 12px', alignItems: 'center' }}>
+            {item.slot === 'consumable' ? (
+              <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, color: '#22D3EE' }}>
+                {getEffectLabel(item.consumable_effect, item.consumable_value)}
+              </span>
+            ) : (
+              BONUS_CHIPS.map(b => (item[b.key] || 0) > 0 ? (
+                <span key={b.key} style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, color: b.color }}>
+                  +{item[b.key]} {b.label}
                 </span>
-              )}
-            </>
-          )
-        })() : item.equipped ? (
+              ) : null)
+            )}
+            <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, color: 'rgba(240,240,248,0.25)' }}>
+              Sell: {fmt(item.sell_price)}₯
+            </span>
+          </div>
+
+          {/* Mobile compare hint */}
+          {isMobile && showCompare && (
+            <p style={{
+              fontFamily: "'IBM Plex Mono', monospace",
+              fontSize: 8, letterSpacing: '0.06em',
+              color: 'rgba(240,240,248,0.2)',
+              marginTop: 5, marginBottom: 0,
+            }}>
+              {isExpanded ? '▲ tap to collapse' : '▼ tap to compare'}
+            </p>
+          )}
+        </div>
+
+        {/* Right: actions — stop propagation so tap doesn't toggle compare */}
+        <div
+          style={{ flexShrink: 0, display: 'flex', flexDirection: 'column', gap: 6 }}
+          onClick={e => isMobile && showCompare && e.stopPropagation()}
+        >
+          {item.slot === 'consumable' ? (() => {
+            const energyLimited = item.consumable_effect === 'restore_energy_pct' && energyUsesToday >= 10
+            return (
+              <>
+                <ActionBtn
+                  label={energyLimited ? 'LIMIT' : 'USE'}
+                  color={energyLimited ? 'rgba(240,240,248,0.18)' : '#22D3EE'}
+                  onClick={() => !energyLimited && onConsume(item.inventory_id)}
+                  disabled={busy || energyLimited}
+                />
+                {item.consumable_effect === 'restore_energy_pct' && (
+                  <span style={{
+                    fontFamily: "'IBM Plex Mono', monospace",
+                    fontSize: 8,
+                    color: energyLimited ? '#F87171' : 'rgba(240,240,248,0.28)',
+                    textAlign: 'right',
+                    lineHeight: 1.3,
+                    whiteSpace: 'nowrap',
+                  }}>
+                    {energyUsesToday}/10 today
+                  </span>
+                )}
+              </>
+            )
+          })() : item.equipped ? (
+            <ActionBtn
+              label="UNEQUIP"
+              color="#F97316"
+              onClick={() => onUnequip(item.inventory_id)}
+              disabled={busy}
+            />
+          ) : (
+            <ActionBtn
+              label="EQUIP"
+              color="#C9A961"
+              onClick={() => onEquip(item.inventory_id)}
+              disabled={busy}
+            />
+          )}
           <ActionBtn
-            label="UNEQUIP"
-            color="#F97316"
-            onClick={() => onUnequip(item.inventory_id)}
-            disabled={busy}
+            label="SELL"
+            color={item.equipped ? 'rgba(240,240,248,0.18)' : 'rgba(240,240,248,0.35)'}
+            onClick={() => !item.equipped && onSell(item.inventory_id, item.name, item.sell_price)}
+            disabled={busy || item.equipped}
+            title={item.equipped ? 'Unequip before selling' : undefined}
           />
-        ) : (
-          <ActionBtn
-            label="EQUIP"
-            color="#C9A961"
-            onClick={() => onEquip(item.inventory_id)}
-            disabled={busy}
-          />
-        )}
-        <ActionBtn
-          label="SELL"
-          color={item.equipped ? 'rgba(240,240,248,0.18)' : 'rgba(240,240,248,0.35)'}
-          onClick={() => !item.equipped && onSell(item.inventory_id, item.name, item.sell_price)}
-          disabled={busy || item.equipped}
-          title={item.equipped ? 'Unequip before selling' : undefined}
-        />
-      </div>
-    </motion.div>
+        </div>
+      </motion.div>
+
+      {/* Desktop: floating comparison panel */}
+      {hovered && !isMobile && showCompare && (
+        <ComparisonPanel invItem={item} equippedItem={equippedItem} pos={panelPos} />
+      )}
+
+      {/* Mobile: inline animated comparison below the card */}
+      {isMobile && showCompare && (
+        <AnimatePresence>
+          {isExpanded && (
+            <motion.div
+              key="cmp"
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: 'auto' }}
+              exit={{ opacity: 0, height: 0 }}
+              transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
+              style={{ overflow: 'hidden' }}
+            >
+              <MobileComparison invItem={item} equippedItem={equippedItem} />
+            </motion.div>
+          )}
+        </AnimatePresence>
+      )}
+    </div>
   )
 }
 
@@ -457,16 +742,6 @@ function Toast({ message, color, onDone }) {
   )
 }
 
-// ─── Utility ──────────────────────────────────────────────────────────────────
-
-function hexRgb(hex) {
-  if (!hex || hex[0] !== '#') return '240,240,248'
-  const r = parseInt(hex.slice(1, 3), 16)
-  const g = parseInt(hex.slice(3, 5), 16)
-  const b = parseInt(hex.slice(5, 7), 16)
-  return `${r},${g},${b}`
-}
-
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 const fadeUp = {
@@ -478,6 +753,7 @@ export default function Inventory() {
   const { user, loading: authLoading, refresh: refreshContext } = usePantheonWars()
   const navigate = useNavigate()
   const { play } = useSound()
+  const isMobile = useIsMobile()
 
   const [inventory,        setInventory]        = useState([])
   const [bonuses,          setBonuses]          = useState({ attack: 0, defense: 0 })
@@ -487,8 +763,9 @@ export default function Inventory() {
   const [filter,           setFilter]           = useState('ALL')
   const [busy,             setBusy]             = useState(false)
   const [toast,            setToast]            = useState(null)
-  const [sellModal,        setSellModal]        = useState(null) // { inventory_id, name, price }
+  const [sellModal,        setSellModal]        = useState(null)
   const [energyUsesToday,  setEnergyUsesToday]  = useState(0)
+  const [expandedItemId,   setExpandedItemId]   = useState(null)
 
   useEffect(() => {
     if (!authLoading && !user) navigate('/games/pantheon-wars/login', { replace: true })
@@ -525,7 +802,7 @@ export default function Inventory() {
       setInventory(data.inventory)
       setBonuses(data.equipment_bonuses)
       setToast({ message: 'Item equipped', color: '#C9A961' })
-      play('click')
+      play('equipItem')
     } finally { setBusy(false) }
   }
 
@@ -542,6 +819,7 @@ export default function Inventory() {
       setInventory(data.inventory)
       setBonuses(data.equipment_bonuses)
       setToast({ message: 'Item unequipped', color: '#F97316' })
+      play('unequipItem')
     } finally { setBusy(false) }
   }
 
@@ -610,7 +888,11 @@ export default function Inventory() {
     } finally { setBusy(false) }
   }
 
-  // Build equipped item map for slots display
+  function handleToggleExpand(inventory_id) {
+    setExpandedItemId(prev => prev === inventory_id ? null : inventory_id)
+  }
+
+  // Build equipped item map for slots display and compare panel
   const equippedBySlot = {}
   for (const item of inventory) {
     if (item.equipped) equippedBySlot[item.slot] = item
@@ -656,7 +938,12 @@ export default function Inventory() {
         )}
       </AnimatePresence>
 
-      <PWPageShell title="INVENTORY" rightSlot={<PWBackButton />} backgroundVariant="inventory">
+      <PWPageShell
+        title="INVENTORY"
+        rightSlot={<PWBackButton />}
+        backgroundVariant="inventory"
+        onClick={() => isMobile && setExpandedItemId(null)}
+      >
 
           {loading && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
@@ -791,6 +1078,10 @@ export default function Inventory() {
                         onConsume={handleConsume}
                         busy={busy}
                         energyUsesToday={energyUsesToday}
+                        equippedBySlot={equippedBySlot}
+                        isMobile={isMobile}
+                        expandedItemId={expandedItemId}
+                        onToggleExpand={handleToggleExpand}
                       />
                     ))}
                   </motion.div>

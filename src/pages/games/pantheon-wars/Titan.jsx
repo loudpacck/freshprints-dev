@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom'
 import PWPageShell from '@/components/games/pantheon-wars/PWPageShell'
 import PWBackButton from '@/components/games/pantheon-wars/PWBackButton'
 import { usePantheonWars } from '@/contexts/PantheonWarsContext'
+import { useSound } from '@/sound/useSound'
 
 // ─── Color constants ──────────────────────────────────────────────────────────
 
@@ -747,6 +748,7 @@ const backSlot = (
 
 export default function Titan() {
   const { refresh: refreshContext } = usePantheonWars()
+  const { play, playAtVolume } = useSound()
   const [statusData, setStatusData]   = useState(null)
   const [fetchedAtMs, setFetchedAtMs] = useState(Date.now())
   const [loading, setLoading]         = useState(true)
@@ -783,6 +785,17 @@ export default function Titan() {
     return () => clearInterval(pollRef.current)
   }, [statusData?.current_event?.status, fetchStatus])
 
+  // Horn fanfare when fight goes live for a joined player
+  const prevStatusRef = useRef(null)
+  useEffect(() => {
+    const status = statusData?.current_event?.status
+    const playerJoinedNow = !!statusData?.current_event?.player_participation
+    if (prevStatusRef.current !== 'active' && status === 'active' && playerJoinedNow) {
+      playAtVolume('titanHorn', 0.5)
+    }
+    prevStatusRef.current = status
+  }, [statusData?.current_event?.status, statusData?.current_event?.player_participation, playAtVolume])
+
   async function handleJoin() {
     setJoining(true)
     setError(null)
@@ -792,6 +805,7 @@ export default function Titan() {
       })
       const data = await res.json()
       if (!res.ok) setError(data.message || data.error || 'Failed to join')
+      else play('titanHorn')
       await fetchStatus()
     } catch {
       setError('Request failed')
