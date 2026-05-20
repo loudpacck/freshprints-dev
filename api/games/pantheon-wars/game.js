@@ -82,7 +82,7 @@ async function handleComplete(req, res) {
   try {
     const rows = await sql`
       SELECT
-        u.faction, u.class,
+        u.faction, u.class, u.alignment,
         s.user_id, s.level, s.xp, s.energy, s.energy_max,
         s.health, s.health_max, s.drachma, s.drachma_lifetime,
         s.glory, s.glory_lifetime, s.attack, s.defense, s.stat_points, s.last_updated,
@@ -96,6 +96,7 @@ async function handleComplete(req, res) {
     const row = rows[0]
     const { faction } = row
     const playerClass = row.class
+    const alignment = row.alignment
 
     let stats = regenPlayer(row)
 
@@ -131,7 +132,8 @@ async function handleComplete(req, res) {
     const baseDrachma = quest.drachma_base + drachmaRoll
 
     // Global faction + class multipliers
-    const xpMult      = faction === 'olympians' ? 1.10 : 1
+    let xpMult        = faction === 'olympians' ? 1.10 : 1
+    if (alignment === 'coalition') xpMult *= 1.15
     const drachmaMult = (faction === 'annunaki' ? 1.05 : 1) * (playerClass === 'broker' ? 1.1 : 1)
 
     let earnedXp      = Math.floor(quest.xp_reward * xpMult)
@@ -142,6 +144,7 @@ async function handleComplete(req, res) {
     // Track bonuses applied for frontend display
     const bonuses_applied = []
     if (faction === 'olympians') bonuses_applied.push({ source: 'olympians', type: 'xp', value: 10 })
+    if (alignment === 'coalition') bonuses_applied.push({ source: 'coalition', type: 'xp', value: 15 })
     if (faction === 'annunaki')  bonuses_applied.push({ source: 'annunaki', type: 'drachma', value: 5 })
     if (playerClass === 'broker') bonuses_applied.push({ source: 'broker', type: 'drachma', value: 10 })
 
@@ -1724,17 +1727,33 @@ async function handlePvPAttack(req, res) {
     // Apply attacker HP change; defender real HP is unchanged (simulation uses virtual 100 HP)
     attStats = { ...attStats, health: combat.final_attacker_hp }
 
+    let finalGlory = combat.glory_earned
+    let consolationGlory = 0
+
     if (combat.result === 'win') {
+      if (attUser.alignment === 'compact') {
+        finalGlory = Math.ceil(combat.glory_earned * 1.10)
+      }
       attStats = {
         ...attStats,
-        glory:          attStats.glory + combat.glory_earned,
-        glory_lifetime: attStats.glory_lifetime + combat.glory_earned,
+        glory:          attStats.glory + finalGlory,
+        glory_lifetime: attStats.glory_lifetime + finalGlory,
       }
     } else if (combat.result === 'loss') {
       defStats = {
         ...defStats,
         glory:          defStats.glory + combat.defender_glory_earned,
         glory_lifetime: defStats.glory_lifetime + combat.defender_glory_earned,
+      }
+      if (attUser.alignment === 'compact') {
+        consolationGlory = Math.min(20, Math.floor(defStats.level / 5))
+        if (consolationGlory > 0) {
+          attStats = {
+            ...attStats,
+            glory:          attStats.glory + consolationGlory,
+            glory_lifetime: attStats.glory_lifetime + consolationGlory,
+          }
+        }
       }
     }
 
@@ -1773,7 +1792,7 @@ async function handlePvPAttack(req, res) {
       ) VALUES (
         ${req.userId}, ${target_user_id},
         ${attackerPowerSummary}, ${defenderPowerSummary}, ${combat.result},
-        0, 0, ${combat.glory_earned},
+        0, 0, ${finalGlory},
         ${combat.attacker_health_lost}, ${combat.defender_health_lost},
         ${JSON.stringify(combat.rounds)}
       )
@@ -1786,6 +1805,8 @@ async function handlePvPAttack(req, res) {
       xp_earned:            0,
       drachma_transferred:  0,
       glory_earned:         combat.glory_earned,
+      final_glory:          finalGlory,
+      consolation_glory:    consolationGlory,
       attacker_health_lost: combat.attacker_health_lost,
       defender_health_lost: combat.defender_health_lost,
       energy_cost:          energyCost,
@@ -2425,7 +2446,7 @@ async function handleTitanClaim(req, res) {
     if (row.status !== 'fought')         return res.status(400).json({ error: 'did_not_fight' })
 
     const statsRows = await sql`
-      SELECT ps.*, u.class AS player_class, u.faction
+      SELECT ps.*, u.class AS player_class, u.faction, u.alignment
       FROM pw_player_stats ps
       JOIN pw_users u ON u.id = ps.user_id
       WHERE ps.user_id = ${req.userId}
@@ -2434,6 +2455,7 @@ async function handleTitanClaim(req, res) {
 
     const playerClass = statsRows[0].player_class
     const faction     = statsRows[0].faction
+    const alignment   = statsRows[0].alignment
     const ownedTemples = await fetchOwnedTemples(req.userId)
     let stats = regenPlayer(statsRows[0], ownedTemples, playerClass, faction)
 
@@ -2493,9 +2515,10 @@ async function handleTitanClaim(req, res) {
       lootId = lootRows[0]?.id || null
     }
 
+    const finalXp = alignment === 'coalition' ? Math.floor(rewards.xp * 1.15) : rewards.xp
     stats = {
       ...stats,
-      xp:               stats.xp + rewards.xp,
+      xp:               stats.xp + finalXp,
       drachma:          stats.drachma + rewards.drachma,
       drachma_lifetime: stats.drachma_lifetime + rewards.drachma,
     }
@@ -2553,7 +2576,7 @@ async function handleTitanClaim(req, res) {
       reward_tier:       row.reward_tier,
       contribution_rank: row.contribution_rank,
       damage_dealt:      row.damage_dealt,
-      xp:                rewards.xp,
+      xp:                finalXp,
       drachma:           rewards.drachma,
       potion:            potionInfo,
       loot:              lootInfo,

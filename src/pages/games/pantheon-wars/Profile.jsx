@@ -415,6 +415,156 @@ function ResetModal({ onConfirm, onCancel, isConfirming }) {
 
 // ─── Alignment chooser — plays alignment song on mount, stops on unmount ──────
 
+const ALIGNMENT_DATA = {
+  coalition: {
+    id: 'coalition',
+    icon: '⚜',
+    title: 'PANTHEON COALITION',
+    subtitle: 'Divine Loyalists • Order-Aligned',
+    lore: 'The divine order must be preserved. When the Eternal Accord shattered during the Unraveling, the Coalition rose to restore balance — servants of the Pantheon who believe the gods are the rightful architects of creation. They seek power through knowledge, ascending toward divine truth.',
+    benefitChip: '+15% XP FROM ALL SOURCES',
+    benefitDesc: 'Quests, adventures, and Titan raids yield greater experience. The path to godhood is accelerated.',
+    pvpNote: 'Battles the Mortal Compact in PvP',
+    color: '#E8D080',
+    border: 'rgba(232,208,128,0.32)',
+    bg: 'rgba(232,208,128,0.07)',
+    bgHover: 'rgba(232,208,128,0.13)',
+  },
+  compact: {
+    id: 'compact',
+    icon: '⚡',
+    title: 'MORTAL COMPACT',
+    subtitle: 'Mortal-Sovereignty Rebels • Chaos-Aligned',
+    lore: 'Mortals are not tools of the divine. Born from the chaos of the Unraveling, the Mortal Compact fights to break the chains of divine rule and claim the world for humanity. They earn their glory through blood and defiance, not by kneeling to gods.',
+    benefitChip: '+10% GLORY ON WINS • GLORY ON LOSS',
+    benefitDesc: 'Every battle earns glory. Victory brings 10% more. Even defeat earns glory — the fallen are not forgotten.',
+    pvpNote: 'Battles the Pantheon Coalition in PvP',
+    color: '#C25E3C',
+    border: 'rgba(194,94,60,0.32)',
+    bg: 'rgba(194,94,60,0.07)',
+    bgHover: 'rgba(194,94,60,0.13)',
+  },
+}
+
+function AlignmentCard({ data, onChoose, isChoosing }) {
+  const { icon, title, subtitle, lore, benefitChip, benefitDesc, pvpNote, color, border, bg, bgHover } = data
+  const [hovered, setHovered] = useState(false)
+
+  return (
+    <div
+      style={{
+        background: hovered && !isChoosing ? bgHover : bg,
+        border: `1px solid ${border}`,
+        borderRadius: 14,
+        padding: '22px 20px 18px',
+        display: 'flex',
+        flexDirection: 'column',
+        gap: 14,
+        transition: 'background 180ms',
+      }}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+    >
+      {/* Header */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+        <span style={{ fontSize: 22, lineHeight: 1 }}>{icon}</span>
+        <div>
+          <div style={{
+            fontFamily: "'Cinzel', 'Bebas Neue', serif",
+            fontSize: 16,
+            letterSpacing: '0.08em',
+            color,
+            lineHeight: 1.1,
+          }}>
+            {title}
+          </div>
+          <div style={{
+            fontFamily: "'IBM Plex Mono', monospace",
+            fontSize: 9,
+            letterSpacing: '0.08em',
+            color: 'rgba(240,240,248,0.38)',
+            marginTop: 2,
+          }}>
+            {subtitle}
+          </div>
+        </div>
+      </div>
+
+      {/* Lore */}
+      <p style={{
+        fontFamily: "'Cormorant Garamond', 'DM Sans', serif",
+        fontStyle: 'italic',
+        fontSize: 13,
+        color: 'rgba(240,240,248,0.52)',
+        lineHeight: 1.62,
+        margin: 0,
+      }}>
+        {lore}
+      </p>
+
+      {/* Benefit chip */}
+      <div>
+        <div style={{
+          display: 'inline-block',
+          background: `rgba(${color === '#E8D080' ? '232,208,128' : '194,94,60'},0.15)`,
+          border: `1px solid ${border}`,
+          borderRadius: 5,
+          padding: '4px 10px',
+          fontFamily: "'IBM Plex Mono', monospace",
+          fontSize: 9,
+          letterSpacing: '0.12em',
+          textTransform: 'uppercase',
+          color,
+          marginBottom: 7,
+        }}>
+          {benefitChip}
+        </div>
+        <p style={{
+          fontFamily: "'DM Sans', sans-serif",
+          fontSize: 11,
+          color: 'rgba(240,240,248,0.38)',
+          lineHeight: 1.5,
+          margin: 0,
+        }}>
+          {benefitDesc}
+        </p>
+      </div>
+
+      {/* PvP note */}
+      <div style={{
+        fontFamily: "'IBM Plex Mono', monospace",
+        fontSize: 9,
+        letterSpacing: '0.08em',
+        color: 'rgba(240,240,248,0.25)',
+      }}>
+        {pvpNote}
+      </div>
+
+      {/* Choose button */}
+      <button
+        onClick={() => { musicManager.stop(); onChoose(data.id) }}
+        disabled={isChoosing}
+        style={{
+          width: '100%',
+          padding: '11px 0',
+          background: isChoosing ? 'transparent' : `rgba(${color === '#E8D080' ? '232,208,128' : '194,94,60'},0.12)`,
+          border: `1px solid ${border}`,
+          borderRadius: 8,
+          fontFamily: "'Bebas Neue', sans-serif",
+          fontSize: 16,
+          letterSpacing: '0.1em',
+          color: isChoosing ? 'rgba(240,240,248,0.2)' : color,
+          cursor: isChoosing ? 'not-allowed' : 'pointer',
+          transition: 'background 150ms',
+          marginTop: 'auto',
+        }}
+      >
+        {isChoosing ? 'PLEDGING...' : `CHOOSE ${title}`}
+      </button>
+    </div>
+  )
+}
+
 function AlignmentChooser({ onChoose, isChoosing }) {
   useEffect(() => {
     musicManager.play('/sounds/pantheon_wars/alignmentChoose.mp3', { volume: 0.3 })
@@ -427,44 +577,14 @@ function AlignmentChooser({ onChoose, isChoosing }) {
         fontFamily: "'DM Sans', sans-serif",
         fontSize: 13,
         color: 'rgba(240,240,248,0.38)',
-        marginBottom: 16,
+        marginBottom: 18,
         lineHeight: 1.55,
       }}>
-        Choose your allegiance. This decision is permanent and determines your PvP pool and future quest chains.
+        Choose your allegiance. This decision is permanent and determines your PvP pool, mechanical bonuses, and future quest chains.
       </p>
-      <div className="pw-align-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-        {[
-          { id: 'coalition', icon: '⚜', label: 'PANTHEON COALITION', color: '#A78BFA', border: 'rgba(167,139,250,0.3)', bg: 'rgba(167,139,250,0.1)' },
-          { id: 'compact',   icon: '⚡', label: 'MORTAL COMPACT',     color: '#FB923C', border: 'rgba(251,146,60,0.3)',  bg: 'rgba(251,146,60,0.1)'  },
-        ].map(opt => (
-          <button
-            key={opt.id}
-            onClick={() => { musicManager.stop(); onChoose(opt.id) }}
-            disabled={isChoosing}
-            style={{
-              padding: '18px 12px',
-              background: isChoosing ? 'transparent' : opt.bg,
-              border: `1px solid ${opt.border}`,
-              borderRadius: 10,
-              cursor: isChoosing ? 'not-allowed' : 'pointer',
-              textAlign: 'center',
-              transition: 'background 150ms',
-              opacity: isChoosing ? 0.6 : 1,
-            }}
-            onMouseEnter={e => { if (!isChoosing) e.currentTarget.style.background = opt.bg.replace('0.1', '0.2') }}
-            onMouseLeave={e => { if (!isChoosing) e.currentTarget.style.background = opt.bg }}
-          >
-            <div style={{ fontSize: 20, marginBottom: 6 }}>{opt.icon}</div>
-            <div style={{
-              fontFamily: "'Bebas Neue', sans-serif",
-              fontSize: 14,
-              letterSpacing: '0.08em',
-              color: opt.color,
-            }}>
-              {opt.label}
-            </div>
-          </button>
-        ))}
+      <div className="pw-align-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
+        <AlignmentCard data={ALIGNMENT_DATA.coalition} onChoose={onChoose} isChoosing={isChoosing} />
+        <AlignmentCard data={ALIGNMENT_DATA.compact}   onChoose={onChoose} isChoosing={isChoosing} />
       </div>
     </div>
   )
@@ -1307,34 +1427,45 @@ export default function Profile() {
                 {user.alignment && (
                   <div style={{
                     background: user.alignment === 'coalition'
-                      ? 'rgba(167,139,250,0.06)' : 'rgba(251,146,60,0.06)',
+                      ? 'rgba(232,208,128,0.06)' : 'rgba(194,94,60,0.06)',
                     border: `1px solid ${user.alignment === 'coalition'
-                      ? 'rgba(167,139,250,0.25)' : 'rgba(251,146,60,0.25)'}`,
+                      ? 'rgba(232,208,128,0.25)' : 'rgba(194,94,60,0.25)'}`,
                     borderRadius: 12,
                     padding: '18px 20px',
                     display: 'flex',
-                    alignItems: 'center',
-                    gap: 12,
+                    alignItems: 'flex-start',
+                    gap: 14,
                   }}>
-                    <span style={{ fontSize: 22, lineHeight: 1 }}>
+                    <span style={{ fontSize: 22, lineHeight: 1, marginTop: 2 }}>
                       {user.alignment === 'coalition' ? '⚜' : '⚡'}
                     </span>
-                    <div>
+                    <div style={{ flex: 1 }}>
                       <div style={{
                         fontFamily: "'Bebas Neue', sans-serif",
                         fontSize: 20,
                         letterSpacing: '0.08em',
-                        color: user.alignment === 'coalition' ? COALITION_COLOR : COMPACT_COLOR,
+                        color: user.alignment === 'coalition' ? '#E8D080' : '#C25E3C',
                         lineHeight: 1,
-                        marginBottom: 4,
+                        marginBottom: 3,
                       }}>
                         {user.alignment === 'coalition' ? 'PANTHEON COALITION' : 'MORTAL COMPACT'}
                       </div>
                       <div style={{
                         fontFamily: "'IBM Plex Mono', monospace",
+                        fontSize: 10,
+                        letterSpacing: '0.08em',
+                        color: user.alignment === 'coalition' ? 'rgba(232,208,128,0.7)' : 'rgba(194,94,60,0.7)',
+                        marginBottom: 7,
+                      }}>
+                        {user.alignment === 'coalition'
+                          ? '+15% XP from all sources — quests, adventures, and Titan raids'
+                          : '+10% glory on PvP wins • Glory earned on loss (scales with opponent level)'}
+                      </div>
+                      <div style={{
+                        fontFamily: "'IBM Plex Mono', monospace",
                         fontSize: 9,
                         letterSpacing: '0.1em',
-                        color: 'rgba(240,240,248,0.3)',
+                        color: 'rgba(240,240,248,0.22)',
                       }}>
                         Alignment is permanent
                       </div>

@@ -923,14 +923,27 @@ function CombatModal({ result, onClose, play }) {
               {result.energy_cost != null && (
                 <ResultRow label="ENERGY SPENT" value={`-${result.energy_cost}⚡`} color="rgba(34,211,238,0.7)" />
               )}
-              {isWin && result.glory_earned > 0 && (
-                <ResultRow label="GLORY EARNED" value={`+${result.glory_earned}`} color="#D4A437" />
+              {isWin && (result.final_glory ?? result.glory_earned) > 0 && (
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'rgba(240,240,248,0.35)' }}>
+                    GLORY EARNED
+                  </span>
+                  <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 11, color: '#D4A437' }}>
+                    +{result.final_glory ?? result.glory_earned}
+                    {result.final_glory > result.glory_earned && (
+                      <span style={{ color: '#FFB347', fontSize: 9, marginLeft: 5 }}>(+10% Compact)</span>
+                    )}
+                  </span>
+                </div>
               )}
               {isDraw && (
                 <ResultRow label="RESULT" value="DRAW — no glory transfer" color="#C9A961" />
               )}
               {!isWin && !isDraw && (
                 <ResultRow label="GLORY DEFENDED" value="+1" color="#D4A437" />
+              )}
+              {!isWin && !isDraw && result.consolation_glory > 0 && (
+                <ResultRow label="GLORY EARNED (COMPACT)" value={`+${result.consolation_glory}`} color="#C25E3C" />
               )}
               <ResultRow label="YOUR HP LOST" value={`-${result.attacker_health_lost}`} color="#B8443A" />
               {result.defender_health_lost > 0 && (
