@@ -22,10 +22,16 @@ async function handleQuests(req, res) {
   if (req.method !== 'GET') return res.status(405).json({ error: 'Method not allowed' })
 
   try {
-    const statsRows = await sql`SELECT * FROM pw_player_stats WHERE user_id = ${req.userId}`
+    const statsRows = await sql`
+      SELECT ps.*, u.class, u.faction
+      FROM pw_player_stats ps
+      JOIN pw_users u ON u.id = ps.user_id
+      WHERE ps.user_id = ${req.userId}
+    `
     if (statsRows.length === 0) return res.status(404).json({ error: 'Player not found' })
+    const templeRows = await fetchOwnedTemples(req.userId)
 
-    let stats = regenPlayer(statsRows[0])
+    let stats = regenPlayer(statsRows[0], templeRows, statsRows[0].class, statsRows[0].faction)
 
     if (
       stats.energy !== statsRows[0].energy || stats.health !== statsRows[0].health ||
@@ -278,10 +284,16 @@ async function handleInventory(req, res) {
   if (req.method !== 'GET') return res.status(405).json({ error: 'Method not allowed' })
 
   try {
-    const statsRows = await sql`SELECT * FROM pw_player_stats WHERE user_id = ${req.userId}`
+    const statsRows = await sql`
+      SELECT ps.*, u.class, u.faction
+      FROM pw_player_stats ps
+      JOIN pw_users u ON u.id = ps.user_id
+      WHERE ps.user_id = ${req.userId}
+    `
     if (statsRows.length === 0) return res.status(404).json({ error: 'Player not found' })
+    const templeRows = await fetchOwnedTemples(req.userId)
 
-    let stats = regenPlayer(statsRows[0])
+    let stats = regenPlayer(statsRows[0], templeRows, statsRows[0].class, statsRows[0].faction)
     if (
       stats.energy !== statsRows[0].energy || stats.health !== statsRows[0].health ||
       stats.energy_regen_base !== statsRows[0].energy_regen_base ||
@@ -534,7 +546,8 @@ async function handleConsume(req, res) {
       WHERE ps.user_id = ${req.userId}
     `
     if (statsRows.length === 0) return res.status(404).json({ error: 'Player not found' })
-    let stats = regenPlayer(statsRows[0])
+    const consumeTempleRows = await fetchOwnedTemples(req.userId)
+    let stats = regenPlayer(statsRows[0], consumeTempleRows, statsRows[0].class, statsRows[0].faction)
 
     let healthRestored = 0
     let energyRestored = 0
@@ -1046,15 +1059,15 @@ async function handleAllocate(req, res) {
 
   try {
     const rows = await sql`
-      SELECT stat_points, attack, defense, agility, glory, glory_lifetime,
-             energy, energy_max, health, health_max, last_updated,
-             energy_regen_base, health_regen_base
-      FROM pw_player_stats
-      WHERE user_id = ${req.userId}
+      SELECT ps.*, u.class, u.faction
+      FROM pw_player_stats ps
+      JOIN pw_users u ON u.id = ps.user_id
+      WHERE ps.user_id = ${req.userId}
     `
     if (rows.length === 0) return res.status(404).json({ error: 'Player stats not found' })
+    const allocateTempleRows = await fetchOwnedTemples(req.userId)
 
-    const stats = regenPlayer(rows[0])
+    const stats = regenPlayer(rows[0], allocateTempleRows, rows[0].class, rows[0].faction)
 
     if (stats.stat_points < total) {
       return res.status(400).json({
@@ -1409,18 +1422,16 @@ async function handleAlignmentChoose(req, res) {
 
   try {
     const rows = await sql`
-      SELECT u.alignment, ps.level, ps.energy, ps.energy_max, ps.health, ps.health_max,
-             ps.drachma, ps.drachma_lifetime, ps.glory, ps.glory_lifetime,
-             ps.xp, ps.attack, ps.defense, ps.stat_points, ps.last_updated,
-             ps.energy_regen_base, ps.health_regen_base
-      FROM pw_users u
-      JOIN pw_player_stats ps ON ps.user_id = u.id
-      WHERE u.id = ${req.userId}
+      SELECT ps.*, u.class, u.faction, u.alignment
+      FROM pw_player_stats ps
+      JOIN pw_users u ON u.id = ps.user_id
+      WHERE ps.user_id = ${req.userId}
     `
     if (rows.length === 0) return res.status(404).json({ error: 'Player not found' })
     const row = rows[0]
+    const alignTempleRows = await fetchOwnedTemples(req.userId)
 
-    let stats = regenPlayer(row)
+    let stats = regenPlayer(row, alignTempleRows, row.class, row.faction)
 
     if (stats.level < 10) return res.status(400).json({ error: 'level_too_low' })
     if (!['coalition', 'compact'].includes(alignment)) return res.status(400).json({ error: 'invalid_alignment' })
@@ -2515,7 +2526,10 @@ async function handleTitanClaim(req, res) {
       lootId = lootRows[0]?.id || null
     }
 
-    const finalXp = alignment === 'coalition' ? Math.floor(rewards.xp * 1.15) : rewards.xp
+    let xpMult = 1
+    if (faction === 'olympians') xpMult *= 1.10
+    if (alignment === 'coalition') xpMult *= 1.15
+    const finalXp = Math.floor(rewards.xp * xpMult)
     stats = {
       ...stats,
       xp:               stats.xp + finalXp,
