@@ -137,7 +137,7 @@ function CardHeader({ name, levelBadge }) {
   )
 }
 
-function BenefitChip({ children }) {
+function BenefitChip({ children, style }) {
   return (
     <div style={{
       display: 'inline-block',
@@ -148,8 +148,28 @@ function BenefitChip({ children }) {
       border: '1px solid rgba(255,179,71,0.25)',
       borderRadius: 5,
       marginBottom: 12,
+      ...style,
     }}>
       {children}
+    </div>
+  )
+}
+
+function LockedBadge({ level }) {
+  return (
+    <div style={{
+      marginTop: 14,
+      padding: '12px 14px',
+      background: 'rgba(120, 100, 80, 0.15)',
+      border: '1px solid rgba(180, 150, 100, 0.35)',
+      borderRadius: 6,
+      textAlign: 'center',
+      fontFamily: "'Cinzel', serif",
+      fontSize: 13,
+      letterSpacing: 2,
+      color: 'rgba(220, 200, 160, 0.9)',
+    }}>
+      🔒 UNLOCKS AT LEVEL {level}
     </div>
   )
 }
@@ -343,15 +363,17 @@ function TownshipCard({ township: t, onEstablish, onUpgrade, busy }) {
   // STATE 1: LOCKED
   if (!t.is_unlocked) {
     return (
-      <Card style={{ opacity: 0.45 }}>
+      <Card style={{ opacity: 0.55, filter: 'grayscale(0.3)' }}>
         <CardHeader name={t.name} levelBadge={null} />
         <p style={loreStyle}>{t.lore}</p>
-        <div style={lockedRowStyle}>
-          🔒 REQUIRES LEVEL {t.level_required}
-        </div>
-        <p style={descStyle}>
-          Unlocks: <BonusValue value={t.bonus_per_level} unit={bonusUnit} type={t.bonus_type} />
-        </p>
+        <p style={descStyle}>{t.description}</p>
+        <BenefitChip>
+          At Level 1: <BonusValue value={t.bonus_per_level} unit={bonusUnit} type={t.bonus_type} />
+        </BenefitChip>
+        <BenefitChip style={{ opacity: 0.7, marginTop: 4 }}>
+          At Level 100: <BonusValue value={t.bonus_at_max} unit={bonusUnit} type={t.bonus_type} />
+        </BenefitChip>
+        <LockedBadge level={t.level_required} />
       </Card>
     )
   }
