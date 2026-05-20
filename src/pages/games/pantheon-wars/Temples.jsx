@@ -17,7 +17,9 @@ function Skeleton({ h = 20, w = '100%', r = 6 }) {
 }
 
 function TempleToast({ data, onDone }) {
+  const { play } = useSound()
   useEffect(() => {
+    play('toast_notification')
     const t = setTimeout(onDone, 3400)
     return () => clearTimeout(t)
   }, [onDone])
@@ -402,7 +404,7 @@ export default function Temples() {
         name: templeEntry?.name ?? templeType,
         cost: templeEntry?.base_cost ?? 0,
       })
-      play('templeFoundation')
+      play('temple_buy')
       await fetchTemples()
       refreshContext()
     } catch {

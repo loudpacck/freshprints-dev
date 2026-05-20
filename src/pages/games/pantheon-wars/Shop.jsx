@@ -576,10 +576,12 @@ function ShopItem({ item, player, currency, onBuy, buying, dailyLimitReached, eq
 // ─── Toast ────────────────────────────────────────────────────────────────────
 
 function Toast({ message, color, onDone }) {
+  const { play } = useSound()
   useEffect(() => {
+    play('toast_notification')
     const t = setTimeout(onDone, 3000)
     return () => clearTimeout(t)
-  }, [onDone])
+  }, [onDone]) // eslint-disable-line react-hooks/exhaustive-deps
   return (
     <motion.div
       initial={{ opacity: 0, y: -14, scale: 0.96 }}
@@ -719,6 +721,9 @@ export default function Shop() {
           fetchShop()
         } else if (data.error === 'daily_purchase_limit_reached') {
           setToast({ message: 'Daily limit reached — energy potions reset at midnight UTC', color: '#F87171' })
+        } else if (data.error === 'insufficient_funds' || data.error === 'not_enough_drachma' || data.error === 'not_enough_glory') {
+          play('insufficient_funds')
+          setToast({ message: data.error || 'Insufficient funds', color: '#F87171' })
         } else {
           setToast({ message: data.error || 'Purchase failed', color: '#F87171' })
         }

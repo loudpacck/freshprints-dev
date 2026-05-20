@@ -420,10 +420,14 @@ function AbandonModal({ adventureName, onConfirm, onCancel, loading }) {
 function AdventureRewardToast({ reward, onDone }) {
   const { play } = useSound()
   useEffect(() => {
-    play('adventureComplete')
+    play('adventure_return')
+    if (reward.loot) {
+      const lootSound = ['rare', 'epic', 'legendary'].includes(reward.loot.rarity) ? 'rare_loot' : 'loot_drop'
+      setTimeout(() => play(lootSound), 400)
+    }
     const t = setTimeout(onDone, 4200)
     return () => clearTimeout(t)
-  }, [onDone, play])
+  }, [onDone, play]) // eslint-disable-line react-hooks/exhaustive-deps
   return (
     <motion.div
       initial={{ opacity: 0, y: -16, scale: 0.96 }}
@@ -541,7 +545,7 @@ export default function Adventures() {
       const data = await res.json()
       if (res.ok) {
         if (data.pendingAdventureRewards) setToast(data.pendingAdventureRewards)
-        play('select')
+        play('adventure_depart')
         refreshContext()
       }
       await fetchAdventures()

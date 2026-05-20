@@ -319,10 +319,12 @@ function QuestCard({ quest, stats, user, onComplete, completing }) {
 }
 
 function RewardToast({ reward, level, onDone }) {
+  const { play } = useSound()
   useEffect(() => {
+    play('toast_notification')
     const t = setTimeout(onDone, 3400)
     return () => clearTimeout(t)
-  }, [onDone])
+  }, [onDone]) // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
     <motion.div
@@ -392,10 +394,14 @@ function RewardToast({ reward, level, onDone }) {
 function AdventureRewardToast({ reward, onDone }) {
   const { play } = useSound()
   useEffect(() => {
-    play('adventureComplete')
+    play('adventure_return')
+    if (reward.loot) {
+      const lootSound = ['rare', 'epic', 'legendary'].includes(reward.loot.rarity) ? 'rare_loot' : 'loot_drop'
+      setTimeout(() => play(lootSound), 400)
+    }
     const t = setTimeout(onDone, 4200)
     return () => clearTimeout(t)
-  }, [onDone, play])
+  }, [onDone, play]) // eslint-disable-line react-hooks/exhaustive-deps
   return (
     <motion.div
       initial={{ opacity: 0, y: -16, scale: 0.96 }}
@@ -494,6 +500,7 @@ export default function Quests() {
   useEffect(() => { fetchQuests() }, [fetchQuests])
 
   async function handleComplete(questId) {
+    play('quest_accept')
     setCompleting(questId)
     try {
       const res = await fetch('/api/games/pantheon-wars/game?action=complete', {
@@ -521,8 +528,11 @@ export default function Quests() {
 
       // SFX
       play('questComplete')
-      if (data.rewards?.loot)      setTimeout(() => play('lootDrop'), 300)
-      if (data.levelsGained > 0)   setTimeout(() => play('levelUp'),  600)
+      if (data.rewards?.loot) {
+        const lootSound = ['rare', 'epic', 'legendary'].includes(data.rewards.loot.rarity) ? 'rare_loot' : 'loot_drop'
+        setTimeout(() => play(lootSound), 300)
+      }
+      if (data.levelsGained > 0) setTimeout(() => play('levelUp'), 600)
 
       // Sync global context in background (updates dashboard energy/XP)
       refreshContext()

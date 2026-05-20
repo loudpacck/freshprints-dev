@@ -672,7 +672,7 @@ export default function Profile() {
         energy_max: pendingEnergyMax,
         health_max: pendingHealthMax,
       })
-      play('success')
+      play('stat_allocate')
       setPendingAttack(0)
       setPendingDefense(0)
       setPendingAgility(0)

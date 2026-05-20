@@ -298,12 +298,17 @@ function ParticipantList({ fightLog, currentRoundIdx }) {
 // ─── Fight Visualizer ─────────────────────────────────────────────────────────
 
 function FightVisualizer({ event, serverTime, fetchedAtMs }) {
+  const { play } = useSound()
   const [currentRoundIdx, setCurrentRoundIdx] = useState(0)
   const rounds = event.fight_log?.rounds || []
   const titan  = event.fight_log?.titan || event.titan
 
   const fightStartMs   = new Date(event.fight_starts_at).getTime()
   const totalDurationMs = event.fight_duration_seconds * 1000
+
+  useEffect(() => {
+    play('titan_appears')
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     function computeRound() {
@@ -594,7 +599,12 @@ function UnclaimedRewardCard({ reward, onClaim, claiming }) {
 // ─── Claim Result Modal ───────────────────────────────────────────────────────
 
 function ClaimResultModal({ result, onClose }) {
+  const { play } = useSound()
   const isVictory = result.result === 'victory'
+
+  useEffect(() => {
+    if (isVictory) play('titan_defeated')
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
   const stagger = { hidden: {}, visible: { transition: { staggerChildren: 0.1 } } }
   const fadeUp  = { hidden: { opacity: 0, y: 12 }, visible: { opacity: 1, y: 0, transition: { duration: 0.35 } } }
 
@@ -791,7 +801,7 @@ export default function Titan() {
     const status = statusData?.current_event?.status
     const playerJoinedNow = !!statusData?.current_event?.player_participation
     if (prevStatusRef.current !== 'active' && status === 'active' && playerJoinedNow) {
-      playAtVolume('titanHorn', 0.5)
+      playAtVolume('titan_horn', 0.5)
     }
     prevStatusRef.current = status
   }, [statusData?.current_event?.status, statusData?.current_event?.player_participation, playAtVolume])
@@ -805,7 +815,7 @@ export default function Titan() {
       })
       const data = await res.json()
       if (!res.ok) setError(data.message || data.error || 'Failed to join')
-      else play('titanHorn')
+      else play('titan_horn')
       await fetchStatus()
     } catch {
       setError('Request failed')

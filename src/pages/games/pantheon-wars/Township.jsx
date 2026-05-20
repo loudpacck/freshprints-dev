@@ -465,10 +465,12 @@ function TownshipCard({ township: t, onEstablish, onUpgrade, busy }) {
 // ─── Township toast ───────────────────────────────────────────────────────────
 
 function TownshipToast({ toast, onClose }) {
+  const { play } = useSound()
   useEffect(() => {
+    play('toast_notification')
     const t = setTimeout(onClose, 3400)
     return () => clearTimeout(t)
-  }, [onClose])
+  }, [onClose]) // eslint-disable-line react-hooks/exhaustive-deps
 
   let borderColor = 'rgba(201,169,97,0.5)'
   let heading = ''
@@ -556,7 +558,7 @@ export default function Township() {
         if (json.pendingTownshipUpgrades?.upgrades?.length) {
           const u = json.pendingTownshipUpgrades.upgrades[0]
           setToast({ type: 'upgrade_complete', name: u.name, new_level: u.new_level })
-          play('upgradeComplete')
+          play('upgrade_complete')
           refreshContext()
         }
       }
@@ -593,7 +595,7 @@ export default function Township() {
       const json = await res.json()
       if (res.ok) {
         setToast({ type: 'established', name: getTownshipName(data, upgradeType) })
-        play('templeFoundation')
+        play('township_establish')
         refreshContext()
         await fetchTownship()
       } else {

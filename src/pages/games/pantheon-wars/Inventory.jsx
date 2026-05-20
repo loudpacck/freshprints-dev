@@ -712,10 +712,12 @@ function SellModal({ item, onConfirm, onCancel }) {
 }
 
 function Toast({ message, color, onDone }) {
+  const { play } = useSound()
   useEffect(() => {
+    play('toast_notification')
     const t = setTimeout(onDone, 3000)
     return () => clearTimeout(t)
-  }, [onDone])
+  }, [onDone]) // eslint-disable-line react-hooks/exhaustive-deps
   return (
     <motion.div
       initial={{ opacity: 0, y: -14, scale: 0.96 }}
@@ -802,7 +804,7 @@ export default function Inventory() {
       setInventory(data.inventory)
       setBonuses(data.equipment_bonuses)
       setToast({ message: 'Item equipped', color: '#C9A961' })
-      play('equipItem')
+      play('equip_item')
     } finally { setBusy(false) }
   }
 
@@ -819,7 +821,7 @@ export default function Inventory() {
       setInventory(data.inventory)
       setBonuses(data.equipment_bonuses)
       setToast({ message: 'Item unequipped', color: '#F97316' })
-      play('unequipItem')
+      play('unequip_item')
     } finally { setBusy(false) }
   }
 
@@ -842,7 +844,7 @@ export default function Inventory() {
       setInventory(prev => prev.filter(i => i.inventory_id !== inventory_id))
       if (stats) setStats(prev => ({ ...prev, drachma: data.new_drachma }))
       setToast({ message: `Sold for ${fmt(data.sell_price)}₯`, color: '#C9A961' })
-      play('purchase')
+      play('sell_item')
       refreshContext()
     } finally { setBusy(false) }
   }
