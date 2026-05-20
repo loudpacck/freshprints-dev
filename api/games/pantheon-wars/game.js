@@ -10,8 +10,11 @@ import {
   getGloryRotationSeed, getGloryRotationExpiry,
   getQuestRotationSeed, getQuestRotationExpiry,
   getAdventureRotationSeed, getAdventureRotationExpiry,
-  pickRotatedFromPool, checkAndCompleteAdventures,
+  pickRotatedFromPool, checkAndCompleteAdventures, checkAndCompleteUpgrades,
   computeResetBaselines, calculateTitanRewards,
+  getPlayerTownships, aggregateTownshipBonuses,
+  computeXpReward, computeDrachmaReward,
+  getTownshipBonusValue, getTownshipUpgradeCost, getTownshipUpgradeSeconds,
 } from '../../../lib/pwHelpers.js'
 
 export const config = { runtime: 'nodejs' }
@@ -30,8 +33,10 @@ async function handleQuests(req, res) {
     `
     if (statsRows.length === 0) return res.status(404).json({ error: 'Player not found' })
     const templeRows = await fetchOwnedTemples(req.userId)
+    const questsTownships = await getPlayerTownships(sql, req.userId)
+    const questsTownshipBonuses = aggregateTownshipBonuses(questsTownships)
 
-    let stats = regenPlayer(statsRows[0], templeRows, statsRows[0].class, statsRows[0].faction)
+    let stats = regenPlayer(statsRows[0], templeRows, statsRows[0].class, statsRows[0].faction, questsTownshipBonuses)
 
     if (
       stats.energy !== statsRows[0].energy || stats.health !== statsRows[0].health ||
@@ -70,6 +75,7 @@ async function handleQuests(req, res) {
       stats,
       rotation_expires_at: getQuestRotationExpiry(),
       pendingAdventureRewards: req.pendingAdventureRewards || null,
+      pendingTownshipUpgrades: req.pendingTownshipUpgrades || null,
     })
   } catch (err) {
     console.error('Quests error:', err)
@@ -104,7 +110,10 @@ async function handleComplete(req, res) {
     const playerClass = row.class
     const alignment = row.alignment
 
-    let stats = regenPlayer(row)
+    const completeTempleRows = await fetchOwnedTemples(req.userId)
+    const completeTownships = await getPlayerTownships(sql, req.userId)
+    const townshipBonuses = aggregateTownshipBonuses(completeTownships)
+    let stats = regenPlayer(row, completeTempleRows, playerClass, faction, townshipBonuses)
 
     const questRows = await sql`SELECT * FROM pw_quests WHERE id = ${quest_id}`
     if (questRows.length === 0) return res.status(404).json({ error: 'Quest not found' })
@@ -137,13 +146,19 @@ async function handleComplete(req, res) {
       : 0
     const baseDrachma = quest.drachma_base + drachmaRoll
 
-    // Global faction + class multipliers
-    let xpMult        = faction === 'olympians' ? 1.10 : 1
-    if (alignment === 'coalition') xpMult *= 1.15
-    const drachmaMult = (faction === 'annunaki' ? 1.05 : 1) * (playerClass === 'broker' ? 1.1 : 1)
+    const perSourceBonuses = {
+      faction_bonus:       quest.faction_bonus,
+      faction_bonus_type:  quest.faction_bonus_type,
+      faction_bonus_value: Number(quest.faction_bonus_value) || 0,
+      class_bonus:         quest.class_bonus,
+      class_bonus_type:    quest.class_bonus_type,
+      class_bonus_value:   Number(quest.class_bonus_value) || 0,
+      player_faction:      faction,
+      player_class:        playerClass,
+    }
 
-    let earnedXp      = Math.floor(quest.xp_reward * xpMult)
-    let earnedDrachma = Math.floor(baseDrachma * drachmaMult)
+    const earnedXp      = computeXpReward(quest.xp_reward, faction, alignment, perSourceBonuses, townshipBonuses)
+    const earnedDrachma = computeDrachmaReward(baseDrachma, faction, playerClass, perSourceBonuses, townshipBonuses)
     let effectiveLootChance = quest.loot_chance
     let lootUpgradeChance   = 0
 
@@ -153,13 +168,13 @@ async function handleComplete(req, res) {
     if (alignment === 'coalition') bonuses_applied.push({ source: 'coalition', type: 'xp', value: 15 })
     if (faction === 'annunaki')  bonuses_applied.push({ source: 'annunaki', type: 'drachma', value: 5 })
     if (playerClass === 'broker') bonuses_applied.push({ source: 'broker', type: 'drachma', value: 10 })
+    if (townshipBonuses.xp_pct > 0) bonuses_applied.push({ source: 'divination', type: 'xp', value: Math.round(townshipBonuses.xp_pct) })
+    if (townshipBonuses.drachma_pct > 0) bonuses_applied.push({ source: 'commerce', type: 'drachma', value: Math.round(townshipBonuses.drachma_pct) })
 
-    // Per-quest faction bonus
+    // Per-quest faction bonus: xp/drachma handled in computeXpReward/computeDrachmaReward; handle loot here
     if (quest.faction_bonus && faction === quest.faction_bonus) {
       const v = Number(quest.faction_bonus_value) || 0
       switch (quest.faction_bonus_type) {
-        case 'xp':              earnedXp      = Math.floor(earnedXp * (1 + v / 100)); break
-        case 'drachma':         earnedDrachma = Math.floor(earnedDrachma * (1 + v / 100)); break
         case 'loot_chance':     effectiveLootChance = Math.min(100, effectiveLootChance + v); break
         case 'loot_upgrade':    lootUpgradeChance   = Math.max(lootUpgradeChance, v); break
         case 'guaranteed_loot': effectiveLootChance = 100; break
@@ -167,12 +182,10 @@ async function handleComplete(req, res) {
       bonuses_applied.push({ source: 'quest_faction', type: quest.faction_bonus_type, value: v })
     }
 
-    // Per-quest class bonus
+    // Per-quest class bonus: xp/drachma handled in computeXpReward/computeDrachmaReward; handle loot here
     if (quest.class_bonus && playerClass === quest.class_bonus) {
       const v = Number(quest.class_bonus_value) || 0
       switch (quest.class_bonus_type) {
-        case 'xp':              earnedXp      = Math.floor(earnedXp * (1 + v / 100)); break
-        case 'drachma':         earnedDrachma = Math.floor(earnedDrachma * (1 + v / 100)); break
         case 'loot_chance':     effectiveLootChance = Math.min(100, effectiveLootChance + v); break
         case 'loot_upgrade':    lootUpgradeChance   = Math.max(lootUpgradeChance, v); break
         case 'guaranteed_loot': effectiveLootChance = 100; break
@@ -271,6 +284,7 @@ async function handleComplete(req, res) {
         stat_points:      stats.stat_points,
       },
       pendingAdventureRewards: req.pendingAdventureRewards || null,
+      pendingTownshipUpgrades: req.pendingTownshipUpgrades || null,
     })
   } catch (err) {
     console.error('Quest complete error:', err)
@@ -292,8 +306,10 @@ async function handleInventory(req, res) {
     `
     if (statsRows.length === 0) return res.status(404).json({ error: 'Player not found' })
     const templeRows = await fetchOwnedTemples(req.userId)
+    const invTownships = await getPlayerTownships(sql, req.userId)
+    const invTownshipBonuses = aggregateTownshipBonuses(invTownships)
 
-    let stats = regenPlayer(statsRows[0], templeRows, statsRows[0].class, statsRows[0].faction)
+    let stats = regenPlayer(statsRows[0], templeRows, statsRows[0].class, statsRows[0].faction, invTownshipBonuses)
     if (
       stats.energy !== statsRows[0].energy || stats.health !== statsRows[0].health ||
       stats.energy_regen_base !== statsRows[0].energy_regen_base ||
@@ -348,6 +364,7 @@ async function handleInventory(req, res) {
         energy_potion_uses_today: invStats.energy_potion_uses_today ?? 0,
       },
       pendingAdventureRewards: req.pendingAdventureRewards || null,
+      pendingTownshipUpgrades: req.pendingTownshipUpgrades || null,
     })
   } catch (err) {
     console.error('Inventory error:', err)
@@ -415,6 +432,7 @@ async function handleEquip(req, res) {
       inventory,
       equipment_bonuses,
       pendingAdventureRewards: req.pendingAdventureRewards || null,
+      pendingTownshipUpgrades: req.pendingTownshipUpgrades || null,
     })
   } catch (err) {
     console.error('Equip error:', err)
@@ -457,6 +475,7 @@ async function handleUnequip(req, res) {
       inventory,
       equipment_bonuses,
       pendingAdventureRewards: req.pendingAdventureRewards || null,
+      pendingTownshipUpgrades: req.pendingTownshipUpgrades || null,
     })
   } catch (err) {
     console.error('Unequip error:', err)
@@ -498,6 +517,7 @@ async function handleSell(req, res) {
       sell_price:  item.sell_price,
       new_drachma: updated[0].drachma,
       pendingAdventureRewards: req.pendingAdventureRewards || null,
+      pendingTownshipUpgrades: req.pendingTownshipUpgrades || null,
     })
   } catch (err) {
     console.error('Sell error:', err)
@@ -547,7 +567,9 @@ async function handleConsume(req, res) {
     `
     if (statsRows.length === 0) return res.status(404).json({ error: 'Player not found' })
     const consumeTempleRows = await fetchOwnedTemples(req.userId)
-    let stats = regenPlayer(statsRows[0], consumeTempleRows, statsRows[0].class, statsRows[0].faction)
+    const consumeTownships = await getPlayerTownships(sql, req.userId)
+    const consumeTownshipBonuses = aggregateTownshipBonuses(consumeTownships)
+    let stats = regenPlayer(statsRows[0], consumeTempleRows, statsRows[0].class, statsRows[0].faction, consumeTownshipBonuses)
 
     let healthRestored = 0
     let energyRestored = 0
@@ -646,6 +668,7 @@ async function handleConsume(req, res) {
           stat_points: newStatPoints,
         },
         pendingAdventureRewards: req.pendingAdventureRewards || null,
+      pendingTownshipUpgrades: req.pendingTownshipUpgrades || null,
       })
     } else {
       return res.status(400).json({ error: 'unknown_effect' })
@@ -675,6 +698,7 @@ async function handleConsume(req, res) {
         energy_potion_uses_today:  stats.energy_potion_uses_today ?? 0,
       },
       pendingAdventureRewards: req.pendingAdventureRewards || null,
+      pendingTownshipUpgrades: req.pendingTownshipUpgrades || null,
     })
   } catch (err) {
     console.error('Consume error:', err)
@@ -697,8 +721,11 @@ async function handleShop(req, res) {
     if (rows.length === 0) return res.status(404).json({ error: 'Player not found' })
 
     const shopPlayerClass = rows[0].player_class
+    const shopTemples = await fetchOwnedTemples(req.userId)
+    const shopTownships = await getPlayerTownships(sql, req.userId)
+    const shopTownshipBonuses = aggregateTownshipBonuses(shopTownships)
 
-    let stats = regenPlayer(rows[0])
+    let stats = regenPlayer(rows[0], shopTemples, shopPlayerClass, rows[0].faction, shopTownshipBonuses)
     if (
       stats.energy !== rows[0].energy || stats.health !== rows[0].health ||
       stats.energy_regen_base !== rows[0].energy_regen_base ||
@@ -784,6 +811,7 @@ async function handleShop(req, res) {
         energy_potion_uses_today:      stats.energy_potion_uses_today ?? 0,
       },
       pendingAdventureRewards: req.pendingAdventureRewards || null,
+      pendingTownshipUpgrades: req.pendingTownshipUpgrades || null,
     })
   } catch (err) {
     console.error('Shop error:', err)
@@ -904,6 +932,7 @@ async function handleBuy(req, res) {
       new_drachma: updated[0].drachma,
       new_glory:   updated[0].glory,
       pendingAdventureRewards: req.pendingAdventureRewards || null,
+      pendingTownshipUpgrades: req.pendingTownshipUpgrades || null,
     })
   } catch (err) {
     console.error('Shop buy error:', err)
@@ -1030,6 +1059,7 @@ async function handleLeaderboard(req, res) {
       faction,
       your_rank: yourRank,
       pendingAdventureRewards: req.pendingAdventureRewards || null,
+      pendingTownshipUpgrades: req.pendingTownshipUpgrades || null,
     })
   } catch (err) {
     console.error('Leaderboard error:', err)
@@ -1066,8 +1096,10 @@ async function handleAllocate(req, res) {
     `
     if (rows.length === 0) return res.status(404).json({ error: 'Player stats not found' })
     const allocateTempleRows = await fetchOwnedTemples(req.userId)
+    const allocateTownships = await getPlayerTownships(sql, req.userId)
+    const allocateTownshipBonuses = aggregateTownshipBonuses(allocateTownships)
 
-    const stats = regenPlayer(rows[0], allocateTempleRows, rows[0].class, rows[0].faction)
+    const stats = regenPlayer(rows[0], allocateTempleRows, rows[0].class, rows[0].faction, allocateTownshipBonuses)
 
     if (stats.stat_points < total) {
       return res.status(400).json({
@@ -1117,6 +1149,7 @@ async function handleAllocate(req, res) {
         health:      newHealth,
       },
       pendingAdventureRewards: req.pendingAdventureRewards || null,
+      pendingTownshipUpgrades: req.pendingTownshipUpgrades || null,
     })
   } catch (err) {
     console.error('[game?action=allocate]', err.message)
@@ -1193,7 +1226,9 @@ async function handleTemples(req, res) {
     const playerLevel = statsRows[0].level
 
     const owned = await fetchOwnedTemples(req.userId)
-    let stats = regenPlayer(statsRows[0], owned, statsRows[0].player_class, statsRows[0].faction)
+    const templesTownships = await getPlayerTownships(sql, req.userId)
+    const templesTownshipBonuses = aggregateTownshipBonuses(templesTownships)
+    let stats = regenPlayer(statsRows[0], owned, statsRows[0].player_class, statsRows[0].faction, templesTownshipBonuses)
 
     if (
       stats.energy             !== statsRows[0].energy   ||
@@ -1253,6 +1288,7 @@ async function handleTemples(req, res) {
         stat_points:      stats.stat_points,
       },
       pendingAdventureRewards: req.pendingAdventureRewards || null,
+      pendingTownshipUpgrades: req.pendingTownshipUpgrades || null,
     })
   } catch (err) {
     console.error('Temples error:', err)
@@ -1299,7 +1335,9 @@ async function handleTemplesBuy(req, res) {
     }
 
     const owned = await fetchOwnedTemples(req.userId)
-    let stats = regenPlayer(statsRows[0], owned, statsRows[0].player_class, statsRows[0].faction)
+    const buyTempleTownships = await getPlayerTownships(sql, req.userId)
+    const buyTempleTownshipBonuses = aggregateTownshipBonuses(buyTempleTownships)
+    let stats = regenPlayer(statsRows[0], owned, statsRows[0].player_class, statsRows[0].faction, buyTempleTownshipBonuses)
 
     if (stats.drachma < temple.base_cost) {
       return res.status(400).json({ error: 'insufficient_drachma', cost: temple.base_cost })
@@ -1332,6 +1370,7 @@ async function handleTemplesBuy(req, res) {
       stats,
       temple: shaped,
       pendingAdventureRewards: req.pendingAdventureRewards || null,
+      pendingTownshipUpgrades: req.pendingTownshipUpgrades || null,
     })
   } catch (err) {
     console.error('Temples buy error:', err)
@@ -1372,7 +1411,9 @@ async function handleTemplesUpgrade(req, res) {
     if (statsRows.length === 0) return res.status(404).json({ error: 'Player not found' })
 
     const owned = await fetchOwnedTemples(req.userId)
-    let stats = regenPlayer(statsRows[0], owned, statsRows[0].player_class, statsRows[0].faction)
+    const upgradeTempleTownships = await getPlayerTownships(sql, req.userId)
+    const upgradeTempleTownshipBonuses = aggregateTownshipBonuses(upgradeTempleTownships)
+    let stats = regenPlayer(statsRows[0], owned, statsRows[0].player_class, statsRows[0].faction, upgradeTempleTownshipBonuses)
 
     if (stats.drachma < upgradeCost) {
       return res.status(400).json({ error: 'insufficient_drachma', cost: upgradeCost })
@@ -1406,6 +1447,7 @@ async function handleTemplesUpgrade(req, res) {
       stats,
       temple: shaped,
       pendingAdventureRewards: req.pendingAdventureRewards || null,
+      pendingTownshipUpgrades: req.pendingTownshipUpgrades || null,
     })
   } catch (err) {
     console.error('Temples upgrade error:', err)
@@ -1430,8 +1472,10 @@ async function handleAlignmentChoose(req, res) {
     if (rows.length === 0) return res.status(404).json({ error: 'Player not found' })
     const row = rows[0]
     const alignTempleRows = await fetchOwnedTemples(req.userId)
+    const alignTownships = await getPlayerTownships(sql, req.userId)
+    const alignTownshipBonuses = aggregateTownshipBonuses(alignTownships)
 
-    let stats = regenPlayer(row, alignTempleRows, row.class, row.faction)
+    let stats = regenPlayer(row, alignTempleRows, row.class, row.faction, alignTownshipBonuses)
 
     if (stats.level < 10) return res.status(400).json({ error: 'level_too_low' })
     if (!['coalition', 'compact'].includes(alignment)) return res.status(400).json({ error: 'invalid_alignment' })
@@ -1457,6 +1501,7 @@ async function handleAlignmentChoose(req, res) {
         stat_points:      stats.stat_points,
       },
       pendingAdventureRewards: req.pendingAdventureRewards || null,
+      pendingTownshipUpgrades: req.pendingTownshipUpgrades || null,
     })
   } catch (err) {
     console.error('Alignment choose error:', err)
@@ -1484,7 +1529,9 @@ async function handlePvPTargets(req, res) {
 
     const userRow = userRows[0]
     const ownedTemples = await fetchOwnedTemples(req.userId)
-    let stats = regenPlayer(userRow, ownedTemples, userRow.class, userRow.faction)
+    const pvpTargetsTownships = await getPlayerTownships(sql, req.userId)
+    const pvpTargetsTownshipBonuses = aggregateTownshipBonuses(pvpTargetsTownships)
+    let stats = regenPlayer(userRow, ownedTemples, userRow.class, userRow.faction, pvpTargetsTownshipBonuses)
     const attAlignment = userRow.alignment
 
     if (!attAlignment && stats.level >= 10) {
@@ -1493,6 +1540,7 @@ async function handlePvPTargets(req, res) {
         stats,
         requires_alignment: true,
         pendingAdventureRewards: req.pendingAdventureRewards || null,
+      pendingTownshipUpgrades: req.pendingTownshipUpgrades || null,
       })
     }
 
@@ -1604,6 +1652,7 @@ async function handlePvPTargets(req, res) {
       my_power_rating:  myPowerRating,
       computed_bonuses,
       pendingAdventureRewards: req.pendingAdventureRewards || null,
+      pendingTownshipUpgrades: req.pendingTownshipUpgrades || null,
     })
   } catch (err) {
     console.error('PvP targets error:', err)
@@ -1698,7 +1747,14 @@ async function handlePvPAttack(req, res) {
       fetchOwnedTemples(req.userId),
       fetchOwnedTemples(target_user_id),
     ])
-    let attStats = regenPlayer(attRows[0], attTemples, attRows[0].class, attRows[0].faction)
+    const [attTownshipRows, defTownshipRows] = await Promise.all([
+      getPlayerTownships(sql, req.userId),
+      getPlayerTownships(sql, target_user_id),
+    ])
+    const attTownshipBonuses = aggregateTownshipBonuses(attTownshipRows)
+    const defTownshipBonuses = aggregateTownshipBonuses(defTownshipRows)
+
+    let attStats = regenPlayer(attRows[0], attTemples, attRows[0].class, attRows[0].faction, attTownshipBonuses)
     let defStats = regenPlayer(defRows[0], defTemples, defRows[0].class, defRows[0].faction)
 
     const energyCost = Math.max(1, Math.ceil(attStats.level / 10))
@@ -1719,9 +1775,21 @@ async function handlePvPAttack(req, res) {
       getEquipmentBonuses(sql, target_user_id),
     ])
 
+    // Apply township flat stat bonuses to combat simulation only — does not persist to DB
+    const attStatsBoosted = {
+      ...attStats,
+      attack:  attStats.attack  + Math.floor(attTownshipBonuses.flat_attack  || 0),
+      defense: attStats.defense + Math.floor(attTownshipBonuses.flat_defense || 0),
+    }
+    const defStatsForCombatBoosted = {
+      ...defStatsForCombat,
+      attack:  defStatsForCombat.attack  + Math.floor(defTownshipBonuses.flat_attack  || 0),
+      defense: defStatsForCombat.defense + Math.floor(defTownshipBonuses.flat_defense || 0),
+    }
+
     const combat = simulateCombat({
-      attacker:      { ...attUser, ...attStats },
-      defender:      { ...defUser, ...defStatsForCombat },
+      attacker:      { ...attUser, ...attStatsBoosted },
+      defender:      { ...defUser, ...defStatsForCombatBoosted },
       attackerEquip: attEquip,
       defenderEquip: defEquip,
     })
@@ -1847,6 +1915,7 @@ async function handlePvPAttack(req, res) {
         stat_points:      attStats.stat_points,
       },
       pendingAdventureRewards: req.pendingAdventureRewards || null,
+      pendingTownshipUpgrades: req.pendingTownshipUpgrades || null,
     })
   } catch (err) {
     console.error('PvP attack error:', err)
@@ -1898,6 +1967,7 @@ async function handlePvPLog(req, res) {
     return res.status(200).json({
       log,
       pendingAdventureRewards: req.pendingAdventureRewards || null,
+      pendingTownshipUpgrades: req.pendingTownshipUpgrades || null,
     })
   } catch (err) {
     console.error('PvP log error:', err)
@@ -1925,7 +1995,9 @@ async function handleAdventures(req, res) {
     if (rows.length === 0) return res.status(404).json({ error: 'Player not found' })
 
     const ownedTemples = await fetchOwnedTemples(req.userId)
-    let stats = regenPlayer(rows[0], ownedTemples, rows[0].player_class, rows[0].faction)
+    const advTownships = await getPlayerTownships(sql, req.userId)
+    const advTownshipBonuses = aggregateTownshipBonuses(advTownships)
+    let stats = regenPlayer(rows[0], ownedTemples, rows[0].player_class, rows[0].faction, advTownshipBonuses)
 
     if (
       stats.energy             !== rows[0].energy  ||
@@ -2014,6 +2086,7 @@ async function handleAdventures(req, res) {
         stat_points:      stats.stat_points,
       },
       pendingAdventureRewards: req.pendingAdventureRewards || null,
+      pendingTownshipUpgrades: req.pendingTownshipUpgrades || null,
     })
   } catch (err) {
     console.error('Adventures error:', err)
@@ -2055,7 +2128,9 @@ async function handleAdventuresStart(req, res) {
     if (pRows.length === 0) return res.status(404).json({ error: 'Player not found' })
 
     const ownedTemples = await fetchOwnedTemples(req.userId)
-    let stats = regenPlayer(pRows[0], ownedTemples, pRows[0].player_class, pRows[0].faction)
+    const startAdvTownships = await getPlayerTownships(sql, req.userId)
+    const startAdvTownshipBonuses = aggregateTownshipBonuses(startAdvTownships)
+    let stats = regenPlayer(pRows[0], ownedTemples, pRows[0].player_class, pRows[0].faction, startAdvTownshipBonuses)
 
     if (stats.level < adv.level_required) {
       return res.status(400).json({ error: 'level_too_low', level_required: adv.level_required })
@@ -2128,6 +2203,7 @@ async function handleAdventuresStart(req, res) {
         drachma:    stats.drachma,
       },
       pendingAdventureRewards: req.pendingAdventureRewards || null,
+      pendingTownshipUpgrades: req.pendingTownshipUpgrades || null,
     })
   } catch (err) {
     console.error('Adventures start error:', err)
@@ -2164,6 +2240,7 @@ async function handleAdventuresAbandon(req, res) {
       success:             true,
       abandoned_adventure: rows[0].name,
       pendingAdventureRewards: req.pendingAdventureRewards || null,
+      pendingTownshipUpgrades: req.pendingTownshipUpgrades || null,
     })
   } catch (err) {
     console.error('Adventures abandon error:', err)
@@ -2184,6 +2261,7 @@ async function handleAdventuresClaim(req, res) {
         success: true,
         rewards: req.pendingAdventureRewards,
         pendingAdventureRewards: req.pendingAdventureRewards,
+        pendingTownshipUpgrades: req.pendingTownshipUpgrades || null,
       })
     }
 
@@ -2204,6 +2282,7 @@ async function handleAdventuresClaim(req, res) {
       success: true,
       rewards,
       pendingAdventureRewards: rewards,
+      pendingTownshipUpgrades: req.pendingTownshipUpgrades || null,
     })
   } catch (err) {
     console.error('Adventures claim error:', err)
@@ -2229,7 +2308,10 @@ async function handleFreeStatReset(req, res) {
     `
     if (rows.length === 0) return res.status(404).json({ error: 'Player not found' })
 
-    let stats = regenPlayer(rows[0])
+    const resetTemples = await fetchOwnedTemples(req.userId)
+    const resetTownships = await getPlayerTownships(sql, req.userId)
+    const resetTownshipBonuses = aggregateTownshipBonuses(resetTownships)
+    let stats = regenPlayer(rows[0], resetTemples, rows[0].class, rows[0].faction, resetTownshipBonuses)
 
     if (!stats.stat_reset_available) {
       return res.status(400).json({ error: 'free_reset_already_used' })
@@ -2284,6 +2366,7 @@ async function handleFreeStatReset(req, res) {
         stat_reset_available: false,
       },
       pendingAdventureRewards: req.pendingAdventureRewards || null,
+      pendingTownshipUpgrades: req.pendingTownshipUpgrades || null,
     })
   } catch (err) {
     console.error('[game?action=stat_reset_free]', err.message)
@@ -2374,6 +2457,7 @@ async function handleTitanStatus(req, res) {
       unclaimed_reward:        unclaimedRows[0] || null,
       server_time:             new Date().toISOString(),
       pendingAdventureRewards: req.pendingAdventureRewards || null,
+      pendingTownshipUpgrades: req.pendingTownshipUpgrades || null,
     })
   } catch (err) {
     console.error('titan_status error:', err)
@@ -2420,6 +2504,7 @@ async function handleTitanJoin(req, res) {
       event_id:        event.id,
       queue_closes_at: event.queue_closes_at,
       pendingAdventureRewards: req.pendingAdventureRewards || null,
+      pendingTownshipUpgrades: req.pendingTownshipUpgrades || null,
     })
   } catch (err) {
     console.error('titan_join error:', err)
@@ -2468,7 +2553,9 @@ async function handleTitanClaim(req, res) {
     const faction     = statsRows[0].faction
     const alignment   = statsRows[0].alignment
     const ownedTemples = await fetchOwnedTemples(req.userId)
-    let stats = regenPlayer(statsRows[0], ownedTemples, playerClass, faction)
+    const titanTownships = await getPlayerTownships(sql, req.userId)
+    const titanTownshipBonuses = aggregateTownshipBonuses(titanTownships)
+    let stats = regenPlayer(statsRows[0], ownedTemples, playerClass, faction, titanTownshipBonuses)
 
     const titan = {
       slug:               row.slug,
@@ -2529,12 +2616,21 @@ async function handleTitanClaim(req, res) {
     let xpMult = 1
     if (faction === 'olympians') xpMult *= 1.10
     if (alignment === 'coalition') xpMult *= 1.15
-    const finalXp = Math.floor(rewards.xp * xpMult)
+    let finalXp = Math.floor(rewards.xp * xpMult)
+    if (titanTownshipBonuses.xp_pct > 0) {
+      finalXp = Math.floor(finalXp * (1 + titanTownshipBonuses.xp_pct / 100))
+    }
+
+    let finalDrachma = rewards.drachma
+    if (titanTownshipBonuses.drachma_pct > 0) {
+      finalDrachma = Math.floor(finalDrachma * (1 + titanTownshipBonuses.drachma_pct / 100))
+    }
+
     stats = {
       ...stats,
       xp:               stats.xp + finalXp,
-      drachma:          stats.drachma + rewards.drachma,
-      drachma_lifetime: stats.drachma_lifetime + rewards.drachma,
+      drachma:          stats.drachma + finalDrachma,
+      drachma_lifetime: stats.drachma_lifetime + finalDrachma,
     }
 
     const prevLevel = stats.level
@@ -2567,8 +2663,8 @@ async function handleTitanClaim(req, res) {
     await sql`
       UPDATE pw_titan_participants SET
         rewards_claimed  = true,
-        reward_xp        = ${rewards.xp},
-        reward_drachma   = ${rewards.drachma},
+        reward_xp        = ${finalXp},
+        reward_drachma   = ${finalDrachma},
         reward_potion_id = ${potionId},
         reward_loot_id   = ${lootId}
       WHERE event_id = ${event_id} AND user_id = ${req.userId}
@@ -2591,12 +2687,13 @@ async function handleTitanClaim(req, res) {
       contribution_rank: row.contribution_rank,
       damage_dealt:      row.damage_dealt,
       xp:                finalXp,
-      drachma:           rewards.drachma,
+      drachma:           finalDrachma,
       potion:            potionInfo,
       loot:              lootInfo,
       levelsGained,
       stats,
       pendingAdventureRewards: req.pendingAdventureRewards || null,
+      pendingTownshipUpgrades: req.pendingTownshipUpgrades || null,
     })
   } catch (err) {
     console.error('titan_claim error:', err)
@@ -2675,10 +2772,230 @@ async function handleTitanHistory(req, res) {
       ok:      true,
       history: rows,
       pendingAdventureRewards: req.pendingAdventureRewards || null,
+      pendingTownshipUpgrades: req.pendingTownshipUpgrades || null,
     })
   } catch (err) {
     console.error('titan_history error:', err)
     return res.status(500).json({ error: 'history_failed' })
+  }
+}
+
+// ── Township (GET) ────────────────────────────────────────────────────────────
+
+async function handleTownship(req, res) {
+  try {
+    const statsRows = await sql`SELECT level FROM pw_player_stats WHERE user_id = ${req.userId}`
+    if (statsRows.length === 0) return res.status(404).json({ error: 'player_not_found' })
+    const playerLevel = statsRows[0].level
+
+    const catalog = await sql`SELECT * FROM pw_township_upgrades ORDER BY display_order`
+
+    const ownedRows = await sql`SELECT * FROM pw_player_townships WHERE user_id = ${req.userId}`
+    const ownedByType = {}
+    for (const o of ownedRows) ownedByType[o.upgrade_type] = o
+
+    const townships = catalog.map(entry => {
+      const owned = ownedByType[entry.type] || null
+      const isOwned = !!owned
+      const isUnlocked = playerLevel >= entry.level_required
+      const isUpgrading = owned && owned.upgrade_completes_at !== null
+
+      const currentLevel = owned?.level || 0
+      const nextLevel = currentLevel < 100 ? currentLevel + 1 : null
+      const currentBonus = isOwned ? getTownshipBonusValue(entry, currentLevel) : 0
+      const nextBonus = nextLevel ? getTownshipBonusValue(entry, nextLevel) : null
+
+      const upgradeCost = nextLevel ? getTownshipUpgradeCost(entry.initial_cost, currentLevel) : null
+      const upgradeSeconds = nextLevel ? getTownshipUpgradeSeconds(currentLevel) : null
+
+      return {
+        type:            entry.type,
+        name:            entry.name,
+        establish_label: entry.establish_label,
+        description:     entry.description,
+        lore:            entry.lore,
+        bonus_type:      entry.bonus_type,
+        bonus_per_level: entry.bonus_per_level,
+        bonus_at_max:    entry.bonus_at_max,
+        initial_cost:    entry.initial_cost,
+        level_required:  entry.level_required,
+        display_order:   entry.display_order,
+
+        is_owned:     isOwned,
+        is_unlocked:  isUnlocked,
+        current_level: currentLevel,
+        next_level:    nextLevel,
+        max_level:     100,
+        current_bonus: currentBonus,
+        next_bonus:    nextBonus,
+        upgrade_cost:  upgradeCost,
+        upgrade_seconds: upgradeSeconds,
+
+        is_upgrading:        isUpgrading,
+        upgrading_to_level:  owned?.upgrading_to_level || null,
+        upgrade_started_at:  owned?.upgrade_started_at || null,
+        upgrade_completes_at: owned?.upgrade_completes_at || null,
+      }
+    })
+
+    return res.status(200).json({
+      ok: true,
+      player_level: playerLevel,
+      townships,
+      pendingAdventureRewards: req.pendingAdventureRewards || null,
+      pendingTownshipUpgrades: req.pendingTownshipUpgrades || null,
+    })
+  } catch (err) {
+    console.error('township error:', err)
+    return res.status(500).json({ error: 'township_fetch_failed' })
+  }
+}
+
+// ── Township Establish (POST) ─────────────────────────────────────────────────
+
+async function handleTownshipEstablish(req, res) {
+  if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' })
+
+  try {
+    const { upgrade_type } = req.body || {}
+    if (!upgrade_type) return res.status(400).json({ error: 'missing_upgrade_type' })
+
+    const catalogRows = await sql`SELECT * FROM pw_township_upgrades WHERE type = ${upgrade_type}`
+    if (catalogRows.length === 0) return res.status(404).json({ error: 'unknown_upgrade' })
+    const upgrade = catalogRows[0]
+
+    const statsRows = await sql`
+      SELECT ps.*, u.class, u.faction
+      FROM pw_player_stats ps JOIN pw_users u ON u.id = ps.user_id
+      WHERE ps.user_id = ${req.userId}
+    `
+    const stats = statsRows[0]
+    if (!stats) return res.status(404).json({ error: 'player_not_found' })
+
+    if (stats.level < upgrade.level_required) {
+      return res.status(400).json({ error: 'level_too_low', required: upgrade.level_required })
+    }
+
+    const ownedRows = await sql`
+      SELECT id FROM pw_player_townships
+      WHERE user_id = ${req.userId} AND upgrade_type = ${upgrade_type}
+    `
+    if (ownedRows.length > 0) return res.status(400).json({ error: 'already_established' })
+
+    const temples = await fetchOwnedTemples(req.userId)
+    const townships = await getPlayerTownships(sql, req.userId)
+    const townshipBonuses = aggregateTownshipBonuses(townships)
+    const regenStats = regenPlayer(stats, temples, stats.class, stats.faction, townshipBonuses)
+
+    if (regenStats.drachma < upgrade.initial_cost) {
+      return res.status(400).json({ error: 'insufficient_drachma', required: upgrade.initial_cost })
+    }
+
+    const newDrachma = regenStats.drachma - upgrade.initial_cost
+
+    await sql`
+      UPDATE pw_player_stats SET
+        energy = ${regenStats.energy},
+        health = ${regenStats.health},
+        drachma = ${newDrachma},
+        last_updated = NOW()
+      WHERE user_id = ${req.userId}
+    `
+
+    await sql`
+      INSERT INTO pw_player_townships (user_id, upgrade_type, level)
+      VALUES (${req.userId}, ${upgrade_type}, 1)
+    `
+
+    return res.status(200).json({
+      ok: true,
+      upgrade_type,
+      level: 1,
+      new_drachma: newDrachma,
+      pendingAdventureRewards: req.pendingAdventureRewards || null,
+      pendingTownshipUpgrades: req.pendingTownshipUpgrades || null,
+    })
+  } catch (err) {
+    console.error('township_establish error:', err)
+    return res.status(500).json({ error: 'establish_failed' })
+  }
+}
+
+// ── Township Upgrade (POST) ───────────────────────────────────────────────────
+
+async function handleTownshipUpgrade(req, res) {
+  if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' })
+
+  try {
+    const { upgrade_type } = req.body || {}
+    if (!upgrade_type) return res.status(400).json({ error: 'missing_upgrade_type' })
+
+    const rows = await sql`
+      SELECT pt.*, u.initial_cost, u.name
+      FROM pw_player_townships pt
+      JOIN pw_township_upgrades u ON u.type = pt.upgrade_type
+      WHERE pt.user_id = ${req.userId} AND pt.upgrade_type = ${upgrade_type}
+    `
+    if (rows.length === 0) return res.status(404).json({ error: 'not_established' })
+    const owned = rows[0]
+
+    if (owned.upgrade_completes_at !== null) {
+      return res.status(400).json({ error: 'upgrade_in_progress', completes_at: owned.upgrade_completes_at })
+    }
+    if (owned.level >= 100) return res.status(400).json({ error: 'max_level' })
+
+    const statsRows = await sql`
+      SELECT ps.*, u.class, u.faction
+      FROM pw_player_stats ps JOIN pw_users u ON u.id = ps.user_id
+      WHERE ps.user_id = ${req.userId}
+    `
+    const stats = statsRows[0]
+
+    const upgradeCost = getTownshipUpgradeCost(owned.initial_cost, owned.level)
+    const upgradeSeconds = getTownshipUpgradeSeconds(owned.level)
+
+    const temples = await fetchOwnedTemples(req.userId)
+    const townships = await getPlayerTownships(sql, req.userId)
+    const townshipBonuses = aggregateTownshipBonuses(townships)
+    const regenStats = regenPlayer(stats, temples, stats.class, stats.faction, townshipBonuses)
+
+    if (regenStats.drachma < upgradeCost) {
+      return res.status(400).json({ error: 'insufficient_drachma', required: upgradeCost })
+    }
+
+    const newDrachma = regenStats.drachma - upgradeCost
+
+    await sql`
+      UPDATE pw_player_stats SET
+        energy = ${regenStats.energy},
+        health = ${regenStats.health},
+        drachma = ${newDrachma},
+        last_updated = NOW()
+      WHERE user_id = ${req.userId}
+    `
+
+    const completesAt = new Date(Date.now() + upgradeSeconds * 1000)
+    await sql`
+      UPDATE pw_player_townships SET
+        upgrading_to_level   = ${owned.level + 1},
+        upgrade_started_at   = NOW(),
+        upgrade_completes_at = ${completesAt}
+      WHERE id = ${owned.id}
+    `
+
+    return res.status(200).json({
+      ok: true,
+      upgrade_type,
+      upgrading_to_level:  owned.level + 1,
+      upgrade_completes_at: completesAt,
+      cost_paid:   upgradeCost,
+      new_drachma: newDrachma,
+      pendingAdventureRewards: req.pendingAdventureRewards || null,
+      pendingTownshipUpgrades: req.pendingTownshipUpgrades || null,
+    })
+  } catch (err) {
+    console.error('township_upgrade error:', err)
+    return res.status(500).json({ error: 'upgrade_failed' })
   }
 }
 
@@ -2687,9 +3004,11 @@ async function handleTitanHistory(req, res) {
 export default requireUser(async function handler(req, res) {
   const { action } = req.query
 
-  // Auto-complete any expired adventure before processing any action
+  // Auto-complete any expired adventure or township upgrade before processing any action
   req.pendingAdventureRewards = null
+  req.pendingTownshipUpgrades = null
   try { req.pendingAdventureRewards = await checkAndCompleteAdventures(sql, req.userId) } catch {}
+  try { req.pendingTownshipUpgrades = await checkAndCompleteUpgrades(sql, req.userId) } catch {}
 
   if (action === 'quests')             return handleQuests(req, res)
   if (action === 'complete')           return handleComplete(req, res)
@@ -2719,5 +3038,8 @@ export default requireUser(async function handler(req, res) {
   if (action === 'titan_claim')         return handleTitanClaim(req, res)
   if (action === 'titan_admin_trigger') return handleTitanAdminTrigger(req, res)
   if (action === 'titan_history')       return handleTitanHistory(req, res)
+  if (action === 'township')            return handleTownship(req, res)
+  if (action === 'township_establish')  return handleTownshipEstablish(req, res)
+  if (action === 'township_upgrade')    return handleTownshipUpgrade(req, res)
   return res.status(400).json({ error: 'Unknown action' })
 })

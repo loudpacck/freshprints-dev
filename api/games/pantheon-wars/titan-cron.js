@@ -1,5 +1,5 @@
 import { neon } from '@neondatabase/serverless'
-import { simulateTitanFight } from '../../../lib/pwHelpers.js'
+import { simulateTitanFight, getPlayerTownships, aggregateTownshipBonuses } from '../../../lib/pwHelpers.js'
 import { requireAdmin } from '../../../lib/auth.js'
 
 const sql = neon(process.env.POSTGRES_DATABASE_URL || process.env.POSTGRES_URL)
@@ -94,22 +94,32 @@ export default async function handler(req, res) {
       const userIds = participantRows.map(p => p.user_id)
       const equipMap = await fetchEquipBonusesBatch(userIds)
 
-      // Build participant objects for simulation
-      const participants = participantRows.map(p => ({
-        user_id:      p.user_id,
-        username:     p.username,
-        level:        p.level,
-        faction:      p.faction,
-        class:        p.class,
-        stats: {
-          attack:  p.attack,
-          defense: p.defense,
-          agility: p.agility || 0,
-          health:  p.health,
-          level:   p.level,
-        },
-        equipBonuses: equipMap[p.user_id],
-      }))
+      // Batch township bonuses for all participants
+      const townshipBonusesByUser = {}
+      for (const p of participantRows) {
+        const tRows = await getPlayerTownships(sql, p.user_id)
+        townshipBonusesByUser[p.user_id] = aggregateTownshipBonuses(tRows)
+      }
+
+      // Build participant objects for simulation (township flat bonuses applied to combat stats only)
+      const participants = participantRows.map(p => {
+        const tb = townshipBonusesByUser[p.user_id]
+        return {
+          user_id:      p.user_id,
+          username:     p.username,
+          level:        p.level,
+          faction:      p.faction,
+          class:        p.class,
+          stats: {
+            attack:  p.attack  + Math.floor(tb.flat_attack  || 0),
+            defense: p.defense + Math.floor(tb.flat_defense || 0),
+            agility: p.agility || 0,
+            health:  p.health,
+            level:   p.level,
+          },
+          equipBonuses: equipMap[p.user_id],
+        }
+      })
 
       // Fetch Titan
       const titanRows = await sql`SELECT * FROM pw_titans WHERE id = ${event.titan_id}`
