@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import PWPageShell from '../../../components/games/pantheon-wars/PWPageShell'
+import PWBackButton from '../../../components/games/pantheon-wars/PWBackButton'
 import { usePantheonWars } from '../../../contexts/PantheonWarsContext'
 
 // ─── Utilities ────────────────────────────────────────────────────────────────
@@ -594,7 +595,7 @@ export default function Township() {
   }
 
   return (
-    <PWPageShell title="TOWNSHIP" backgroundVariant="township">
+    <PWPageShell title="TOWNSHIP" rightSlot={<PWBackButton />} backgroundVariant="township">
       {loading ? <SkeletonView /> : (
         <>
           <IntroCard />
