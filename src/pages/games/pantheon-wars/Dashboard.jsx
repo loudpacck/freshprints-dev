@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { motion } from 'framer-motion'
+import { motion, AnimatePresence } from 'framer-motion'
 import { usePantheonWars } from '@/contexts/PantheonWarsContext'
 import PWPageShell from '@/components/games/pantheon-wars/PWPageShell'
 
@@ -13,12 +13,13 @@ const CLASS_LABEL   = { warden: 'Warden', oracle: 'Oracle', slayer: 'Slayer', br
 const NAV_ITEMS = [
   { label: 'QUESTS',      glyph: '⚔',  path: '/games/pantheon-wars/quests'      },
   { label: 'ADVENTURES',  glyph: '⚑',  path: '/games/pantheon-wars/adventures'  },
-  { label: 'INVENTORY',   glyph: '◈',  path: '/games/pantheon-wars/inventory'                   },
-  { label: 'SHOP',        glyph: '₯',  path: '/games/pantheon-wars/shop'                         },
-  { label: 'TEMPLES',     glyph: '⬟',  path: '/games/pantheon-wars/temples'      },
-  { label: 'ARENA',       glyph: '⚡',  path: '/games/pantheon-wars/pvp'          },
-  { label: 'LEADERBOARD', glyph: '★',  path: '/games/pantheon-wars/leaderboard'                  },
-  { label: 'PROFILE',     glyph: '◎',  path: '/games/pantheon-wars/profile'      },
+  { label: 'INVENTORY',   glyph: '◈',  path: '/games/pantheon-wars/inventory'   },
+  { label: 'SHOP',        glyph: '₯',  path: '/games/pantheon-wars/shop'        },
+  { label: 'TEMPLES',     glyph: '⬟',  path: '/games/pantheon-wars/temples'     },
+  { label: 'TOWNSHIP',    glyph: '🏛',  path: '/games/pantheon-wars/township',   glyphStyle: { filter: 'grayscale(1)' } },
+  { label: 'ARENA',       glyph: '⚡',  path: '/games/pantheon-wars/pvp'         },
+  { label: 'LEADERBOARD', glyph: '★',  path: '/games/pantheon-wars/leaderboard' },
+  { label: 'PROFILE',     glyph: '◎',  path: '/games/pantheon-wars/profile'     },
 ]
 
 // ─── Titan tile helpers ───────────────────────────────────────────────────────
@@ -354,7 +355,7 @@ function NavButton({ item }) {
           padding: '16px 8px 14px',
           textAlign: 'center',
         }}>
-          <div style={{ fontSize: 20, marginBottom: 6, lineHeight: 1 }}>{item.glyph}</div>
+          <div style={{ fontSize: 20, marginBottom: 6, lineHeight: 1, ...(item.glyphStyle || {}) }}>{item.glyph}</div>
           <div style={{
             fontFamily: "'Bebas Neue', sans-serif",
             fontSize: 13,
@@ -400,7 +401,7 @@ function NavButton({ item }) {
           cursor: 'pointer',
         }}
       >
-        <div style={{ fontSize: 20, marginBottom: 6, lineHeight: 1 }}>{item.glyph}</div>
+        <div style={{ fontSize: 20, marginBottom: 6, lineHeight: 1, ...(item.glyphStyle || {}) }}>{item.glyph}</div>
         <div style={{
           fontFamily: "'Bebas Neue', sans-serif",
           fontSize: 13,
@@ -417,6 +418,45 @@ function NavButton({ item }) {
 
 function Skeleton({ h = 20, w = '100%', r = 6 }) {
   return <div className="pw-skel" style={{ height: h, width: w, borderRadius: r }} />
+}
+
+function TownshipCompleteToast({ upgrade, onDone }) {
+  useEffect(() => {
+    const t = setTimeout(onDone, 3400)
+    return () => clearTimeout(t)
+  }, [onDone])
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: -16, scale: 0.96 }}
+      animate={{ opacity: 1, y: 0, scale: 1 }}
+      exit={{ opacity: 0, y: -12, scale: 0.96 }}
+      transition={{ duration: 0.28, ease: [0.16, 1, 0.3, 1] }}
+      style={{
+        position: 'fixed',
+        top: 'calc(env(safe-area-inset-top, 0px) + 88px)',
+        left: '50%',
+        transform: 'translateX(-50%)',
+        zIndex: 60,
+        background: 'linear-gradient(180deg, var(--color-bg-elevated, #14101A), var(--color-bg-base, #0A0710))',
+        backdropFilter: 'blur(12px)',
+        border: '2px solid rgba(201,169,97,0.5)',
+        borderRadius: 6,
+        padding: '12px 22px',
+        display: 'flex',
+        alignItems: 'center',
+        gap: 14,
+        whiteSpace: 'nowrap',
+        boxShadow: '0 0 18px rgba(201,169,97,0.3), 0 4px 24px rgba(0,0,0,0.6)',
+      }}
+    >
+      <span style={{ fontFamily: "'Cinzel', serif", fontSize: 13, letterSpacing: '0.1em', color: '#C9A961' }}>
+        🏛 {upgrade.name} REACHED LVL {upgrade.new_level}
+      </span>
+      <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, color: 'rgba(240,240,248,0.45)' }}>
+        TOWNSHIP
+      </span>
+    </motion.div>
+  )
 }
 
 // ─── Dashboard (inner — uses context) ────────────────────────────────────────
@@ -436,6 +476,7 @@ export default function Dashboard() {
 
   // null = loading, false = failed (render nothing), { total, count } = loaded
   const [templeIncome, setTempleIncome] = useState(null)
+  const [townshipToast, setTownshipToast] = useState(null)
   const [onboardingDismissed, setOnboardingDismissed] = useState(
     () => localStorage.getItem('pw-onboarding-dismissed') === '1'
   )
@@ -449,8 +490,14 @@ export default function Dashboard() {
     fetch('/api/games/pantheon-wars/game?action=temples')
       .then(r => r.ok ? r.json() : null)
       .then(data => {
-        if (data) setTempleIncome({ total: data.total_income_per_hour, count: data.owned.length })
-        else setTempleIncome(false)
+        if (data) {
+          setTempleIncome({ total: data.total_income_per_hour, count: data.owned.length })
+          if (data.pendingTownshipUpgrades?.upgrades?.length) {
+            setTownshipToast(data.pendingTownshipUpgrades.upgrades[0])
+          }
+        } else {
+          setTempleIncome(false)
+        }
       })
       .catch(() => setTempleIncome(false))
   }, [loading, user])
@@ -521,7 +568,7 @@ export default function Dashboard() {
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 10 }}>
                 {[0,1,2,3].map(i => <Skeleton key={i} h={82} />)}
               </div>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 10, marginTop: 8 }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 10, marginTop: 8 }}>
                 {NAV_ITEMS.map(i => <Skeleton key={i.label} h={72} />)}
               </div>
             </div>
@@ -897,7 +944,7 @@ export default function Dashboard() {
                 </p>
                 <div
                   className="pw-navgrid"
-                  style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 10 }}
+                  style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10 }}
                 >
                   {NAV_ITEMS.map(item => (
                     <NavButton key={item.label} item={item} />
@@ -907,6 +954,15 @@ export default function Dashboard() {
 
             </motion.div>
           )}
+      <AnimatePresence>
+        {townshipToast && (
+          <TownshipCompleteToast
+            key={townshipToast.name + townshipToast.new_level}
+            upgrade={townshipToast}
+            onDone={() => setTownshipToast(null)}
+          />
+        )}
+      </AnimatePresence>
     </PWPageShell>
   )
 }

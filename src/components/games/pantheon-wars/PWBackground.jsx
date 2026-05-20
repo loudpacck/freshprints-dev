@@ -14,6 +14,7 @@ const VARIANTS = {
   profile:     { count: 55, baseSpeed: 0.18, color: [201, 169,  97], flashChance: 0 },
   adventures:  { count: 55, baseSpeed: 0.22, color: [210, 150,  80], flashChance: 0.002 },
   titan:       { count: 85, baseSpeed: 0.42, color: [180,  60,  80], flashChance: 0.006 },
+  township:    { count: 48, baseSpeed: 0.14, color: [120, 160, 100], flashChance: 0 },
 }
 
 function makeParticle(canvas, cfg) {
