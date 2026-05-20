@@ -20,7 +20,7 @@ const NAV_ITEMS = [
   { label: 'ARENA',       glyph: '⚡',  path: '/games/pantheon-wars/pvp',         glyphStyle: { filter: 'grayscale(1) brightness(1.3)' } },
   { label: 'LEADERBOARD', glyph: '★',  path: '/games/pantheon-wars/leaderboard' },
   { label: 'PROFILE',     glyph: '◎',  path: '/games/pantheon-wars/profile'     },
-  { label: 'CODEX',    glyph: '📜', glyphStyle: { filter: 'grayscale(1) brightness(1.3)' }, path: '/games/pantheon-wars/codex',    comingSoon: true },
+  { label: 'CODEX',    glyph: '📜', path: '/games/pantheon-wars/codex' },
   { label: 'ALLIANCE', glyph: '⚜', glyphStyle: { filter: 'grayscale(1) brightness(1.3)' }, path: '/games/pantheon-wars/alliance', comingSoon: true },
   { label: 'STORE',    glyph: '$', glyphStyle: { color: '#A8A89C' },                       path: '/games/pantheon-wars/store',    comingSoon: true },
 ]

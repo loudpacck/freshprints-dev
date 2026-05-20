@@ -3003,6 +3003,48 @@ async function handleTownshipUpgrade(req, res) {
   }
 }
 
+// ── Codex (GET, no per-player state) ─────────────────────────────────────────
+
+async function handleCodex(req, res) {
+  if (req.method !== 'GET') return res.status(405).json({ error: 'Method not allowed' })
+  try {
+    const titans = await sql`
+      SELECT id, slug, name, pantheon, difficulty,
+             description, lore, ability_name, ability_description,
+             base_hp_multiplier, base_attack, base_defense, loot_rarity_floor
+      FROM pw_titans
+      ORDER BY difficulty DESC, name ASC
+    `
+    const professions = await sql`
+      SELECT type, name, establish_label, description, lore,
+             bonus_type, bonus_per_level, bonus_at_max,
+             initial_cost, level_required, display_order
+      FROM pw_township_upgrades
+      ORDER BY display_order
+    `
+    return res.status(200).json({
+      ok: true,
+      titans: titans.map(t => ({
+        ...t,
+        base_hp_multiplier: Number(t.base_hp_multiplier),
+        base_attack:        Number(t.base_attack),
+        base_defense:       Number(t.base_defense),
+      })),
+      professions: professions.map(p => ({
+        ...p,
+        bonus_per_level: Number(p.bonus_per_level),
+        bonus_at_max:    Number(p.bonus_at_max),
+        initial_cost:    Number(p.initial_cost),
+        level_required:  Number(p.level_required),
+        display_order:   Number(p.display_order),
+      })),
+    })
+  } catch (err) {
+    console.error('codex error:', err)
+    return res.status(500).json({ error: 'codex_fetch_failed' })
+  }
+}
+
 // ── Router ────────────────────────────────────────────────────────────────────
 
 export default requireUser(async function handler(req, res) {
@@ -3045,5 +3087,6 @@ export default requireUser(async function handler(req, res) {
   if (action === 'township')            return handleTownship(req, res)
   if (action === 'township_establish')  return handleTownshipEstablish(req, res)
   if (action === 'township_upgrade')    return handleTownshipUpgrade(req, res)
+  if (action === 'codex')              return handleCodex(req, res)
   return res.status(400).json({ error: 'Unknown action' })
 })
