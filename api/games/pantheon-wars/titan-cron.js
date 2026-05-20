@@ -1,5 +1,6 @@
 import { neon } from '@neondatabase/serverless'
 import { simulateTitanFight } from '../../../lib/pwHelpers.js'
+import { requireAdmin } from '../../../lib/auth.js'
 
 const sql = neon(process.env.POSTGRES_DATABASE_URL || process.env.POSTGRES_URL)
 
@@ -42,12 +43,10 @@ async function fetchEquipBonusesBatch(userIds) {
 }
 
 export default async function handler(req, res) {
-  // Accept Vercel cron header OR admin-triggered POST body
-  const isCron  = req.headers['x-vercel-cron'] === '1'
-  const isAdmin = req.method === 'POST' && req.body?.adminTriggered === true
+  const isCron = req.headers['x-vercel-cron'] === '1' || req.headers['x-vercel-cron'] === 1
 
-  if (!isCron && !isAdmin) {
-    return res.status(401).json({ error: 'unauthorized' })
+  if (!isCron) {
+    if (!(await requireAdmin(req, res))) return
   }
 
   const slot = req.query?.event || 'cron'

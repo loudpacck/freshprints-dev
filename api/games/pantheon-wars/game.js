@@ -1,5 +1,6 @@
 import { sql } from '../../../lib/db.js'
 import { requireUser } from '../../../lib/pwAuth.js'
+import { requireAdmin } from '../../../lib/auth.js'
 import {
   regenPlayer, checkLevelUp, getEquipmentBonuses,
   simulateCombat,
@@ -10,7 +11,7 @@ import {
   getQuestRotationSeed, getQuestRotationExpiry,
   getAdventureRotationSeed, getAdventureRotationExpiry,
   pickRotatedFromPool, checkAndCompleteAdventures,
-  computeResetBaselines,
+  computeResetBaselines, calculateTitanRewards,
 } from '../../../lib/pwHelpers.js'
 
 export const config = { runtime: 'nodejs' }
@@ -2258,6 +2259,392 @@ async function handleFreeStatReset(req, res) {
   }
 }
 
+// ── Titan Status (GET) ────────────────────────────────────────────────────────
+
+async function handleTitanStatus(req, res) {
+  if (req.method !== 'GET') return res.status(405).json({ error: 'Method not allowed' })
+
+  try {
+    const events = await sql`
+      SELECT e.*,
+             t.slug AS titan_slug, t.name AS titan_name, t.pantheon AS titan_pantheon,
+             t.difficulty AS titan_difficulty, t.description AS titan_description,
+             t.lore AS titan_lore, t.ability_name AS titan_ability_name,
+             t.ability_description AS titan_ability_description,
+             t.loot_rarity_floor AS titan_loot_rarity_floor
+      FROM pw_titan_events e
+      JOIN pw_titans t ON t.id = e.titan_id
+      WHERE e.status IN ('queue', 'active')
+      ORDER BY e.fight_starts_at ASC
+      LIMIT 1
+    `
+
+    const currentEvent = events[0] || null
+
+    const unclaimedRows = await sql`
+      SELECT p.*, e.id AS event_id, e.result AS event_result,
+             t.name AS titan_name, t.difficulty AS titan_difficulty
+      FROM pw_titan_participants p
+      JOIN pw_titan_events e ON e.id = p.event_id
+      JOIN pw_titans t ON t.id = e.titan_id
+      WHERE p.user_id = ${req.userId}
+        AND p.status = 'fought'
+        AND p.rewards_claimed = false
+        AND e.status = 'resolved'
+      ORDER BY e.fight_ends_at DESC NULLS LAST
+      LIMIT 1
+    `
+
+    let playerParticipation = null
+    let participantCount = 0
+
+    if (currentEvent) {
+      const participation = await sql`
+        SELECT * FROM pw_titan_participants
+        WHERE event_id = ${currentEvent.id} AND user_id = ${req.userId}
+      `
+      playerParticipation = participation[0] || null
+
+      const countRow = await sql`
+        SELECT COUNT(*) AS n FROM pw_titan_participants WHERE event_id = ${currentEvent.id}
+      `
+      participantCount = parseInt(countRow[0].n, 10)
+    }
+
+    return res.status(200).json({
+      ok: true,
+      current_event: currentEvent ? {
+        id:                    currentEvent.id,
+        status:                currentEvent.status,
+        titan: {
+          slug:              currentEvent.titan_slug,
+          name:              currentEvent.titan_name,
+          pantheon:          currentEvent.titan_pantheon,
+          difficulty:        currentEvent.titan_difficulty,
+          description:       currentEvent.titan_description,
+          lore:              currentEvent.titan_lore,
+          ability_name:      currentEvent.titan_ability_name,
+          ability_description: currentEvent.titan_ability_description,
+          loot_rarity_floor: currentEvent.titan_loot_rarity_floor,
+        },
+        queue_opens_at:        currentEvent.queue_opens_at,
+        queue_closes_at:       currentEvent.queue_closes_at,
+        fight_starts_at:       currentEvent.fight_starts_at,
+        fight_ends_at:         currentEvent.fight_ends_at,
+        fight_duration_seconds: currentEvent.fight_duration_seconds,
+        titan_starting_hp:     currentEvent.titan_starting_hp,
+        titan_final_hp:        currentEvent.titan_final_hp,
+        result:                currentEvent.result,
+        participant_count:     participantCount,
+        player_participation:  playerParticipation,
+        fight_log:             currentEvent.status === 'active' ? currentEvent.fight_log : null,
+      } : null,
+      unclaimed_reward:        unclaimedRows[0] || null,
+      server_time:             new Date().toISOString(),
+      pendingAdventureRewards: req.pendingAdventureRewards || null,
+    })
+  } catch (err) {
+    console.error('titan_status error:', err)
+    return res.status(500).json({ error: 'status_failed' })
+  }
+}
+
+// ── Titan Join (POST) ─────────────────────────────────────────────────────────
+
+async function handleTitanJoin(req, res) {
+  if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' })
+
+  try {
+    const events = await sql`
+      SELECT id, queue_opens_at, queue_closes_at FROM pw_titan_events
+      WHERE status = 'queue'
+        AND queue_opens_at <= NOW()
+        AND queue_closes_at > NOW()
+      ORDER BY queue_opens_at ASC
+      LIMIT 1
+    `
+
+    if (events.length === 0) {
+      return res.status(400).json({ error: 'no_open_queue', message: 'There is no open queue right now.' })
+    }
+
+    const event = events[0]
+
+    const existing = await sql`
+      SELECT id FROM pw_titan_participants
+      WHERE event_id = ${event.id} AND user_id = ${req.userId}
+    `
+    if (existing.length > 0) {
+      return res.status(400).json({ error: 'already_joined', message: 'You are already queued for this event.' })
+    }
+
+    await sql`
+      INSERT INTO pw_titan_participants (event_id, user_id, status)
+      VALUES (${event.id}, ${req.userId}, 'queued')
+    `
+
+    return res.status(200).json({
+      ok:              true,
+      event_id:        event.id,
+      queue_closes_at: event.queue_closes_at,
+      pendingAdventureRewards: req.pendingAdventureRewards || null,
+    })
+  } catch (err) {
+    console.error('titan_join error:', err)
+    return res.status(500).json({ error: 'join_failed' })
+  }
+}
+
+// ── Titan Claim (POST) ────────────────────────────────────────────────────────
+
+async function handleTitanClaim(req, res) {
+  if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' })
+
+  const { event_id } = req.body || {}
+  if (!event_id) return res.status(400).json({ error: 'missing_event_id' })
+
+  try {
+    const rows = await sql`
+      SELECT
+        p.id AS participant_id, p.event_id, p.user_id, p.status,
+        p.damage_dealt, p.hp_lost, p.contribution_rank, p.reward_tier, p.rewards_claimed,
+        e.result AS event_result, e.status AS event_status,
+        t.id AS titan_id, t.slug, t.name, t.difficulty,
+        t.base_attack, t.base_defense, t.base_hp_multiplier, t.loot_rarity_floor,
+        t.ability_type, t.ability_value
+      FROM pw_titan_participants p
+      JOIN pw_titan_events e ON e.id = p.event_id
+      JOIN pw_titans t ON t.id = e.titan_id
+      WHERE p.event_id = ${event_id} AND p.user_id = ${req.userId}
+    `
+    if (rows.length === 0) return res.status(404).json({ error: 'not_a_participant' })
+
+    const row = rows[0]
+    if (row.event_status !== 'resolved') return res.status(400).json({ error: 'event_not_resolved' })
+    if (row.rewards_claimed)             return res.status(400).json({ error: 'already_claimed' })
+    if (row.status !== 'fought')         return res.status(400).json({ error: 'did_not_fight' })
+
+    const statsRows = await sql`
+      SELECT ps.*, u.class AS player_class, u.faction
+      FROM pw_player_stats ps
+      JOIN pw_users u ON u.id = ps.user_id
+      WHERE ps.user_id = ${req.userId}
+    `
+    if (statsRows.length === 0) return res.status(404).json({ error: 'Player not found' })
+
+    const playerClass = statsRows[0].player_class
+    const faction     = statsRows[0].faction
+    const ownedTemples = await fetchOwnedTemples(req.userId)
+    let stats = regenPlayer(statsRows[0], ownedTemples, playerClass, faction)
+
+    const titan = {
+      slug:               row.slug,
+      name:               row.name,
+      difficulty:         row.difficulty,
+      base_attack:        row.base_attack,
+      base_defense:       row.base_defense,
+      base_hp_multiplier: row.base_hp_multiplier,
+      loot_rarity_floor:  row.loot_rarity_floor,
+      ability_type:       row.ability_type,
+      ability_value:      row.ability_value,
+    }
+    const participantResult = {
+      reward_tier:       row.reward_tier,
+      contribution_rank: row.contribution_rank,
+      player_level:      stats.level,
+    }
+    const rewards = calculateTitanRewards(titan, row.event_result, participantResult)
+
+    // Resolve grant_potion → actual item
+    let potionId = null
+    if (rewards.grant_potion) {
+      const potionRows = await sql`
+        SELECT id FROM pw_items
+        WHERE slot = 'consumable'
+          AND (consumable_effect = 'restore_health_pct' OR consumable_effect = 'restore_energy_pct')
+          AND level_required <= ${stats.level}
+        ORDER BY RANDOM()
+        LIMIT 1
+      `
+      potionId = potionRows[0]?.id || null
+    }
+
+    // Resolve grant_loot → actual item
+    let lootId = null
+    if (rewards.grant_loot) {
+      const rarityOrder = ['common', 'uncommon', 'rare', 'epic', 'legendary']
+      let minRarity = titan.loot_rarity_floor
+      if (row.reward_tier === 'top' && Math.random() < 0.3) {
+        const idx = rarityOrder.indexOf(minRarity)
+        if (idx < rarityOrder.length - 1) minRarity = rarityOrder[idx + 1]
+      }
+      const minIdx = rarityOrder.indexOf(minRarity)
+      const allowedRarities = rarityOrder.slice(Math.max(0, minIdx))
+
+      const lootRows = await sql`
+        SELECT id FROM pw_items
+        WHERE slot IN ('weapon', 'armor', 'artifact', 'mount', 'companion')
+          AND rarity = ANY(${allowedRarities}::text[])
+          AND level_required <= ${stats.level}
+          AND (faction_exclusive IS NULL OR faction_exclusive = ${faction})
+        ORDER BY RANDOM()
+        LIMIT 1
+      `
+      lootId = lootRows[0]?.id || null
+    }
+
+    stats = {
+      ...stats,
+      xp:               stats.xp + rewards.xp,
+      drachma:          stats.drachma + rewards.drachma,
+      drachma_lifetime: stats.drachma_lifetime + rewards.drachma,
+    }
+
+    const prevLevel = stats.level
+    stats = checkLevelUp(stats, playerClass)
+    const levelsGained = stats.level - prevLevel
+
+    await sql`
+      UPDATE pw_player_stats SET
+        xp                = ${stats.xp},
+        level             = ${stats.level},
+        energy            = ${stats.energy},
+        energy_max        = ${stats.energy_max},
+        health            = ${stats.health},
+        health_max        = ${stats.health_max},
+        drachma           = ${stats.drachma},
+        drachma_lifetime  = ${stats.drachma_lifetime},
+        attack            = ${stats.attack},
+        defense           = ${stats.defense},
+        agility           = ${stats.agility ?? 0},
+        stat_points       = ${stats.stat_points},
+        energy_regen_base = ${stats.energy_regen_base},
+        health_regen_base = ${stats.health_regen_base},
+        last_updated      = ${stats.last_updated}
+      WHERE user_id = ${req.userId}
+    `
+
+    if (potionId) await sql`INSERT INTO pw_inventory (user_id, item_id) VALUES (${req.userId}, ${potionId})`
+    if (lootId)   await sql`INSERT INTO pw_inventory (user_id, item_id) VALUES (${req.userId}, ${lootId})`
+
+    await sql`
+      UPDATE pw_titan_participants SET
+        rewards_claimed  = true,
+        reward_xp        = ${rewards.xp},
+        reward_drachma   = ${rewards.drachma},
+        reward_potion_id = ${potionId},
+        reward_loot_id   = ${lootId}
+      WHERE event_id = ${event_id} AND user_id = ${req.userId}
+    `
+
+    let potionInfo = null, lootInfo = null
+    if (potionId) {
+      const pRows = await sql`SELECT id, name, rarity, slot FROM pw_items WHERE id = ${potionId}`
+      potionInfo = pRows[0] || null
+    }
+    if (lootId) {
+      const lRows = await sql`SELECT id, name, rarity, slot FROM pw_items WHERE id = ${lootId}`
+      lootInfo = lRows[0] || null
+    }
+
+    return res.status(200).json({
+      ok:                true,
+      result:            row.event_result,
+      reward_tier:       row.reward_tier,
+      contribution_rank: row.contribution_rank,
+      damage_dealt:      row.damage_dealt,
+      xp:                rewards.xp,
+      drachma:           rewards.drachma,
+      potion:            potionInfo,
+      loot:              lootInfo,
+      levelsGained,
+      stats,
+      pendingAdventureRewards: req.pendingAdventureRewards || null,
+    })
+  } catch (err) {
+    console.error('titan_claim error:', err)
+    return res.status(500).json({ error: 'claim_failed', message: err.message })
+  }
+}
+
+// ── Titan Admin Trigger (POST) ────────────────────────────────────────────────
+
+async function handleTitanAdminTrigger(req, res) {
+  if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' })
+  if (!(await requireAdmin(req, res))) return
+
+  try {
+    const { titan_id, queue_duration_minutes = 60 } = req.body || {}
+
+    let chosenTitanId = titan_id
+    if (!chosenTitanId) {
+      const rows = await sql`SELECT id FROM pw_titans ORDER BY RANDOM() LIMIT 1`
+      chosenTitanId = rows[0]?.id
+    }
+    if (!chosenTitanId) return res.status(500).json({ error: 'no_titans_found' })
+
+    const existing = await sql`
+      SELECT id FROM pw_titan_events WHERE status IN ('queue', 'active')
+    `
+    if (existing.length > 0) {
+      return res.status(400).json({ error: 'event_already_active', message: 'Cannot trigger — an event is already queued or active.' })
+    }
+
+    const queueOpensAt  = new Date()
+    const fightStartsAt = new Date(Date.now() + Number(queue_duration_minutes) * 60 * 1000)
+
+    await sql`
+      INSERT INTO pw_titan_events (titan_id, status, queue_opens_at, queue_closes_at, fight_starts_at, titan_starting_hp, triggered_by)
+      VALUES (${chosenTitanId}, 'queue', ${queueOpensAt.toISOString()}, ${fightStartsAt.toISOString()}, ${fightStartsAt.toISOString()}, 0, 'admin')
+    `
+
+    return res.status(200).json({
+      ok:              true,
+      titan_id:        chosenTitanId,
+      queue_opens_at:  queueOpensAt,
+      fight_starts_at: fightStartsAt,
+    })
+  } catch (err) {
+    console.error('titan_admin_trigger error:', err)
+    return res.status(500).json({ error: 'admin_trigger_failed', message: err.message })
+  }
+}
+
+// ── Titan History (GET) ───────────────────────────────────────────────────────
+
+async function handleTitanHistory(req, res) {
+  if (req.method !== 'GET') return res.status(405).json({ error: 'Method not allowed' })
+
+  try {
+    const rows = await sql`
+      SELECT p.event_id, p.damage_dealt, p.contribution_rank, p.reward_tier,
+             p.reward_xp, p.reward_drachma,
+             p.reward_potion_id, p.reward_loot_id,
+             p.rewards_claimed,
+             e.result AS event_result, e.fight_ends_at,
+             t.name AS titan_name, t.difficulty AS titan_difficulty, t.slug AS titan_slug,
+             pi.name AS potion_name, li.name AS loot_name, li.rarity AS loot_rarity
+      FROM pw_titan_participants p
+      JOIN pw_titan_events e ON e.id = p.event_id
+      JOIN pw_titans t ON t.id = e.titan_id
+      LEFT JOIN pw_items pi ON pi.id = p.reward_potion_id
+      LEFT JOIN pw_items li ON li.id = p.reward_loot_id
+      WHERE p.user_id = ${req.userId} AND p.status = 'fought'
+      ORDER BY e.fight_ends_at DESC NULLS LAST
+      LIMIT 20
+    `
+
+    return res.status(200).json({
+      ok:      true,
+      history: rows,
+      pendingAdventureRewards: req.pendingAdventureRewards || null,
+    })
+  } catch (err) {
+    console.error('titan_history error:', err)
+    return res.status(500).json({ error: 'history_failed' })
+  }
+}
+
 // ── Router ────────────────────────────────────────────────────────────────────
 
 export default requireUser(async function handler(req, res) {
@@ -2290,5 +2677,10 @@ export default requireUser(async function handler(req, res) {
   if (action === 'adventures_start')   return handleAdventuresStart(req, res)
   if (action === 'adventures_abandon') return handleAdventuresAbandon(req, res)
   if (action === 'adventures_claim')   return handleAdventuresClaim(req, res)
+  if (action === 'titan_status')        return handleTitanStatus(req, res)
+  if (action === 'titan_join')          return handleTitanJoin(req, res)
+  if (action === 'titan_claim')         return handleTitanClaim(req, res)
+  if (action === 'titan_admin_trigger') return handleTitanAdminTrigger(req, res)
+  if (action === 'titan_history')       return handleTitanHistory(req, res)
   return res.status(400).json({ error: 'Unknown action' })
 })
