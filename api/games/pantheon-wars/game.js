@@ -16,6 +16,7 @@ import {
   computeXpReward, computeDrachmaReward,
   getTownshipBonusValue, getTownshipUpgradeCost, getTownshipUpgradeSeconds,
   rollTitanLootRarity,
+  processExpiredTitanEvents,
 } from '../../../lib/pwHelpers.js'
 
 export const config = { runtime: 'nodejs' }
@@ -3049,6 +3050,7 @@ export default requireUser(async function handler(req, res) {
   req.pendingTownshipUpgrades = null
   try { req.pendingAdventureRewards = await checkAndCompleteAdventures(sql, req.userId) } catch {}
   try { req.pendingTownshipUpgrades = await checkAndCompleteUpgrades(sql, req.userId) } catch {}
+  try { await processExpiredTitanEvents(sql) } catch (err) { console.error('inline titan processing error:', err) }
 
   if (action === 'quests')             return handleQuests(req, res)
   if (action === 'complete')           return handleComplete(req, res)
