@@ -11,6 +11,8 @@ import { ThemeProvider, useTheme } from '@/themes/ThemeProvider'
 import DevThemeSwitcher from '@/components/dev/DevThemeSwitcher'
 import AutoTrackers from '@/tracking/AutoTrackers'
 import { PantheonWarsProvider } from '@/contexts/PantheonWarsContext'
+import { ChatProvider } from '@/components/games/pantheon-wars/ChatContext'
+import ChatBar from '@/components/games/pantheon-wars/ChatBar'
 import { soundManager } from '@/sound/SoundManager'
 import { musicManager } from '@/sound/MusicManager'
 import { ambienceManager } from '@/sound/AmbienceManager'
@@ -112,8 +114,11 @@ function PantheonWarsShell() {
 
   return (
     <PantheonWarsProvider>
-      {showTitleCard && <PWTitleCardSequence onComplete={handleTitleCardComplete} />}
-      <Outlet />
+      <ChatProvider>
+        {showTitleCard && <PWTitleCardSequence onComplete={handleTitleCardComplete} />}
+        <Outlet />
+        <ChatBar />
+      </ChatProvider>
     </PantheonWarsProvider>
   )
 }

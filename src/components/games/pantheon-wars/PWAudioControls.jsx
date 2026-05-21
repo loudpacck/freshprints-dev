@@ -78,7 +78,7 @@ export default function PWAudioControls() {
     <div
       style={{
         position: 'fixed',
-        bottom: 'var(--space-6, 24px)',
+        bottom: 'calc(var(--space-6, 24px) + 48px)',
         left: '50%',
         transform: 'translateX(-50%)',
         zIndex: 20,

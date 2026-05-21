@@ -18,7 +18,9 @@ import {
   rollTitanLootRarity,
   processExpiredTitanEvents,
   checkAndCompleteCrafts, getCraftCycleSeconds, rollCraftRarity,
+  checkChatRateLimit,
 } from '../../../lib/pwHelpers.js'
+import { getPusherServer } from '../../../lib/pwPusher.js'
 
 export const config = { runtime: 'nodejs' }
 
@@ -3306,6 +3308,117 @@ async function handleCraftsmanshipClaim(req, res) {
   }
 }
 
+// ── Chat Send (POST) ──────────────────────────────────────────────────────────
+
+async function handleChatSend(req, res) {
+  if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' })
+
+  try {
+    const { channel, content } = req.body || {}
+    if (channel !== 'general') {
+      return res.status(400).json({ error: 'invalid_channel', message: 'Only general channel is supported.' })
+    }
+    if (!content || typeof content !== 'string') {
+      return res.status(400).json({ error: 'invalid_content' })
+    }
+    const trimmed = content.trim()
+    if (trimmed.length < 1 || trimmed.length > 500) {
+      return res.status(400).json({ error: 'invalid_length', message: 'Message must be 1-500 characters.' })
+    }
+
+    const rl = await checkChatRateLimit(sql, req.userId)
+    if (rl) return res.status(429).json(rl)
+
+    const muteRows = await sql`
+      SELECT 1 FROM pw_chat_moderations
+      WHERE target_user_id = ${req.userId}
+        AND action IN ('mute', 'timeout', 'ban')
+        AND lifted_at IS NULL
+        AND (expires_at IS NULL OR expires_at > NOW())
+      LIMIT 1
+    `
+    if (muteRows.length > 0) {
+      return res.status(403).json({ error: 'muted', message: 'You are currently muted from chat.' })
+    }
+
+    const userRows = await sql`SELECT username FROM pw_users WHERE id = ${req.userId}`
+    const senderUsername = userRows[0]?.username
+    if (!senderUsername) return res.status(404).json({ error: 'user_not_found' })
+
+    const insertRows = await sql`
+      INSERT INTO pw_chat_messages (channel_type, channel_id, sender_id, sender_username, content)
+      VALUES ('general', NULL, ${req.userId}, ${senderUsername}, ${trimmed})
+      RETURNING id, created_at
+    `
+    const inserted = insertRows[0]
+
+    const pusher = getPusherServer()
+    await pusher.trigger('general', 'new_message', {
+      id:             inserted.id,
+      channel_type:   'general',
+      channel_id:     null,
+      sender_id:      req.userId,
+      sender_username: senderUsername,
+      content:        trimmed,
+      created_at:     inserted.created_at,
+    })
+
+    return res.status(200).json({ ok: true, message_id: inserted.id })
+  } catch (err) {
+    console.error('chat_send error:', err)
+    return res.status(500).json({ error: 'send_failed' })
+  }
+}
+
+// ── Chat Fetch (GET) ──────────────────────────────────────────────────────────
+
+async function handleChatFetch(req, res) {
+  if (req.method !== 'GET') return res.status(405).json({ error: 'Method not allowed' })
+
+  try {
+    const channel = req.query?.channel || 'general'
+    if (channel !== 'general') {
+      return res.status(400).json({ error: 'invalid_channel' })
+    }
+
+    const rows = await sql`
+      SELECT id, channel_type, channel_id, sender_id, sender_username, content,
+             created_at, deleted_at, deleted_by_name, deleted_by_type
+      FROM pw_chat_messages
+      WHERE channel_type = 'general'
+        AND deleted_at IS NULL
+      ORDER BY created_at DESC
+      LIMIT 100
+    `
+    return res.status(200).json({
+      ok:       true,
+      channel:  'general',
+      messages: rows.reverse(),
+    })
+  } catch (err) {
+    console.error('chat_fetch error:', err)
+    return res.status(500).json({ error: 'fetch_failed' })
+  }
+}
+
+// ── Chat Pusher Auth (POST) ───────────────────────────────────────────────────
+
+async function handleChatPusherAuth(req, res) {
+  try {
+    const { socket_id, channel_name } = req.body || {}
+    if (!socket_id || !channel_name) {
+      return res.status(400).json({ error: 'missing_params' })
+    }
+    if (channel_name.startsWith('private-')) {
+      return res.status(403).json({ error: 'private_channels_not_yet_enabled' })
+    }
+    return res.status(404).json({ error: 'not_a_private_channel' })
+  } catch (err) {
+    console.error('chat_pusher_auth error:', err)
+    return res.status(500).json({ error: 'auth_failed' })
+  }
+}
+
 // ── Router ────────────────────────────────────────────────────────────────────
 
 export default requireUser(async function handler(req, res) {
@@ -3355,5 +3468,8 @@ export default requireUser(async function handler(req, res) {
   if (action === 'pending_rewards')     return handlePendingRewards(req, res)
   if (action === 'acknowledge_reward')  return handleAcknowledgeReward(req, res)
   if (action === 'craftsmanship_claim') return handleCraftsmanshipClaim(req, res)
+  if (action === 'chat_send')           return handleChatSend(req, res)
+  if (action === 'chat_fetch')          return handleChatFetch(req, res)
+  if (action === 'chat_pusher_auth')    return handleChatPusherAuth(req, res)
   return res.status(400).json({ error: 'Unknown action' })
 })
