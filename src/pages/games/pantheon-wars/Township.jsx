@@ -1,4 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
+import { createPortal } from 'react-dom'
+import { useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import PWPageShell from '../../../components/games/pantheon-wars/PWPageShell'
 import PWBackButton from '../../../components/games/pantheon-wars/PWBackButton'
@@ -53,6 +55,31 @@ function formatDrachma(n) {
   return num.toString()
 }
 
+function formatHoursMinutes(isoStr) {
+  const ms = Math.max(0, new Date(isoStr).getTime() - Date.now())
+  const h = Math.floor(ms / 3600000)
+  const m = Math.floor((ms % 3600000) / 60000)
+  return `${h}h ${String(m).padStart(2, '0')}m`
+}
+
+// ─── Craftsmanship constants ──────────────────────────────────────────────────
+
+const CRAFT_RARITY_COLOR = {
+  common:    '#B0B0B0',
+  uncommon:  '#4ADE80',
+  rare:      '#60A5FA',
+  epic:      '#C084FC',
+  legendary: '#FACC15',
+}
+
+const CRAFT_SLOT_EMOJI = {
+  weapon:    '⚔',
+  armor:     '🛡',
+  artifact:  '✨',
+  mount:     '◎',
+  companion: '◆',
+}
+
 // ─── Text styles ──────────────────────────────────────────────────────────────
 
 const loreStyle = {
@@ -72,14 +99,6 @@ const descStyle = {
   lineHeight: 1.5,
   marginBottom: 10,
   marginTop: 0,
-}
-
-const lockedRowStyle = {
-  fontFamily: "'IBM Plex Mono', monospace",
-  fontSize: 11,
-  letterSpacing: '0.1em',
-  color: 'rgba(240,240,248,0.35)',
-  marginBottom: 8,
 }
 
 // ─── Primitives ───────────────────────────────────────────────────────────────
@@ -228,6 +247,41 @@ function ActionButton({ onClick, disabled, label }) {
   )
 }
 
+function ClaimButton({ onClick, disabled }) {
+  return (
+    <motion.button
+      whileHover={!disabled ? { scale: 1.04 } : {}}
+      whileTap={!disabled ? { scale: 0.97 } : {}}
+      onClick={onClick}
+      disabled={disabled}
+      animate={!disabled ? {
+        boxShadow: [
+          '0 0 8px rgba(255,179,71,0.35)',
+          '0 0 18px rgba(255,179,71,0.65)',
+          '0 0 8px rgba(255,179,71,0.35)',
+        ],
+      } : {}}
+      transition={{ repeat: Infinity, duration: 1.8, ease: 'easeInOut' }}
+      style={{
+        fontFamily: "'IBM Plex Mono', monospace",
+        fontSize: 10,
+        letterSpacing: '0.14em',
+        textTransform: 'uppercase',
+        color: disabled ? 'rgba(201,169,97,0.45)' : '#0F0A0D',
+        background: disabled ? 'transparent' : 'linear-gradient(135deg, #FFB347, #C9A961)',
+        border: `1px solid ${disabled ? 'rgba(201,169,97,0.2)' : 'transparent'}`,
+        borderRadius: 6,
+        padding: '10px 22px',
+        cursor: disabled ? 'not-allowed' : 'pointer',
+        fontWeight: 700,
+        whiteSpace: 'nowrap',
+      }}
+    >
+      {disabled ? 'CLAIMING...' : '⚒ CLAIM'}
+    </motion.button>
+  )
+}
+
 function CostDisplay({ cost }) {
   return (
     <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 11, color: 'var(--color-text-secondary, rgba(240,240,248,0.55))' }}>
@@ -292,6 +346,249 @@ function UpgradingRow({ targetLevel, remainingSeconds, progressPct }) {
       </div>
       <ProgressBar pct={progressPct} />
     </div>
+  )
+}
+
+// ─── Craftsmanship Claim Modal ────────────────────────────────────────────────
+
+function CraftsmanshipClaimModal({ claimResult, onClose, onViewInventory }) {
+  const item = claimResult.granted_item
+  const rarity = item?.rarity ?? claimResult.rolled_rarity
+  const rarityColor = CRAFT_RARITY_COLOR[rarity] ?? '#B0B0B0'
+  const slotEmoji = CRAFT_SLOT_EMOJI[item?.slot] ?? '✦'
+  const [nextCycleLabel, setNextCycleLabel] = useState('')
+
+  useEffect(() => {
+    if (!claimResult.next_cycle_completes_at) return
+    function tick() {
+      setNextCycleLabel(formatHoursMinutes(claimResult.next_cycle_completes_at))
+    }
+    tick()
+    const id = setInterval(tick, 60000)
+    return () => clearInterval(id)
+  }, [claimResult.next_cycle_completes_at])
+
+  return createPortal(
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      transition={{ duration: 0.22 }}
+      onClick={e => e.target === e.currentTarget && onClose()}
+      style={{
+        position: 'fixed', inset: 0, zIndex: 100,
+        background: 'rgba(4,2,10,0.82)',
+        backdropFilter: 'blur(8px)',
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        padding: '16px',
+      }}
+    >
+      <motion.div
+        initial={{ opacity: 0, scale: 0.88, y: 24 }}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+        exit={{ opacity: 0, scale: 0.92, y: 12 }}
+        transition={{ duration: 0.38, ease: [0.16, 1, 0.3, 1] }}
+        style={{
+          width: '100%', maxWidth: 380,
+          background: 'linear-gradient(180deg, #14101A, #0A0710)',
+          border: `1px solid rgba(201,169,97,0.4)`,
+          borderRadius: 14,
+          padding: '28px 24px 24px',
+          boxShadow: '0 0 40px rgba(201,169,97,0.2), 0 8px 40px rgba(0,0,0,0.8)',
+          textAlign: 'center',
+          position: 'relative',
+          overflow: 'hidden',
+        }}
+      >
+        {/* Ambient glow strip */}
+        <div style={{
+          position: 'absolute', top: 0, left: 0, right: 0, height: 2,
+          background: 'linear-gradient(90deg, transparent, #FFB347, #C9A961, #FFB347, transparent)',
+        }} />
+
+        {/* Title */}
+        <div style={{
+          fontFamily: "'Cinzel', serif",
+          fontSize: 16,
+          letterSpacing: '0.12em',
+          color: '#EDE3CC',
+          fontWeight: 700,
+          marginBottom: 4,
+        }}>
+          FORGED IN THE DIVINE FIRE
+        </div>
+        <div style={{
+          fontFamily: "'IBM Plex Mono', monospace",
+          fontSize: 10,
+          letterSpacing: '0.1em',
+          color: 'rgba(201,169,97,0.5)',
+          marginBottom: 24,
+        }}>
+          Craft cycle complete
+        </div>
+
+        {/* Item reveal */}
+        {item ? (
+          <>
+            {/* Slot emoji */}
+            <motion.div
+              initial={{ opacity: 0, scale: 0.4 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ duration: 0.45, ease: [0.34, 1.56, 0.64, 1] }}
+              style={{ fontSize: 52, lineHeight: 1, marginBottom: 16, filter: `drop-shadow(0 0 12px ${rarityColor}66)` }}
+            >
+              {slotEmoji}
+            </motion.div>
+
+            {/* Item name */}
+            <motion.div
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.2, duration: 0.35 }}
+              style={{
+                fontFamily: "'Cinzel', serif",
+                fontSize: 20,
+                letterSpacing: '0.06em',
+                color: rarityColor,
+                fontWeight: 700,
+                marginBottom: 8,
+                textShadow: `0 0 16px ${rarityColor}55`,
+              }}
+            >
+              {item.name}
+            </motion.div>
+
+            {/* Rarity badge */}
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ delay: 0.3, duration: 0.3 }}
+              style={{ marginBottom: 16 }}
+            >
+              <span style={{
+                fontFamily: "'IBM Plex Mono', monospace",
+                fontSize: 9,
+                letterSpacing: '0.14em',
+                textTransform: 'uppercase',
+                color: rarityColor,
+                background: `${rarityColor}18`,
+                border: `1px solid ${rarityColor}44`,
+                borderRadius: 4,
+                padding: '3px 10px',
+              }}>
+                {rarity}
+              </span>
+            </motion.div>
+
+            {/* Stats */}
+            {(item.attack_bonus > 0 || item.defense_bonus > 0 || item.agility_bonus > 0) && (
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ delay: 0.4, duration: 0.3 }}
+                style={{
+                  display: 'flex', gap: 10, justifyContent: 'center', flexWrap: 'wrap',
+                  marginBottom: 14,
+                }}
+              >
+                {item.attack_bonus  > 0 && (
+                  <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 11, color: '#F97316' }}>+{item.attack_bonus} ATK</span>
+                )}
+                {item.defense_bonus > 0 && (
+                  <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 11, color: '#22C55E' }}>+{item.defense_bonus} DEF</span>
+                )}
+                {item.agility_bonus > 0 && (
+                  <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 11, color: '#A78BFA' }}>+{item.agility_bonus} AGI</span>
+                )}
+              </motion.div>
+            )}
+
+            {/* Level requirement */}
+            {item.level_required > 0 && (
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ delay: 0.45, duration: 0.3 }}
+                style={{
+                  fontFamily: "'IBM Plex Mono', monospace",
+                  fontSize: 10,
+                  color: 'rgba(240,240,248,0.3)',
+                  marginBottom: 20,
+                }}
+              >
+                Requires level {item.level_required}
+              </motion.div>
+            )}
+          </>
+        ) : (
+          /* No item edge case */
+          <div style={{
+            fontFamily: "'IBM Plex Mono', monospace",
+            fontSize: 13,
+            color: 'rgba(240,240,248,0.4)',
+            fontStyle: 'italic',
+            marginBottom: 20,
+          }}>
+            The forge yields nothing this cycle — the gods were not generous.
+          </div>
+        )}
+
+        {/* Buttons */}
+        <motion.div
+          initial={{ opacity: 0, y: 8 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.5, duration: 0.3 }}
+          style={{ display: 'flex', gap: 8, justifyContent: 'center', flexWrap: 'wrap', marginBottom: 16 }}
+        >
+          <button
+            onClick={onClose}
+            style={{
+              fontFamily: "'IBM Plex Mono', monospace",
+              fontSize: 10, letterSpacing: '0.1em',
+              color: '#C9A961',
+              background: 'transparent',
+              border: '1px solid rgba(201,169,97,0.4)',
+              borderRadius: 6, padding: '9px 18px',
+              cursor: 'pointer',
+            }}
+          >
+            ADD TO INVENTORY
+          </button>
+          <button
+            onClick={onViewInventory}
+            style={{
+              fontFamily: "'IBM Plex Mono', monospace",
+              fontSize: 10, letterSpacing: '0.1em',
+              color: 'rgba(240,240,248,0.7)',
+              background: 'rgba(255,255,255,0.05)',
+              border: '1px solid rgba(255,255,255,0.12)',
+              borderRadius: 6, padding: '9px 18px',
+              cursor: 'pointer',
+            }}
+          >
+            VIEW IN INVENTORY
+          </button>
+        </motion.div>
+
+        {/* Next cycle info */}
+        {nextCycleLabel && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 0.6, duration: 0.3 }}
+            style={{
+              fontFamily: "'IBM Plex Mono', monospace",
+              fontSize: 10,
+              color: 'rgba(240,240,248,0.25)',
+              letterSpacing: '0.05em',
+            }}
+          >
+            Next cycle begins in {nextCycleLabel}
+          </motion.div>
+        )}
+      </motion.div>
+    </motion.div>,
+    document.body
   )
 }
 
@@ -361,8 +658,16 @@ function SectionHeader({ children }) {
 
 // ─── Township card ────────────────────────────────────────────────────────────
 
-function TownshipCard({ township: t, onEstablish, onUpgrade, busy }) {
+function TownshipCard({ township: t, onEstablish, onUpgrade, onClaim, busy }) {
   const bonusUnit = getBonusUnit(t.bonus_type)
+  const isCraftsmanship = t.type === 'craftsmanship'
+
+  // Derive craft cycle state for craftsmanship cards
+  const craftCycleStatus = isCraftsmanship && t.craft_cycle
+    ? (t.craft_cycle.status === 'ready' || new Date(t.craft_cycle.completes_at).getTime() <= Date.now()
+       ? 'ready'
+       : 'active')
+    : null
 
   // STATE 1: LOCKED
   if (!t.is_unlocked) {
@@ -404,7 +709,7 @@ function TownshipCard({ township: t, onEstablish, onUpgrade, busy }) {
     )
   }
 
-  // STATE 3: UPGRADING (active timer)
+  // STATE 3: UPGRADING (active township upgrade timer)
   if (t.is_upgrading) {
     const remainingSeconds = Math.max(0, Math.floor((new Date(t.upgrade_completes_at).getTime() - Date.now()) / 1000))
     const totalSeconds = Math.floor((new Date(t.upgrade_completes_at).getTime() - new Date(t.upgrade_started_at).getTime()) / 1000)
@@ -427,7 +732,96 @@ function TownshipCard({ township: t, onEstablish, onUpgrade, busy }) {
     )
   }
 
-  // STATE 4: ESTABLISHED (owned, no active timer)
+  // STATE 4: READY_TO_CLAIM (craftsmanship, cycle ready)
+  if (isCraftsmanship && craftCycleStatus === 'ready') {
+    return (
+      <Card style={{ borderColor: 'rgba(255,179,71,0.25)' }}>
+        <CardHeader
+          name={t.name}
+          levelBadge={`LVL ${t.current_level} / ${t.max_level}`}
+        />
+        <p style={{ ...descStyle, marginBottom: 6 }}>
+          Current: <BonusValue value={t.current_bonus} unit={bonusUnit} type={t.bonus_type} />
+        </p>
+        <div style={{
+          fontFamily: "'IBM Plex Mono', monospace",
+          fontSize: 11,
+          color: '#FFB347',
+          letterSpacing: '0.08em',
+          marginBottom: 14,
+        }}>
+          ✦ Item ready to claim
+        </div>
+        <ActionRow>
+          {/* De-emphasized upgrade option */}
+          {t.current_level < t.max_level && (
+            <button
+              onClick={onUpgrade}
+              disabled={busy}
+              style={{
+                fontFamily: "'IBM Plex Mono', monospace",
+                fontSize: 9, letterSpacing: '0.08em',
+                color: 'rgba(201,169,97,0.35)',
+                background: 'transparent', border: 'none',
+                cursor: busy ? 'not-allowed' : 'pointer',
+                padding: 0,
+              }}
+            >
+              Upgrade available →
+            </button>
+          )}
+          <div style={{ marginLeft: 'auto' }}>
+            <ClaimButton onClick={onClaim} disabled={busy} />
+          </div>
+        </ActionRow>
+      </Card>
+    )
+  }
+
+  // STATE 5: CRAFTING (craftsmanship, cycle in progress)
+  if (isCraftsmanship && craftCycleStatus === 'active') {
+    const cycleRemainingSeconds = Math.max(0, Math.floor((new Date(t.craft_cycle.completes_at).getTime() - Date.now()) / 1000))
+    return (
+      <Card>
+        <CardHeader
+          name={t.name}
+          levelBadge={`LVL ${t.current_level} / ${t.max_level}`}
+        />
+        <p style={{ ...descStyle, marginBottom: 6 }}>
+          Current: <BonusValue value={t.current_bonus} unit={bonusUnit} type={t.bonus_type} />
+        </p>
+        <div style={{ marginBottom: 14 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+            <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 11, color: 'rgba(240,240,248,0.4)', letterSpacing: '0.06em' }}>
+              Forge in progress...
+            </span>
+            <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 11, color: '#C9A961', letterSpacing: '0.04em' }}>
+              {formatDuration(cycleRemainingSeconds)}
+            </span>
+          </div>
+          <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 9, color: 'rgba(240,240,248,0.25)', letterSpacing: '0.08em' }}>
+            NEXT CYCLE
+          </div>
+        </div>
+        {/* De-emphasized upgrade */}
+        {t.current_level < t.max_level && (
+          <div style={{ borderTop: '1px solid rgba(255,255,255,0.06)', paddingTop: 10, marginTop: 4 }}>
+            <ActionRow>
+              <UpgradeInfo cost={t.upgrade_cost} seconds={t.upgrade_seconds} />
+              <ActionButton
+                onClick={onUpgrade}
+                disabled={busy}
+                label={busy ? 'UPGRADING...' : 'UPGRADE FORGE'}
+              />
+            </ActionRow>
+          </div>
+        )}
+        {t.current_level >= t.max_level && <MaxLevelPill />}
+      </Card>
+    )
+  }
+
+  // STATE 6: ESTABLISHED (owned, no active timer, non-craftsmanship or no cycle)
   const isMaxLevel = t.current_level >= t.max_level
   return (
     <Card>
@@ -480,6 +874,10 @@ function TownshipToast({ toast, onClose }) {
     heading = `${toast.name} ESTABLISHED`
     sub = 'Your township grows stronger.'
     borderColor = 'rgba(168,201,122,0.6)'
+  } else if (toast.type === 'craft_started') {
+    heading = 'DIVINE FORGE ESTABLISHED'
+    sub = `Forge cycle begins — your first item arrives in ${toast.hours}h`
+    borderColor = 'rgba(255,179,71,0.6)'
   } else if (toast.type === 'upgrade_started') {
     heading = `${toast.name} UPGRADING`
     const eta = toast.completes_at
@@ -540,10 +938,13 @@ function TownshipToast({ toast, onClose }) {
 export default function Township() {
   const { refresh: refreshContext } = usePantheonWars()
   const { play } = useSound()
+  const navigate = useNavigate()
+
   const [data, setData] = useState(null)
   const [loading, setLoading] = useState(true)
   const [busy, setBusy] = useState(null)
   const [toast, setToast] = useState(null)
+  const [claimModal, setClaimModal] = useState(null)
 
   const [, _force] = useState(0)
   const forceUpdate = useCallback(() => _force(n => n + 1), [])
@@ -571,14 +972,19 @@ export default function Township() {
     fetchTownship()
   }, [fetchTownship])
 
-  // Live countdown ticker for active upgrade timers
+  // Live countdown ticker — covers both upgrading timers and active craft cycles
   useEffect(() => {
-    if (!data?.townships?.some(t => t.is_upgrading)) return
+    const needsTick = data?.townships?.some(t =>
+      t.is_upgrading ||
+      (t.type === 'craftsmanship' && t.craft_cycle?.status === 'active' &&
+       new Date(t.craft_cycle.completes_at).getTime() > Date.now())
+    )
+    if (!needsTick) return
     const id = setInterval(() => { tickRef.current += 1; forceUpdate() }, 1000)
     return () => clearInterval(id)
   }, [data, forceUpdate])
 
-  // Auto-poll every 30s for completed upgrades
+  // Auto-poll every 30s for completed upgrades / cycles
   useEffect(() => {
     const id = setInterval(fetchTownship, 30000)
     return () => clearInterval(id)
@@ -594,7 +1000,13 @@ export default function Township() {
       })
       const json = await res.json()
       if (res.ok) {
-        setToast({ type: 'established', name: getTownshipName(data, upgradeType) })
+        if (upgradeType === 'craftsmanship' && json.first_cycle_completes_at) {
+          const ms = Math.max(0, new Date(json.first_cycle_completes_at).getTime() - Date.now())
+          const hours = Math.max(1, Math.round(ms / 3600000))
+          setToast({ type: 'craft_started', hours })
+        } else {
+          setToast({ type: 'established', name: getTownshipName(data, upgradeType) })
+        }
         play('township_establish')
         refreshContext()
         await fetchTownship()
@@ -627,6 +1039,26 @@ export default function Township() {
     }
   }
 
+  async function handleClaim() {
+    setBusy('craftsmanship')
+    try {
+      const res = await fetch('/api/games/pantheon-wars/game?action=craftsmanship_claim', {
+        method: 'POST',
+      })
+      const json = await res.json()
+      if (res.ok) {
+        play('success')
+        setClaimModal(json)
+        refreshContext()
+        await fetchTownship()
+      } else {
+        setToast({ type: 'error', message: errorMessage(json) })
+      }
+    } finally {
+      setBusy(null)
+    }
+  }
+
   return (
     <PWPageShell title="TOWNSHIP" rightSlot={<PWBackButton />} backgroundVariant="township">
       {loading ? <SkeletonView /> : (
@@ -639,8 +1071,8 @@ export default function Township() {
               township={t}
               onEstablish={() => handleEstablish(t.type)}
               onUpgrade={() => handleUpgrade(t.type)}
+              onClaim={handleClaim}
               busy={busy === t.type}
-              playerLevel={data.player_level}
             />
           ))}
         </>
@@ -651,6 +1083,16 @@ export default function Township() {
             key={toast.type + (toast.name || '') + (toast.new_level || '')}
             toast={toast}
             onClose={() => setToast(null)}
+          />
+        )}
+      </AnimatePresence>
+      <AnimatePresence>
+        {claimModal && (
+          <CraftsmanshipClaimModal
+            key="claim-modal"
+            claimResult={claimModal}
+            onClose={() => setClaimModal(null)}
+            onViewInventory={() => { setClaimModal(null); navigate('/games/pantheon-wars/inventory') }}
           />
         )}
       </AnimatePresence>

@@ -290,7 +290,7 @@ function ShopItem({ item, player, currency, onBuy, buying, dailyLimitReached, eq
 
   function getButtonLabel() {
     if (buying)           return '···'
-    if (dailyLimitReached) return 'LIMIT'
+    if (dailyLimitReached) return 'DAILY LIMIT'
     if (factionLocked)    return `${item.faction_exclusive.toUpperCase()} ONLY`
     if (levelLocked)      return `LV ${item.level_required}+`
     if (cantAfford)       return 'FUNDS'
@@ -622,10 +622,26 @@ function DailyLimitDisplay({ dailyLimits, energyPurchasesToday }) {
   const minutes      = Math.floor((remainingMs % 3600000) / 60000)
   const seconds      = Math.floor((remainingMs % 60000) / 1000)
   const formatted    = `${hours}h ${String(minutes).padStart(2, '0')}m ${String(seconds).padStart(2, '0')}s`
-  const purchases    = energyPurchasesToday ?? dailyLimits.energy_potion_purchases_today ?? 0
-  const uses         = dailyLimits.energy_potion_uses_today ?? 0
-  const atPurchaseLimit = purchases >= dailyLimits.max_purchases
-  const atUseLimit      = uses      >= dailyLimits.max_uses
+
+  const energyPurchases = energyPurchasesToday ?? dailyLimits.energy_potion_purchases_today ?? 0
+  const energyUses      = dailyLimits.energy_potion_uses_today ?? 0
+  const healthUses      = dailyLimits.health_potion_uses_today ?? 0
+  const drPurchases     = dailyLimits.divine_restoration_purchases_today ?? 0
+
+  const maxEnergyPurchases = dailyLimits.max_energy_purchases ?? dailyLimits.max_purchases ?? 5
+  const maxEnergyUses      = dailyLimits.max_energy_uses ?? dailyLimits.max_uses ?? 10
+  const maxHealthUses      = dailyLimits.max_health_uses ?? 10
+  const maxDrPurchases     = dailyLimits.max_divine_restoration_purchases ?? 1
+
+  const atEnergyPurchaseLimit = energyPurchases >= maxEnergyPurchases
+  const atEnergyUseLimit      = energyUses      >= maxEnergyUses
+  const atHealthUseLimit      = healthUses      >= maxHealthUses
+  const atDrLimit             = drPurchases     >= maxDrPurchases
+
+  const rowStyle = (atLimit) => ({
+    color: atLimit ? '#F87171' : 'rgba(240,240,248,0.45)',
+    marginBottom: 2,
+  })
 
   return (
     <div style={{
@@ -637,10 +653,16 @@ function DailyLimitDisplay({ dailyLimits, energyPurchasesToday }) {
       fontFamily: "'IBM Plex Mono', monospace",
       fontSize: 10,
     }}>
-      <div style={{ color: atPurchaseLimit || atUseLimit ? '#F87171' : 'rgba(240,240,248,0.45)' }}>
-        ENERGY POTIONS — {purchases}/{dailyLimits.max_purchases} bought · {uses}/{dailyLimits.max_uses} used
+      <div style={rowStyle(atEnergyPurchaseLimit || atEnergyUseLimit)}>
+        ENERGY POTIONS — {energyPurchases}/{maxEnergyPurchases} bought · {energyUses}/{maxEnergyUses} used
       </div>
-      <div style={{ marginTop: 3, color: '#FFB347', fontSize: 9 }}>
+      <div style={rowStyle(atHealthUseLimit)}>
+        HEALTH POTIONS — {healthUses}/{maxHealthUses} used
+      </div>
+      <div style={rowStyle(atDrLimit)}>
+        DIVINE RESTORATION — {drPurchases}/{maxDrPurchases} purchased today{atDrLimit ? ' (limit reached)' : ''}
+      </div>
+      <div style={{ marginTop: 4, color: '#FFB347', fontSize: 9 }}>
         Resets in {remainingMs > 0 ? formatted : 'next refresh'}
       </div>
     </div>
@@ -1001,6 +1023,10 @@ export default function Shop() {
                                 currency="glory"
                                 onBuy={handleBuy}
                                 buying={buying === item.id}
+                                dailyLimitReached={
+                                  item.consumable_effect === 'restore_full' &&
+                                  (dailyLimits?.divine_restoration_purchases_today ?? 0) >= (dailyLimits?.max_divine_restoration_purchases ?? 1)
+                                }
                                 {...itemProps}
                               />
                             ))}

@@ -3246,7 +3246,7 @@ async function handleCraftsmanshipClaim(req, res) {
 
     // Select a matching non-consumable item
     const itemRows = await sql`
-      SELECT id, name, rarity, slot
+      SELECT id, name, rarity, slot, level_required, attack_bonus, defense_bonus, agility_bonus
       FROM pw_items
       WHERE slot != 'consumable'
         AND rarity = ${rolledRarity}
@@ -3260,7 +3260,16 @@ async function handleCraftsmanshipClaim(req, res) {
     if (itemRows.length > 0) {
       const picked = itemRows[0]
       await sql`INSERT INTO pw_inventory (user_id, item_id) VALUES (${req.userId}, ${picked.id})`
-      grantedItem = { id: picked.id, name: picked.name, rarity: picked.rarity, slot: picked.slot }
+      grantedItem = {
+        id:             picked.id,
+        name:           picked.name,
+        rarity:         picked.rarity,
+        slot:           picked.slot,
+        level_required: Number(picked.level_required),
+        attack_bonus:   Number(picked.attack_bonus ?? 0),
+        defense_bonus:  Number(picked.defense_bonus ?? 0),
+        agility_bonus:  Number(picked.agility_bonus ?? 0),
+      }
     }
 
     // Mark cycle 'claimed'
