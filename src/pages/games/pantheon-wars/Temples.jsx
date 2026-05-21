@@ -17,9 +17,7 @@ function Skeleton({ h = 20, w = '100%', r = 6 }) {
 }
 
 function TempleToast({ data, onDone }) {
-  const { play } = useSound()
   useEffect(() => {
-    play('toast_notification')
     const t = setTimeout(onDone, 3400)
     return () => clearTimeout(t)
   }, [onDone])

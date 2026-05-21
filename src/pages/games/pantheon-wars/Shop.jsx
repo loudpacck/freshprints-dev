@@ -575,10 +575,10 @@ function ShopItem({ item, player, currency, onBuy, buying, dailyLimitReached, eq
 
 // ─── Toast ────────────────────────────────────────────────────────────────────
 
-function Toast({ message, color, onDone }) {
+function Toast({ message, color, sound, onDone }) {
   const { play } = useSound()
   useEffect(() => {
-    play('toast_notification')
+    if (sound) play(sound)
     const t = setTimeout(onDone, 3000)
     return () => clearTimeout(t)
   }, [onDone]) // eslint-disable-line react-hooks/exhaustive-deps
@@ -758,18 +758,18 @@ export default function Shop() {
       const data = await res.json()
       if (!res.ok) {
         if (data.error === 'rotation_expired') {
-          setToast({ message: 'Shop just refreshed — loading new items', color: '#C9A961' })
+          setToast({ message: 'Shop just refreshed — loading new items', color: '#C9A961', sound: 'toast_notification' })
           fetchShop()
         } else if (data.error === 'item_not_in_rotation') {
-          setToast({ message: 'This item is no longer available — the shop has refreshed.', color: '#F87171' })
+          setToast({ message: 'This item is no longer available — the shop has refreshed.', color: '#F87171', sound: 'toast_notification' })
           fetchShop()
         } else if (data.error === 'daily_purchase_limit_reached') {
-          setToast({ message: 'Daily limit reached — energy potions reset at midnight UTC', color: '#F87171' })
+          setToast({ message: 'Daily limit reached — energy potions reset at midnight UTC', color: '#F87171', sound: 'toast_notification' })
         } else if (data.error === 'insufficient_funds' || data.error === 'not_enough_drachma' || data.error === 'not_enough_glory') {
           play('insufficient_funds')
           setToast({ message: data.error || 'Insufficient funds', color: '#F87171' })
         } else {
-          setToast({ message: data.error || 'Purchase failed', color: '#F87171' })
+          setToast({ message: data.error || 'Purchase failed', color: '#F87171', sound: 'toast_notification' })
         }
         return
       }
@@ -801,7 +801,7 @@ export default function Shop() {
   return (
     <>
       <AnimatePresence>
-        {toast && <Toast message={toast.message} color={toast.color} onDone={() => setToast(null)} />}
+        {toast && <Toast message={toast.message} color={toast.color} sound={toast.sound} onDone={() => setToast(null)} />}
       </AnimatePresence>
 
       {/* Tap-outside-to-close on mobile */}

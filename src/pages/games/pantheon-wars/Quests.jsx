@@ -319,9 +319,7 @@ function QuestCard({ quest, stats, user, onComplete, completing }) {
 }
 
 function RewardToast({ reward, level, onDone }) {
-  const { play } = useSound()
   useEffect(() => {
-    play('toast_notification')
     const t = setTimeout(onDone, 3400)
     return () => clearTimeout(t)
   }, [onDone]) // eslint-disable-line react-hooks/exhaustive-deps

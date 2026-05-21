@@ -711,10 +711,10 @@ function SellModal({ item, onConfirm, onCancel }) {
   )
 }
 
-function Toast({ message, color, onDone }) {
+function Toast({ message, color, sound, onDone }) {
   const { play } = useSound()
   useEffect(() => {
-    play('toast_notification')
+    if (sound) play(sound)
     const t = setTimeout(onDone, 3000)
     return () => clearTimeout(t)
   }, [onDone]) // eslint-disable-line react-hooks/exhaustive-deps
@@ -800,7 +800,7 @@ export default function Inventory() {
         body: JSON.stringify({ inventory_id }),
       })
       const data = await res.json()
-      if (!res.ok) { setToast({ message: data.error || 'Failed to equip', color: '#F87171' }); return }
+      if (!res.ok) { setToast({ message: data.error || 'Failed to equip', color: '#F87171', sound: 'toast_notification' }); return }
       setInventory(data.inventory)
       setBonuses(data.equipment_bonuses)
       setToast({ message: 'Item equipped', color: '#C9A961' })
@@ -817,7 +817,7 @@ export default function Inventory() {
         body: JSON.stringify({ inventory_id }),
       })
       const data = await res.json()
-      if (!res.ok) { setToast({ message: data.error || 'Failed to unequip', color: '#F87171' }); return }
+      if (!res.ok) { setToast({ message: data.error || 'Failed to unequip', color: '#F87171', sound: 'toast_notification' }); return }
       setInventory(data.inventory)
       setBonuses(data.equipment_bonuses)
       setToast({ message: 'Item unequipped', color: '#F97316' })
@@ -840,7 +840,7 @@ export default function Inventory() {
         body: JSON.stringify({ inventory_id }),
       })
       const data = await res.json()
-      if (!res.ok) { setToast({ message: data.error || 'Sell failed', color: '#F87171' }); return }
+      if (!res.ok) { setToast({ message: data.error || 'Sell failed', color: '#F87171', sound: 'toast_notification' }); return }
       setInventory(prev => prev.filter(i => i.inventory_id !== inventory_id))
       if (stats) setStats(prev => ({ ...prev, drachma: data.new_drachma }))
       setToast({ message: `Sold for ${fmt(data.sell_price)}₯`, color: '#C9A961' })
@@ -866,7 +866,7 @@ export default function Inventory() {
           not_consumable:          'Item is not a consumable.',
           daily_use_limit_reached: 'Daily limit reached — energy potions reset at midnight UTC.',
         }
-        setToast({ message: msgs[data.error] || data.error || 'Failed to use item', color: '#F87171' })
+        setToast({ message: msgs[data.error] || data.error || 'Failed to use item', color: '#F87171', sound: 'toast_notification' })
         return
       }
       setInventory(prev => prev.filter(i => i.inventory_id !== inventory_id))
@@ -935,6 +935,7 @@ export default function Inventory() {
           <Toast
             message={toast.message}
             color={toast.color}
+            sound={toast.sound}
             onDone={() => setToast(null)}
           />
         )}

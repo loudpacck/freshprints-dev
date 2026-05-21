@@ -467,7 +467,7 @@ function TownshipCard({ township: t, onEstablish, onUpgrade, busy }) {
 function TownshipToast({ toast, onClose }) {
   const { play } = useSound()
   useEffect(() => {
-    play('toast_notification')
+    if (toast.type === 'error') play('toast_notification')
     const t = setTimeout(onClose, 3400)
     return () => clearTimeout(t)
   }, [onClose]) // eslint-disable-line react-hooks/exhaustive-deps
