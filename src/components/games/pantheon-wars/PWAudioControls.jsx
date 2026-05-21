@@ -1,6 +1,7 @@
 import { useSound } from '@/sound/useSound'
 import { useMusic } from '@/sound/useMusic'
 import { useAmbience } from '@/sound/useAmbience'
+import { useChat } from './ChatContext'
 
 // Inline SVG: sound waves
 function IconSound() {
@@ -73,12 +74,15 @@ export default function PWAudioControls() {
   const { isMuted: sfxMuted,    toggleMute: toggleSfx    } = useSound()
   const { isMuted: musicMuted,  toggleMute: toggleMusic  } = useMusic()
   const { isMuted: ambMuted,    toggleMute: toggleAmb    } = useAmbience()
+  const { isOpen } = useChat()
+
+  if (isOpen) return null
 
   return (
     <div
       style={{
         position: 'fixed',
-        bottom: 'calc(var(--space-6, 24px) + 48px)',
+        bottom: '52px',
         left: '50%',
         transform: 'translateX(-50%)',
         zIndex: 20,

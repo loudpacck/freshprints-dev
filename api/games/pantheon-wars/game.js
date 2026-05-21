@@ -3409,13 +3409,195 @@ async function handleChatPusherAuth(req, res) {
     if (!socket_id || !channel_name) {
       return res.status(400).json({ error: 'missing_params' })
     }
-    if (channel_name.startsWith('private-')) {
-      return res.status(403).json({ error: 'private_channels_not_yet_enabled' })
+    // Only allow private-user-{userId} for the user themselves
+    if (channel_name.startsWith('private-user-')) {
+      const requestedUserId = channel_name.replace('private-user-', '')
+      if (requestedUserId !== req.userId) {
+        return res.status(403).json({ error: 'not_your_channel' })
+      }
+      const pusher = getPusherServer()
+      const auth = pusher.authorizeChannel(socket_id, channel_name)
+      return res.status(200).json(auth)
     }
-    return res.status(404).json({ error: 'not_a_private_channel' })
+    return res.status(403).json({ error: 'channel_not_authorized' })
   } catch (err) {
     console.error('chat_pusher_auth error:', err)
     return res.status(500).json({ error: 'auth_failed' })
+  }
+}
+
+// ── Chat DM Threads (GET) ─────────────────────────────────────────────────────
+
+async function handleChatDmThreads(req, res) {
+  try {
+    const rows = await sql`
+      SELECT
+        t.id AS thread_id,
+        CASE WHEN t.user_a_id = ${req.userId} THEN t.user_b_id ELSE t.user_a_id END AS other_user_id,
+        CASE WHEN t.user_a_id = ${req.userId} THEN ub.username ELSE ua.username END AS other_username,
+        CASE WHEN t.user_a_id = ${req.userId} THEN ub.faction  ELSE ua.faction  END AS other_faction,
+        t.last_message_at,
+        (SELECT content FROM pw_chat_messages
+         WHERE channel_type = 'dm' AND channel_id = t.id::text AND deleted_at IS NULL
+         ORDER BY created_at DESC LIMIT 1) AS last_message_preview,
+        (SELECT COUNT(*)::int FROM pw_chat_messages
+         WHERE channel_type = 'dm' AND channel_id = t.id::text
+           AND deleted_at IS NULL
+           AND sender_id != ${req.userId}
+           AND id > COALESCE(
+             (SELECT last_seen_id FROM pw_chat_dm_read_state
+              WHERE user_id = ${req.userId} AND thread_id = t.id),
+             0
+           )
+        ) AS unread_count
+      FROM pw_chat_dm_threads t
+      JOIN pw_users ua ON ua.id = t.user_a_id
+      JOIN pw_users ub ON ub.id = t.user_b_id
+      WHERE t.user_a_id = ${req.userId} OR t.user_b_id = ${req.userId}
+      ORDER BY t.last_message_at DESC
+      LIMIT 50
+    `
+    return res.status(200).json({ ok: true, threads: rows })
+  } catch (err) {
+    console.error('chat_dm_threads error:', err)
+    return res.status(500).json({ error: 'fetch_failed' })
+  }
+}
+
+// ── Chat DM Fetch (GET ?thread_id=N) ─────────────────────────────────────────
+
+async function handleChatDmFetch(req, res) {
+  try {
+    const thread_id = parseInt(req.query?.thread_id)
+    if (!thread_id) return res.status(400).json({ error: 'missing_thread_id' })
+
+    const threadRows = await sql`
+      SELECT user_a_id, user_b_id FROM pw_chat_dm_threads WHERE id = ${thread_id}
+    `
+    if (threadRows.length === 0) return res.status(404).json({ error: 'thread_not_found' })
+    const t = threadRows[0]
+    if (t.user_a_id !== req.userId && t.user_b_id !== req.userId) {
+      return res.status(403).json({ error: 'not_a_member' })
+    }
+
+    const messages = await sql`
+      SELECT id, sender_id, sender_username, content, created_at, deleted_at
+      FROM pw_chat_messages
+      WHERE channel_type = 'dm' AND channel_id = ${thread_id.toString()}
+        AND deleted_at IS NULL
+      ORDER BY created_at DESC
+      LIMIT 100
+    `
+
+    if (messages.length > 0) {
+      const latestId = Math.max(...messages.map(m => Number(m.id)))
+      await sql`
+        INSERT INTO pw_chat_dm_read_state (user_id, thread_id, last_seen_id, updated_at)
+        VALUES (${req.userId}, ${thread_id}, ${latestId}, NOW())
+        ON CONFLICT (user_id, thread_id) DO UPDATE
+        SET last_seen_id = GREATEST(pw_chat_dm_read_state.last_seen_id, ${latestId}),
+            updated_at = NOW()
+      `
+    }
+
+    return res.status(200).json({ ok: true, thread_id, messages: messages.reverse() })
+  } catch (err) {
+    console.error('chat_dm_fetch error:', err)
+    return res.status(500).json({ error: 'fetch_failed' })
+  }
+}
+
+// ── Chat DM Send (POST) ───────────────────────────────────────────────────────
+
+async function handleChatDmSend(req, res) {
+  try {
+    const { target_username, content } = req.body || {}
+    if (!target_username || !content) {
+      return res.status(400).json({ error: 'missing_params' })
+    }
+    const trimmed = content.trim()
+    if (trimmed.length < 1 || trimmed.length > 500) {
+      return res.status(400).json({ error: 'invalid_length', message: 'Message must be 1-500 characters.' })
+    }
+
+    const rl = await checkChatRateLimit(sql, req.userId)
+    if (rl) return res.status(429).json(rl)
+
+    const muteRows = await sql`
+      SELECT 1 FROM pw_chat_moderations
+      WHERE target_user_id = ${req.userId}
+        AND action IN ('mute', 'timeout', 'ban')
+        AND lifted_at IS NULL
+        AND (expires_at IS NULL OR expires_at > NOW())
+      LIMIT 1
+    `
+    if (muteRows.length > 0) return res.status(403).json({ error: 'muted' })
+
+    const targetRows = await sql`
+      SELECT id, username FROM pw_users WHERE LOWER(username) = LOWER(${target_username})
+    `
+    if (targetRows.length === 0) {
+      return res.status(404).json({ error: 'user_not_found', message: `No player named "${target_username}".` })
+    }
+    const target = targetRows[0]
+    if (target.id === req.userId) {
+      return res.status(400).json({ error: 'cannot_dm_self', message: 'You cannot DM yourself.' })
+    }
+
+    // Canonical ordering: smaller UUID string = user_a
+    const userA = req.userId < target.id ? req.userId : target.id
+    const userB = req.userId < target.id ? target.id   : req.userId
+
+    let threadId
+    const existingRows = await sql`
+      SELECT id FROM pw_chat_dm_threads WHERE user_a_id = ${userA} AND user_b_id = ${userB}
+    `
+    if (existingRows.length > 0) {
+      threadId = existingRows[0].id
+    } else {
+      const insertRows = await sql`
+        INSERT INTO pw_chat_dm_threads (user_a_id, user_b_id, last_message_at)
+        VALUES (${userA}, ${userB}, NOW())
+        RETURNING id
+      `
+      threadId = insertRows[0].id
+    }
+
+    const senderRows = await sql`SELECT username FROM pw_users WHERE id = ${req.userId}`
+    const senderUsername = senderRows[0].username
+
+    const msgRows = await sql`
+      INSERT INTO pw_chat_messages (channel_type, channel_id, sender_id, sender_username, content)
+      VALUES ('dm', ${threadId.toString()}, ${req.userId}, ${senderUsername}, ${trimmed})
+      RETURNING id, created_at
+    `
+    const inserted = msgRows[0]
+
+    await sql`UPDATE pw_chat_dm_threads SET last_message_at = NOW() WHERE id = ${threadId}`
+
+    const pusher = getPusherServer()
+    const payload = {
+      id:              Number(inserted.id),
+      thread_id:       threadId,
+      sender_id:       req.userId,
+      sender_username: senderUsername,
+      target_user_id:  target.id,
+      target_username: target.username,
+      content:         trimmed,
+      created_at:      inserted.created_at,
+    }
+    await pusher.trigger(`private-user-${req.userId}`, 'dm_message', payload)
+    await pusher.trigger(`private-user-${target.id}`,  'dm_message', payload)
+
+    return res.status(200).json({
+      ok:             true,
+      message_id:     Number(inserted.id),
+      thread_id:      threadId,
+      target_username: target.username,
+    })
+  } catch (err) {
+    console.error('chat_dm_send error:', err)
+    return res.status(500).json({ error: 'send_failed' })
   }
 }
 
@@ -3471,5 +3653,8 @@ export default requireUser(async function handler(req, res) {
   if (action === 'chat_send')           return handleChatSend(req, res)
   if (action === 'chat_fetch')          return handleChatFetch(req, res)
   if (action === 'chat_pusher_auth')    return handleChatPusherAuth(req, res)
+  if (action === 'chat_dm_threads')     return handleChatDmThreads(req, res)
+  if (action === 'chat_dm_fetch')       return handleChatDmFetch(req, res)
+  if (action === 'chat_dm_send')        return handleChatDmSend(req, res)
   return res.status(400).json({ error: 'Unknown action' })
 })

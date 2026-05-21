@@ -2,6 +2,7 @@ import { motion } from 'framer-motion'
 import PWBackground from './PWBackground'
 import PWHubLink from './PWHubLink'
 import PWAudioControls from './PWAudioControls'
+import { useChat } from './ChatContext'
 
 // Inline SVG corner ornament — small gold flourish mark
 function CornerGlyph({ style }) {
@@ -35,6 +36,9 @@ function CornerGlyphFlip({ style }) {
 }
 
 export default function PWPageShell({ title, rightSlot, backgroundVariant = 'dashboard', children }) {
+  const { isOpen } = useChat()
+  const bottomPad = isOpen ? 320 : 120
+
   return (
     <>
       {/* ── Shared keyframes & utilities ─────────────────────────────────── */}
@@ -155,7 +159,8 @@ export default function PWPageShell({ title, rightSlot, backgroundVariant = 'das
           width: '100%',
           maxWidth: 640,
           margin: '0 auto',
-          padding: '28px 20px 72px',
+          padding: `28px 20px ${bottomPad}px`,
+          transition: 'padding-bottom 200ms ease',
         }}>
           {children}
         </main>
