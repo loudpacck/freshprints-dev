@@ -3916,9 +3916,77 @@ async function handleChatSetModBadge(req, res) {
   }
 }
 
+// ── Admin Metrics (GET) ───────────────────────────────────────────────────────
+
+async function handleAdminMetrics(req, res) {
+  if (req.method !== 'GET') return res.status(405).json({ error: 'Method not allowed' })
+  if (!(await requireAdmin(req, res))) return
+
+  try {
+    const [
+      totalPlayersRows,
+      newPlayersTodayRows,
+      activePlayers24hRows,
+      levelDistRows,
+      factionDistRows,
+      classDistRows,
+      economyRows,
+      topRichestRows,
+      pvpTodayRows,
+      pvpTotalRows,
+      questCompletionsRows,
+      titanEventsRows,
+      chatTodayRows,
+      activeModsRows,
+    ] = await Promise.all([
+      sql`SELECT COUNT(*) AS c FROM pw_users`,
+      sql`SELECT COUNT(*) AS c FROM pw_users WHERE created_at > NOW() - INTERVAL '24 hours'`,
+      sql`SELECT COUNT(DISTINCT user_id) AS c FROM pw_player_stats WHERE last_updated > NOW() - INTERVAL '24 hours'`,
+      sql`SELECT level, COUNT(*) AS count FROM pw_player_stats GROUP BY level ORDER BY level`,
+      sql`SELECT faction, COUNT(*) AS count FROM pw_users WHERE faction IS NOT NULL GROUP BY faction`,
+      sql`SELECT class, COUNT(*) AS count FROM pw_users WHERE class IS NOT NULL GROUP BY class`,
+      sql`SELECT COALESCE(SUM(drachma), 0) AS total_drachma, COALESCE(AVG(drachma)::int, 0) AS avg_drachma FROM pw_player_stats`,
+      sql`
+        SELECT u.username, s.drachma, s.level
+        FROM pw_player_stats s
+        JOIN pw_users u ON u.id = s.user_id
+        ORDER BY s.drachma DESC
+        LIMIT 10
+      `,
+      sql`SELECT COUNT(*) AS c FROM pw_combat_log WHERE created_at > NOW() - INTERVAL '24 hours'`,
+      sql`SELECT COUNT(*) AS c FROM pw_combat_log`,
+      sql`SELECT COALESCE(SUM(completions), 0) AS c FROM pw_quest_progress`,
+      sql`SELECT status, COUNT(*) AS count FROM pw_titan_events GROUP BY status`,
+      sql`SELECT COUNT(*) AS c FROM pw_chat_messages WHERE created_at > NOW() - INTERVAL '24 hours' AND deleted_at IS NULL`,
+      sql`SELECT COUNT(*) AS c FROM pw_chat_moderations WHERE lifted_at IS NULL AND (expires_at IS NULL OR expires_at > NOW())`,
+    ])
+
+    return res.status(200).json({
+      totalPlayers:          Number(totalPlayersRows[0].c),
+      newPlayersToday:       Number(newPlayersTodayRows[0].c),
+      activePlayers24h:      Number(activePlayers24hRows[0].c),
+      levelDistribution:     levelDistRows.map(r => ({ level: Number(r.level), count: Number(r.count) })),
+      factionDistribution:   factionDistRows.map(r => ({ faction: r.faction, count: Number(r.count) })),
+      classDistribution:     classDistRows.map(r => ({ class: r.class, count: Number(r.count) })),
+      totalDrachma:          Number(economyRows[0].total_drachma),
+      avgDrachma:            Number(economyRows[0].avg_drachma),
+      topRichest:            topRichestRows.map(r => ({ username: r.username, drachma: Number(r.drachma), level: Number(r.level) })),
+      pvpFightsToday:        Number(pvpTodayRows[0].c),
+      pvpFightsTotal:        Number(pvpTotalRows[0].c),
+      questCompletionsTotal: Number(questCompletionsRows[0].c),
+      titanEvents:           titanEventsRows.map(r => ({ status: r.status, count: Number(r.count) })),
+      chatMessagesToday:     Number(chatTodayRows[0].c),
+      activeModerations:     Number(activeModsRows[0].c),
+    })
+  } catch (err) {
+    console.error('admin_metrics error:', err)
+    return res.status(500).json({ error: 'Failed to load game metrics' })
+  }
+}
+
 // ── Router ────────────────────────────────────────────────────────────────────
 
-export default requireUserWithModCheck(async function handler(req, res) {
+const innerHandler = requireUserWithModCheck(async function handler(req, res) {
   const { action } = req.query
 
   // Auto-complete any expired adventure, township upgrade, or craft cycle before processing any action
@@ -3980,3 +4048,8 @@ export default requireUserWithModCheck(async function handler(req, res) {
   if (action === 'chat_set_mod_badge')     return handleChatSetModBadge(req, res)
   return res.status(400).json({ error: 'Unknown action' })
 })
+
+export default async function gameHandler(req, res) {
+  if (req.query.action === 'admin_metrics') return handleAdminMetrics(req, res)
+  return innerHandler(req, res)
+}

@@ -1,9 +1,11 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback, useReducer } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import AdminOverview from '@/components/admin/AdminOverview'
 import AdminTitanPanel from '@/components/admin/AdminTitanPanel'
 import AdminModeratorPanel from '@/components/admin/AdminModeratorPanel'
+import SiteAnalytics from '@/components/admin/SiteAnalytics'
+import GameMetrics from '@/components/admin/GameMetrics'
 
 // ── Moderator-only: account lookup ─────────────────────────────────────────────
 
@@ -246,18 +248,39 @@ function ModDashboard({ modUsername, onLogout }) {
 
 const NAV_ITEMS = [
   { id: 'overview',   label: 'OVERVIEW' },
+  { id: 'analytics',  label: 'SITE ANALYTICS' },
+  { id: 'game',       label: 'GAME METRICS' },
   { id: 'titan',      label: 'TITAN' },
   { id: 'moderator',  label: 'MODERATOR' },
 ]
+
+function formatAgo(date) {
+  if (!date) return '—'
+  const secs = Math.floor((Date.now() - date.getTime()) / 1000)
+  if (secs < 5) return 'just now'
+  if (secs < 60) return `${secs}s ago`
+  return `${Math.floor(secs / 60)}m ago`
+}
 
 // ── Main page ──────────────────────────────────────────────────────────────────
 
 export default function Admin() {
   const navigate = useNavigate()
-  const [checking, setChecking]         = useState(true)
-  const [authType, setAuthType]         = useState(null) // 'admin' | 'mod'
-  const [modUsername, setModUsername]   = useState('')
+  const [checking, setChecking]           = useState(true)
+  const [authType, setAuthType]           = useState(null) // 'admin' | 'mod'
+  const [modUsername, setModUsername]     = useState('')
   const [activeSection, setActiveSection] = useState('overview')
+  const [refreshKey, setRefreshKey]       = useState(0)
+  const [lastUpdated, setLastUpdated]     = useState(null)
+  const [, rerender]                      = useReducer(x => x + 1, 0)
+
+  // Tick every 10s to keep "Xs ago" current
+  useEffect(() => {
+    const id = setInterval(rerender, 10000)
+    return () => clearInterval(id)
+  }, [])
+
+  const handleLastUpdated = useCallback(ts => setLastUpdated(ts), [])
 
   useEffect(() => {
     Promise.all([
@@ -337,63 +360,69 @@ export default function Admin() {
         position: 'sticky',
         top: 0,
         zIndex: 10,
+        gap: 'var(--space-4)',
+        flexWrap: 'wrap',
       }}>
         <div>
-          <span style={{
-            fontFamily: 'var(--font-mono)',
-            fontSize: 'var(--text-xs)',
-            color: 'var(--color-accent-primary)',
-            letterSpacing: 'var(--tracking-wider)',
-            textTransform: 'uppercase',
-            marginRight: 'var(--space-3)',
-          }}>
+          <span style={{ fontFamily: 'var(--font-mono)', fontSize: 'var(--text-xs)', color: 'var(--color-accent-primary)', letterSpacing: 'var(--tracking-wider)', textTransform: 'uppercase', marginRight: 'var(--space-3)' }}>
             //
           </span>
-          <span style={{
-            fontFamily: 'var(--font-display)',
-            fontSize: 'var(--text-lg)',
-            color: 'var(--color-text-primary)',
-            letterSpacing: 'var(--tracking-wide)',
-          }}>
+          <span style={{ fontFamily: 'var(--font-display)', fontSize: 'var(--text-lg)', color: 'var(--color-text-primary)', letterSpacing: 'var(--tracking-wide)' }}>
             ADMIN
           </span>
-          <span style={{
-            fontFamily: 'var(--font-mono)',
-            fontSize: 'var(--text-xs)',
-            color: 'var(--color-text-muted)',
-            letterSpacing: 'var(--tracking-wider)',
-            marginLeft: 'var(--space-3)',
-          }}>
+          <span style={{ fontFamily: 'var(--font-mono)', fontSize: 'var(--text-xs)', color: 'var(--color-text-muted)', letterSpacing: 'var(--tracking-wider)', marginLeft: 'var(--space-3)' }}>
             freshprints.dev
           </span>
         </div>
-        <button
-          onClick={handleLogout}
-          style={{
-            fontFamily: 'var(--font-mono)',
-            fontSize: 'var(--text-xs)',
-            fontWeight: 'var(--weight-medium)',
-            letterSpacing: 'var(--tracking-wider)',
-            textTransform: 'uppercase',
-            color: 'var(--color-text-muted)',
-            background: 'none',
-            border: '1px solid var(--color-border-subtle)',
-            borderRadius: 'var(--radius-sm)',
-            padding: 'var(--space-2) var(--space-4)',
-            cursor: 'pointer',
-            transition: 'color var(--duration-base), border-color var(--duration-base)',
-          }}
-          onMouseEnter={e => {
-            e.currentTarget.style.color = 'var(--color-text-primary)'
-            e.currentTarget.style.borderColor = 'var(--color-border-default)'
-          }}
-          onMouseLeave={e => {
-            e.currentTarget.style.color = 'var(--color-text-muted)'
-            e.currentTarget.style.borderColor = 'var(--color-border-subtle)'
-          }}
-        >
-          LOGOUT
-        </button>
+
+        {/* Refresh controls */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-4)', marginLeft: 'auto' }}>
+          <span style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--color-text-muted)', letterSpacing: 'var(--tracking-wider)', whiteSpace: 'nowrap' }}>
+            SYNC: {formatAgo(lastUpdated)}
+          </span>
+          <button
+            onClick={() => setRefreshKey(k => k + 1)}
+            title="Refresh all data"
+            style={{
+              fontFamily: 'var(--font-mono)',
+              fontSize: 'var(--text-xs)',
+              letterSpacing: 'var(--tracking-wider)',
+              textTransform: 'uppercase',
+              color: 'var(--color-accent-primary)',
+              background: 'rgba(0,200,255,0.06)',
+              border: '1px solid rgba(0,200,255,0.2)',
+              borderRadius: 'var(--radius-sm)',
+              padding: 'var(--space-2) var(--space-3)',
+              cursor: 'pointer',
+              transition: 'background 150ms, border-color 150ms',
+            }}
+            onMouseEnter={e => { e.currentTarget.style.background = 'rgba(0,200,255,0.12)'; e.currentTarget.style.borderColor = 'rgba(0,200,255,0.4)' }}
+            onMouseLeave={e => { e.currentTarget.style.background = 'rgba(0,200,255,0.06)'; e.currentTarget.style.borderColor = 'rgba(0,200,255,0.2)' }}
+          >
+            ↻ REFRESH
+          </button>
+          <button
+            onClick={handleLogout}
+            style={{
+              fontFamily: 'var(--font-mono)',
+              fontSize: 'var(--text-xs)',
+              fontWeight: 'var(--weight-medium)',
+              letterSpacing: 'var(--tracking-wider)',
+              textTransform: 'uppercase',
+              color: 'var(--color-text-muted)',
+              background: 'none',
+              border: '1px solid var(--color-border-subtle)',
+              borderRadius: 'var(--radius-sm)',
+              padding: 'var(--space-2) var(--space-4)',
+              cursor: 'pointer',
+              transition: 'color var(--duration-base), border-color var(--duration-base)',
+            }}
+            onMouseEnter={e => { e.currentTarget.style.color = 'var(--color-text-primary)'; e.currentTarget.style.borderColor = 'var(--color-border-default)' }}
+            onMouseLeave={e => { e.currentTarget.style.color = 'var(--color-text-muted)'; e.currentTarget.style.borderColor = 'var(--color-border-subtle)' }}
+          >
+            LOGOUT
+          </button>
+        </div>
       </header>
 
       {/* Body */}
@@ -435,25 +464,29 @@ export default function Admin() {
         </aside>
 
         {/* Main content */}
-        <main style={{
-          flex: 1,
-          padding: 'var(--space-8)',
-          overflowY: 'auto',
-          minWidth: 0,
-        }}>
+        <main style={{ flex: 1, padding: 'var(--space-8)', overflowY: 'auto', minWidth: 0 }}>
           {activeSection === 'overview' && (
             <>
-              <p style={{
-                fontFamily: 'var(--font-mono)',
-                fontSize: 'var(--text-xs)',
-                color: 'var(--color-text-muted)',
-                letterSpacing: 'var(--tracking-wider)',
-                textTransform: 'uppercase',
-                marginBottom: 'var(--space-6)',
-              }}>
+              <p style={{ fontFamily: 'var(--font-mono)', fontSize: 'var(--text-xs)', color: 'var(--color-text-muted)', letterSpacing: 'var(--tracking-wider)', textTransform: 'uppercase', marginBottom: 'var(--space-6)' }}>
                 // OVERVIEW
               </p>
-              <AdminOverview />
+              <AdminOverview refreshKey={refreshKey} onLastUpdated={handleLastUpdated} />
+            </>
+          )}
+          {activeSection === 'analytics' && (
+            <>
+              <p style={{ fontFamily: 'var(--font-mono)', fontSize: 'var(--text-xs)', color: 'var(--color-text-muted)', letterSpacing: 'var(--tracking-wider)', textTransform: 'uppercase', marginBottom: 'var(--space-6)' }}>
+                // SITE ANALYTICS
+              </p>
+              <SiteAnalytics refreshKey={refreshKey} onLastUpdated={handleLastUpdated} />
+            </>
+          )}
+          {activeSection === 'game' && (
+            <>
+              <p style={{ fontFamily: 'var(--font-mono)', fontSize: 'var(--text-xs)', color: 'var(--color-text-muted)', letterSpacing: 'var(--tracking-wider)', textTransform: 'uppercase', marginBottom: 'var(--space-6)' }}>
+                // GAME METRICS
+              </p>
+              <GameMetrics refreshKey={refreshKey} onLastUpdated={handleLastUpdated} />
             </>
           )}
           {activeSection === 'titan' && <AdminTitanPanel />}
