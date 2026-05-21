@@ -17,6 +17,9 @@ const RARITY_COLOR   = {
   common: '#9CA3AF', uncommon: '#22C55E', rare: '#3B82F6', epic: '#A855F7', legendary: '#F59E0B',
 }
 
+// Block/dodge % by difficulty — matches titan-combat-parity migration values
+const DIFF_COMBAT = { medium: [5, 5], hard: [8, 8], extreme: [12, 12] }
+
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 function fmtMs(ms) {
@@ -63,6 +66,7 @@ function SkeletonView() {
 // ─── Titan Header ─────────────────────────────────────────────────────────────
 
 function TitanHeader({ titan }) {
+  const [blockPct, dodgePct] = DIFF_COMBAT[titan.difficulty] || [0, 0]
   return (
     <div style={{ marginBottom: 10 }}>
       <div style={{
@@ -84,6 +88,22 @@ function TitanHeader({ titan }) {
       }}>
         {titan.name}
       </div>
+      {/* Block / dodge stat row */}
+      {(blockPct > 0 || dodgePct > 0) && (
+        <div style={{ display: 'flex', gap: 14, marginTop: 2 }}>
+          {[{ label: 'BLOCK', value: blockPct }, { label: 'DODGE', value: dodgePct }].map(({ label, value }) => (
+            <span key={label} style={{
+              fontFamily: "'IBM Plex Mono', monospace",
+              fontSize: 9,
+              color: 'rgba(240,240,248,0.32)',
+              letterSpacing: '0.1em',
+            }}>
+              {label}{' '}
+              <span style={{ color: 'rgba(240,240,248,0.5)' }}>{value}%</span>
+            </span>
+          ))}
+        </div>
+      )}
     </div>
   )
 }
@@ -135,12 +155,114 @@ function TitanHpBar({ currentHp, maxHp }) {
   )
 }
 
+// ─── Player Energy Bar (Enlil only) ──────────────────────────────────────────
+
+function PlayerEnergyBar({ rounds, currentRoundIdx, userId, maxEnergy }) {
+  if (!userId || !rounds.length) return null
+  const currentRound = rounds[currentRoundIdx]
+  const energy = currentRound?.player_energy_after?.[userId] ?? null
+  if (energy === null) return null
+
+  const pct = maxEnergy > 0 ? Math.min(100, (energy / maxEnergy) * 100) : 0
+  const isFatigued = energy === 0
+
+  return (
+    <div style={{ marginBottom: 14 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 4 }}>
+        <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 9, letterSpacing: '0.14em', color: 'rgba(240,240,248,0.38)', textTransform: 'uppercase' }}>
+          YOUR ENERGY
+        </span>
+        <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 11 }}>
+          {isFatigued
+            ? <span style={{ color: '#F97316' }}>⚡ FATIGUED</span>
+            : <span style={{ color: 'rgba(240,240,248,0.7)' }}>
+                {energy}<span style={{ color: 'rgba(240,240,248,0.3)', fontSize: 10 }}> / {maxEnergy}</span>
+              </span>
+          }
+        </span>
+      </div>
+      <div style={{ height: 12, background: 'rgba(255,255,255,0.07)', borderRadius: 4, overflow: 'hidden' }}>
+        <motion.div
+          animate={{ width: `${pct}%` }}
+          transition={{ duration: 0.6, ease: 'easeOut' }}
+          style={{
+            height: '100%',
+            background: isFatigued
+              ? 'rgba(249,115,22,0.35)'
+              : 'linear-gradient(90deg, #F97316, #FBBF24)',
+            borderRadius: 4,
+          }}
+        />
+      </div>
+    </div>
+  )
+}
+
 // ─── Round Events Display ─────────────────────────────────────────────────────
 
 function RoundEventsDisplay({ round, titanName }) {
   if (!round) return null
   const attacks = round.attacks || []
   const titanAttack = round.titan_attack
+
+  const baseRow = {
+    fontFamily: "'IBM Plex Mono', monospace",
+    fontSize: 11,
+    marginBottom: 3,
+    display: 'flex',
+    alignItems: 'center',
+    gap: 6,
+  }
+
+  function renderAttack(atk, i) {
+    switch (atk.attack_type) {
+      case 'time_warp':
+        return null
+      case 'crit':
+        return (
+          <div key={i} style={{ ...baseRow, color: 'rgba(240,240,248,0.75)' }}>
+            <span style={{ color: '#F59E0B', fontSize: 9 }}>★ CRIT</span>
+            <span style={{ color: GOLD_BRIGHT }}>{atk.username}</span>
+            <span style={{ color: 'rgba(240,240,248,0.4)' }}>strikes for</span>
+            <span style={{ color: '#F97316' }}>{fmtNum(atk.damage_dealt)}</span>
+          </div>
+        )
+      case 'miss':
+        return (
+          <div key={i} style={{ ...baseRow, color: 'rgba(240,240,248,0.45)', opacity: 0.75 }}>
+            <span style={{ color: 'rgba(240,240,248,0.28)', fontSize: 9 }}>● MISS</span>
+            <span style={{ color: 'rgba(240,240,248,0.5)' }}>{atk.username}</span>
+            {atk.is_fatigued && <span style={{ color: '#F97316', fontSize: 8, letterSpacing: '0.06em' }}>⚡</span>}
+          </div>
+        )
+      case 'dodged':
+        return (
+          <div key={i} style={{ ...baseRow, color: 'rgba(240,240,248,0.45)', opacity: 0.8 }}>
+            <span style={{ color: '#00C8FF', fontSize: 9 }}>◌ DODGED</span>
+            <span style={{ color: 'rgba(240,240,248,0.5)' }}>{atk.username}</span>
+          </div>
+        )
+      case 'blocked':
+        return (
+          <div key={i} style={{ ...baseRow, color: 'rgba(240,240,248,0.45)', opacity: 0.8 }}>
+            <span style={{ color: '#3B82F6', fontSize: 9 }}>◆ BLOCKED</span>
+            <span style={{ color: 'rgba(240,240,248,0.5)' }}>{atk.username}</span>
+          </div>
+        )
+      case 'hit':
+      default:
+        if (!atk.damage_dealt) return null
+        return (
+          <div key={i} style={{ ...baseRow, color: 'rgba(240,240,248,0.75)' }}>
+            <span style={{ color: GOLD_BRIGHT }}>{atk.username}</span>
+            <span style={{ color: 'rgba(240,240,248,0.4)' }}>strikes for</span>
+            <span style={{ color: '#F97316' }}>{fmtNum(atk.damage_dealt)}</span>
+          </div>
+        )
+    }
+  }
+
+  const isTimeWarp = attacks.length > 0 && attacks.every(a => a.attack_type === 'time_warp')
 
   return (
     <AnimatePresence mode="wait">
@@ -164,14 +286,13 @@ function RoundEventsDisplay({ round, titanName }) {
           ROUND {round.round} EVENTS
         </div>
 
-        {attacks.filter(a => a.damage_dealt > 0).map((atk, i) => (
-          <div key={i} style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 11, color: 'rgba(240,240,248,0.75)', marginBottom: 3, display: 'flex', alignItems: 'center', gap: 6 }}>
-            {atk.is_crit && <span style={{ color: '#F59E0B', fontSize: 9 }}>★ CRIT</span>}
-            <span style={{ color: GOLD_BRIGHT }}>{atk.username}</span>
-            <span style={{ color: 'rgba(240,240,248,0.4)' }}>strikes for</span>
-            <span style={{ color: '#F97316' }}>{fmtNum(atk.damage_dealt)}</span>
+        {isTimeWarp ? (
+          <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 11, color: '#A78BFA', fontStyle: 'italic' }}>
+            ◌ Time dilation — all actions suspended
           </div>
-        ))}
+        ) : (
+          attacks.map((atk, i) => renderAttack(atk, i))
+        )}
 
         {titanAttack && titanAttack.damage > 0 && (
           <div style={{
@@ -197,12 +318,6 @@ function RoundEventsDisplay({ round, titanName }) {
             )}
           </div>
         )}
-
-        {attacks.every(a => a.attack_type === 'time_warp') && (
-          <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 11, color: '#A78BFA', fontStyle: 'italic' }}>
-            ◌ Time dilation — all actions suspended
-          </div>
-        )}
       </motion.div>
     </AnimatePresence>
   )
@@ -213,7 +328,6 @@ function RoundEventsDisplay({ round, titanName }) {
 function ParticipantList({ fightLog, currentRoundIdx }) {
   const rounds = fightLog?.rounds || []
 
-  // Build username map and cumulative damage up to current round
   const usernameMap = {}
   const damageByPlayer = {}
   for (let i = 0; i <= currentRoundIdx && i < rounds.length; i++) {
@@ -224,7 +338,8 @@ function ParticipantList({ fightLog, currentRoundIdx }) {
   }
 
   const currentRound = rounds[currentRoundIdx]
-  const hpMap = currentRound?.player_hp_after || {}
+  const hpMap     = currentRound?.player_hp_after     || {}
+  const energyMap = currentRound?.player_energy_after || {}
   const startingHpMap = rounds[0]?.player_hp_after || {}
 
   const sorted = Object.entries(hpMap)
@@ -234,6 +349,7 @@ function ParticipantList({ fightLog, currentRoundIdx }) {
       hp: Number(hp),
       maxHp: Number(startingHpMap[uid] || hp),
       damage: damageByPlayer[uid] || 0,
+      isFatigued: energyMap[uid] === 0,
     }))
     .sort((a, b) => b.damage - a.damage)
 
@@ -279,9 +395,26 @@ function ParticipantList({ fightLog, currentRoundIdx }) {
                   transition: 'width 0.5s ease',
                 }} />
               </div>
-              <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 9, color: '#F97316', width: 56, textAlign: 'right', flexShrink: 0 }}>
-                {fmtNum(p.damage)} dmg
-              </span>
+              {p.isFatigued && (
+                <span style={{
+                  fontFamily: "'IBM Plex Mono', monospace",
+                  fontSize: 8,
+                  color: '#F97316',
+                  letterSpacing: '0.06em',
+                  padding: '1px 5px',
+                  border: '1px solid rgba(249,115,22,0.4)',
+                  borderRadius: 3,
+                  flexShrink: 0,
+                  whiteSpace: 'nowrap',
+                }}>
+                  ⚡ FATIGUED
+                </span>
+              )}
+              {!p.isFatigued && (
+                <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 9, color: '#F97316', width: 56, textAlign: 'right', flexShrink: 0 }}>
+                  {fmtNum(p.damage)} dmg
+                </span>
+              )}
             </div>
           )
         })}
@@ -297,14 +430,16 @@ function ParticipantList({ fightLog, currentRoundIdx }) {
 
 // ─── Fight Visualizer ─────────────────────────────────────────────────────────
 
-function FightVisualizer({ event, serverTime, fetchedAtMs }) {
+function FightVisualizer({ event, serverTime, fetchedAtMs, userId, maxEnergy }) {
   const { play } = useSound()
   const [currentRoundIdx, setCurrentRoundIdx] = useState(0)
   const rounds = event.fight_log?.rounds || []
   const titan  = event.fight_log?.titan || event.titan
 
-  const fightStartMs   = new Date(event.fight_starts_at).getTime()
+  const fightStartMs    = new Date(event.fight_starts_at).getTime()
   const totalDurationMs = event.fight_duration_seconds * 1000
+
+  const isEnlil = (event.titan?.ability_type || event.fight_log?.titan?.ability_type) === 'divine_storm'
 
   useEffect(() => {
     play('titan_appears')
@@ -331,6 +466,15 @@ function FightVisualizer({ event, serverTime, fetchedAtMs }) {
     <div>
       <TitanHeader titan={event.titan} />
       <TitanHpBar currentHp={titanHp} maxHp={event.titan_starting_hp} />
+
+      {isEnlil && userId && (
+        <PlayerEnergyBar
+          rounds={rounds}
+          currentRoundIdx={currentRoundIdx}
+          userId={userId}
+          maxEnergy={maxEnergy}
+        />
+      )}
 
       <div style={{ textAlign: 'center', margin: '10px 0 14px', fontFamily: "'IBM Plex Mono', monospace", fontSize: 11, color: GOLD, letterSpacing: '0.12em' }}>
         ROUND {currentRoundIdx + 1} / {rounds.length}
@@ -370,9 +514,61 @@ function QueueCountdown({ queueClosesAt }) {
   )
 }
 
+// ─── Pre-queue energy warnings ────────────────────────────────────────────────
+
+function FatigueWarning({ playerEnergy, abilityType }) {
+  const isEnlil = abilityType === 'divine_storm'
+  const isAlreadyFatigued = playerEnergy === 0
+  const isEnlilLow = isEnlil && !isAlreadyFatigued && playerEnergy < 25
+
+  if (!isAlreadyFatigued && !isEnlilLow) return null
+
+  const warningStyle = {
+    border: '1px solid rgba(255,140,60,0.6)',
+    background: 'rgba(255,140,60,0.08)',
+    borderRadius: 6,
+    padding: '12px 14px',
+    marginBottom: 14,
+    display: 'flex',
+    alignItems: 'flex-start',
+    gap: 10,
+  }
+  const iconStyle = { fontSize: 18, lineHeight: 1, flexShrink: 0, marginTop: 1 }
+  const textStyle = { fontFamily: "'DM Sans', sans-serif", fontSize: 14, color: 'rgba(240,240,248,0.85)', lineHeight: 1.5 }
+  const headStyle = { fontFamily: "'IBM Plex Mono', monospace", fontSize: 11, color: '#FFAD60', letterSpacing: '0.08em', marginBottom: 4 }
+
+  if (isAlreadyFatigued) {
+    return (
+      <div style={warningStyle}>
+        <span style={iconStyle}>⚠</span>
+        <div>
+          <div style={headStyle}>YOU ARE FATIGUED</div>
+          <div style={textStyle}>
+            You have no energy. You will be unable to crit, block, or dodge during the fight.
+            Drink an energy potion before joining to fight at full strength.
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <div style={warningStyle}>
+      <span style={iconStyle}>⚠</span>
+      <div>
+        <div style={headStyle}>ENLIL WILL DRAIN YOUR ENERGY</div>
+        <div style={textStyle}>
+          The Storm Sovereign drains 5 energy per round. You may become Fatigued before the fight ends.
+          Consider stocking energy potions before queuing.
+        </div>
+      </div>
+    </div>
+  )
+}
+
 // ─── Queue View ───────────────────────────────────────────────────────────────
 
-function QueueView({ event, playerJoined, onJoin, joining, error }) {
+function QueueView({ event, playerJoined, onJoin, joining, error, playerEnergy }) {
   return (
     <div>
       <div style={{
@@ -426,6 +622,11 @@ function QueueView({ event, playerJoined, onJoin, joining, error }) {
       <div style={{ textAlign: 'center', marginBottom: 16, fontFamily: "'IBM Plex Mono', monospace", fontSize: 11, color: 'rgba(240,240,248,0.35)', letterSpacing: '0.1em' }}>
         {event.participant_count} WARRIOR{event.participant_count !== 1 ? 'S' : ''} IN THE QUEUE
       </div>
+
+      {/* Pre-queue energy warnings */}
+      {!playerJoined && playerEnergy != null && (
+        <FatigueWarning playerEnergy={playerEnergy} abilityType={event.titan.ability_type} />
+      )}
 
       {playerJoined ? (
         <div style={{
@@ -680,6 +881,16 @@ function ClaimResultModal({ result, onClose }) {
             </motion.div>
           )}
 
+          {result.energy_drained > 0 && (
+            <motion.div variants={fadeUp} style={{
+              display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+              padding: '10px 14px', background: 'rgba(249,115,22,0.06)', border: '1px solid rgba(249,115,22,0.2)', borderRadius: 6,
+            }}>
+              <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 11, color: 'rgba(240,240,248,0.55)', letterSpacing: '0.1em' }}>ENERGY DRAINED</span>
+              <span style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 22, color: '#F97316', letterSpacing: '0.06em' }}>-{result.energy_drained}</span>
+            </motion.div>
+          )}
+
           {result.potion && (
             <motion.div variants={fadeUp} style={{
               padding: '10px 14px', background: 'rgba(34,197,94,0.06)', border: '1px solid rgba(34,197,94,0.2)', borderRadius: 6,
@@ -757,7 +968,7 @@ const backSlot = (
 )
 
 export default function Titan() {
-  const { refresh: refreshContext } = usePantheonWars()
+  const { refresh: refreshContext, user, stats } = usePantheonWars()
   const { play, playAtVolume } = useSound()
   const [statusData, setStatusData]   = useState(null)
   const [fetchedAtMs, setFetchedAtMs] = useState(Date.now())
@@ -846,6 +1057,9 @@ export default function Titan() {
   const event          = statusData?.current_event
   const unclaimed      = statusData?.unclaimed_reward
   const playerJoined   = !!event?.player_participation
+  const playerEnergy   = stats?.energy ?? null
+  const playerUserId   = user?.id ?? null
+  const playerMaxEnergy = stats?.energy_max ?? 20
 
   return (
     <PWPageShell title="TITAN" backgroundVariant="titan" rightSlot={backSlot}>
@@ -876,6 +1090,7 @@ export default function Titan() {
               onJoin={handleJoin}
               joining={joining}
               error={error}
+              playerEnergy={playerEnergy}
             />
           )}
 
@@ -885,6 +1100,8 @@ export default function Titan() {
               event={event}
               serverTime={statusData.server_time}
               fetchedAtMs={fetchedAtMs}
+              userId={playerUserId}
+              maxEnergy={playerMaxEnergy}
             />
           )}
 

@@ -267,6 +267,12 @@ const COMBAT_ENTRIES = [
     body: `Three percentage-based mechanics determine the texture of combat.\n\nCritical Hit: Your attack deals 1.5× damage. Crit chance comes from your weapon, your class (Slayer +10%), and your faction.\n\nBlock: Your defender absorbs the incoming damage entirely. Block chance comes from your shield or armor, your class (Warden +10%), and your faction.\n\nDodge: Your defender avoids the attack entirely — no damage at all. Dodge chance comes from agility, certain artifacts, and your class (Oracle +5%). A skilled warrior balances all three.`,
   },
   {
+    id: 'fatigued',
+    title: 'The Fatigued State',
+    subtitle: 'When the Body Has No More to Give',
+    body: `When a warrior's energy reaches zero during a Titan fight, they become Fatigued. A Fatigued warrior can no longer summon the focus to land a critical strike, the discipline to block, or the reflexes to dodge. They strike with what strength remains — and miss often.\n\nA Fatigued attacker can only Hit or Miss. Crits, blocks, and dodges are unavailable while the body is empty. The Titan's defensive mechanics still apply — your weakened blow may yet be turned aside.\n\nThe Storm Sovereign Enlil drains energy from every warrior present, threatening to Fatigue even the most prepared. Drink energy potions before the fight begins. The body's reserves cannot be replenished mid-battle.`,
+  },
+  {
     id: 'agility',
     title: 'Agility',
     subtitle: 'The Fifth Stat',

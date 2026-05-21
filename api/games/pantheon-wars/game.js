@@ -2415,6 +2415,7 @@ async function handleTitanStatus(req, res) {
              t.difficulty AS titan_difficulty, t.description AS titan_description,
              t.lore AS titan_lore, t.ability_name AS titan_ability_name,
              t.ability_description AS titan_ability_description,
+             t.ability_type AS titan_ability_type,
              t.loot_rarity_floor AS titan_loot_rarity_floor
       FROM pw_titan_events e
       JOIN pw_titans t ON t.id = e.titan_id
@@ -2467,9 +2468,10 @@ async function handleTitanStatus(req, res) {
           difficulty:        currentEvent.titan_difficulty,
           description:       currentEvent.titan_description,
           lore:              currentEvent.titan_lore,
-          ability_name:      currentEvent.titan_ability_name,
+          ability_name:        currentEvent.titan_ability_name,
           ability_description: currentEvent.titan_ability_description,
-          loot_rarity_floor: currentEvent.titan_loot_rarity_floor,
+          ability_type:        currentEvent.titan_ability_type,
+          loot_rarity_floor:   currentEvent.titan_loot_rarity_floor,
         },
         queue_opens_at:        currentEvent.queue_opens_at,
         queue_closes_at:       currentEvent.queue_closes_at,
@@ -2708,6 +2710,7 @@ async function handleTitanClaim(req, res) {
       reward_tier:       row.reward_tier,
       contribution_rank: row.contribution_rank,
       damage_dealt:      row.damage_dealt,
+      energy_drained:    row.energy_drained || 0,
       xp:                finalXp,
       drachma:           finalDrachma,
       potion:            potionInfo,
