@@ -391,62 +391,6 @@ function RewardToast({ reward, level, onDone }) {
   )
 }
 
-function AdventureRewardToast({ reward, onDone }) {
-  const { play } = useSound()
-  useEffect(() => {
-    play('adventure_return')
-    if (reward.loot) {
-      const lootSound = ['rare', 'epic', 'legendary'].includes(reward.loot.rarity) ? 'rare_loot' : 'loot_drop'
-      setTimeout(() => play(lootSound), 400)
-    }
-    const t = setTimeout(onDone, 4200)
-    return () => clearTimeout(t)
-  }, [onDone, play]) // eslint-disable-line react-hooks/exhaustive-deps
-  return (
-    <motion.div
-      initial={{ opacity: 0, y: -16, scale: 0.96 }}
-      animate={{ opacity: 1, y: 0, scale: 1 }}
-      exit={{ opacity: 0, y: -12, scale: 0.96 }}
-      transition={{ duration: 0.28, ease: [0.16, 1, 0.3, 1] }}
-      style={{
-        position: 'fixed',
-        top: 'calc(env(safe-area-inset-top, 0px) + 52px)',
-        left: '50%',
-        transform: 'translateX(-50%)',
-        zIndex: 61,
-        maxWidth: 'calc(100vw - 32px)',
-        width: 'max-content',
-        background: 'linear-gradient(180deg, var(--color-bg-elevated, #14101A), var(--color-bg-base, #0A0710))',
-        backdropFilter: 'blur(16px)',
-        border: '2px solid rgba(210,150,80,0.5)',
-        borderRadius: 6,
-        padding: '10px 20px',
-        display: 'flex',
-        alignItems: 'center',
-        flexWrap: 'wrap',
-        gap: 16,
-        boxShadow: '0 0 20px rgba(210,150,80,0.35), 0 4px 24px rgba(0,0,0,0.6)',
-      }}
-    >
-      <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, letterSpacing: '0.1em', color: 'rgba(210,150,80,0.7)', textTransform: 'uppercase' }}>
-        ⚑ {reward.adventure_name}
-      </span>
-      <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 12, color: '#9B8AC4' }}>+{fmt(reward.xp)} XP</span>
-      <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 12, color: '#C9A961' }}>+{fmt(reward.drachma)} ₯</span>
-      {reward.loot && (
-        <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 12, color: '#22C55E' }}>
-          ◆ {reward.loot.name}
-        </span>
-      )}
-      {reward.levelsGained > 0 && (
-        <span style={{ fontFamily: "var(--pw-font-display, 'Cinzel', serif)", fontSize: 13, fontWeight: 700, letterSpacing: '0.08em', color: '#D4A437' }}>
-          ★ LEVEL UP!
-        </span>
-      )}
-    </motion.div>
-  )
-}
-
 // ─── Quests page ──────────────────────────────────────────────────────────────
 
 const fadeUp = {
@@ -455,7 +399,7 @@ const fadeUp = {
 }
 
 export default function Quests() {
-  const { user, loading: authLoading, refresh: refreshContext } = usePantheonWars()
+  const { user, loading: authLoading, refresh: refreshContext, addPendingReward } = usePantheonWars()
   const navigate = useNavigate()
   const { play } = useSound()
 
@@ -465,7 +409,6 @@ export default function Quests() {
   const [error,     setError]     = useState(null)
   const [completing,       setCompleting]       = useState(null)
   const [toast,            setToast]            = useState(null)
-  const [advToast,         setAdvToast]         = useState(null)
   const [rotationExpiresAt, setRotationExpiresAt] = useState(null)
 
   // Track completions locally to avoid re-fetching the whole list
@@ -486,7 +429,7 @@ export default function Quests() {
       setQuests(data.quests)
       setStats(data.stats)
       if (data.rotation_expires_at) setRotationExpiresAt(data.rotation_expires_at)
-      if (data.pendingAdventureRewards) setAdvToast(data.pendingAdventureRewards)
+      if (data.pendingAdventureRewards) addPendingReward(data.pendingAdventureRewards)
       const map = {}
       for (const q of data.quests) map[q.id] = q.completions
       completionsRef.current = map
@@ -524,7 +467,7 @@ export default function Quests() {
       ))
 
       setToast({ reward: data.rewards, levelsGained: data.levelsGained })
-      if (data.pendingAdventureRewards) setAdvToast(data.pendingAdventureRewards)
+      if (data.pendingAdventureRewards) addPendingReward(data.pendingAdventureRewards)
 
       // SFX
       play('questComplete')
@@ -559,15 +502,6 @@ export default function Quests() {
             reward={toast.reward}
             level={toast.levelsGained}
             onDone={() => setToast(null)}
-          />
-        )}
-      </AnimatePresence>
-
-      <AnimatePresence>
-        {advToast && (
-          <AdventureRewardToast
-            reward={advToast}
-            onDone={() => setAdvToast(null)}
           />
         )}
       </AnimatePresence>

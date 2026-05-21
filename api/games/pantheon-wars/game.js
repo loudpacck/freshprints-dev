@@ -356,7 +356,7 @@ async function handleInventory(req, res) {
 
     const equipment_bonuses = await getEquipmentBonuses(sql, req.userId)
 
-    const invStats = resetDailyCountersIfNeeded(stats)
+    const invStats = await resetDailyCountersIfNeeded(stats, req.userId)
 
     return res.status(200).json({
       inventory,
@@ -529,17 +529,22 @@ async function handleSell(req, res) {
 
 // ── Daily counter reset helper ────────────────────────────────────────────────
 
-function resetDailyCountersIfNeeded(stats) {
+async function resetDailyCountersIfNeeded(statsObj, userId) {
   const TODAY_SEED = Math.floor(Date.now() / 86400000)
-  if ((stats.energy_potion_reset_day ?? 0) !== TODAY_SEED) {
-    return {
-      ...stats,
-      energy_potion_purchases_today: 0,
-      energy_potion_uses_today:      0,
-      energy_potion_reset_day:       TODAY_SEED,
-    }
+  if ((statsObj.energy_potion_reset_day ?? -1) === TODAY_SEED) return statsObj
+  await sql`
+    UPDATE pw_player_stats SET
+      energy_potion_purchases_today = 0,
+      energy_potion_uses_today      = 0,
+      energy_potion_reset_day       = ${TODAY_SEED}
+    WHERE user_id = ${userId}
+  `
+  return {
+    ...statsObj,
+    energy_potion_purchases_today: 0,
+    energy_potion_uses_today:      0,
+    energy_potion_reset_day:       TODAY_SEED,
   }
-  return stats
 }
 
 // ── Consume (POST) ────────────────────────────────────────────────────────────
@@ -577,7 +582,7 @@ async function handleConsume(req, res) {
     let energyRestored = 0
 
     // Apply daily counter reset before any energy potion checks
-    stats = resetDailyCountersIfNeeded(stats)
+    stats = await resetDailyCountersIfNeeded(stats, req.userId)
 
     if (item.consumable_effect === 'restore_health_pct') {
       if (stats.health >= stats.health_max) {
@@ -743,7 +748,7 @@ async function handleShop(req, res) {
       `
     }
 
-    stats = resetDailyCountersIfNeeded(stats)
+    stats = await resetDailyCountersIfNeeded(stats, req.userId)
 
     // Drachma rotation — unified with handleBuy via getDailyRotationPool
     const rotationRaw = await getDailyRotationPool(sql, stats.level, 5)
@@ -794,6 +799,11 @@ async function handleShop(req, res) {
       equipped_by_slot[row.slot] = row
     }
 
+    const nowUtc = new Date()
+    const tomorrowUtc = new Date(Date.UTC(
+      nowUtc.getUTCFullYear(), nowUtc.getUTCMonth(), nowUtc.getUTCDate() + 1, 0, 0, 0
+    ))
+
     return res.status(200).json({
       rotation_items,
       always_available,
@@ -811,6 +821,13 @@ async function handleShop(req, res) {
         player_class:                  shopPlayerClass,
         energy_potion_purchases_today: stats.energy_potion_purchases_today ?? 0,
         energy_potion_uses_today:      stats.energy_potion_uses_today ?? 0,
+      },
+      daily_limits: {
+        energy_potion_purchases_today: stats.energy_potion_purchases_today ?? 0,
+        energy_potion_uses_today:      stats.energy_potion_uses_today ?? 0,
+        max_purchases: 5,
+        max_uses:      10,
+        resets_at:     tomorrowUtc.toISOString(),
       },
       pendingAdventureRewards: req.pendingAdventureRewards || null,
       pendingTownshipUpgrades: req.pendingTownshipUpgrades || null,
@@ -855,7 +872,7 @@ async function handleBuy(req, res) {
     `
     if (playerRows.length === 0) return res.status(404).json({ error: 'Player not found' })
 
-    let player = resetDailyCountersIfNeeded(playerRows[0])
+    let player = await resetDailyCountersIfNeeded(playerRows[0], req.userId)
 
     if (player.level < item.level_required) {
       return res.status(400).json({ error: `Requires level ${item.level_required}` })
@@ -3040,6 +3057,51 @@ async function handleCodex(req, res) {
   }
 }
 
+// ── Pending Rewards (GET) ─────────────────────────────────────────────────────
+
+async function handlePendingRewards(req, res) {
+  if (req.method !== 'GET') return res.status(405).json({ error: 'Method not allowed' })
+  try {
+    const rows = await sql`
+      SELECT id, reward_type, reward_payload, created_at
+      FROM pw_pending_rewards
+      WHERE user_id = ${req.userId} AND acknowledged_at IS NULL
+      ORDER BY created_at ASC
+    `
+    return res.status(200).json({
+      ok: true,
+      pending_rewards: rows.map(r => ({
+        id:         r.id,
+        type:       r.reward_type,
+        payload:    r.reward_payload,
+        created_at: r.created_at,
+      })),
+    })
+  } catch (err) {
+    console.error('pending_rewards error:', err)
+    return res.status(500).json({ error: 'fetch_failed' })
+  }
+}
+
+// ── Acknowledge Reward (POST) ─────────────────────────────────────────────────
+
+async function handleAcknowledgeReward(req, res) {
+  if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' })
+  try {
+    const { reward_id } = req.body || {}
+    if (!reward_id) return res.status(400).json({ error: 'missing_reward_id' })
+    await sql`
+      UPDATE pw_pending_rewards
+      SET acknowledged_at = NOW()
+      WHERE id = ${reward_id} AND user_id = ${req.userId} AND acknowledged_at IS NULL
+    `
+    return res.status(200).json({ ok: true })
+  } catch (err) {
+    console.error('acknowledge_reward error:', err)
+    return res.status(500).json({ error: 'ack_failed' })
+  }
+}
+
 // ── Router ────────────────────────────────────────────────────────────────────
 
 export default requireUser(async function handler(req, res) {
@@ -3084,5 +3146,7 @@ export default requireUser(async function handler(req, res) {
   if (action === 'township_establish')  return handleTownshipEstablish(req, res)
   if (action === 'township_upgrade')    return handleTownshipUpgrade(req, res)
   if (action === 'codex')              return handleCodex(req, res)
+  if (action === 'pending_rewards')    return handlePendingRewards(req, res)
+  if (action === 'acknowledge_reward') return handleAcknowledgeReward(req, res)
   return res.status(400).json({ error: 'Unknown action' })
 })

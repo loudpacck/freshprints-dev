@@ -605,6 +605,48 @@ function Toast({ message, color, onDone }) {
   )
 }
 
+// ─── Daily Limit Countdown ────────────────────────────────────────────────────
+
+function DailyLimitDisplay({ dailyLimits, energyPurchasesToday }) {
+  const [now, setNow] = useState(Date.now())
+  useEffect(() => {
+    const id = setInterval(() => setNow(Date.now()), 1000)
+    return () => clearInterval(id)
+  }, [])
+
+  if (!dailyLimits?.resets_at) return null
+
+  const resetMs      = new Date(dailyLimits.resets_at).getTime()
+  const remainingMs  = Math.max(0, resetMs - now)
+  const hours        = Math.floor(remainingMs / 3600000)
+  const minutes      = Math.floor((remainingMs % 3600000) / 60000)
+  const seconds      = Math.floor((remainingMs % 60000) / 1000)
+  const formatted    = `${hours}h ${String(minutes).padStart(2, '0')}m ${String(seconds).padStart(2, '0')}s`
+  const purchases    = energyPurchasesToday ?? dailyLimits.energy_potion_purchases_today ?? 0
+  const uses         = dailyLimits.energy_potion_uses_today ?? 0
+  const atPurchaseLimit = purchases >= dailyLimits.max_purchases
+  const atUseLimit      = uses      >= dailyLimits.max_uses
+
+  return (
+    <div style={{
+      marginTop: 8,
+      padding: '8px 12px',
+      background: 'rgba(255,165,0,0.06)',
+      border: '1px solid rgba(255,165,0,0.2)',
+      borderRadius: 6,
+      fontFamily: "'IBM Plex Mono', monospace",
+      fontSize: 10,
+    }}>
+      <div style={{ color: atPurchaseLimit || atUseLimit ? '#F87171' : 'rgba(240,240,248,0.45)' }}>
+        ENERGY POTIONS — {purchases}/{dailyLimits.max_purchases} bought · {uses}/{dailyLimits.max_uses} used
+      </div>
+      <div style={{ marginTop: 3, color: '#FFB347', fontSize: 9 }}>
+        Resets in {remainingMs > 0 ? formatted : 'next refresh'}
+      </div>
+    </div>
+  )
+}
+
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 const fadeUp = {
@@ -635,6 +677,7 @@ export default function Shop() {
   const [countdown,               setCountdown]               = useState(null)
   const [gloryCountdown,          setGloryCountdown]          = useState(null)
   const [energyPurchasesToday,    setEnergyPurchasesToday]    = useState(0)
+  const [dailyLimits,             setDailyLimits]             = useState(null)
   const [expandedItemId,          setExpandedItemId]          = useState(null)
 
   useEffect(() => {
@@ -656,6 +699,7 @@ export default function Shop() {
       setEquippedBySlot(data.equipped_by_slot ?? {})
       setPlayer(data.player)
       setEnergyPurchasesToday(data.player?.energy_potion_purchases_today ?? 0)
+      if (data.daily_limits)              setDailyLimits(data.daily_limits)
       if (data.rotation_expires_at)       setRotationExpiresAt(data.rotation_expires_at)
       if (data.glory_rotation_expires_at) setGloryRotationExpiresAt(data.glory_rotation_expires_at)
       if (data.rotation_seed != null)     setRotationSeed(data.rotation_seed)
@@ -900,15 +944,14 @@ export default function Shop() {
                       ))}
                       {alwaysAvailable.length > 0 && (
                         <div style={{ marginTop: 12, paddingTop: 18, borderTop: '1px solid rgba(34,211,238,0.12)' }}>
-                          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 6, marginBottom: 12 }}>
+                          <div style={{ marginBottom: 12 }}>
                             <p style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 9, letterSpacing: '0.16em', textTransform: 'uppercase', color: 'rgba(34,211,238,0.45)', margin: 0 }}>
                               ⚗ POTIONS — ALWAYS AVAILABLE
                             </p>
-                            <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 9, letterSpacing: '0.08em', color: energyPurchasesToday >= 5 ? '#F87171' : 'rgba(240,240,248,0.3)' }}>
-                              {energyPurchasesToday >= 5
-                                ? 'Energy limit reached — resets at midnight UTC'
-                                : `${energyPurchasesToday}/5 energy purchases today`}
-                            </span>
+                            <DailyLimitDisplay
+                              dailyLimits={dailyLimits}
+                              energyPurchasesToday={energyPurchasesToday}
+                            />
                           </div>
                           <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
                             {alwaysAvailable.map(item => (

@@ -417,69 +417,6 @@ function AbandonModal({ adventureName, onConfirm, onCancel, loading }) {
   )
 }
 
-function AdventureRewardToast({ reward, onDone }) {
-  const { play } = useSound()
-  useEffect(() => {
-    play('adventure_return')
-    if (reward.loot) {
-      const lootSound = ['rare', 'epic', 'legendary'].includes(reward.loot.rarity) ? 'rare_loot' : 'loot_drop'
-      setTimeout(() => play(lootSound), 400)
-    }
-    const t = setTimeout(onDone, 4200)
-    return () => clearTimeout(t)
-  }, [onDone, play]) // eslint-disable-line react-hooks/exhaustive-deps
-  return (
-    <motion.div
-      initial={{ opacity: 0, y: -16, scale: 0.96 }}
-      animate={{ opacity: 1, y: 0, scale: 1 }}
-      exit={{ opacity: 0, y: -12, scale: 0.96 }}
-      transition={{ duration: 0.28, ease: [0.16, 1, 0.3, 1] }}
-      style={{
-        position: 'fixed',
-        top: 'calc(env(safe-area-inset-top, 0px) + 52px)',
-        left: '50%',
-        transform: 'translateX(-50%)',
-        zIndex: 61,
-        maxWidth: 'calc(100vw - 32px)',
-        width: 'max-content',
-        background: 'linear-gradient(180deg, var(--color-bg-elevated, #14101A), var(--color-bg-base, #0A0710))',
-        backdropFilter: 'blur(16px)',
-        border: '2px solid rgba(210,150,80,0.5)',
-        borderRadius: 6,
-        padding: '10px 20px',
-        display: 'flex',
-        alignItems: 'center',
-        flexWrap: 'wrap',
-        gap: 16,
-        boxShadow: '0 0 20px rgba(210,150,80,0.35), 0 4px 24px rgba(0,0,0,0.6)',
-      }}
-    >
-      <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, letterSpacing: '0.1em', color: 'rgba(210,150,80,0.7)', textTransform: 'uppercase' }}>
-        ⚑ {reward.adventure_name}
-      </span>
-      <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 12, color: '#9B8AC4' }}>
-        +{fmt(reward.xp)} XP
-      </span>
-      <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 12, color: '#C9A961' }}>
-        +{fmt(reward.drachma)} ₯
-      </span>
-      {reward.loot && (
-        <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 12, color: '#22C55E' }}>
-          ◆ {reward.loot.name}
-          <span style={{ color: 'rgba(95,184,87,0.6)', fontSize: 10, marginLeft: 5 }}>
-            [{reward.loot.rarity}]
-          </span>
-        </span>
-      )}
-      {reward.levelsGained > 0 && (
-        <span style={{ fontFamily: "var(--pw-font-display, 'Cinzel', serif)", fontSize: 13, fontWeight: 700, letterSpacing: '0.08em', color: '#D4A437' }}>
-          ★ LEVEL UP!
-        </span>
-      )}
-    </motion.div>
-  )
-}
-
 function Skeleton({ h = 20, w = '100%', r = 6 }) {
   return <div className="pw-skel" style={{ height: h, width: w, borderRadius: r }} />
 }
@@ -492,7 +429,7 @@ const fadeUp = {
 }
 
 export default function Adventures() {
-  const { user, loading: authLoading, refresh: refreshContext } = usePantheonWars()
+  const { user, loading: authLoading, refresh: refreshContext, addPendingReward } = usePantheonWars()
   const navigate = useNavigate()
   const { play } = useSound()
 
@@ -506,7 +443,6 @@ export default function Adventures() {
   const [claiming,          setClaiming]          = useState(false)
   const [abandoning,        setAbandoning]        = useState(false)
   const [confirmAbandon,    setConfirmAbandon]    = useState(false)
-  const [toast,             setToast]             = useState(null)
 
   useEffect(() => {
     if (!authLoading && !user) navigate('/games/pantheon-wars/login', { replace: true })
@@ -524,7 +460,7 @@ export default function Adventures() {
       setActiveAdventure(data.active_adventure ?? null)
       if (data.rotation_expires_at) setRotationExpiresAt(data.rotation_expires_at)
       setStats(data.stats)
-      if (data.pendingAdventureRewards) setToast(data.pendingAdventureRewards)
+      if (data.pendingAdventureRewards) addPendingReward(data.pendingAdventureRewards)
     } catch {
       setError('Network error.')
     } finally {
@@ -544,7 +480,7 @@ export default function Adventures() {
       })
       const data = await res.json()
       if (res.ok) {
-        if (data.pendingAdventureRewards) setToast(data.pendingAdventureRewards)
+        if (data.pendingAdventureRewards) addPendingReward(data.pendingAdventureRewards)
         play('adventure_depart')
         refreshContext()
       }
@@ -565,7 +501,7 @@ export default function Adventures() {
       })
       const data = await res.json()
       if (!res.ok) return
-      if (data.pendingAdventureRewards) setToast(data.pendingAdventureRewards)
+      if (data.pendingAdventureRewards) addPendingReward(data.pendingAdventureRewards)
       setConfirmAbandon(false)
       play('toggle')
       await fetchAdventures()
@@ -584,7 +520,7 @@ export default function Adventures() {
       const data = await res.json()
       if (res.ok) {
         const rewards = data.rewards ?? data.pendingAdventureRewards
-        if (rewards) setToast(rewards)
+        if (rewards) addPendingReward(rewards)
         refreshContext()
       }
       await fetchAdventures()
@@ -610,15 +546,6 @@ export default function Adventures() {
 
   return (
     <>
-      <AnimatePresence>
-        {toast && (
-          <AdventureRewardToast
-            reward={toast}
-            onDone={() => setToast(null)}
-          />
-        )}
-      </AnimatePresence>
-
       <AnimatePresence>
         {confirmAbandon && activeAdventure && (
           <AbandonModal
