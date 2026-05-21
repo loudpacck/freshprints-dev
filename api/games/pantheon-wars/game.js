@@ -1,5 +1,5 @@
 import { sql } from '../../../lib/db.js'
-import { requireUser } from '../../../lib/pwAuth.js'
+import { requireUser, requireUserWithModCheck } from '../../../lib/pwAuth.js'
 import { requireAdmin } from '../../../lib/auth.js'
 import {
   regenPlayer, checkLevelUp, getEquipmentBonuses,
@@ -3354,16 +3354,19 @@ async function handleChatSend(req, res) {
 
     const pusher = getPusherServer()
     await pusher.trigger('general', 'new_message', {
-      id:             inserted.id,
-      channel_type:   'general',
-      channel_id:     null,
-      sender_id:      req.userId,
+      id:              Number(inserted.id),
+      channel_type:    'general',
+      channel_id:      null,
+      sender_id:       req.userId,
       sender_username: senderUsername,
-      content:        trimmed,
-      created_at:     inserted.created_at,
+      content:         trimmed,
+      created_at:      inserted.created_at,
+      is_system:       false,
+      is_mod_message:  !!req.modId,
+      mod_username:    req.modId && req.modShowBadge ? req.modUsername : null,
     })
 
-    return res.status(200).json({ ok: true, message_id: inserted.id })
+    return res.status(200).json({ ok: true, message_id: Number(inserted.id) })
   } catch (err) {
     console.error('chat_send error:', err)
     return res.status(500).json({ error: 'send_failed' })
@@ -3383,7 +3386,7 @@ async function handleChatFetch(req, res) {
 
     const rows = await sql`
       SELECT id, channel_type, channel_id, sender_id, sender_username, content,
-             created_at, deleted_at, deleted_by_name, deleted_by_type
+             created_at, deleted_at, deleted_by_name, deleted_by_type, is_system
       FROM pw_chat_messages
       WHERE channel_type = 'general'
         AND deleted_at IS NULL
@@ -3408,6 +3411,12 @@ async function handleChatPusherAuth(req, res) {
     const { socket_id, channel_name } = req.body || {}
     if (!socket_id || !channel_name) {
       return res.status(400).json({ error: 'missing_params' })
+    }
+    if (channel_name === 'private-mod') {
+      if (!req.modId) return res.status(403).json({ error: 'not_a_moderator' })
+      const pusher = getPusherServer()
+      const auth = pusher.authorizeChannel(socket_id, channel_name)
+      return res.status(200).json(auth)
     }
     // Only allow private-user-{userId} for the user themselves
     if (channel_name.startsWith('private-user-')) {
@@ -3585,6 +3594,9 @@ async function handleChatDmSend(req, res) {
       target_username: target.username,
       content:         trimmed,
       created_at:      inserted.created_at,
+      is_system:       false,
+      is_mod_message:  !!req.modId,
+      mod_username:    req.modId && req.modShowBadge ? req.modUsername : null,
     }
     await pusher.trigger(`private-user-${req.userId}`, 'dm_message', payload)
     await pusher.trigger(`private-user-${target.id}`,  'dm_message', payload)
@@ -3601,9 +3613,312 @@ async function handleChatDmSend(req, res) {
   }
 }
 
+// ── Chat State (GET) ──────────────────────────────────────────────────────────
+
+async function handleChatState(req, res) {
+  return res.status(200).json({
+    ok:           true,
+    isMod:        !!req.modId,
+    modUsername:  req.modUsername || null,
+    modShowBadge: req.modId ? req.modShowBadge : false,
+  })
+}
+
+// ── Chat Mod Send (POST) ──────────────────────────────────────────────────────
+
+async function handleChatModSend(req, res) {
+  try {
+    if (!req.modId) return res.status(403).json({ error: 'not_a_moderator' })
+
+    const { content } = req.body || {}
+    const trimmed = (content || '').trim()
+    if (trimmed.length < 1 || trimmed.length > 500) {
+      return res.status(400).json({ error: 'invalid_length' })
+    }
+
+    const rl = await checkChatRateLimit(sql, req.userId)
+    if (rl) return res.status(429).json(rl)
+
+    const insertRows = await sql`
+      INSERT INTO pw_chat_messages (channel_type, channel_id, sender_id, sender_username, content)
+      VALUES ('mod', NULL, ${req.userId}, ${req.modUsername}, ${trimmed})
+      RETURNING id, created_at
+    `
+    const inserted = insertRows[0]
+
+    const pusher = getPusherServer()
+    await pusher.trigger('private-mod', 'new_message', {
+      id:              Number(inserted.id),
+      channel_type:    'mod',
+      channel_id:      null,
+      sender_id:       req.userId,
+      sender_username: req.modUsername,
+      content:         trimmed,
+      created_at:      inserted.created_at,
+      is_system:       false,
+      is_mod_message:  true,
+    })
+
+    return res.status(200).json({ ok: true, message_id: Number(inserted.id) })
+  } catch (err) {
+    console.error('chat_mod_send error:', err)
+    return res.status(500).json({ error: 'send_failed' })
+  }
+}
+
+// ── Chat Mod Fetch (GET) ──────────────────────────────────────────────────────
+
+async function handleChatModFetch(req, res) {
+  try {
+    if (!req.modId) return res.status(403).json({ error: 'not_a_moderator' })
+
+    const rows = await sql`
+      SELECT id, channel_type, sender_id, sender_username, content,
+             created_at, deleted_at, deleted_by_name, is_system
+      FROM pw_chat_messages
+      WHERE channel_type = 'mod'
+      ORDER BY created_at DESC
+      LIMIT 100
+    `
+    return res.status(200).json({ ok: true, channel: 'mod', messages: rows.reverse() })
+  } catch (err) {
+    console.error('chat_mod_fetch error:', err)
+    return res.status(500).json({ error: 'fetch_failed' })
+  }
+}
+
+// ── Chat Moderate (POST) ──────────────────────────────────────────────────────
+
+async function handleChatModerate(req, res) {
+  try {
+    if (!req.modId) return res.status(403).json({ error: 'not_a_moderator' })
+
+    const { action, message_id, target_user_id, duration_minutes, reason } = req.body || {}
+
+    const validActions = ['delete_msg', 'mute', 'timeout', 'ban', 'kick']
+    if (!validActions.includes(action)) return res.status(400).json({ error: 'invalid_action' })
+
+    let targetUserId = target_user_id
+    let targetUsername = null
+    let channelType = null
+    let channelId = null
+
+    if (action === 'delete_msg') {
+      if (!message_id) return res.status(400).json({ error: 'missing_message_id' })
+
+      const msgRows = await sql`
+        SELECT id, sender_id, sender_username, channel_type, channel_id
+        FROM pw_chat_messages WHERE id = ${message_id} AND deleted_at IS NULL
+      `
+      if (msgRows.length === 0) return res.status(404).json({ error: 'message_not_found' })
+      const msg = msgRows[0]
+
+      targetUserId   = msg.sender_id
+      targetUsername = msg.sender_username
+      channelType    = msg.channel_type
+      channelId      = msg.channel_id
+
+      await sql`
+        UPDATE pw_chat_messages
+        SET deleted_at = NOW(), deleted_by_name = ${req.modUsername}, deleted_by_type = 'moderator'
+        WHERE id = ${message_id}
+      `
+
+      const pusher = getPusherServer()
+      if (channelType === 'general') {
+        await pusher.trigger('general', 'message_deleted', { id: Number(message_id) })
+      } else if (channelType === 'mod') {
+        await pusher.trigger('private-mod', 'message_deleted', { id: Number(message_id) })
+      } else if (channelType === 'dm') {
+        const threadId = parseInt(channelId)
+        if (!isNaN(threadId)) {
+          const threadRows = await sql`SELECT user_a_id, user_b_id FROM pw_chat_dm_threads WHERE id = ${threadId}`
+          if (threadRows.length > 0) {
+            const deletePayload = { id: Number(message_id), thread_id: threadId }
+            await pusher.trigger(`private-user-${threadRows[0].user_a_id}`, 'dm_message_deleted', deletePayload)
+            await pusher.trigger(`private-user-${threadRows[0].user_b_id}`, 'dm_message_deleted', deletePayload)
+          }
+        }
+      }
+    } else {
+      if (!targetUserId) return res.status(400).json({ error: 'missing_target_user_id' })
+      const userRows = await sql`SELECT username FROM pw_users WHERE id = ${targetUserId}`
+      if (userRows.length === 0) return res.status(404).json({ error: 'target_not_found' })
+      targetUsername = userRows[0].username
+    }
+
+    let expiresAt = null
+    if (action === 'timeout' && duration_minutes) {
+      expiresAt = new Date(Date.now() + Number(duration_minutes) * 60 * 1000)
+    }
+
+    await sql`
+      INSERT INTO pw_chat_moderations
+        (target_user_id, mod_id, action, channel_type, duration_minutes, expires_at, reason)
+      VALUES
+        (${targetUserId}, ${req.modId}, ${action}, ${channelType}, ${duration_minutes || null}, ${expiresAt}, ${reason || null})
+    `
+
+    // System message in the affected channel (general for global actions)
+    const sysChannelType = channelType || 'general'
+    const sysChannelId   = channelId || null
+
+    const actionText = (() => {
+      switch (action) {
+        case 'delete_msg': return `${req.modUsername} deleted a message from ${targetUsername}`
+        case 'mute':       return `${targetUsername} was muted by ${req.modUsername}`
+        case 'timeout': {
+          const mins  = Number(duration_minutes) || 30
+          const label = mins < 60 ? `${mins}m` : mins < 1440 ? `${Math.floor(mins / 60)}h` : `${Math.floor(mins / 1440)}d`
+          return `${targetUsername} was timed out for ${label} by ${req.modUsername}`
+        }
+        case 'ban':  return `${targetUsername} was banned by ${req.modUsername}`
+        case 'kick': return `${targetUsername} was kicked from chat by ${req.modUsername}`
+        default:     return `${action} applied to ${targetUsername} by ${req.modUsername}`
+      }
+    })()
+
+    // Only post system message to general or mod channels (not DMs)
+    if (sysChannelType !== 'dm') {
+      const sysRows = await sql`
+        INSERT INTO pw_chat_messages (channel_type, channel_id, sender_id, sender_username, content, is_system)
+        VALUES (${sysChannelType}, ${sysChannelId}, ${req.userId}, '[MOD]', ${actionText}, TRUE)
+        RETURNING id, created_at
+      `
+      const pusher = getPusherServer()
+      const sysChan = sysChannelType === 'general' ? 'general' : sysChannelType === 'mod' ? 'private-mod' : null
+      if (sysChan) {
+        await pusher.trigger(sysChan, 'new_message', {
+          id:              Number(sysRows[0].id),
+          channel_type:    sysChannelType,
+          channel_id:      sysChannelId,
+          sender_id:       null,
+          sender_username: '[MOD]',
+          content:         actionText,
+          is_system:       true,
+          created_at:      sysRows[0].created_at,
+        })
+      }
+    }
+
+    return res.status(200).json({ ok: true, action, target_username: targetUsername })
+  } catch (err) {
+    console.error('chat_moderate error:', err)
+    return res.status(500).json({ error: 'moderate_failed' })
+  }
+}
+
+// ── Chat Lift Moderation (POST) ───────────────────────────────────────────────
+
+async function handleChatLiftModeration(req, res) {
+  try {
+    if (!req.modId) return res.status(403).json({ error: 'not_a_moderator' })
+
+    const { moderation_id } = req.body || {}
+    if (!moderation_id) return res.status(400).json({ error: 'missing_moderation_id' })
+
+    const modRows = await sql`
+      SELECT m.id, m.action, m.target_user_id, u.username AS target_username
+      FROM pw_chat_moderations m
+      JOIN pw_users u ON u.id = m.target_user_id
+      WHERE m.id = ${moderation_id} AND m.lifted_at IS NULL
+    `
+    if (modRows.length === 0) return res.status(404).json({ error: 'moderation_not_found_or_already_lifted' })
+    const mod = modRows[0]
+
+    await sql`
+      UPDATE pw_chat_moderations SET lifted_at = NOW(), lifted_by = ${req.modId}
+      WHERE id = ${moderation_id}
+    `
+
+    const liftText = `${mod.target_username}'s ${mod.action} was lifted by ${req.modUsername}`
+    const sysRows = await sql`
+      INSERT INTO pw_chat_messages (channel_type, channel_id, sender_id, sender_username, content, is_system)
+      VALUES ('general', NULL, ${req.userId}, '[MOD]', ${liftText}, TRUE)
+      RETURNING id, created_at
+    `
+    const pusher = getPusherServer()
+    await pusher.trigger('general', 'new_message', {
+      id:              Number(sysRows[0].id),
+      channel_type:    'general',
+      channel_id:      null,
+      sender_id:       null,
+      sender_username: '[MOD]',
+      content:         liftText,
+      is_system:       true,
+      created_at:      sysRows[0].created_at,
+    })
+
+    return res.status(200).json({ ok: true })
+  } catch (err) {
+    console.error('chat_lift_moderation error:', err)
+    return res.status(500).json({ error: 'lift_failed' })
+  }
+}
+
+// ── Chat List Moderations (GET ?scope=active|audit) ───────────────────────────
+
+async function handleChatListModerations(req, res) {
+  try {
+    if (!req.modId) return res.status(403).json({ error: 'not_a_moderator' })
+
+    const scope = req.query?.scope || 'active'
+    let rows
+
+    if (scope === 'active') {
+      rows = await sql`
+        SELECT m.id, m.target_user_id, u.username AS target_username,
+               m.mod_id, mod.username AS mod_username,
+               m.action, m.channel_type, m.duration_minutes, m.expires_at,
+               m.reason, m.created_at
+        FROM pw_chat_moderations m
+        JOIN pw_users u ON u.id = m.target_user_id
+        LEFT JOIN pw_moderators mod ON mod.id = m.mod_id
+        WHERE m.lifted_at IS NULL
+          AND (m.expires_at IS NULL OR m.expires_at > NOW())
+          AND m.action IN ('mute', 'timeout', 'ban', 'kick')
+        ORDER BY m.created_at DESC
+      `
+    } else {
+      rows = await sql`
+        SELECT m.id, m.target_user_id, u.username AS target_username,
+               m.mod_id, mod.username AS mod_username,
+               m.action, m.channel_type, m.duration_minutes, m.expires_at,
+               m.lifted_at, lift.username AS lifted_by_username,
+               m.reason, m.created_at
+        FROM pw_chat_moderations m
+        JOIN pw_users u ON u.id = m.target_user_id
+        LEFT JOIN pw_moderators mod ON mod.id = m.mod_id
+        LEFT JOIN pw_moderators lift ON lift.id = m.lifted_by
+        ORDER BY m.created_at DESC
+        LIMIT 100
+      `
+    }
+
+    return res.status(200).json({ ok: true, scope, moderations: rows })
+  } catch (err) {
+    console.error('chat_list_moderations error:', err)
+    return res.status(500).json({ error: 'fetch_failed' })
+  }
+}
+
+// ── Chat Set Mod Badge (POST) ─────────────────────────────────────────────────
+
+async function handleChatSetModBadge(req, res) {
+  try {
+    if (!req.modId) return res.status(403).json({ error: 'not_a_moderator' })
+    const { show_badge } = req.body || {}
+    await sql`UPDATE pw_moderators SET show_chat_badge = ${!!show_badge} WHERE id = ${req.modId}`
+    return res.status(200).json({ ok: true, show_badge: !!show_badge })
+  } catch (err) {
+    console.error('chat_set_mod_badge error:', err)
+    return res.status(500).json({ error: 'update_failed' })
+  }
+}
+
 // ── Router ────────────────────────────────────────────────────────────────────
 
-export default requireUser(async function handler(req, res) {
+export default requireUserWithModCheck(async function handler(req, res) {
   const { action } = req.query
 
   // Auto-complete any expired adventure, township upgrade, or craft cycle before processing any action
@@ -3650,11 +3965,18 @@ export default requireUser(async function handler(req, res) {
   if (action === 'pending_rewards')     return handlePendingRewards(req, res)
   if (action === 'acknowledge_reward')  return handleAcknowledgeReward(req, res)
   if (action === 'craftsmanship_claim') return handleCraftsmanshipClaim(req, res)
-  if (action === 'chat_send')           return handleChatSend(req, res)
-  if (action === 'chat_fetch')          return handleChatFetch(req, res)
-  if (action === 'chat_pusher_auth')    return handleChatPusherAuth(req, res)
-  if (action === 'chat_dm_threads')     return handleChatDmThreads(req, res)
-  if (action === 'chat_dm_fetch')       return handleChatDmFetch(req, res)
-  if (action === 'chat_dm_send')        return handleChatDmSend(req, res)
+  if (action === 'chat_send')              return handleChatSend(req, res)
+  if (action === 'chat_fetch')             return handleChatFetch(req, res)
+  if (action === 'chat_pusher_auth')       return handleChatPusherAuth(req, res)
+  if (action === 'chat_dm_threads')        return handleChatDmThreads(req, res)
+  if (action === 'chat_dm_fetch')          return handleChatDmFetch(req, res)
+  if (action === 'chat_dm_send')           return handleChatDmSend(req, res)
+  if (action === 'chat_state')             return handleChatState(req, res)
+  if (action === 'chat_mod_send')          return handleChatModSend(req, res)
+  if (action === 'chat_mod_fetch')         return handleChatModFetch(req, res)
+  if (action === 'chat_moderate')          return handleChatModerate(req, res)
+  if (action === 'chat_lift_moderation')   return handleChatLiftModeration(req, res)
+  if (action === 'chat_list_moderations')  return handleChatListModerations(req, res)
+  if (action === 'chat_set_mod_badge')     return handleChatSetModBadge(req, res)
   return res.status(400).json({ error: 'Unknown action' })
 })

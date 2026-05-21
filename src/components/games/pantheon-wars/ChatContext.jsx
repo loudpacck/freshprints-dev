@@ -5,23 +5,29 @@ import { usePantheonWars } from '@/contexts/PantheonWarsContext'
 const ChatContext = createContext(null)
 export const useChat = () => useContext(ChatContext)
 
+const API = '/api/games/pantheon-wars/game'
+
 export function ChatProvider({ children }) {
   const { user } = usePantheonWars()
 
-  // General chat
   const [isOpen, setIsOpen]       = useState(false)
   const [activeTab, setActiveTab] = useState('general')
-  const [messages, setMessages]   = useState({ general: [] })
-  const [unread, setUnread]       = useState({ general: 0, dm: 0 })
+  const [messages, setMessages]   = useState({ general: [], mod: [] })
+  const [unread, setUnread]       = useState({ general: 0, dm: 0, mod: 0 })
+
+  // Mod identity
+  const [isMod, setIsMod]               = useState(false)
+  const [modUsername, setModUsername]   = useState(null)
+  const [modShowBadge, setModShowBadge] = useState(true)
 
   // DM state
   const [threadsList, setThreadsList]         = useState([])
-  const [activeThreadId, setActiveThreadId]   = useState(null)  // number | null
-  const [threadMessages, setThreadMessages]   = useState({})    // { [thread_id]: Message[] }
-  const [dmView, setDmView]                   = useState('list') // 'list' | 'thread' | 'compose'
+  const [activeThreadId, setActiveThreadId]   = useState(null)
+  const [threadMessages, setThreadMessages]   = useState({})
+  const [dmView, setDmView]                   = useState('list')
   const [composeUsername, setComposeUsername] = useState('')
 
-  // Refs for stable Pusher callbacks
+  // Stable refs for Pusher callbacks
   const isOpenRef         = useRef(isOpen)
   const activeTabRef      = useRef(activeTab)
   const activeThreadIdRef = useRef(activeThreadId)
@@ -34,18 +40,34 @@ export function ChatProvider({ children }) {
 
   const totalDmUnread = threadsList.reduce((sum, t) => sum + (t.unread_count || 0), 0)
 
-  // Fetch general chat history
+  // Initial data fetch: general history + mod state
   useEffect(() => {
     if (!user) return
-    fetch('/api/games/pantheon-wars/game?action=chat_fetch&channel=general')
+
+    fetch(`${API}?action=chat_fetch&channel=general`)
       .then(r => r.json())
       .then(data => { if (data.ok) setMessages(prev => ({ ...prev, general: data.messages })) })
       .catch(() => {})
+
+    fetch(`${API}?action=chat_state`)
+      .then(r => r.json())
+      .then(data => {
+        if (data.ok && data.isMod) {
+          setIsMod(true)
+          setModUsername(data.modUsername)
+          setModShowBadge(data.modShowBadge)
+          fetch(`${API}?action=chat_mod_fetch`)
+            .then(r => r.json())
+            .then(d => { if (d.ok) setMessages(prev => ({ ...prev, mod: d.messages })) })
+            .catch(() => {})
+        }
+      })
+      .catch(() => {})
   }, [user?.id])
 
-  // Fetch DM threads list
+  // DM threads
   const fetchThreadsList = useCallback(() => {
-    fetch('/api/games/pantheon-wars/game?action=chat_dm_threads')
+    fetch(`${API}?action=chat_dm_threads`)
       .then(r => r.json())
       .then(data => { if (data.ok) setThreadsList(data.threads) })
       .catch(() => {})
@@ -55,14 +77,12 @@ export function ChatProvider({ children }) {
     if (user) fetchThreadsList()
   }, [user?.id, fetchThreadsList])
 
-  // Open a DM thread (fetches messages, marks read server-side)
   const openThread = useCallback((thread_id) => {
     setActiveThreadId(thread_id)
     setDmView('thread')
     setComposeUsername('')
-    // Optimistic unread clear
     setThreadsList(prev => prev.map(t => t.thread_id === thread_id ? { ...t, unread_count: 0 } : t))
-    fetch(`/api/games/pantheon-wars/game?action=chat_dm_fetch&thread_id=${thread_id}`)
+    fetch(`${API}?action=chat_dm_fetch&thread_id=${thread_id}`)
       .then(r => r.json())
       .then(data => {
         if (data.ok) setThreadMessages(prev => ({ ...prev, [thread_id]: data.messages }))
@@ -70,7 +90,6 @@ export function ChatProvider({ children }) {
       .catch(() => {})
   }, [])
 
-  // Navigate to DM with a specific user (from General chat username click)
   const openDmWithUser = useCallback((userId, username) => {
     setActiveTab('private')
     setIsOpen(true)
@@ -84,24 +103,27 @@ export function ChatProvider({ children }) {
     }
   }, [openThread])
 
-  // Pusher subscriptions
+  // Pusher — recreates client when isMod changes to add private-mod subscription
   useEffect(() => {
     if (!user) return
 
     const client = new Pusher(import.meta.env.VITE_PUSHER_KEY, {
       cluster:      import.meta.env.VITE_PUSHER_CLUSTER,
-      authEndpoint: '/api/games/pantheon-wars/game?action=chat_pusher_auth',
+      authEndpoint: `${API}?action=chat_pusher_auth`,
     })
 
     const generalChannel = client.subscribe('general')
     generalChannel.bind('new_message', (msg) => {
-      setMessages(prev => ({
-        ...prev,
-        general: [...prev.general, msg].slice(-100),
-      }))
+      setMessages(prev => ({ ...prev, general: [...prev.general, msg].slice(-100) }))
       if (!isOpenRef.current || activeTabRef.current !== 'general') {
         setUnread(prev => ({ ...prev, general: prev.general + 1 }))
       }
+    })
+    generalChannel.bind('message_deleted', ({ id }) => {
+      setMessages(prev => ({
+        ...prev,
+        general: prev.general.filter(m => Number(m.id) !== Number(id)),
+      }))
     })
 
     const userChannel = client.subscribe(`private-user-${user.id}`)
@@ -110,12 +132,10 @@ export function ChatProvider({ children }) {
         ...prev,
         [msg.thread_id]: [...(prev[msg.thread_id] || []), msg],
       }))
-      // Refresh thread list (unread counts, last preview)
-      fetch('/api/games/pantheon-wars/game?action=chat_dm_threads')
+      fetch(`${API}?action=chat_dm_threads`)
         .then(r => r.json())
         .then(data => { if (data.ok) setThreadsList(data.threads) })
         .catch(() => {})
-      // Increment DM unread badge if not currently viewing this thread
       const viewingThisThread =
         isOpenRef.current &&
         activeTabRef.current === 'private' &&
@@ -124,40 +144,99 @@ export function ChatProvider({ children }) {
         setUnread(prev => ({ ...prev, dm: (prev.dm || 0) + 1 }))
       }
     })
+    userChannel.bind('dm_message_deleted', ({ id, thread_id }) => {
+      if (thread_id != null) {
+        setThreadMessages(prev => ({
+          ...prev,
+          [thread_id]: (prev[thread_id] || []).filter(m => Number(m.id) !== Number(id)),
+        }))
+      }
+    })
 
-    return () => {
-      client.unsubscribe('general')
-      client.unsubscribe(`private-user-${user.id}`)
-      client.disconnect()
+    if (isMod) {
+      const modChannel = client.subscribe('private-mod')
+      modChannel.bind('new_message', (msg) => {
+        setMessages(prev => ({ ...prev, mod: [...(prev.mod || []), msg].slice(-100) }))
+        if (!isOpenRef.current || activeTabRef.current !== 'mod') {
+          setUnread(prev => ({ ...prev, mod: (prev.mod || 0) + 1 }))
+        }
+      })
+      modChannel.bind('message_deleted', ({ id }) => {
+        setMessages(prev => ({
+          ...prev,
+          mod: (prev.mod || []).filter(m => Number(m.id) !== Number(id)),
+        }))
+      })
     }
-  }, [user?.id])
 
-  // Clear general unread when tab opens (DM unread managed via threadsList)
+    return () => { client.disconnect() }
+  }, [user?.id, isMod])
+
+  // Clear unread when tab is active + open
   useEffect(() => {
-    if (isOpen && activeTab !== 'private') {
-      setUnread(prev => ({ ...prev, [activeTab]: 0 }))
-    }
-    if (isOpen && activeTab === 'private') {
+    if (!isOpen) return
+    if (activeTab === 'private') {
       setUnread(prev => ({ ...prev, dm: 0 }))
+    } else {
+      setUnread(prev => ({ ...prev, [activeTab]: 0 }))
     }
   }, [isOpen, activeTab])
 
+  // ── Actions ──────────────────────────────────────────────────────────────────
+
   const sendMessage = useCallback(async (channel, content) => {
-    const res = await fetch('/api/games/pantheon-wars/game?action=chat_send', {
-      method:  'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body:    JSON.stringify({ channel, content }),
+    const res = await fetch(`${API}?action=chat_send`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ channel, content }),
     })
     return res.json()
   }, [])
 
   const sendDm = useCallback(async (target_username, content) => {
-    const res = await fetch('/api/games/pantheon-wars/game?action=chat_dm_send', {
-      method:  'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body:    JSON.stringify({ target_username, content }),
+    const res = await fetch(`${API}?action=chat_dm_send`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ target_username, content }),
     })
     return res.json()
+  }, [])
+
+  const sendModMessage = useCallback(async (content) => {
+    const res = await fetch(`${API}?action=chat_mod_send`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ content }),
+    })
+    return res.json()
+  }, [])
+
+  const moderateMessage = useCallback(async (action, params) => {
+    const res = await fetch(`${API}?action=chat_moderate`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action, ...params }),
+    })
+    return res.json()
+  }, [])
+
+  const liftModeration = useCallback(async (moderation_id) => {
+    const res = await fetch(`${API}?action=chat_lift_moderation`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ moderation_id }),
+    })
+    return res.json()
+  }, [])
+
+  const listModerations = useCallback(async (scope = 'active') => {
+    const res = await fetch(`${API}?action=chat_list_moderations&scope=${scope}`)
+    return res.json()
+  }, [])
+
+  const updateModBadge = useCallback(async (show_badge) => {
+    const res = await fetch(`${API}?action=chat_set_mod_badge`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ show_badge }),
+    })
+    const data = await res.json()
+    if (data.ok) setModShowBadge(data.show_badge)
+    return data
   }, [])
 
   return (
@@ -165,7 +244,8 @@ export function ChatProvider({ children }) {
       isOpen, setIsOpen,
       activeTab, setActiveTab,
       messages, unread, sendMessage,
-      // DM
+      isMod, modUsername, modShowBadge,
+      sendModMessage, moderateMessage, liftModeration, listModerations, updateModBadge,
       threadsList, totalDmUnread,
       activeThreadId, setActiveThreadId,
       threadMessages, setThreadMessages,

@@ -392,6 +392,257 @@ function ActionLogSection() {
   )
 }
 
+// ── Section 4: Active Chat Moderations ────────────────────────────────────────
+function ChatModerationSection() {
+  const [mods, setMods]       = useState([])
+  const [err, setErr]         = useState('')
+  const [lifting, setLifting] = useState(null)
+
+  async function load() {
+    try {
+      const r = await fetch('/api/auth/moderator?action=chat_moderations')
+      const d = await r.json()
+      if (d.ok) setMods(d.moderations || [])
+      else setErr(d.error || 'Failed to load.')
+    } catch { setErr('Network error.') }
+  }
+
+  useEffect(() => { load() }, [])
+
+  async function lift(id) {
+    setLifting(id)
+    try {
+      const r = await fetch('/api/auth/moderator?action=chat_lift_moderation', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ moderation_id: id }),
+      })
+      const d = await r.json()
+      if (d.ok) load()
+    } catch { /* ignore */ }
+    setLifting(null)
+  }
+
+  function remaining(m) {
+    if (!m.expires_at) return '∞'
+    const ms = new Date(m.expires_at) - Date.now()
+    if (ms <= 0) return 'expired'
+    const mins = Math.floor(ms / 60000)
+    if (mins < 60) return `${mins}m`
+    const hrs = Math.floor(mins / 60)
+    if (hrs < 24) return `${hrs}h`
+    return `${Math.floor(hrs / 24)}d`
+  }
+
+  return (
+    <section style={{ marginBottom: 'var(--space-10)' }}>
+      <p style={sectionHead}>// ACTIVE CHAT MODERATIONS</p>
+      {err && (
+        <p style={{ fontFamily: 'var(--font-mono)', fontSize: 'var(--text-xs)', color: 'rgb(239,68,68)', marginBottom: 'var(--space-3)' }}>
+          {err}
+        </p>
+      )}
+      {mods.length === 0 && !err ? (
+        <p style={{ fontFamily: 'var(--font-mono)', fontSize: 'var(--text-xs)', color: 'var(--color-text-muted)' }}>
+          No active moderations.
+        </p>
+      ) : (
+        <div style={{ overflowX: 'auto' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+            <thead>
+              <tr>
+                {['Target', 'Action', 'Remaining', 'Reason', 'By', 'When', ''].map(h => (
+                  <th key={h} style={tableHead}>{h}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {mods.map(m => (
+                <tr key={m.id}>
+                  <td style={{ ...tableCell, color: 'var(--color-text-primary)' }}>{m.target_username}</td>
+                  <td style={{ ...tableCell, color: 'var(--color-accent-primary)', textTransform: 'uppercase' }}>{m.action}</td>
+                  <td style={tableCell}>{remaining(m)}</td>
+                  <td style={{ ...tableCell, maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    {m.reason || '—'}
+                  </td>
+                  <td style={tableCell}>{m.mod_username || '—'}</td>
+                  <td style={{ ...tableCell, whiteSpace: 'nowrap' }}>{new Date(m.created_at).toLocaleString()}</td>
+                  <td style={tableCell}>
+                    <button
+                      onClick={() => lift(m.id)}
+                      disabled={lifting === m.id}
+                      style={btnSmall('danger')}
+                    >
+                      {lifting === m.id ? '...' : 'LIFT'}
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </section>
+  )
+}
+
+// ── Section 5: Chat Moderation Audit Log ──────────────────────────────────────
+function ChatAuditLogSection() {
+  const [actions, setActions] = useState([])
+  const [err, setErr]         = useState('')
+
+  useEffect(() => {
+    fetch('/api/auth/moderator?action=chat_audit')
+      .then(r => r.json())
+      .then(d => {
+        if (d.ok) setActions(d.actions || [])
+        else setErr(d.error || 'Failed to load.')
+      })
+      .catch(() => setErr('Network error.'))
+  }, [])
+
+  function statusBadge(a) {
+    if (a.lifted_at) {
+      const by = a.lifted_by_username ? ` by ${a.lifted_by_username}` : ''
+      return <span style={{ color: '#22C55E', fontFamily: 'var(--font-mono)', fontSize: 'var(--text-xs)' }}>LIFTED{by}</span>
+    }
+    if (a.expires_at && new Date(a.expires_at) < new Date()) {
+      return <span style={{ color: 'var(--color-text-muted)', fontFamily: 'var(--font-mono)', fontSize: 'var(--text-xs)' }}>EXPIRED</span>
+    }
+    if (a.action === 'delete_msg' || a.action === 'kick') {
+      return <span style={{ color: 'var(--color-text-muted)', fontFamily: 'var(--font-mono)', fontSize: 'var(--text-xs)' }}>DONE</span>
+    }
+    return <span style={{ color: 'rgb(239,68,68)', fontFamily: 'var(--font-mono)', fontSize: 'var(--text-xs)' }}>ACTIVE</span>
+  }
+
+  return (
+    <section style={{ marginBottom: 'var(--space-10)' }}>
+      <p style={sectionHead}>// CHAT MODERATION AUDIT LOG</p>
+      {err && (
+        <p style={{ fontFamily: 'var(--font-mono)', fontSize: 'var(--text-xs)', color: 'rgb(239,68,68)', marginBottom: 'var(--space-3)' }}>
+          {err}
+        </p>
+      )}
+      {actions.length === 0 && !err ? (
+        <p style={{ fontFamily: 'var(--font-mono)', fontSize: 'var(--text-xs)', color: 'var(--color-text-muted)' }}>
+          No chat moderation actions yet.
+        </p>
+      ) : (
+        <div style={{ overflowX: 'auto' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+            <thead>
+              <tr>
+                {['Target', 'Action', 'Moderator', 'Reason', 'Applied', 'Status'].map(h => (
+                  <th key={h} style={tableHead}>{h}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {actions.map(a => (
+                <tr key={a.id}>
+                  <td style={{ ...tableCell, color: 'var(--color-text-primary)' }}>{a.target_username}</td>
+                  <td style={{ ...tableCell, color: 'var(--color-accent-primary)', textTransform: 'uppercase' }}>{a.action}</td>
+                  <td style={tableCell}>{a.mod_username || '—'}</td>
+                  <td style={{ ...tableCell, maxWidth: 180, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    {a.reason || '—'}
+                  </td>
+                  <td style={{ ...tableCell, whiteSpace: 'nowrap' }}>{new Date(a.created_at).toLocaleString()}</td>
+                  <td style={tableCell}>{statusBadge(a)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </section>
+  )
+}
+
+// ── Section 6: Mod Badge Settings ─────────────────────────────────────────────
+function ModBadgeSettingsSection() {
+  const [mods, setMods]         = useState([])
+  const [err, setErr]           = useState('')
+  const [toggling, setToggling] = useState(null)
+
+  async function loadMods() {
+    try {
+      const r = await fetch('/api/auth/moderator?action=list_mods')
+      const d = await r.json()
+      if (r.ok) setMods((d.moderators || []).filter(m => m.is_active))
+      else setErr(d.error || 'Failed to load.')
+    } catch { setErr('Network error.') }
+  }
+
+  useEffect(() => { loadMods() }, [])
+
+  async function toggleBadge(mod) {
+    setToggling(mod.id)
+    try {
+      const r = await fetch('/api/auth/moderator?action=set_mod_badge', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ moderator_id: mod.id, show_badge: !mod.show_chat_badge }),
+      })
+      const d = await r.json()
+      if (d.ok) loadMods()
+    } catch { /* ignore */ }
+    setToggling(null)
+  }
+
+  return (
+    <section style={{ marginBottom: 'var(--space-10)' }}>
+      <p style={sectionHead}>// MOD BADGE SETTINGS</p>
+      <p style={{
+        fontFamily: 'var(--font-mono)',
+        fontSize: 'var(--text-xs)',
+        color: 'var(--color-text-muted)',
+        marginBottom: 'var(--space-4)',
+      }}>
+        Control whether each moderator displays a gold MOD badge on their public chat messages.
+      </p>
+      {err && (
+        <p style={{ fontFamily: 'var(--font-mono)', fontSize: 'var(--text-xs)', color: 'rgb(239,68,68)', marginBottom: 'var(--space-3)' }}>
+          {err}
+        </p>
+      )}
+      {mods.length === 0 && !err ? (
+        <p style={{ fontFamily: 'var(--font-mono)', fontSize: 'var(--text-xs)', color: 'var(--color-text-muted)' }}>
+          No active moderators.
+        </p>
+      ) : (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-2)' }}>
+          {mods.map(mod => (
+            <div key={mod.id} style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              padding: '10px 14px',
+              background: 'var(--color-bg-base)',
+              border: '1px solid var(--color-border-subtle)',
+              borderRadius: 'var(--radius-sm)',
+            }}>
+              <span style={{ fontFamily: 'var(--font-mono)', fontSize: 'var(--text-xs)', color: 'var(--color-text-primary)' }}>
+                {mod.username}
+              </span>
+              <button
+                onClick={() => toggleBadge(mod)}
+                disabled={toggling === mod.id}
+                style={{
+                  ...btnSmall(),
+                  color: mod.show_chat_badge ? 'rgba(255,215,0,0.9)' : 'var(--color-text-muted)',
+                  borderColor: mod.show_chat_badge ? 'rgba(255,215,0,0.35)' : 'var(--color-border-subtle)',
+                }}
+              >
+                {toggling === mod.id ? '...' : mod.show_chat_badge ? 'BADGE ON' : 'BADGE OFF'}
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+    </section>
+  )
+}
+
 // ── Main Panel ─────────────────────────────────────────────────────────────────
 export default function AdminModeratorPanel() {
   const [generatedToken, setGeneratedToken] = useState(null)
@@ -414,6 +665,9 @@ export default function AdminModeratorPanel() {
         onGenerate={data => setGeneratedToken(data)}
       />
       <ModeratorListSection />
+      <ModBadgeSettingsSection />
+      <ChatModerationSection />
+      <ChatAuditLogSection />
       <ActionLogSection />
     </div>
   )

@@ -184,25 +184,6 @@ async function handleListInvites(req, res) {
   }
 }
 
-// ── action=list_mods (admin-gated) ────────────────────────────────────────────
-
-async function handleListMods(req, res) {
-  const ok = await requireAdmin(req, res)
-  if (!ok) return
-
-  try {
-    const rows = await sql`
-      SELECT id, username, created_at, last_login, is_active
-      FROM pw_moderators
-      ORDER BY created_at DESC
-    `
-    return res.status(200).json({ moderators: rows })
-  } catch (err) {
-    console.error('List mods error:', err)
-    return res.status(500).json({ error: 'Failed to fetch moderators.' })
-  }
-}
-
 // ── action=list_actions (admin-gated) ─────────────────────────────────────────
 
 async function handleListActions(req, res) {
@@ -220,6 +201,25 @@ async function handleListActions(req, res) {
   } catch (err) {
     console.error('List actions error:', err)
     return res.status(500).json({ error: 'Failed to fetch action log.' })
+  }
+}
+
+// ── action=list_mods (admin-gated) ────────────────────────────────────────────
+
+async function handleListMods(req, res) {
+  const ok = await requireAdmin(req, res)
+  if (!ok) return
+
+  try {
+    const rows = await sql`
+      SELECT id, username, created_at, last_login, is_active, show_chat_badge
+      FROM pw_moderators
+      ORDER BY created_at DESC
+    `
+    return res.status(200).json({ moderators: rows })
+  } catch (err) {
+    console.error('List mods error:', err)
+    return res.status(500).json({ error: 'Failed to fetch moderators.' })
   }
 }
 
@@ -287,6 +287,111 @@ async function handleLookupPlayer(req, res) {
   }
 }
 
+// ── action=chat_moderations (admin-gated) ─────────────────────────────────────
+
+async function handleChatModerations(req, res) {
+  const ok = await requireAdmin(req, res)
+  if (!ok) return
+
+  try {
+    const rows = await sql`
+      SELECT m.id, m.action, m.channel_type, m.duration_minutes, m.expires_at,
+             m.reason, m.created_at,
+             u.username AS target_username,
+             mod.username AS mod_username
+      FROM pw_chat_moderations m
+      JOIN pw_users u ON u.id = m.target_user_id
+      LEFT JOIN pw_moderators mod ON mod.id = m.mod_id
+      WHERE m.lifted_at IS NULL
+        AND m.action IN ('mute', 'timeout', 'ban', 'kick')
+        AND (m.expires_at IS NULL OR m.expires_at > NOW())
+      ORDER BY m.created_at DESC
+    `
+    return res.status(200).json({ ok: true, moderations: rows })
+  } catch (err) {
+    console.error('Chat moderations error:', err)
+    return res.status(500).json({ error: 'Failed to fetch moderations.' })
+  }
+}
+
+// ── action=chat_audit (admin-gated) ───────────────────────────────────────────
+
+async function handleChatAudit(req, res) {
+  const ok = await requireAdmin(req, res)
+  if (!ok) return
+
+  try {
+    const rows = await sql`
+      SELECT m.id, m.action, m.channel_type, m.duration_minutes, m.expires_at,
+             m.lifted_at, m.reason, m.created_at,
+             u.username AS target_username,
+             mod.username AS mod_username,
+             lift.username AS lifted_by_username
+      FROM pw_chat_moderations m
+      JOIN pw_users u ON u.id = m.target_user_id
+      LEFT JOIN pw_moderators mod ON mod.id = m.mod_id
+      LEFT JOIN pw_moderators lift ON lift.id = m.lifted_by
+      ORDER BY m.created_at DESC
+      LIMIT 100
+    `
+    return res.status(200).json({ ok: true, actions: rows })
+  } catch (err) {
+    console.error('Chat audit error:', err)
+    return res.status(500).json({ error: 'Failed to fetch chat audit log.' })
+  }
+}
+
+// ── action=chat_lift_moderation (admin-gated) ──────────────────────────────────
+
+async function handleAdminChatLiftModeration(req, res) {
+  if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' })
+  const ok = await requireAdmin(req, res)
+  if (!ok) return
+
+  const { moderation_id } = req.body || {}
+  if (!moderation_id) return res.status(400).json({ error: 'Missing moderation_id' })
+
+  try {
+    const rows = await sql`
+      UPDATE pw_chat_moderations
+      SET lifted_at = NOW()
+      WHERE id = ${moderation_id} AND lifted_at IS NULL
+      RETURNING id
+    `
+    if (rows.length === 0) return res.status(404).json({ error: 'Moderation not found or already lifted.' })
+    return res.status(200).json({ ok: true })
+  } catch (err) {
+    console.error('Admin chat lift error:', err)
+    return res.status(500).json({ error: 'Failed to lift moderation.' })
+  }
+}
+
+// ── action=set_mod_badge (admin-gated) ────────────────────────────────────────
+
+async function handleSetModBadge(req, res) {
+  if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' })
+  const ok = await requireAdmin(req, res)
+  if (!ok) return
+
+  const { moderator_id, show_badge } = req.body || {}
+  if (moderator_id == null || show_badge == null) {
+    return res.status(400).json({ error: 'Missing moderator_id or show_badge' })
+  }
+
+  try {
+    const rows = await sql`
+      UPDATE pw_moderators SET show_chat_badge = ${!!show_badge}
+      WHERE id = ${moderator_id}
+      RETURNING username, show_chat_badge
+    `
+    if (rows.length === 0) return res.status(404).json({ error: 'Moderator not found.' })
+    return res.status(200).json({ ok: true, username: rows[0].username, show_badge: rows[0].show_chat_badge })
+  } catch (err) {
+    console.error('Set mod badge error:', err)
+    return res.status(500).json({ error: 'Failed to update badge setting.' })
+  }
+}
+
 // ── Router ─────────────────────────────────────────────────────────────────────
 
 export default async function handler(req, res) {
@@ -300,6 +405,10 @@ export default async function handler(req, res) {
   if (action === 'list_mods')       return handleListMods(req, res)
   if (action === 'list_actions')    return handleListActions(req, res)
   if (action === 'deactivate_mod')  return handleDeactivateMod(req, res)
-  if (action === 'lookup_player')   return handleLookupPlayer(req, res)
+  if (action === 'lookup_player')        return handleLookupPlayer(req, res)
+  if (action === 'chat_moderations')     return handleChatModerations(req, res)
+  if (action === 'chat_audit')           return handleChatAudit(req, res)
+  if (action === 'chat_lift_moderation') return handleAdminChatLiftModeration(req, res)
+  if (action === 'set_mod_badge')        return handleSetModBadge(req, res)
   return res.status(400).json({ error: 'Unknown action' })
 }
