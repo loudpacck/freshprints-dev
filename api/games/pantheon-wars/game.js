@@ -684,15 +684,21 @@ async function handleConsume(req, res) {
     await sql`DELETE FROM pw_inventory WHERE id = ${inventory_id}`
     await sql`
       UPDATE pw_player_stats SET
-        health                       = ${stats.health},
-        energy                       = ${stats.energy},
-        energy_regen_base            = ${stats.energy_regen_base},
-        health_regen_base            = ${stats.health_regen_base},
-        last_updated                 = ${stats.last_updated},
-        energy_potion_uses_today     = ${stats.energy_potion_uses_today ?? 0},
-        energy_potion_reset_day      = ${stats.energy_potion_reset_day ?? Math.floor(Date.now() / 86400000)}
+        health             = ${stats.health},
+        energy             = ${stats.energy},
+        energy_regen_base  = ${stats.energy_regen_base},
+        health_regen_base  = ${stats.health_regen_base},
+        last_updated       = ${stats.last_updated}
       WHERE user_id = ${req.userId}
     `
+    if (item.consumable_effect === 'restore_energy_pct') {
+      await sql`
+        UPDATE pw_player_stats SET
+          energy_potion_uses_today = ${stats.energy_potion_uses_today ?? 0},
+          energy_potion_reset_day  = ${stats.energy_potion_reset_day ?? Math.floor(Date.now() / 86400000)}
+        WHERE user_id = ${req.userId}
+      `
+    }
 
     return res.status(200).json({
       success:  true,
