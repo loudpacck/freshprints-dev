@@ -17,6 +17,7 @@ import {
   getTownshipBonusValue, getTownshipUpgradeCost, getTownshipUpgradeSeconds,
   rollTitanLootRarity,
   processExpiredTitanEvents,
+  checkAndCompleteCrafts, getCraftCycleSeconds, rollCraftRarity,
 } from '../../../lib/pwHelpers.js'
 
 export const config = { runtime: 'nodejs' }
@@ -78,6 +79,7 @@ async function handleQuests(req, res) {
       rotation_expires_at: getQuestRotationExpiry(),
       pendingAdventureRewards: req.pendingAdventureRewards || null,
       pendingTownshipUpgrades: req.pendingTownshipUpgrades || null,
+      pendingCraftCycles: req.pendingCraftCycles || null,
     })
   } catch (err) {
     console.error('Quests error:', err)
@@ -287,6 +289,7 @@ async function handleComplete(req, res) {
       },
       pendingAdventureRewards: req.pendingAdventureRewards || null,
       pendingTownshipUpgrades: req.pendingTownshipUpgrades || null,
+      pendingCraftCycles: req.pendingCraftCycles || null,
     })
   } catch (err) {
     console.error('Quest complete error:', err)
@@ -367,6 +370,7 @@ async function handleInventory(req, res) {
       },
       pendingAdventureRewards: req.pendingAdventureRewards || null,
       pendingTownshipUpgrades: req.pendingTownshipUpgrades || null,
+      pendingCraftCycles: req.pendingCraftCycles || null,
     })
   } catch (err) {
     console.error('Inventory error:', err)
@@ -435,6 +439,7 @@ async function handleEquip(req, res) {
       equipment_bonuses,
       pendingAdventureRewards: req.pendingAdventureRewards || null,
       pendingTownshipUpgrades: req.pendingTownshipUpgrades || null,
+      pendingCraftCycles: req.pendingCraftCycles || null,
     })
   } catch (err) {
     console.error('Equip error:', err)
@@ -478,6 +483,7 @@ async function handleUnequip(req, res) {
       equipment_bonuses,
       pendingAdventureRewards: req.pendingAdventureRewards || null,
       pendingTownshipUpgrades: req.pendingTownshipUpgrades || null,
+      pendingCraftCycles: req.pendingCraftCycles || null,
     })
   } catch (err) {
     console.error('Unequip error:', err)
@@ -520,6 +526,7 @@ async function handleSell(req, res) {
       new_drachma: updated[0].drachma,
       pendingAdventureRewards: req.pendingAdventureRewards || null,
       pendingTownshipUpgrades: req.pendingTownshipUpgrades || null,
+      pendingCraftCycles: req.pendingCraftCycles || null,
     })
   } catch (err) {
     console.error('Sell error:', err)
@@ -534,16 +541,20 @@ async function resetDailyCountersIfNeeded(statsObj, userId) {
   if ((statsObj.energy_potion_reset_day ?? -1) === TODAY_SEED) return statsObj
   await sql`
     UPDATE pw_player_stats SET
-      energy_potion_purchases_today = 0,
-      energy_potion_uses_today      = 0,
-      energy_potion_reset_day       = ${TODAY_SEED}
+      energy_potion_purchases_today      = 0,
+      energy_potion_uses_today           = 0,
+      health_potion_uses_today           = 0,
+      divine_restoration_purchases_today = 0,
+      energy_potion_reset_day            = ${TODAY_SEED}
     WHERE user_id = ${userId}
   `
   return {
     ...statsObj,
-    energy_potion_purchases_today: 0,
-    energy_potion_uses_today:      0,
-    energy_potion_reset_day:       TODAY_SEED,
+    energy_potion_purchases_today:      0,
+    energy_potion_uses_today:           0,
+    health_potion_uses_today:           0,
+    divine_restoration_purchases_today: 0,
+    energy_potion_reset_day:            TODAY_SEED,
   }
 }
 
@@ -581,8 +592,36 @@ async function handleConsume(req, res) {
     let healthRestored = 0
     let energyRestored = 0
 
-    // Apply daily counter reset before any energy potion checks
+    // Apply daily counter reset before any potion checks
     stats = await resetDailyCountersIfNeeded(stats, req.userId)
+
+    // Determine which daily counters this item affects
+    let incrementEnergyUse = false
+    let incrementHealthUse = false
+    switch (item.consumable_effect) {
+      case 'restore_energy_pct':
+        incrementEnergyUse = true
+        break
+      case 'restore_health_pct':
+      case 'restore_health':
+        incrementHealthUse = true
+        break
+      case 'restore_full':
+        // Divine Restoration restores both — counts against both daily limits
+        incrementEnergyUse = true
+        incrementHealthUse = true
+        break
+    }
+
+    // Enforce daily use limits before applying any effect
+    if (incrementEnergyUse && (stats.energy_potion_uses_today ?? 0) >= 10) {
+      const resets_at = (Math.floor(Date.now() / 86400000) + 1) * 86400000
+      return res.status(400).json({ error: 'energy_potion_use_limit', message: 'Daily energy potion use limit reached (10/day).', resets_at })
+    }
+    if (incrementHealthUse && (stats.health_potion_uses_today ?? 0) >= 10) {
+      const resets_at = (Math.floor(Date.now() / 86400000) + 1) * 86400000
+      return res.status(400).json({ error: 'health_potion_use_limit', message: 'Daily health potion use limit reached (10/day).', resets_at })
+    }
 
     if (item.consumable_effect === 'restore_health_pct') {
       if (stats.health >= stats.health_max) {
@@ -592,21 +631,12 @@ async function handleConsume(req, res) {
       healthRestored = Math.min(restoreAmount, stats.health_max - stats.health)
       stats = { ...stats, health: stats.health + healthRestored }
     } else if (item.consumable_effect === 'restore_energy_pct') {
-      const usesToday = stats.energy_potion_uses_today ?? 0
-      if (usesToday >= 10) {
-        const resets_at = (Math.floor(Date.now() / 86400000) + 1) * 86400000
-        return res.status(400).json({ error: 'daily_use_limit_reached', resets_at })
-      }
       if (stats.energy >= stats.energy_max) {
         return res.status(400).json({ error: 'already_full_energy' })
       }
       const restoreAmount = Math.floor(stats.energy_max * (item.consumable_value / 100))
       energyRestored = Math.min(restoreAmount, stats.energy_max - stats.energy)
-      stats = {
-        ...stats,
-        energy: stats.energy + energyRestored,
-        energy_potion_uses_today: usesToday + 1,
-      }
+      stats = { ...stats, energy: stats.energy + energyRestored }
     } else if (item.consumable_effect === 'restore_health') {
       if (stats.health >= stats.health_max) {
         return res.status(400).json({ error: 'already_full_health' })
@@ -684,21 +714,15 @@ async function handleConsume(req, res) {
     await sql`DELETE FROM pw_inventory WHERE id = ${inventory_id}`
     await sql`
       UPDATE pw_player_stats SET
-        health             = ${stats.health},
-        energy             = ${stats.energy},
-        energy_regen_base  = ${stats.energy_regen_base},
-        health_regen_base  = ${stats.health_regen_base},
-        last_updated       = ${stats.last_updated}
+        health                     = ${stats.health},
+        energy                     = ${stats.energy},
+        energy_regen_base          = ${stats.energy_regen_base},
+        health_regen_base          = ${stats.health_regen_base},
+        last_updated               = ${stats.last_updated},
+        energy_potion_uses_today   = energy_potion_uses_today + ${incrementEnergyUse ? 1 : 0},
+        health_potion_uses_today   = health_potion_uses_today + ${incrementHealthUse ? 1 : 0}
       WHERE user_id = ${req.userId}
     `
-    if (item.consumable_effect === 'restore_energy_pct') {
-      await sql`
-        UPDATE pw_player_stats SET
-          energy_potion_uses_today = ${stats.energy_potion_uses_today ?? 0},
-          energy_potion_reset_day  = ${stats.energy_potion_reset_day ?? Math.floor(Date.now() / 86400000)}
-        WHERE user_id = ${req.userId}
-      `
-    }
 
     return res.status(200).json({
       success:  true,
@@ -708,10 +732,12 @@ async function handleConsume(req, res) {
         health_max:                stats.health_max,
         energy:                    stats.energy,
         energy_max:                stats.energy_max,
-        energy_potion_uses_today:  stats.energy_potion_uses_today ?? 0,
+        energy_potion_uses_today:  (stats.energy_potion_uses_today ?? 0) + (incrementEnergyUse ? 1 : 0),
+        health_potion_uses_today:  (stats.health_potion_uses_today ?? 0) + (incrementHealthUse ? 1 : 0),
       },
       pendingAdventureRewards: req.pendingAdventureRewards || null,
       pendingTownshipUpgrades: req.pendingTownshipUpgrades || null,
+      pendingCraftCycles: req.pendingCraftCycles || null,
     })
   } catch (err) {
     console.error('Consume error:', err)
@@ -820,23 +846,30 @@ async function handleShop(req, res) {
       glory_rotation_expires_at: getGloryRotationExpiry(),
       rotation_seed: getShopRotationSeed(),
       player: {
-        drachma:                       stats.drachma,
-        glory:                         stats.glory,
-        level:                         stats.level,
-        faction:                       rows[0].faction,
-        player_class:                  shopPlayerClass,
-        energy_potion_purchases_today: stats.energy_potion_purchases_today ?? 0,
-        energy_potion_uses_today:      stats.energy_potion_uses_today ?? 0,
+        drachma:                            stats.drachma,
+        glory:                              stats.glory,
+        level:                              stats.level,
+        faction:                            rows[0].faction,
+        player_class:                       shopPlayerClass,
+        energy_potion_purchases_today:      stats.energy_potion_purchases_today ?? 0,
+        energy_potion_uses_today:           stats.energy_potion_uses_today ?? 0,
+        health_potion_uses_today:           stats.health_potion_uses_today ?? 0,
+        divine_restoration_purchases_today: stats.divine_restoration_purchases_today ?? 0,
       },
       daily_limits: {
-        energy_potion_purchases_today: stats.energy_potion_purchases_today ?? 0,
-        energy_potion_uses_today:      stats.energy_potion_uses_today ?? 0,
-        max_purchases: 5,
-        max_uses:      10,
-        resets_at:     tomorrowUtc.toISOString(),
+        energy_potion_purchases_today:         stats.energy_potion_purchases_today ?? 0,
+        energy_potion_uses_today:              stats.energy_potion_uses_today ?? 0,
+        health_potion_uses_today:              stats.health_potion_uses_today ?? 0,
+        divine_restoration_purchases_today:    stats.divine_restoration_purchases_today ?? 0,
+        max_energy_purchases:                  5,
+        max_energy_uses:                       10,
+        max_health_uses:                       10,
+        max_divine_restoration_purchases:      1,
+        resets_at:                             tomorrowUtc.toISOString(),
       },
       pendingAdventureRewards: req.pendingAdventureRewards || null,
       pendingTownshipUpgrades: req.pendingTownshipUpgrades || null,
+      pendingCraftCycles: req.pendingCraftCycles || null,
     })
   } catch (err) {
     console.error('Shop error:', err)
@@ -871,6 +904,7 @@ async function handleBuy(req, res) {
     const playerRows = await sql`
       SELECT ps.level, ps.drachma, ps.glory,
              ps.energy_potion_purchases_today, ps.energy_potion_uses_today, ps.energy_potion_reset_day,
+             ps.divine_restoration_purchases_today,
              u.faction, u.class AS player_class
       FROM pw_player_stats ps
       JOIN pw_users u ON u.id = ps.user_id
@@ -919,6 +953,15 @@ async function handleBuy(req, res) {
       }
     }
 
+    // Divine Restoration: max 1 purchase per UTC day
+    if (item.name === 'Divine Restoration') {
+      const drPurchasesToday = player.divine_restoration_purchases_today ?? 0
+      if (drPurchasesToday >= 1) {
+        const resets_at = (Math.floor(Date.now() / 86400000) + 1) * 86400000
+        return res.status(400).json({ error: 'divine_restoration_daily_limit', message: 'Divine Restoration is limited to 1 purchase per day.', resets_at })
+      }
+    }
+
     // Broker gets 10% drachma shop discount
     const effectivePrice = currency === 'drachma' && player.player_class === 'broker'
       ? Math.floor(item.buy_price * 0.90)
@@ -937,7 +980,7 @@ async function handleBuy(req, res) {
 
     await sql`INSERT INTO pw_inventory (user_id, item_id) VALUES (${req.userId}, ${item_id})`
 
-    // Increment energy potion purchase counter
+    // Increment purchase counters
     if (item.consumable_effect === 'restore_energy_pct') {
       const newPurchases = (player.energy_potion_purchases_today ?? 0) + 1
       const todaySeed    = Math.floor(Date.now() / 86400000)
@@ -945,6 +988,13 @@ async function handleBuy(req, res) {
         UPDATE pw_player_stats
         SET energy_potion_purchases_today = ${newPurchases},
             energy_potion_reset_day       = ${todaySeed}
+        WHERE user_id = ${req.userId}
+      `
+    }
+    if (item.name === 'Divine Restoration') {
+      await sql`
+        UPDATE pw_player_stats
+        SET divine_restoration_purchases_today = divine_restoration_purchases_today + 1
         WHERE user_id = ${req.userId}
       `
     }
@@ -958,6 +1008,7 @@ async function handleBuy(req, res) {
       new_glory:   updated[0].glory,
       pendingAdventureRewards: req.pendingAdventureRewards || null,
       pendingTownshipUpgrades: req.pendingTownshipUpgrades || null,
+      pendingCraftCycles: req.pendingCraftCycles || null,
     })
   } catch (err) {
     console.error('Shop buy error:', err)
@@ -1085,6 +1136,7 @@ async function handleLeaderboard(req, res) {
       your_rank: yourRank,
       pendingAdventureRewards: req.pendingAdventureRewards || null,
       pendingTownshipUpgrades: req.pendingTownshipUpgrades || null,
+      pendingCraftCycles: req.pendingCraftCycles || null,
     })
   } catch (err) {
     console.error('Leaderboard error:', err)
@@ -1175,6 +1227,7 @@ async function handleAllocate(req, res) {
       },
       pendingAdventureRewards: req.pendingAdventureRewards || null,
       pendingTownshipUpgrades: req.pendingTownshipUpgrades || null,
+      pendingCraftCycles: req.pendingCraftCycles || null,
     })
   } catch (err) {
     console.error('[game?action=allocate]', err.message)
@@ -1314,6 +1367,7 @@ async function handleTemples(req, res) {
       },
       pendingAdventureRewards: req.pendingAdventureRewards || null,
       pendingTownshipUpgrades: req.pendingTownshipUpgrades || null,
+      pendingCraftCycles: req.pendingCraftCycles || null,
     })
   } catch (err) {
     console.error('Temples error:', err)
@@ -1396,6 +1450,7 @@ async function handleTemplesBuy(req, res) {
       temple: shaped,
       pendingAdventureRewards: req.pendingAdventureRewards || null,
       pendingTownshipUpgrades: req.pendingTownshipUpgrades || null,
+      pendingCraftCycles: req.pendingCraftCycles || null,
     })
   } catch (err) {
     console.error('Temples buy error:', err)
@@ -1473,6 +1528,7 @@ async function handleTemplesUpgrade(req, res) {
       temple: shaped,
       pendingAdventureRewards: req.pendingAdventureRewards || null,
       pendingTownshipUpgrades: req.pendingTownshipUpgrades || null,
+      pendingCraftCycles: req.pendingCraftCycles || null,
     })
   } catch (err) {
     console.error('Temples upgrade error:', err)
@@ -1527,6 +1583,7 @@ async function handleAlignmentChoose(req, res) {
       },
       pendingAdventureRewards: req.pendingAdventureRewards || null,
       pendingTownshipUpgrades: req.pendingTownshipUpgrades || null,
+      pendingCraftCycles: req.pendingCraftCycles || null,
     })
   } catch (err) {
     console.error('Alignment choose error:', err)
@@ -1678,6 +1735,7 @@ async function handlePvPTargets(req, res) {
       computed_bonuses,
       pendingAdventureRewards: req.pendingAdventureRewards || null,
       pendingTownshipUpgrades: req.pendingTownshipUpgrades || null,
+      pendingCraftCycles: req.pendingCraftCycles || null,
     })
   } catch (err) {
     console.error('PvP targets error:', err)
@@ -1945,6 +2003,7 @@ async function handlePvPAttack(req, res) {
       },
       pendingAdventureRewards: req.pendingAdventureRewards || null,
       pendingTownshipUpgrades: req.pendingTownshipUpgrades || null,
+      pendingCraftCycles: req.pendingCraftCycles || null,
     })
   } catch (err) {
     console.error('PvP attack error:', err)
@@ -1997,6 +2056,7 @@ async function handlePvPLog(req, res) {
       log,
       pendingAdventureRewards: req.pendingAdventureRewards || null,
       pendingTownshipUpgrades: req.pendingTownshipUpgrades || null,
+      pendingCraftCycles: req.pendingCraftCycles || null,
     })
   } catch (err) {
     console.error('PvP log error:', err)
@@ -2116,6 +2176,7 @@ async function handleAdventures(req, res) {
       },
       pendingAdventureRewards: req.pendingAdventureRewards || null,
       pendingTownshipUpgrades: req.pendingTownshipUpgrades || null,
+      pendingCraftCycles: req.pendingCraftCycles || null,
     })
   } catch (err) {
     console.error('Adventures error:', err)
@@ -2233,6 +2294,7 @@ async function handleAdventuresStart(req, res) {
       },
       pendingAdventureRewards: req.pendingAdventureRewards || null,
       pendingTownshipUpgrades: req.pendingTownshipUpgrades || null,
+      pendingCraftCycles: req.pendingCraftCycles || null,
     })
   } catch (err) {
     console.error('Adventures start error:', err)
@@ -2270,6 +2332,7 @@ async function handleAdventuresAbandon(req, res) {
       abandoned_adventure: rows[0].name,
       pendingAdventureRewards: req.pendingAdventureRewards || null,
       pendingTownshipUpgrades: req.pendingTownshipUpgrades || null,
+      pendingCraftCycles: req.pendingCraftCycles || null,
     })
   } catch (err) {
     console.error('Adventures abandon error:', err)
@@ -2396,6 +2459,7 @@ async function handleFreeStatReset(req, res) {
       },
       pendingAdventureRewards: req.pendingAdventureRewards || null,
       pendingTownshipUpgrades: req.pendingTownshipUpgrades || null,
+      pendingCraftCycles: req.pendingCraftCycles || null,
     })
   } catch (err) {
     console.error('[game?action=stat_reset_free]', err.message)
@@ -2489,6 +2553,7 @@ async function handleTitanStatus(req, res) {
       server_time:             new Date().toISOString(),
       pendingAdventureRewards: req.pendingAdventureRewards || null,
       pendingTownshipUpgrades: req.pendingTownshipUpgrades || null,
+      pendingCraftCycles: req.pendingCraftCycles || null,
     })
   } catch (err) {
     console.error('titan_status error:', err)
@@ -2536,6 +2601,7 @@ async function handleTitanJoin(req, res) {
       queue_closes_at: event.queue_closes_at,
       pendingAdventureRewards: req.pendingAdventureRewards || null,
       pendingTownshipUpgrades: req.pendingTownshipUpgrades || null,
+      pendingCraftCycles: req.pendingCraftCycles || null,
     })
   } catch (err) {
     console.error('titan_join error:', err)
@@ -2719,6 +2785,7 @@ async function handleTitanClaim(req, res) {
       stats,
       pendingAdventureRewards: req.pendingAdventureRewards || null,
       pendingTownshipUpgrades: req.pendingTownshipUpgrades || null,
+      pendingCraftCycles: req.pendingCraftCycles || null,
     })
   } catch (err) {
     console.error('titan_claim error:', err)
@@ -2798,6 +2865,7 @@ async function handleTitanHistory(req, res) {
       history: rows,
       pendingAdventureRewards: req.pendingAdventureRewards || null,
       pendingTownshipUpgrades: req.pendingTownshipUpgrades || null,
+      pendingCraftCycles: req.pendingCraftCycles || null,
     })
   } catch (err) {
     console.error('titan_history error:', err)
@@ -2818,6 +2886,14 @@ async function handleTownship(req, res) {
     const ownedRows = await sql`SELECT * FROM pw_player_townships WHERE user_id = ${req.userId}`
     const ownedByType = {}
     for (const o of ownedRows) ownedByType[o.upgrade_type] = o
+
+    const craftRows = await sql`
+      SELECT id, craft_level, started_at, completes_at, status, rolled_rarity, rolled_item_id
+      FROM pw_craftsmanship_cycles
+      WHERE user_id = ${req.userId} AND status != 'claimed'
+      ORDER BY id DESC LIMIT 1
+    `
+    const activeCraftCycle = craftRows[0] || null
 
     const townships = catalog.map(entry => {
       const owned = ownedByType[entry.type] || null
@@ -2860,6 +2936,7 @@ async function handleTownship(req, res) {
         upgrading_to_level:  owned?.upgrading_to_level ? Number(owned.upgrading_to_level) : null,
         upgrade_started_at:  owned?.upgrade_started_at || null,
         upgrade_completes_at: owned?.upgrade_completes_at || null,
+        ...(entry.type === 'craftsmanship' && { craft_cycle: activeCraftCycle }),
       }
     })
 
@@ -2869,6 +2946,7 @@ async function handleTownship(req, res) {
       townships,
       pendingAdventureRewards: req.pendingAdventureRewards || null,
       pendingTownshipUpgrades: req.pendingTownshipUpgrades || null,
+      pendingCraftCycles: req.pendingCraftCycles || null,
     })
   } catch (err) {
     console.error('township error:', err)
@@ -2932,13 +3010,27 @@ async function handleTownshipEstablish(req, res) {
       VALUES (${req.userId}, ${upgrade_type}, 1)
     `
 
+    // Auto-start first craft cycle when the Forge is established
+    let firstCycleCompletesAt = null
+    if (upgrade_type === 'craftsmanship') {
+      const cycleSeconds = getCraftCycleSeconds(1)
+      const completesAt = new Date(Date.now() + cycleSeconds * 1000)
+      firstCycleCompletesAt = completesAt.toISOString()
+      await sql`
+        INSERT INTO pw_craftsmanship_cycles (user_id, craft_level, completes_at)
+        VALUES (${req.userId}, 1, ${firstCycleCompletesAt})
+      `
+    }
+
     return res.status(200).json({
       ok: true,
       upgrade_type,
       level: 1,
       new_drachma: newDrachma,
+      ...(upgrade_type === 'craftsmanship' && { first_cycle_completes_at: firstCycleCompletesAt }),
       pendingAdventureRewards: req.pendingAdventureRewards || null,
       pendingTownshipUpgrades: req.pendingTownshipUpgrades || null,
+      pendingCraftCycles: req.pendingCraftCycles || null,
     })
   } catch (err) {
     console.error('township_establish error:', err)
@@ -3017,6 +3109,7 @@ async function handleTownshipUpgrade(req, res) {
       new_drachma: newDrachma,
       pendingAdventureRewards: req.pendingAdventureRewards || null,
       pendingTownshipUpgrades: req.pendingTownshipUpgrades || null,
+      pendingCraftCycles: req.pendingCraftCycles || null,
     })
   } catch (err) {
     console.error('township_upgrade error:', err)
@@ -3111,16 +3204,111 @@ async function handleAcknowledgeReward(req, res) {
   }
 }
 
+// ── Craftsmanship Claim (POST) ────────────────────────────────────────────────
+
+async function handleCraftsmanshipClaim(req, res) {
+  if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' })
+
+  try {
+    // Find player's 'ready' cycle
+    const cycleRows = await sql`
+      SELECT id, craft_level FROM pw_craftsmanship_cycles
+      WHERE user_id = ${req.userId} AND status = 'ready'
+      LIMIT 1
+    `
+    if (cycleRows.length === 0) {
+      return res.status(400).json({ error: 'no_ready_cycle', message: 'No craft cycle is ready to claim.' })
+    }
+    const cycle = cycleRows[0]
+
+    // Get player's CURRENT craftsmanship level (may have leveled up since cycle started)
+    const townshipRows = await sql`
+      SELECT level FROM pw_player_townships
+      WHERE user_id = ${req.userId} AND upgrade_type = 'craftsmanship'
+    `
+    if (townshipRows.length === 0) {
+      return res.status(400).json({ error: 'craftsmanship_not_established' })
+    }
+    const currentCraftLevel = townshipRows[0].level
+
+    // Get player level and faction for item filtering
+    const statsRows = await sql`
+      SELECT ps.level, u.faction
+      FROM pw_player_stats ps
+      JOIN pw_users u ON u.id = ps.user_id
+      WHERE ps.user_id = ${req.userId}
+    `
+    if (statsRows.length === 0) return res.status(404).json({ error: 'player_not_found' })
+    const { level: playerLevel, faction: playerFaction } = statsRows[0]
+
+    // Roll rarity based on current craft level (never legendary)
+    const rolledRarity = rollCraftRarity(currentCraftLevel)
+
+    // Select a matching non-consumable item
+    const itemRows = await sql`
+      SELECT id, name, rarity, slot
+      FROM pw_items
+      WHERE slot != 'consumable'
+        AND rarity = ${rolledRarity}
+        AND level_required <= ${playerLevel}
+        AND (faction_exclusive IS NULL OR faction_exclusive = ${playerFaction})
+      ORDER BY RANDOM()
+      LIMIT 1
+    `
+
+    let grantedItem = null
+    if (itemRows.length > 0) {
+      const picked = itemRows[0]
+      await sql`INSERT INTO pw_inventory (user_id, item_id) VALUES (${req.userId}, ${picked.id})`
+      grantedItem = { id: picked.id, name: picked.name, rarity: picked.rarity, slot: picked.slot }
+    }
+
+    // Mark cycle 'claimed'
+    await sql`
+      UPDATE pw_craftsmanship_cycles SET
+        status         = 'claimed',
+        rolled_rarity  = ${rolledRarity},
+        rolled_item_id = ${grantedItem?.id ?? null},
+        claimed_at     = NOW()
+      WHERE id = ${cycle.id}
+    `
+
+    // Auto-start next cycle at current craft level
+    const cycleSeconds = getCraftCycleSeconds(currentCraftLevel)
+    const completesAt = new Date(Date.now() + cycleSeconds * 1000)
+    await sql`
+      INSERT INTO pw_craftsmanship_cycles (user_id, craft_level, completes_at)
+      VALUES (${req.userId}, ${currentCraftLevel}, ${completesAt.toISOString()})
+    `
+
+    return res.status(200).json({
+      ok:                      true,
+      granted_item:            grantedItem,
+      rolled_rarity:           rolledRarity,
+      craft_level:             currentCraftLevel,
+      next_cycle_completes_at: completesAt.toISOString(),
+      pendingAdventureRewards: req.pendingAdventureRewards || null,
+      pendingTownshipUpgrades: req.pendingTownshipUpgrades || null,
+      pendingCraftCycles:      req.pendingCraftCycles || null,
+    })
+  } catch (err) {
+    console.error('craftsmanship_claim error:', err)
+    return res.status(500).json({ error: 'claim_failed' })
+  }
+}
+
 // ── Router ────────────────────────────────────────────────────────────────────
 
 export default requireUser(async function handler(req, res) {
   const { action } = req.query
 
-  // Auto-complete any expired adventure or township upgrade before processing any action
+  // Auto-complete any expired adventure, township upgrade, or craft cycle before processing any action
   req.pendingAdventureRewards = null
   req.pendingTownshipUpgrades = null
+  req.pendingCraftCycles = null
   try { req.pendingAdventureRewards = await checkAndCompleteAdventures(sql, req.userId) } catch {}
   try { req.pendingTownshipUpgrades = await checkAndCompleteUpgrades(sql, req.userId) } catch {}
+  try { req.pendingCraftCycles = await checkAndCompleteCrafts(sql, req.userId) } catch {}
   try { await processExpiredTitanEvents(sql) } catch (err) { console.error('inline titan processing error:', err) }
 
   if (action === 'quests')             return handleQuests(req, res)
@@ -3154,8 +3342,9 @@ export default requireUser(async function handler(req, res) {
   if (action === 'township')            return handleTownship(req, res)
   if (action === 'township_establish')  return handleTownshipEstablish(req, res)
   if (action === 'township_upgrade')    return handleTownshipUpgrade(req, res)
-  if (action === 'codex')              return handleCodex(req, res)
-  if (action === 'pending_rewards')    return handlePendingRewards(req, res)
-  if (action === 'acknowledge_reward') return handleAcknowledgeReward(req, res)
+  if (action === 'codex')               return handleCodex(req, res)
+  if (action === 'pending_rewards')     return handlePendingRewards(req, res)
+  if (action === 'acknowledge_reward')  return handleAcknowledgeReward(req, res)
+  if (action === 'craftsmanship_claim') return handleCraftsmanshipClaim(req, res)
   return res.status(400).json({ error: 'Unknown action' })
 })
