@@ -987,10 +987,10 @@ export default function Dashboard() {
                 <TitanFeaturedTile />
               </motion.section>
 
-              {/* ── Township featured tile ───────────────────── */}
-              <motion.section variants={fadeUp}>
+              {/* DISABLED: Township View - re-enable when asset/alignment issues are resolved */}
+              {/* <motion.section variants={fadeUp}>
                 <TownshipFeaturedTile />
-              </motion.section>
+              </motion.section> */}
 
               {/* ── Navigation grid ──────────────────────────── */}
               <motion.section variants={fadeUp}>

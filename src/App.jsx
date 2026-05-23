@@ -182,7 +182,8 @@ function PantheonWarsRoutes() {
         <Route path="/games/pantheon-wars/profile"      element={<PantheonProfile />} />
         <Route path="/games/pantheon-wars/adventures"       element={<PantheonAdventures />} />
         <Route path="/games/pantheon-wars/township"         element={<PantheonTownship />} />
-        <Route path="/games/pantheon-wars/township-view"  element={<PantheonTownshipView />} />
+        {/* DISABLED: Township View - re-enable when asset/alignment issues are resolved */}
+        {/* <Route path="/games/pantheon-wars/township-view"  element={<PantheonTownshipView />} /> */}
         <Route path="/games/pantheon-wars/titan"           element={<PantheonTitan />} />
         <Route path="/games/pantheon-wars/forgot-password" element={<PantheonForgotPw />} />
         <Route path="/games/pantheon-wars/reset-password"  element={<PantheonResetPw />} />
