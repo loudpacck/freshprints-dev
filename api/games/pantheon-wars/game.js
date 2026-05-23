@@ -11,6 +11,7 @@ import {
   getQuestRotationSeed, getQuestRotationExpiry,
   getAdventureRotationSeed, getAdventureRotationExpiry,
   pickRotatedFromPool, checkAndCompleteAdventures, checkAndCompleteUpgrades,
+  checkAndInsertTempleIncomeReward,
   computeResetBaselines, calculateTitanRewards,
   getPlayerTownships, aggregateTownshipBonuses,
   computeXpReward, computeDrachmaReward,
@@ -674,8 +675,9 @@ async function handleConsume(req, res) {
       const totalRefunded   = refundAttack + refundDefense + refundAgility + refundEnergyMax + refundHealthMax
 
       const newStatPoints = (stats.stat_points || 0) + totalRefunded
-      const newEnergy     = Math.min(stats.energy || 0, energyMaxBaseline)
-      const newHealth     = Math.min(stats.health || 0, healthMaxBaseline)
+      // Restore to full on reset (QoL + prevents exploit loop)
+      const newEnergy     = energyMaxBaseline
+      const newHealth     = healthMaxBaseline
 
       await sql`DELETE FROM pw_inventory WHERE id = ${inventory_id}`
       await sql`
@@ -2439,8 +2441,9 @@ async function handleFreeStatReset(req, res) {
     const totalRefunded   = refundAttack + refundDefense + refundAgility + refundEnergyMax + refundHealthMax
 
     const newStatPoints = (stats.stat_points || 0) + totalRefunded
-    const newEnergy     = Math.min(stats.energy || 0, energyMaxBaseline)
-    const newHealth     = Math.min(stats.health || 0, healthMaxBaseline)
+    // Restore to full on reset (QoL + prevents exploit loop)
+    const newEnergy     = energyMaxBaseline
+    const newHealth     = healthMaxBaseline
 
     await sql`
       UPDATE pw_player_stats SET
@@ -4014,6 +4017,7 @@ const innerHandler = requireUserWithModCheck(async function handler(req, res) {
   try { req.pendingTownshipUpgrades = await checkAndCompleteUpgrades(sql, req.userId) } catch {}
   try { req.pendingCraftCycles = await checkAndCompleteCrafts(sql, req.userId) } catch {}
   try { await processExpiredTitanEvents(sql) } catch (err) { console.error('inline titan processing error:', err) }
+  try { await checkAndInsertTempleIncomeReward(sql, req.userId) } catch {}
 
   if (action === 'quests')             return handleQuests(req, res)
   if (action === 'complete')           return handleComplete(req, res)

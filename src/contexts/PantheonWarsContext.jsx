@@ -1,6 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react'
 import { AnimatePresence } from 'framer-motion'
 import AdventureRewardModal from '@/components/games/pantheon-wars/AdventureRewardModal'
+import TempleIncomeRevealModal from '@/components/games/pantheon-wars/TempleIncomeRevealModal'
 
 const PantheonWarsContext = createContext(null)
 
@@ -52,7 +53,8 @@ export function PantheonWarsProvider({ children }) {
       .then(r => r.ok ? r.json() : null)
       .then(data => {
         if (!data?.pending_rewards?.length) return
-        const [first, ...rest] = data.pending_rewards.filter(r => r.type === 'adventure')
+        const relevant = data.pending_rewards.filter(r => r.type === 'adventure' || r.type === 'temple_income')
+        const [first, ...rest] = relevant
         if (first) {
           pendingQueueRef.current = rest
           setPendingReward(first)
@@ -107,7 +109,14 @@ export function PantheonWarsProvider({ children }) {
     }}>
       {children}
       <AnimatePresence>
-        {pendingReward && (
+        {pendingReward && pendingReward.type === 'temple_income' && (
+          <TempleIncomeRevealModal
+            key={pendingReward.id}
+            reward={pendingReward}
+            onClose={() => acknowledgeReward(pendingReward.id)}
+          />
+        )}
+        {pendingReward && pendingReward.type !== 'temple_income' && (
           <AdventureRewardModal
             key={pendingReward.id ?? pendingReward.adventure_name}
             reward={pendingReward}

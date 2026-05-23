@@ -37,7 +37,7 @@ const CATEGORIES = [
   },
   {
     id: 'professions',
-    label: 'PROFESSIONS',
+    label: 'TOWNSHIP',
     glyph: '🏛',
     color: '#A8C97A',
     description: 'The institutions of your township — permanent upgrades that strengthen your domain.',

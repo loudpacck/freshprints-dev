@@ -19,6 +19,13 @@ export default async function handler(req, res) {
   const slot = req.query?.event || 'cron'
 
   try {
+    // Retroactively open any events created before queue_opens_at = NOW() rule
+    await sql`
+      UPDATE pw_titan_events
+      SET queue_opens_at = NOW()
+      WHERE status = 'queue' AND queue_opens_at > NOW()
+    `.catch(() => {})
+
     const didWork     = await processExpiredTitanEvents(sql)
     const nextFightAt = await scheduleNextTitanEvent(sql)
 
