@@ -77,6 +77,58 @@ function SkeletonTile() {
   return <div className="pw-skel" style={{ height: 90, borderRadius: 10, marginBottom: 18 }} />
 }
 
+function TownshipFeaturedTile() {
+  const [profCount, setProfCount] = useState(null)
+  const navigate = useNavigate()
+
+  useEffect(() => {
+    fetch('/api/games/pantheon-wars/game?action=township')
+      .then(r => r.ok ? r.json() : null)
+      .then(data => {
+        if (data?.townships) {
+          setProfCount(data.townships.filter(t => t.is_owned).length)
+        }
+      })
+      .catch(() => {})
+  }, [])
+
+  return (
+    <motion.div
+      whileHover={{ scale: 1.015 }}
+      whileTap={{ scale: 0.99 }}
+      onClick={() => navigate('/games/pantheon-wars/township-view')}
+      style={{
+        cursor: 'pointer',
+        marginBottom: 18,
+        padding: '18px 18px',
+        background: 'linear-gradient(135deg, rgba(100,160,60,0.09), rgba(30,60,20,0.20))',
+        border: '1px solid rgba(120,180,70,0.32)',
+        borderRadius: 10,
+        position: 'relative',
+        overflow: 'hidden',
+      }}
+    >
+      {/* Decorative glyph */}
+      <div style={{ position: 'absolute', top: -10, right: -6, opacity: 0.08, fontSize: 72, lineHeight: 1, color: '#A8C97A', pointerEvents: 'none' }}>
+        🏛
+      </div>
+      <div style={{ position: 'relative', zIndex: 1 }}>
+        <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 9, color: '#A8C97A', letterSpacing: '0.18em', textTransform: 'uppercase', marginBottom: 5 }}>
+          🏛 YOUR TOWNSHIP
+        </div>
+        <div style={{ fontFamily: "'Cinzel', serif", fontSize: 18, color: '#EDE3CC', marginBottom: 3, lineHeight: 1.1 }}>
+          {profCount === null ? 'Enter your settlement' : `${profCount}/8 Professions Established`}
+        </div>
+        <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'flex-end' }}>
+          <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 9, color: 'rgba(168,201,122,0.5)', letterSpacing: '0.09em', textAlign: 'right' }}>
+            <div style={{ color: 'rgba(120,180,70,0.65)', marginTop: 2 }}>VIEW →</div>
+          </div>
+        </div>
+      </div>
+    </motion.div>
+  )
+}
+
 function TitanFeaturedTile() {
   const [titanStatus, setTitanStatus] = useState(null)
   const [tileLoading, setTileLoading] = useState(true)
@@ -933,6 +985,11 @@ export default function Dashboard() {
               {/* ── Titan featured tile ─────────────────────── */}
               <motion.section variants={fadeUp}>
                 <TitanFeaturedTile />
+              </motion.section>
+
+              {/* ── Township featured tile ───────────────────── */}
+              <motion.section variants={fadeUp}>
+                <TownshipFeaturedTile />
               </motion.section>
 
               {/* ── Navigation grid ──────────────────────────── */}

@@ -53,7 +53,8 @@ const PantheonTitan       = lazy(() => import('@/pages/games/pantheon-wars/Titan
 const PantheonForgotPw    = lazy(() => import('@/pages/games/pantheon-wars/ForgotPassword'))
 const PantheonResetPw     = lazy(() => import('@/pages/games/pantheon-wars/ResetPassword'))
 const PantheonComingSoon  = lazy(() => import('@/pages/games/pantheon-wars/ComingSoon'))
-const PantheonCodex       = lazy(() => import('@/pages/games/pantheon-wars/Codex'))
+const PantheonCodex        = lazy(() => import('@/pages/games/pantheon-wars/Codex'))
+const PantheonTownshipView = lazy(() => import('@/pages/games/pantheon-wars/TownshipView'))
 
 function PageLoader() {
   return (
@@ -180,7 +181,8 @@ function PantheonWarsRoutes() {
         <Route path="/games/pantheon-wars/leaderboard" element={<PantheonLeaderboard />} />
         <Route path="/games/pantheon-wars/profile"      element={<PantheonProfile />} />
         <Route path="/games/pantheon-wars/adventures"       element={<PantheonAdventures />} />
-        <Route path="/games/pantheon-wars/township"        element={<PantheonTownship />} />
+        <Route path="/games/pantheon-wars/township"         element={<PantheonTownship />} />
+        <Route path="/games/pantheon-wars/township-view"  element={<PantheonTownshipView />} />
         <Route path="/games/pantheon-wars/titan"           element={<PantheonTitan />} />
         <Route path="/games/pantheon-wars/forgot-password" element={<PantheonForgotPw />} />
         <Route path="/games/pantheon-wars/reset-password"  element={<PantheonResetPw />} />
