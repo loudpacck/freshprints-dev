@@ -864,7 +864,7 @@ function TownshipToast({ toast, onClose }) {
     if (toast.type === 'error') play('toast_notification')
     const t = setTimeout(onClose, 3400)
     return () => clearTimeout(t)
-  }, [onClose]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   let borderColor = 'rgba(201,169,97,0.5)'
   let heading = ''

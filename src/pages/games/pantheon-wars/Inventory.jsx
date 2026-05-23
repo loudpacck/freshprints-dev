@@ -717,7 +717,7 @@ function Toast({ message, color, sound, onDone }) {
     if (sound) play(sound)
     const t = setTimeout(onDone, 3000)
     return () => clearTimeout(t)
-  }, [onDone]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
   return (
     <motion.div
       initial={{ opacity: 0, y: -14, scale: 0.96 }}

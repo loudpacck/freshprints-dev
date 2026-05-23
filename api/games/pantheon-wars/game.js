@@ -45,12 +45,15 @@ async function handleQuests(req, res) {
 
     if (
       stats.energy !== statsRows[0].energy || stats.health !== statsRows[0].health ||
+      stats.drachma !== statsRows[0].drachma ||
       stats.energy_regen_base !== statsRows[0].energy_regen_base ||
       stats.health_regen_base !== statsRows[0].health_regen_base
     ) {
       await sql`
         UPDATE pw_player_stats
         SET energy = ${stats.energy}, health = ${stats.health},
+            drachma = ${stats.drachma},
+            drachma_lifetime = ${stats.drachma_lifetime},
             energy_regen_base = ${stats.energy_regen_base},
             health_regen_base = ${stats.health_regen_base},
             last_updated = ${stats.last_updated}
@@ -319,12 +322,15 @@ async function handleInventory(req, res) {
     let stats = regenPlayer(statsRows[0], templeRows, statsRows[0].class, statsRows[0].faction, invTownshipBonuses)
     if (
       stats.energy !== statsRows[0].energy || stats.health !== statsRows[0].health ||
+      stats.drachma !== statsRows[0].drachma ||
       stats.energy_regen_base !== statsRows[0].energy_regen_base ||
       stats.health_regen_base !== statsRows[0].health_regen_base
     ) {
       await sql`
         UPDATE pw_player_stats
         SET energy = ${stats.energy}, health = ${stats.health},
+            drachma = ${stats.drachma},
+            drachma_lifetime = ${stats.drachma_lifetime},
             energy_regen_base = ${stats.energy_regen_base},
             health_regen_base = ${stats.health_regen_base},
             last_updated = ${stats.last_updated}
@@ -682,6 +688,8 @@ async function handleConsume(req, res) {
           energy            = ${newEnergy},
           health            = ${newHealth},
           stat_points       = ${newStatPoints},
+          drachma           = ${stats.drachma},
+          drachma_lifetime  = ${stats.drachma_lifetime},
           energy_regen_base = ${stats.energy_regen_base},
           health_regen_base = ${stats.health_regen_base},
           last_updated      = ${stats.last_updated}
@@ -718,6 +726,8 @@ async function handleConsume(req, res) {
       UPDATE pw_player_stats SET
         health                     = ${stats.health},
         energy                     = ${stats.energy},
+        drachma                    = ${stats.drachma},
+        drachma_lifetime           = ${stats.drachma_lifetime},
         energy_regen_base          = ${stats.energy_regen_base},
         health_regen_base          = ${stats.health_regen_base},
         last_updated               = ${stats.last_updated},
@@ -769,12 +779,15 @@ async function handleShop(req, res) {
     let stats = regenPlayer(rows[0], shopTemples, shopPlayerClass, rows[0].faction, shopTownshipBonuses)
     if (
       stats.energy !== rows[0].energy || stats.health !== rows[0].health ||
+      stats.drachma !== rows[0].drachma ||
       stats.energy_regen_base !== rows[0].energy_regen_base ||
       stats.health_regen_base !== rows[0].health_regen_base
     ) {
       await sql`
         UPDATE pw_player_stats
         SET energy = ${stats.energy}, health = ${stats.health},
+            drachma = ${stats.drachma},
+            drachma_lifetime = ${stats.drachma_lifetime},
             energy_regen_base = ${stats.energy_regen_base},
             health_regen_base = ${stats.health_regen_base},
             last_updated = ${stats.last_updated}
@@ -1206,6 +1219,8 @@ async function handleAllocate(req, res) {
         health_max         = ${newHealthMax},
         stat_points        = ${newStatPoints},
         glory_lifetime     = ${stats.glory_lifetime},
+        drachma            = ${stats.drachma},
+        drachma_lifetime   = ${stats.drachma_lifetime},
         energy             = ${newEnergy},
         health             = ${newHealth},
         energy_regen_base  = ${stats.energy_regen_base},
@@ -2438,6 +2453,8 @@ async function handleFreeStatReset(req, res) {
         health               = ${newHealth},
         stat_points          = ${newStatPoints},
         stat_reset_available = FALSE,
+        drachma              = ${stats.drachma},
+        drachma_lifetime     = ${stats.drachma_lifetime},
         energy_regen_base    = ${stats.energy_regen_base},
         health_regen_base    = ${stats.health_regen_base},
         last_updated         = ${stats.last_updated}

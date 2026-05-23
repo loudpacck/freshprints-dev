@@ -620,9 +620,9 @@ function CombatModal({ result, onClose, play }) {
       // Attacker strikes
       setCallout(getAttackerCallout(r.attacker_action))
       setCommentaryText(getAttackerCommentary(r, attName, defName))
-      if (r.attacker_action?.type === 'crit')        play('sword_crit')
-      else if (r.attacker_action?.type === 'block')  play('shield_block')
-      else if (r.attacker_action?.type !== 'miss')   play('sword_hit')
+      if (r.attacker_action?.type === 'crit')          play('sword_crit')
+      else if (r.attacker_action?.blocked)            play('shield_block')
+      else if (r.attacker_action?.type !== 'miss')    play('sword_hit')
 
       addTimer(() => {
         // Attacker damage floats + HP bar updates
@@ -642,9 +642,9 @@ function CombatModal({ result, onClose, play }) {
           if (r.defender_action) {
             setCallout(getDefenderCallout(r.defender_action))
             setCommentaryText(getDefenderCommentary(r, attName, defName))
-            if (r.defender_action.type === 'crit')       play('sword_crit')
-            else if (r.defender_action.type === 'dodge')  play('dodge')
-            else if (r.defender_action.type === 'block')  play('shield_block')
+            if (r.defender_action.type === 'crit')        play('sword_crit')
+            else if (r.defender_action.dodged)            play('dodge')
+            else if (r.defender_action.blocked)           play('shield_block')
             else if (r.defender_action.type !== 'miss')   play('sword_hit')
           }
 
