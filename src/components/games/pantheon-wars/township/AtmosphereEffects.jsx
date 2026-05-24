@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react'
+import { memo, useEffect, useRef } from 'react'
 import { getExtrasUrl } from './townshipConfig'
 
 const COLS         = 3
@@ -107,7 +107,7 @@ const SPRITES = [
 
 // group: 'sky' = birds (render outside world container, viewport-relative)
 //        'ground' = fire/smoke/ashes/env (render inside world container, world-relative)
-export default function AtmosphereEffects({ assetKey, group = 'all' }) {
+function AtmosphereEffects({ assetKey, group = 'all' }) {
   const reducedMotion = typeof window !== 'undefined'
     ? window.matchMedia('(prefers-reduced-motion: reduce)').matches
     : false
@@ -119,6 +119,18 @@ export default function AtmosphereEffects({ assetKey, group = 'all' }) {
 
   useEffect(() => {
     if (reducedMotion) return
+
+    // Set initial frame positions directly on DOM so React's style prop cannot reset them.
+    // (Parent re-renders would re-apply `backgroundPosition` shorthand and zero out the interval's work.)
+    filtered.forEach((_, i) => {
+      const el = refs.current[i]
+      if (!el) return
+      const f   = frames.current[i]
+      const col = f % COLS
+      const row = Math.floor(f / COLS)
+      el.style.backgroundPositionX = `${-(col * CELL_PX)}px`
+      el.style.backgroundPositionY = `${-(row * CELL_PX)}px`
+    })
 
     const timers = filtered.map((cfg, i) =>
       setInterval(() => {
@@ -148,15 +160,14 @@ export default function AtmosphereEffects({ assetKey, group = 'all' }) {
             key={cfg.id}
             ref={el => { refs.current[i] = el }}
             style={{
-              width:               CELL_PX,
-              height:              CELL_PX,
-              backgroundImage:     `url("${src}")`,
-              backgroundSize:      `${SHEET_PX}px ${SHEET_PX}px`,
-              backgroundRepeat:    'no-repeat',
-              backgroundPosition:  '0 0',
-              pointerEvents:       'none',
-              userSelect:          'none',
-              willChange:          'background-position',
+              width:            CELL_PX,
+              height:           CELL_PX,
+              backgroundImage:  `url("${src}")`,
+              backgroundSize:   `${SHEET_PX}px ${SHEET_PX}px`,
+              backgroundRepeat: 'no-repeat',
+              pointerEvents:    'none',
+              userSelect:       'none',
+              willChange:       'background-position',
               ...cfg.style,
             }}
           />
@@ -165,3 +176,5 @@ export default function AtmosphereEffects({ assetKey, group = 'all' }) {
     </>
   )
 }
+
+export default memo(AtmosphereEffects)

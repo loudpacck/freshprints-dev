@@ -362,21 +362,6 @@ export default function TownshipScene({ faction, townships, templeData, onBuildi
         </div>
       )}
 
-      <div style={{
-        position:      'absolute',
-        bottom:        12,
-        left:          '50%',
-        transform:     'translateX(-50%)',
-        zIndex:        20,
-        fontFamily:    "'IBM Plex Mono', monospace",
-        fontSize:      9,
-        letterSpacing: '0.12em',
-        color:         'rgba(201,169,97,0.3)',
-        pointerEvents: 'none',
-        whiteSpace:    'nowrap',
-      }}>
-        CLICK GROUND TO MOVE
-      </div>
     </div>
   )
 }
