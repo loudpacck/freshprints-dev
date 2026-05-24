@@ -8,7 +8,7 @@ import {
   getBgLayerUrl, getTooltipInfo,
 } from './townshipConfig'
 
-const SCENE_HEIGHT = Math.round(SCENE_WIDTH * 9 / 16)
+const WORLD_NATIVE_HEIGHT = 1080
 
 const SCENE_KEYFRAMES = `
   @keyframes tw-bldg-popin {
@@ -32,15 +32,14 @@ export default function TownshipScene({ faction, townships, templeData, onBuildi
   const worldRef     = useRef(null)
   const layerRefs    = useRef(bgLayers.map(() => null))
 
-  // Scale: containerWidth / SCENE_WIDTH so the world fills the 16:9 container exactly
   const scaleRef = useRef(1)
   useEffect(() => {
     const el = containerRef.current
     if (!el) return
-    // Set scale immediately (before first rAF tick) so camera snaps correctly
-    scaleRef.current = el.clientWidth / SCENE_WIDTH
+    // Scale world to fit viewport height; world is wider than viewport (camera scrolls)
+    scaleRef.current = el.clientHeight / WORLD_NATIVE_HEIGHT
     const ro = new ResizeObserver(([entry]) => {
-      scaleRef.current = entry.contentRect.width / SCENE_WIDTH
+      scaleRef.current = entry.contentRect.height / WORLD_NATIVE_HEIGHT
     })
     ro.observe(el)
     return () => ro.disconnect()
@@ -228,7 +227,8 @@ export default function TownshipScene({ faction, townships, templeData, onBuildi
         />
       ))}
 
-      <AtmosphereEffects assetKey={assetKey} />
+      {/* Sky effects — viewport-relative, drift independently across the sky */}
+      <AtmosphereEffects assetKey={assetKey} group="sky" />
 
       {/* World container — camera offset + scale applied via rAF (not React state) */}
       <div
@@ -238,12 +238,15 @@ export default function TownshipScene({ faction, townships, templeData, onBuildi
           top:             0,
           left:            0,
           width:           SCENE_WIDTH,
-          height:          SCENE_HEIGHT,
+          height:          WORLD_NATIVE_HEIGHT,
           transformOrigin: '0 0',
           willChange:      'transform',
           zIndex:          10,
         }}
       >
+        {/* Ground effects inside world so they scroll with camera and z-sort with buildings/NPCs */}
+        <AtmosphereEffects assetKey={assetKey} group="ground" />
+
         <AmbientNPC assetKey={assetKey} />
 
         {PLOTS.map((plot, i) => (
@@ -285,7 +288,7 @@ export default function TownshipScene({ faction, townships, templeData, onBuildi
               lineHeight:    1,
               pointerEvents: 'none',
               userSelect:    'none',
-              zIndex:        11,
+              zIndex:        31,
               animation:     'tw-ground-marker 0.6s ease-out forwards',
             }}
           >

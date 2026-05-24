@@ -28,8 +28,8 @@ export const BG_LAYERS = {
     { file: 'bg_greek_sky_back.png',    speed: 0.05 },
     { file: 'bg_greek_mid_back.png',    speed: 0.2  },
     { file: 'bg_greek_mid_middle.png',  speed: 0.3  },
-    { file: 'bg_greek_mid_front.png',   speed: 0.4  },
     { file: 'bg_greek_ground.png',      speed: 1.0  },
+    { file: 'bg_greek_mid_front.png',   speed: 0.4  },
   ],
   norse: [
     { file: 'bg_norse_sky_back.png',     speed: 0.05 },

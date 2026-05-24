@@ -105,7 +105,7 @@ export default function PlayerCharacter({ plot, assetKey, targetX, targetSeq, ch
         transformOrigin: 'bottom center',
         pointerEvents:   'none',
         userSelect:      'none',
-        zIndex:          12,
+        zIndex:          30,
       }}
     >
       <style>{keyframes}</style>

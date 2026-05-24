@@ -131,7 +131,7 @@ export default function BuildingSprite({
         userSelect: 'none',
         cursor: 'pointer',
         display: 'block',
-        zIndex: 6,
+        zIndex: plot.templeType ? 11 : 10,
         animation: staggerIndex != null
           ? `tw-bldg-popin 0.4s ease-out ${(staggerIndex * 0.06).toFixed(2)}s both`
           : undefined,

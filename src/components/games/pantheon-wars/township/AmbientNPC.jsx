@@ -205,7 +205,7 @@ export default function AmbientNPC({ assetKey }) {
               transformOrigin: 'bottom center',
               pointerEvents:   'none',
               userSelect:      'none',
-              zIndex:          4,
+              zIndex:          20,
             }}
           >
             <div
