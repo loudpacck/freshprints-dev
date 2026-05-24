@@ -1,46 +1,55 @@
 import { useEffect, useRef } from 'react'
 import { SCENE_WIDTH, getNPCUrl } from './townshipConfig'
 
-// Display size of one frame in scene-space pixels (~45px on screen at typical scale)
-const NPC_DISPLAY   = 112
+// ── Display sizes ──────────────────────────────────────────────────────────────
+const VILLAGER_H = 80
+const VILLAGER_W = 80   // villager frames are square (~140×140)
+
+const ANIMAL_H = 96
+// Greek animal frame dimensions (single-row sprite sheets):
+//   idle:  5 frames × 332px wide × 311px tall  → aspect 332/311
+//   walk: 11 frames × 157px wide × 275px tall  → aspect 157/275
+const ANIMAL_IDLE_W = Math.round(332 * ANIMAL_H / 311)  // 103
+const ANIMAL_WALK_W = Math.round(157 * ANIMAL_H / 275)  // 55
+
 const GROUND_BOTTOM = '18%'
 
-// Villager idle:  11 frames × 140px each (1540px total)
-// Villager walk:   8 frames × 140px each (1120px total)
-// Animal idle:     5 frames × 332px each (1660px total, 311px tall)
-// Animal walk:    11 frames × 157px each (1727px total, 275px tall)
+// Greek frame counts (other factions share these proportions for now)
+const VILLAGER_IDLE_FRAMES = 11
+const VILLAGER_WALK_FRAMES = 8
+const ANIMAL_IDLE_FRAMES   = 5
+const ANIMAL_WALK_FRAMES   = 11
+
 const NPC_KEYFRAMES = `
   @keyframes npc-villager-idle {
     from { background-position-x: 0 }
-    to   { background-position-x: ${-(11 * NPC_DISPLAY)}px }
+    to   { background-position-x: ${-(VILLAGER_IDLE_FRAMES * VILLAGER_W)}px }
   }
   @keyframes npc-villager-walk {
     from { background-position-x: 0 }
-    to   { background-position-x: ${-(8  * NPC_DISPLAY)}px }
+    to   { background-position-x: ${-(VILLAGER_WALK_FRAMES * VILLAGER_W)}px }
   }
   @keyframes npc-animal-idle {
     from { background-position-x: 0 }
-    to   { background-position-x: ${-(5  * NPC_DISPLAY)}px }
+    to   { background-position-x: ${-(ANIMAL_IDLE_FRAMES * ANIMAL_IDLE_W)}px }
   }
   @keyframes npc-animal-walk {
     from { background-position-x: 0 }
-    to   { background-position-x: ${-(11 * NPC_DISPLAY)}px }
+    to   { background-position-x: ${-(ANIMAL_WALK_FRAMES * ANIMAL_WALK_W)}px }
   }
 `
 
-// Per-type sprite config: frame count, CSS animation name, duration
 const SPRITE_INFO = {
   villager: {
-    idle: { frames: 11, anim: 'npc-villager-idle', dur: '1.1s' },
-    walk: { frames: 8,  anim: 'npc-villager-walk', dur: '0.8s' },
+    idle: { frames: VILLAGER_IDLE_FRAMES, anim: 'npc-villager-idle', dur: '1.1s', w: VILLAGER_W, h: VILLAGER_H },
+    walk: { frames: VILLAGER_WALK_FRAMES, anim: 'npc-villager-walk', dur: '0.8s', w: VILLAGER_W, h: VILLAGER_H },
   },
   animal: {
-    idle: { frames: 5,  anim: 'npc-animal-idle',   dur: '0.8s' },
-    walk: { frames: 11, anim: 'npc-animal-walk',   dur: '0.9s' },
+    idle: { frames: ANIMAL_IDLE_FRAMES,   anim: 'npc-animal-idle',   dur: '0.8s', w: ANIMAL_IDLE_W, h: ANIMAL_H },
+    walk: { frames: ANIMAL_WALK_FRAMES,   anim: 'npc-animal-walk',   dur: '0.9s', w: ANIMAL_WALK_W, h: ANIMAL_H },
   },
 }
 
-// Patrol configs: one villager + one animal per zone, spread across all three zones
 const CONFIGS = [
   { type: 'villager', minX: 0.05 * SCENE_WIDTH, maxX: 0.20 * SCENE_WIDTH, speed: 30, startRatio: 0.3, initialDir:  1, staggerMs:    0 },
   { type: 'animal',   minX: 0.09 * SCENE_WIDTH, maxX: 0.17 * SCENE_WIDTH, speed: 20, startRatio: 0.7, initialDir: -1, staggerMs:  900 },
@@ -59,7 +68,6 @@ export default function AmbientNPC({ assetKey }) {
     ? window.matchMedia('(prefers-reduced-motion: reduce)').matches
     : false
 
-  // Each NPC: refs to DOM elements + mutable patrol state
   const stateRef = useRef(
     CONFIGS.map(cfg => ({
       containerEl: null,
@@ -136,11 +144,11 @@ export default function AmbientNPC({ assetKey }) {
     <>
       <style>{NPC_KEYFRAMES}</style>
       {CONFIGS.map((cfg, i) => {
-        const idleSrc   = getNPCUrl(assetKey, cfg.type, 'idle')
-        const walkSrc   = getNPCUrl(assetKey, cfg.type, 'walk')
-        const s         = stateRef.current[i]
-        const idleInfo  = SPRITE_INFO[cfg.type].idle
-        const walkInfo  = SPRITE_INFO[cfg.type].walk
+        const idleSrc  = getNPCUrl(assetKey, cfg.type, 'idle')
+        const walkSrc  = getNPCUrl(assetKey, cfg.type, 'walk')
+        const s        = stateRef.current[i]
+        const idleInfo = SPRITE_INFO[cfg.type].idle
+        const walkInfo = SPRITE_INFO[cfg.type].walk
 
         return (
           <div
@@ -157,34 +165,34 @@ export default function AmbientNPC({ assetKey }) {
               zIndex:          4,
             }}
           >
-            {/* Idle sprite sheet — block element sets container height */}
+            {/* Idle */}
             <div
               ref={el => { s.idleEl = el }}
               style={{
-                width:              NPC_DISPLAY,
-                height:             NPC_DISPLAY,
+                width:              idleInfo.w,
+                height:             idleInfo.h,
                 display:            'block',
                 backgroundImage:    `url("${idleSrc}")`,
-                backgroundSize:     `${idleInfo.frames * NPC_DISPLAY}px ${NPC_DISPLAY}px`,
+                backgroundSize:     `${idleInfo.frames * idleInfo.w}px ${idleInfo.h}px`,
                 backgroundRepeat:   'no-repeat',
                 backgroundPosition: '0 0',
                 animation:          `${idleInfo.anim} ${idleInfo.dur} steps(${idleInfo.frames}, end) infinite`,
               }}
             />
 
-            {/* Walk sprite sheet — absolute overlay, shown during patrol movement */}
+            {/* Walk */}
             <div
               ref={el => { s.walkEl = el }}
               style={{
-                width:              NPC_DISPLAY,
-                height:             NPC_DISPLAY,
+                width:              walkInfo.w,
+                height:             walkInfo.h,
                 display:            'none',
                 position:           'absolute',
                 bottom:             0,
                 left:               '50%',
                 transform:          'translateX(-50%)',
                 backgroundImage:    `url("${walkSrc}")`,
-                backgroundSize:     `${walkInfo.frames * NPC_DISPLAY}px ${NPC_DISPLAY}px`,
+                backgroundSize:     `${walkInfo.frames * walkInfo.w}px ${walkInfo.h}px`,
                 backgroundRepeat:   'no-repeat',
                 backgroundPosition: '0 0',
                 animation:          `${walkInfo.anim} ${walkInfo.dur} steps(${walkInfo.frames}, end) infinite`,

@@ -12,20 +12,20 @@ import {
 // Tier 1 < Tier 2 < Tier 3; Town Hall is the most prominent structure.
 // Temples use this as a base multiplied by templeScale (level-based).
 function getBuildingBaseHeight(plot, townships) {
-  if (plot.templeType) return 10
-  if (plot.id === 'embassy' || plot.id === 'shop') return 12
+  if (plot.templeType) return 16
+  if (plot.id === 'embassy' || plot.id === 'shop') return 20
   if (plot.id === 'townhall') {
     const tier = getTownhallTier(townships)
-    if (tier >= 3) return 22
-    if (tier >= 2) return 17
-    return 13
+    if (tier >= 3) return 36
+    if (tier >= 2) return 28
+    return 22
   }
   const t = (townships || []).find(t => t.type === plot.id)
-  if (!t || !t.is_owned) return 5
+  if (!t || !t.is_owned) return 8
   const tier = levelToTier(t.current_level)
-  if (tier >= 3) return 18
-  if (tier >= 2) return 14
-  return 10
+  if (tier >= 3) return 32
+  if (tier >= 2) return 25
+  return 18
 }
 
 function getBuildingAssetUrl(plot, assetKey, townships, templeData) {

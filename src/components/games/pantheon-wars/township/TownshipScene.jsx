@@ -17,6 +17,10 @@ const SCENE_KEYFRAMES = `
     from { opacity: 0; transform: translateX(-50%) scaleY(0.82); }
     to   { opacity: 1; transform: translateX(-50%) scaleY(1); }
   }
+  @keyframes tw-ground-marker {
+    0%   { opacity: 1; transform: translateX(-50%) scale(1.3); }
+    100% { opacity: 0; transform: translateX(-50%) scale(0.7); }
+  }
 `
 
 const hasFinePointer = () =>
@@ -53,6 +57,8 @@ export default function TownshipScene({ faction, townships, templeData, onBuildi
   // Player click-to-move
   const [charTargetX, setCharTargetX] = useState(null)
   const [charMoveSeq, setCharMoveSeq] = useState(0)
+  const [groundMarkerX, setGroundMarkerX] = useState(null)
+  const markerTimerRef = useRef(null)
   const movePlayerRef = useRef(null)
   movePlayerRef.current = (sceneX) => {
     setCharTargetX(sceneX)
@@ -67,12 +73,15 @@ export default function TownshipScene({ faction, townships, templeData, onBuildi
     onBuildingClickRef.current?.(plotId)
   }
 
-  // Ground click → move player to clicked scene-space X
+  // Ground click → move player + show ground marker
   function handleSceneClick(e) {
     if (e.target.closest('[data-plot-id]')) return
     const rect   = containerRef.current.getBoundingClientRect()
     const sceneX = (e.clientX - rect.left) / scaleRef.current
     movePlayerRef.current(sceneX)
+    setGroundMarkerX(sceneX)
+    if (markerTimerRef.current) clearTimeout(markerTimerRef.current)
+    markerTimerRef.current = setTimeout(() => setGroundMarkerX(null), 600)
   }
 
   // Hover (fine-pointer desktops only)
@@ -112,7 +121,13 @@ export default function TownshipScene({ faction, townships, templeData, onBuildi
       handleBuildingClick(plotId)
     } else {
       const rect = containerRef.current?.getBoundingClientRect()
-      if (rect) movePlayerRef.current((t.clientX - rect.left) / scaleRef.current)
+      if (rect) {
+        const sceneX = (t.clientX - rect.left) / scaleRef.current
+        movePlayerRef.current(sceneX)
+        setGroundMarkerX(sceneX)
+        if (markerTimerRef.current) clearTimeout(markerTimerRef.current)
+        markerTimerRef.current = setTimeout(() => setGroundMarkerX(null), 600)
+      }
     }
   }
 
@@ -196,6 +211,27 @@ export default function TownshipScene({ faction, townships, templeData, onBuildi
             targetX={charTargetX}
             targetSeq={charMoveSeq}
           />
+        )}
+
+        {groundMarkerX !== null && (
+          <div
+            key={charMoveSeq}
+            style={{
+              position:      'absolute',
+              left:          groundMarkerX + 'px',
+              bottom:        '18%',
+              transform:     'translateX(-50%)',
+              color:         '#C9A961',
+              fontSize:      28,
+              lineHeight:    1,
+              pointerEvents: 'none',
+              userSelect:    'none',
+              zIndex:        11,
+              animation:     'tw-ground-marker 0.6s ease-out forwards',
+            }}
+          >
+            ✦
+          </div>
         )}
       </div>
 

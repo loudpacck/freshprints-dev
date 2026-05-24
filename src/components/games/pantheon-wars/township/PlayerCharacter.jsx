@@ -5,7 +5,7 @@ import { SCENE_WIDTH, FACTION_FOLDER } from './townshipConfig'
 const FRAME_W = 200
 const FRAME_H = 200
 
-const GROUND_BOTTOM = '8%'
+const GROUND_BOTTOM = '18%'
 const SPEED         = 120  // px/sec in scene space
 
 // Idle: 10 frames × 135px each (1350px total original)
