@@ -1,62 +1,101 @@
 import { useEffect, useRef } from 'react'
 import { SCENE_WIDTH, getNPCUrl } from './townshipConfig'
 
-// ── Display sizes ──────────────────────────────────────────────────────────────
-const VILLAGER_H = 80
-const VILLAGER_W = 80   // villager frames are square (~140×140)
+const VILLAGER_DISPLAY_H = 120
+const ANIMAL_DISPLAY_H   = 140
+const GROUND_BOTTOM      = '18%'
 
-const ANIMAL_H = 96
-// Greek animal frame dimensions (single-row sprite sheets):
-//   idle:  5 frames × 332px wide × 311px tall  → aspect 332/311
-//   walk: 11 frames × 157px wide × 275px tall  → aspect 157/275
-const ANIMAL_IDLE_W = Math.round(332 * ANIMAL_H / 311)  // 103
-const ANIMAL_WALK_W = Math.round(157 * ANIMAL_H / 275)  // 55
-
-const GROUND_BOTTOM = '18%'
-
-// Greek frame counts (other factions share these proportions for now)
-const VILLAGER_IDLE_FRAMES = 11
-const VILLAGER_WALK_FRAMES = 8
-const ANIMAL_IDLE_FRAMES   = 5
-const ANIMAL_WALK_FRAMES   = 11
-
-const NPC_KEYFRAMES = `
-  @keyframes npc-villager-idle {
-    from { background-position-x: 0 }
-    to   { background-position-x: ${-(VILLAGER_IDLE_FRAMES * VILLAGER_W)}px }
-  }
-  @keyframes npc-villager-walk {
-    from { background-position-x: 0 }
-    to   { background-position-x: ${-(VILLAGER_WALK_FRAMES * VILLAGER_W)}px }
-  }
-  @keyframes npc-animal-idle {
-    from { background-position-x: 0 }
-    to   { background-position-x: ${-(ANIMAL_IDLE_FRAMES * ANIMAL_IDLE_W)}px }
-  }
-  @keyframes npc-animal-walk {
-    from { background-position-x: 0 }
-    to   { background-position-x: ${-(ANIMAL_WALK_FRAMES * ANIMAL_WALK_W)}px }
-  }
-`
-
-const SPRITE_INFO = {
-  villager: {
-    idle: { frames: VILLAGER_IDLE_FRAMES, anim: 'npc-villager-idle', dur: '1.1s', w: VILLAGER_W, h: VILLAGER_H },
-    walk: { frames: VILLAGER_WALK_FRAMES, anim: 'npc-villager-walk', dur: '0.8s', w: VILLAGER_W, h: VILLAGER_H },
+// Per-faction, per-type sprite info derived from actual sprite sheet pixel measurements
+// srcW/srcH = one frame's natural dimensions; display height is fixed, width scales proportionally
+const SPRITE_CONFIG = {
+  greek: {
+    villager: {
+      idle: { frames: 11, srcW: 140, srcH: 140 },
+      walk: { frames: 8,  srcW: 140, srcH: 140 },
+    },
+    animal: {
+      idle: { frames: 4, srcW: 415, srcH: 311 },
+      walk: { frames: 4, srcW: 432, srcH: 275 },
+    },
   },
-  animal: {
-    idle: { frames: ANIMAL_IDLE_FRAMES,   anim: 'npc-animal-idle',   dur: '0.8s', w: ANIMAL_IDLE_W, h: ANIMAL_H },
-    walk: { frames: ANIMAL_WALK_FRAMES,   anim: 'npc-animal-walk',   dur: '0.9s', w: ANIMAL_WALK_W, h: ANIMAL_H },
+  mesop: {
+    villager: {
+      idle: { frames: 6,  srcW: 184, srcH: 137 },
+      walk: { frames: 8,  srcW: 184, srcH: 137 },
+    },
+    animal: {
+      idle: { frames: 4, srcW: 429, srcH: 334 },
+      walk: { frames: 2, srcW: 887, srcH: 887 },
+    },
+  },
+  norse: {
+    villager: {
+      idle: { frames: 8,  srcW: 150, srcH: 150 },
+      walk: { frames: 8,  srcW: 150, srcH: 150 },
+    },
+    animal: {
+      idle: { frames: 2, srcW: 887, srcH: 887 },
+      walk: { frames: 4, srcW: 426, srcH: 885 },
+    },
   },
 }
 
+function getDisplayW(srcW, srcH, displayH) {
+  return Math.round(displayH * srcW / srcH)
+}
+
+function makeNPCKeyframes(cfg) {
+  const v_idle_w = getDisplayW(cfg.villager.idle.srcW, cfg.villager.idle.srcH, VILLAGER_DISPLAY_H)
+  const v_walk_w = getDisplayW(cfg.villager.walk.srcW, cfg.villager.walk.srcH, VILLAGER_DISPLAY_H)
+  const a_idle_w = getDisplayW(cfg.animal.idle.srcW, cfg.animal.idle.srcH, ANIMAL_DISPLAY_H)
+  const a_walk_w = getDisplayW(cfg.animal.walk.srcW, cfg.animal.walk.srcH, ANIMAL_DISPLAY_H)
+
+  return `
+    @keyframes npc-villager-idle {
+      from { background-position-x: 0 }
+      to   { background-position-x: ${-(cfg.villager.idle.frames * v_idle_w)}px }
+    }
+    @keyframes npc-villager-walk {
+      from { background-position-x: 0 }
+      to   { background-position-x: ${-(cfg.villager.walk.frames * v_walk_w)}px }
+    }
+    @keyframes npc-animal-idle {
+      from { background-position-x: 0 }
+      to   { background-position-x: ${-(cfg.animal.idle.frames * a_idle_w)}px }
+    }
+    @keyframes npc-animal-walk {
+      from { background-position-x: 0 }
+      to   { background-position-x: ${-(cfg.animal.walk.frames * a_walk_w)}px }
+    }
+  `
+}
+
+function makeSpriteInfo(cfg) {
+  const v_idle_w = getDisplayW(cfg.villager.idle.srcW, cfg.villager.idle.srcH, VILLAGER_DISPLAY_H)
+  const v_walk_w = getDisplayW(cfg.villager.walk.srcW, cfg.villager.walk.srcH, VILLAGER_DISPLAY_H)
+  const a_idle_w = getDisplayW(cfg.animal.idle.srcW, cfg.animal.idle.srcH, ANIMAL_DISPLAY_H)
+  const a_walk_w = getDisplayW(cfg.animal.walk.srcW, cfg.animal.walk.srcH, ANIMAL_DISPLAY_H)
+
+  return {
+    villager: {
+      idle: { frames: cfg.villager.idle.frames, w: v_idle_w, h: VILLAGER_DISPLAY_H, anim: 'npc-villager-idle', dur: '1.1s' },
+      walk: { frames: cfg.villager.walk.frames, w: v_walk_w, h: VILLAGER_DISPLAY_H, anim: 'npc-villager-walk', dur: '0.8s' },
+    },
+    animal: {
+      idle: { frames: cfg.animal.idle.frames, w: a_idle_w, h: ANIMAL_DISPLAY_H, anim: 'npc-animal-idle', dur: '0.8s' },
+      walk: { frames: cfg.animal.walk.frames, w: a_walk_w, h: ANIMAL_DISPLAY_H, anim: 'npc-animal-walk', dur: '0.7s' },
+    },
+  }
+}
+
+// NPC patrol configs — minX/maxX are scene fractions × SCENE_WIDTH
 const CONFIGS = [
   { type: 'villager', minX: 0.05 * SCENE_WIDTH, maxX: 0.20 * SCENE_WIDTH, speed: 30, startRatio: 0.3, initialDir:  1, staggerMs:    0 },
   { type: 'animal',   minX: 0.09 * SCENE_WIDTH, maxX: 0.17 * SCENE_WIDTH, speed: 20, startRatio: 0.7, initialDir: -1, staggerMs:  900 },
-  { type: 'villager', minX: 0.34 * SCENE_WIDTH, maxX: 0.58 * SCENE_WIDTH, speed: 30, startRatio: 0.5, initialDir:  1, staggerMs: 1600 },
-  { type: 'animal',   minX: 0.40 * SCENE_WIDTH, maxX: 0.56 * SCENE_WIDTH, speed: 20, startRatio: 0.2, initialDir: -1, staggerMs:  400 },
-  { type: 'villager', minX: 0.63 * SCENE_WIDTH, maxX: 0.76 * SCENE_WIDTH, speed: 30, startRatio: 0.8, initialDir:  1, staggerMs: 1200 },
-  { type: 'animal',   minX: 0.68 * SCENE_WIDTH, maxX: 0.80 * SCENE_WIDTH, speed: 20, startRatio: 0.4, initialDir:  1, staggerMs:  700 },
+  { type: 'villager', minX: 0.34 * SCENE_WIDTH, maxX: 0.55 * SCENE_WIDTH, speed: 30, startRatio: 0.5, initialDir:  1, staggerMs: 1600 },
+  { type: 'animal',   minX: 0.38 * SCENE_WIDTH, maxX: 0.53 * SCENE_WIDTH, speed: 20, startRatio: 0.2, initialDir: -1, staggerMs:  400 },
+  { type: 'villager', minX: 0.60 * SCENE_WIDTH, maxX: 0.72 * SCENE_WIDTH, speed: 30, startRatio: 0.8, initialDir:  1, staggerMs: 1200 },
+  { type: 'animal',   minX: 0.63 * SCENE_WIDTH, maxX: 0.75 * SCENE_WIDTH, speed: 20, startRatio: 0.4, initialDir:  1, staggerMs:  700 },
 ]
 
 function makePauseMs() {
@@ -68,15 +107,19 @@ export default function AmbientNPC({ assetKey }) {
     ? window.matchMedia('(prefers-reduced-motion: reduce)').matches
     : false
 
+  const cfg        = SPRITE_CONFIG[assetKey] || SPRITE_CONFIG.greek
+  const keyframes  = makeNPCKeyframes(cfg)
+  const spriteInfo = makeSpriteInfo(cfg)
+
   const stateRef = useRef(
-    CONFIGS.map(cfg => ({
+    CONFIGS.map(c => ({
       containerEl: null,
       idleEl:      null,
       walkEl:      null,
-      posX:        cfg.minX + (cfg.maxX - cfg.minX) * cfg.startRatio,
-      dir:         cfg.initialDir,
+      posX:        c.minX + (c.maxX - c.minX) * c.startRatio,
+      dir:         c.initialDir,
       isWalking:   false,
-      pauseUntil:  Date.now() + cfg.staggerMs,
+      pauseUntil:  Date.now() + c.staggerMs,
     }))
   )
 
@@ -98,7 +141,7 @@ export default function AmbientNPC({ assetKey }) {
       const now = Date.now()
 
       stateRef.current.forEach((s, i) => {
-        const cfg = CONFIGS[i]
+        const c = CONFIGS[i]
         if (!s.containerEl) return
 
         if (!s.isWalking) {
@@ -108,18 +151,18 @@ export default function AmbientNPC({ assetKey }) {
             if (s.walkEl) s.walkEl.style.display = 'block'
           }
         } else {
-          const step = cfg.speed * dt * s.dir
+          const step = c.speed * dt * s.dir
           s.posX += step
 
-          if (s.posX >= cfg.maxX) {
-            s.posX       = cfg.maxX
+          if (s.posX >= c.maxX) {
+            s.posX       = c.maxX
             s.dir        = -1
             s.isWalking  = false
             s.pauseUntil = now + makePauseMs()
             if (s.idleEl) s.idleEl.style.display = 'block'
             if (s.walkEl) s.walkEl.style.display = 'none'
-          } else if (s.posX <= cfg.minX) {
-            s.posX       = cfg.minX
+          } else if (s.posX <= c.minX) {
+            s.posX       = c.minX
             s.dir        = 1
             s.isWalking  = false
             s.pauseUntil = now + makePauseMs()
@@ -142,13 +185,13 @@ export default function AmbientNPC({ assetKey }) {
 
   return (
     <>
-      <style>{NPC_KEYFRAMES}</style>
-      {CONFIGS.map((cfg, i) => {
-        const idleSrc  = getNPCUrl(assetKey, cfg.type, 'idle')
-        const walkSrc  = getNPCUrl(assetKey, cfg.type, 'walk')
+      <style>{keyframes}</style>
+      {CONFIGS.map((c, i) => {
+        const idleSrc  = getNPCUrl(assetKey, c.type, 'idle')
+        const walkSrc  = getNPCUrl(assetKey, c.type, 'walk')
         const s        = stateRef.current[i]
-        const idleInfo = SPRITE_INFO[cfg.type].idle
-        const walkInfo = SPRITE_INFO[cfg.type].walk
+        const idleInfo = spriteInfo[c.type].idle
+        const walkInfo = spriteInfo[c.type].walk
 
         return (
           <div
@@ -165,7 +208,6 @@ export default function AmbientNPC({ assetKey }) {
               zIndex:          4,
             }}
           >
-            {/* Idle */}
             <div
               ref={el => { s.idleEl = el }}
               style={{
@@ -179,8 +221,6 @@ export default function AmbientNPC({ assetKey }) {
                 animation:          `${idleInfo.anim} ${idleInfo.dur} steps(${idleInfo.frames}, end) infinite`,
               }}
             />
-
-            {/* Walk */}
             <div
               ref={el => { s.walkEl = el }}
               style={{

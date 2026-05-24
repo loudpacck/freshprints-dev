@@ -1,5 +1,4 @@
 import { useRef, useState, useEffect } from 'react'
-import ParallaxLayer     from './ParallaxLayer'
 import BuildingSprite    from './BuildingSprite'
 import PlayerCharacter   from './PlayerCharacter'
 import AmbientNPC        from './AmbientNPC'
@@ -9,7 +8,6 @@ import {
   getBgLayerUrl, getTooltipInfo,
 } from './townshipConfig'
 
-// Inner world height matching 16:9 ratio so scale fills container exactly
 const SCENE_HEIGHT = Math.round(SCENE_WIDTH * 9 / 16)
 
 const SCENE_KEYFRAMES = `
@@ -31,17 +29,18 @@ export default function TownshipScene({ faction, townships, templeData, onBuildi
   const bgLayers = BG_LAYERS[assetKey] || BG_LAYERS.greek
 
   const containerRef = useRef(null)
+  const worldRef     = useRef(null)
+  const layerRefs    = useRef(bgLayers.map(() => null))
 
   // Scale: containerWidth / SCENE_WIDTH so the world fills the 16:9 container exactly
-  const [scale, setScale] = useState(1)
   const scaleRef = useRef(1)
   useEffect(() => {
     const el = containerRef.current
     if (!el) return
+    // Set scale immediately (before first rAF tick) so camera snaps correctly
+    scaleRef.current = el.clientWidth / SCENE_WIDTH
     const ro = new ResizeObserver(([entry]) => {
-      const s = entry.contentRect.width / SCENE_WIDTH
-      scaleRef.current = s
-      setScale(s)
+      scaleRef.current = entry.contentRect.width / SCENE_WIDTH
     })
     ro.observe(el)
     return () => ro.disconnect()
@@ -54,18 +53,66 @@ export default function TownshipScene({ faction, townships, templeData, onBuildi
     return () => cancelAnimationFrame(id)
   }, [])
 
+  // Player position ref — shared with PlayerCharacter which writes its position here
+  const townhallPlot = PLOTS.find(p => p.id === 'townhall')
+  const charXRef     = useRef((townhallPlot?.x ?? 0.48) * SCENE_WIDTH)
+
+  // Camera offset in viewport pixels (lerped toward target)
+  const cameraXRef     = useRef(0)
+  const cameraInitRef  = useRef(false)
+
+  // Camera rAF: follow player, update world transform and parallax layers
+  useEffect(() => {
+    let raf
+    function tick() {
+      const s          = scaleRef.current
+      const containerW = containerRef.current?.clientWidth || 0
+      const worldW     = SCENE_WIDTH * s
+      const playerView = charXRef.current * s
+      const targetCam  = Math.max(0, Math.min(
+        playerView - containerW / 2,
+        worldW - containerW
+      ))
+
+      if (!cameraInitRef.current) {
+        // Snap to correct position on first frame (no lag)
+        cameraXRef.current = targetCam
+        cameraInitRef.current = true
+      } else {
+        // Smooth follow
+        cameraXRef.current += (targetCam - cameraXRef.current) * 0.12
+      }
+
+      const cam = cameraXRef.current
+
+      if (worldRef.current) {
+        worldRef.current.style.transform = `translateX(-${cam}px) scale(${s})`
+      }
+
+      bgLayers.forEach((layer, i) => {
+        const el = layerRefs.current[i]
+        if (el) {
+          el.style.backgroundPositionX = `${-cam * layer.speed}px`
+        }
+      })
+
+      raf = requestAnimationFrame(tick)
+    }
+    raf = requestAnimationFrame(tick)
+    return () => cancelAnimationFrame(raf)
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+
   // Player click-to-move
   const [charTargetX, setCharTargetX] = useState(null)
   const [charMoveSeq, setCharMoveSeq] = useState(0)
   const [groundMarkerX, setGroundMarkerX] = useState(null)
   const markerTimerRef = useRef(null)
-  const movePlayerRef = useRef(null)
+  const movePlayerRef  = useRef(null)
   movePlayerRef.current = (sceneX) => {
     setCharTargetX(sceneX)
     setCharMoveSeq(s => s + 1)
   }
 
-  // Building click
   const onBuildingClickRef = useRef(onBuildingClick)
   useEffect(() => { onBuildingClickRef.current = onBuildingClick }, [onBuildingClick])
 
@@ -74,10 +121,11 @@ export default function TownshipScene({ faction, townships, templeData, onBuildi
   }
 
   // Ground click → move player + show ground marker
+  // Click coords: viewport offset + camera = world-viewport offset, then / scale = scene coords
   function handleSceneClick(e) {
     if (e.target.closest('[data-plot-id]')) return
     const rect   = containerRef.current.getBoundingClientRect()
-    const sceneX = (e.clientX - rect.left) / scaleRef.current
+    const sceneX = (e.clientX - rect.left + cameraXRef.current) / scaleRef.current
     movePlayerRef.current(sceneX)
     setGroundMarkerX(sceneX)
     if (markerTimerRef.current) clearTimeout(markerTimerRef.current)
@@ -122,7 +170,7 @@ export default function TownshipScene({ faction, townships, templeData, onBuildi
     } else {
       const rect = containerRef.current?.getBoundingClientRect()
       if (rect) {
-        const sceneX = (t.clientX - rect.left) / scaleRef.current
+        const sceneX = (t.clientX - rect.left + cameraXRef.current) / scaleRef.current
         movePlayerRef.current(sceneX)
         setGroundMarkerX(sceneX)
         if (markerTimerRef.current) clearTimeout(markerTimerRef.current)
@@ -137,23 +185,23 @@ export default function TownshipScene({ faction, townships, templeData, onBuildi
     ? getTooltipInfo(hoveredPlot, assetKey, townships, templeData)
     : null
 
-  const townhallPlot = PLOTS.find(p => p.id === 'townhall')
-
   return (
     <div
       ref={containerRef}
       role="region"
       aria-label="Your Township - interactive settlement view"
       style={{
-        width:            '100%',
-        aspectRatio:      '16 / 9',
-        position:         'relative',
-        overflow:         'hidden',
-        userSelect:       'none',
-        WebkitUserSelect: 'none',
-        background:       'linear-gradient(to bottom, #2a5a8a 0%, #3a7aaa 45%, #6a9aba 100%)',
-        opacity:          sceneVisible ? 1 : 0,
-        transition:       'opacity 0.6s ease',
+        width:                    '100%',
+        aspectRatio:              '16 / 9',
+        position:                 'relative',
+        overflow:                 'hidden',
+        userSelect:               'none',
+        WebkitUserSelect:         'none',
+        outline:                  'none',
+        WebkitTapHighlightColor:  'transparent',
+        background:               'linear-gradient(to bottom, #2a5a8a 0%, #3a7aaa 45%, #6a9aba 100%)',
+        opacity:                  sceneVisible ? 1 : 0,
+        transition:               'opacity 0.6s ease',
       }}
       onClick={handleSceneClick}
       onTouchStart={onTouchStart}
@@ -161,31 +209,41 @@ export default function TownshipScene({ faction, townships, templeData, onBuildi
     >
       <style>{SCENE_KEYFRAMES}</style>
 
-      {/* Parallax background layers — pan=0 centers all layers */}
+      {/* Parallax background layers — tiling with repeat-x for endless scroll */}
       {bgLayers.map((layer, i) => (
-        <ParallaxLayer
+        <div
           key={layer.file}
-          src={getBgLayerUrl(assetKey, layer.file)}
-          speed={layer.speed}
-          pan={0}
-          zIndex={i + 1}
+          ref={el => { layerRefs.current[i] = el }}
+          aria-hidden="true"
+          style={{
+            position:             'absolute',
+            inset:                0,
+            zIndex:               i + 1,
+            backgroundImage:      `url("${getBgLayerUrl(assetKey, layer.file)}")`,
+            backgroundSize:       'auto 100%',
+            backgroundRepeat:     'repeat-x',
+            backgroundPositionY:  'bottom',
+            willChange:           'background-position-x',
+          }}
         />
       ))}
 
       <AtmosphereEffects assetKey={assetKey} />
 
-      {/* Scaled world: SCENE_WIDTH × SCENE_HEIGHT scaled down to fill the 16:9 container */}
-      <div style={{
-        position:        'absolute',
-        top:             0,
-        left:            0,
-        width:           SCENE_WIDTH,
-        height:          SCENE_HEIGHT,
-        transformOrigin: '0 0',
-        transform:       `scale(${scale})`,
-        willChange:      'transform',
-        zIndex:          10,
-      }}>
+      {/* World container — camera offset + scale applied via rAF (not React state) */}
+      <div
+        ref={worldRef}
+        style={{
+          position:        'absolute',
+          top:             0,
+          left:            0,
+          width:           SCENE_WIDTH,
+          height:          SCENE_HEIGHT,
+          transformOrigin: '0 0',
+          willChange:      'transform',
+          zIndex:          10,
+        }}
+      >
         <AmbientNPC assetKey={assetKey} />
 
         {PLOTS.map((plot, i) => (
@@ -210,6 +268,7 @@ export default function TownshipScene({ faction, townships, templeData, onBuildi
             assetKey={assetKey}
             targetX={charTargetX}
             targetSeq={charMoveSeq}
+            charXRef={charXRef}
           />
         )}
 
