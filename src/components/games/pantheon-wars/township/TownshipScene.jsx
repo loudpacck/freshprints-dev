@@ -343,7 +343,7 @@ export default function TownshipScene({ faction, townships, templeData, onBuildi
         touchAction:   'none',
         userSelect:    'none',
         WebkitUserSelect: 'none',
-        background:    '#0A0710',
+        background:    'linear-gradient(to bottom, #2a5a8a 0%, #3a7aaa 45%, #6a9aba 100%)',
         opacity:       sceneVisible ? 1 : 0,
         transition:    'opacity 0.6s ease',
       }}

@@ -57,8 +57,8 @@ export const PLOTS = [
   // ── Military Quarter (left zone) ──────────────────────────────────────
   { id: 'fortification', x: 0.05, bottomPct: 0.20, scale: 1.0 },
   { id: 'warfare',       x: 0.13, bottomPct: 0.20, scale: 1.0 },
-  { id: 'stewardship',   x: 0.08, bottomPct: 0.30, scale: 1.0 },
-  { id: 'ritual',        x: 0.18, bottomPct: 0.30, scale: 1.0 },
+  { id: 'stewardship',   x: 0.08, bottomPct: 0.24, scale: 1.0 },
+  { id: 'ritual',        x: 0.18, bottomPct: 0.24, scale: 1.0 },
   { id: 'exploration',   x: 0.22, bottomPct: 0.20, scale: 1.0 },
 
   // ── Town Center (middle zone) ──────────────────────────────────────────
@@ -66,8 +66,8 @@ export const PLOTS = [
   { id: 'shop',          x: 0.40, bottomPct: 0.20, scale: 1.0 },
   { id: 'townhall',      x: 0.50, bottomPct: 0.20, scale: 1.0 },
   { id: 'divination',    x: 0.60, bottomPct: 0.20, scale: 1.0 },
-  { id: 'commerce',      x: 0.55, bottomPct: 0.30, scale: 1.0 },
-  { id: 'craftsmanship', x: 0.65, bottomPct: 0.30, scale: 1.0 },
+  { id: 'commerce',      x: 0.55, bottomPct: 0.24, scale: 1.0 },
+  { id: 'craftsmanship', x: 0.65, bottomPct: 0.24, scale: 1.0 },
 
   // ── Sacred Hill (right zone — elevated terrain, steps up progressively) ─
   { id: 'temple_roadside', x: 0.75, bottomPct: 0.20, scale: 1.0, templeType: 'roadside_shrine'  },

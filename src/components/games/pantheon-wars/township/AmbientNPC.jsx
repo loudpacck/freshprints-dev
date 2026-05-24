@@ -1,17 +1,17 @@
 import { useEffect, useRef } from 'react'
 import { SCENE_WIDTH, getNPCUrl } from './townshipConfig'
 
-const NPC_HEIGHT    = '7vh'
-const GROUND_BOTTOM = '8%'
+const NPC_HEIGHT    = '42px'
+const GROUND_BOTTOM = '18%'
 
-// Patrol configs: one villager + one animal per zone
+// Patrol configs: one villager + one animal per zone, evenly spread across all three zones
 const CONFIGS = [
-  { type: 'villager', minX: 0.05 * SCENE_WIDTH, maxX: 0.22 * SCENE_WIDTH, speed: 30, startRatio: 0.3, initialDir:  1, staggerMs:    0 },
-  { type: 'animal',   minX: 0.10 * SCENE_WIDTH, maxX: 0.18 * SCENE_WIDTH, speed: 20, startRatio: 0.7, initialDir: -1, staggerMs:  900 },
-  { type: 'villager', minX: 0.35 * SCENE_WIDTH, maxX: 0.60 * SCENE_WIDTH, speed: 30, startRatio: 0.5, initialDir:  1, staggerMs: 1600 },
-  { type: 'animal',   minX: 0.45 * SCENE_WIDTH, maxX: 0.55 * SCENE_WIDTH, speed: 20, startRatio: 0.2, initialDir: -1, staggerMs:  400 },
-  { type: 'villager', minX: 0.70 * SCENE_WIDTH, maxX: 0.85 * SCENE_WIDTH, speed: 30, startRatio: 0.8, initialDir:  1, staggerMs: 1200 },
-  { type: 'animal',   minX: 0.78 * SCENE_WIDTH, maxX: 0.92 * SCENE_WIDTH, speed: 20, startRatio: 0.4, initialDir:  1, staggerMs:  700 },
+  { type: 'villager', minX: 0.05 * SCENE_WIDTH, maxX: 0.20 * SCENE_WIDTH, speed: 30, startRatio: 0.3, initialDir:  1, staggerMs:    0 },
+  { type: 'animal',   minX: 0.09 * SCENE_WIDTH, maxX: 0.17 * SCENE_WIDTH, speed: 20, startRatio: 0.7, initialDir: -1, staggerMs:  900 },
+  { type: 'villager', minX: 0.34 * SCENE_WIDTH, maxX: 0.58 * SCENE_WIDTH, speed: 30, startRatio: 0.5, initialDir:  1, staggerMs: 1600 },
+  { type: 'animal',   minX: 0.40 * SCENE_WIDTH, maxX: 0.56 * SCENE_WIDTH, speed: 20, startRatio: 0.2, initialDir: -1, staggerMs:  400 },
+  { type: 'villager', minX: 0.63 * SCENE_WIDTH, maxX: 0.76 * SCENE_WIDTH, speed: 30, startRatio: 0.8, initialDir:  1, staggerMs: 1200 },
+  { type: 'animal',   minX: 0.68 * SCENE_WIDTH, maxX: 0.80 * SCENE_WIDTH, speed: 20, startRatio: 0.4, initialDir:  1, staggerMs:  700 },
 ]
 
 function makePauseMs() {

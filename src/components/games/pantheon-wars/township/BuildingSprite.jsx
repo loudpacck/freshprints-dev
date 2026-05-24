@@ -13,19 +13,19 @@ import {
 // Temples use this as a base multiplied by templeScale (level-based).
 function getBuildingBaseHeight(plot, townships) {
   if (plot.templeType) return 10
-  if (plot.id === 'embassy' || plot.id === 'shop') return 10
+  if (plot.id === 'embassy' || plot.id === 'shop') return 12
   if (plot.id === 'townhall') {
     const tier = getTownhallTier(townships)
-    if (tier >= 3) return 18
-    if (tier >= 2) return 14
-    return 10
+    if (tier >= 3) return 22
+    if (tier >= 2) return 17
+    return 13
   }
   const t = (townships || []).find(t => t.type === plot.id)
-  if (!t || !t.is_owned) return 6
+  if (!t || !t.is_owned) return 5
   const tier = levelToTier(t.current_level)
-  if (tier >= 3) return 16
-  if (tier >= 2) return 12
-  return 8
+  if (tier >= 3) return 18
+  if (tier >= 2) return 14
+  return 10
 }
 
 function getBuildingAssetUrl(plot, assetKey, townships, templeData) {
