@@ -1,8 +1,8 @@
 import { useEffect, useRef } from 'react'
 import { SCENE_WIDTH, FACTION_FOLDER } from './townshipConfig'
 
-const DISPLAY_H = 160
-const GROUND_BOTTOM = '18%'
+const DISPLAY_H = 240
+const GROUND_BOTTOM = '8%'
 const SPEED = 120  // px/sec in scene space
 
 // Per-faction sprite info — all source frames are square

@@ -1,9 +1,9 @@
 import { useEffect, useRef } from 'react'
 import { SCENE_WIDTH, getNPCUrl } from './townshipConfig'
 
-const VILLAGER_DISPLAY_H = 120
-const ANIMAL_DISPLAY_H   = 140
-const GROUND_BOTTOM      = '18%'
+const VILLAGER_DISPLAY_H = 180
+const ANIMAL_DISPLAY_H   = 110
+const GROUND_BOTTOM      = '8%'
 
 // Per-faction, per-type sprite info derived from actual sprite sheet pixel measurements
 // srcW/srcH = one frame's natural dimensions; display height is fixed, width scales proportionally
