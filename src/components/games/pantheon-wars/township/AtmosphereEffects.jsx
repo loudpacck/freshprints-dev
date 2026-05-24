@@ -53,39 +53,39 @@ const SPRITES = [
   // ── Fire (pinned to ground) ───────────────────────────────────────────
   {
     id: 'fire-a', name: 'fire', fps: 12, group: 'ground',
-    style: { position: 'absolute', bottom: '8%', left: '25%', opacity: 0.5, zIndex: 15 },
+    style: { position: 'absolute', bottom: '0%', left: '25%', opacity: 0.5, zIndex: 15 },
   },
   {
     id: 'fire-b', name: 'fire', fps: 12, group: 'ground',
-    style: { position: 'absolute', bottom: '8%', left: '50%', opacity: 0.4, zIndex: 15 },
+    style: { position: 'absolute', bottom: '0%', left: '50%', opacity: 0.4, zIndex: 15 },
   },
   {
     id: 'fire-c', name: 'fire', fps: 12, group: 'ground',
-    style: { position: 'absolute', bottom: '8%', left: '72%', opacity: 0.35, zIndex: 15 },
+    style: { position: 'absolute', bottom: '0%', left: '72%', opacity: 0.35, zIndex: 15 },
   },
 
   // ── Smoke (pinned just above fire — no vertical drift) ────────────────
   {
     id: 'smoke-a', name: 'smoke', fps: 8, group: 'ground',
-    style: { position: 'absolute', bottom: '14%', left: '25%', opacity: 0.28, zIndex: 15 },
+    style: { position: 'absolute', bottom: '5%', left: '25%', opacity: 0.28, zIndex: 15 },
   },
   {
     id: 'smoke-b', name: 'smoke', fps: 8, group: 'ground',
-    style: { position: 'absolute', bottom: '14%', left: '50%', opacity: 0.2, zIndex: 15 },
+    style: { position: 'absolute', bottom: '5%', left: '50%', opacity: 0.2, zIndex: 15 },
   },
   {
     id: 'smoke-c', name: 'smoke', fps: 8, group: 'ground',
-    style: { position: 'absolute', bottom: '14%', left: '72%', opacity: 0.15, zIndex: 15 },
+    style: { position: 'absolute', bottom: '5%', left: '72%', opacity: 0.15, zIndex: 15 },
   },
 
   // ── Ashes (pinned near ground — no vertical drift) ───────────────────
   {
     id: 'ashes-a', name: 'ashes', fps: 8, group: 'ground',
-    style: { position: 'absolute', bottom: '12%', left: '30%', opacity: 0.18, zIndex: 15 },
+    style: { position: 'absolute', bottom: '3%', left: '30%', opacity: 0.18, zIndex: 15 },
   },
   {
     id: 'ashes-b', name: 'ashes', fps: 8, group: 'ground',
-    style: { position: 'absolute', bottom: '12%', left: '60%', opacity: 0.13, zIndex: 15 },
+    style: { position: 'absolute', bottom: '3%', left: '60%', opacity: 0.13, zIndex: 15 },
   },
 
   // ── Enviro particles (mid-scene scatter — gentle horizontal drift) ────

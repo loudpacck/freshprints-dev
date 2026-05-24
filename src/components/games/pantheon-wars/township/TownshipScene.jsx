@@ -281,7 +281,7 @@ export default function TownshipScene({ faction, townships, templeData, onBuildi
             style={{
               position:      'absolute',
               left:          groundMarkerX + 'px',
-              bottom:        '18%',
+              bottom:        '2%',
               transform:     'translateX(-50%)',
               color:         '#C9A961',
               fontSize:      28,
