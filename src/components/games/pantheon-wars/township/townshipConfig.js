@@ -21,11 +21,10 @@ export const FACTION_LOADING_MSG = {
   mesop: 'The sands reveal your domain...',
 }
 
-// 6 background parallax layers per faction
+// Background parallax layers per faction (greek: 5 layers — sky_front was blank and deleted)
 export const BG_LAYERS = {
   greek: [
     { file: 'bg_greek_sky_back.png',    speed: 0.05 },
-    { file: 'bg_greek_sky_front.png',   speed: 0.1  },
     { file: 'bg_greek_mid_back.png',    speed: 0.2  },
     { file: 'bg_greek_mid_middle.png',  speed: 0.3  },
     { file: 'bg_greek_mid_front.png',   speed: 0.4  },
@@ -51,31 +50,31 @@ export const BG_LAYERS = {
 
 // 16 fixed building plots
 // x:         fraction of SCENE_WIDTH (left edge)
-// bottomPct: fraction of scene height from bottom (anchor point)
-// scale:     building size multiplier applied to base height
+// bottomPct: fraction of scene height from bottom where the building's bottom edge sits
+// scale:     used only for temples (tier sizing handled per-category in BuildingSprite)
 // templeType: only on temple plots
 export const PLOTS = [
   // ── Military Quarter (left zone) ──────────────────────────────────────
-  { id: 'fortification', x: 0.05, bottomPct: 0.08, scale: 1.0  },
-  { id: 'warfare',       x: 0.13, bottomPct: 0.08, scale: 1.0  },
-  { id: 'stewardship',   x: 0.08, bottomPct: 0.22, scale: 0.85 },
-  { id: 'ritual',        x: 0.18, bottomPct: 0.22, scale: 0.85 },
-  { id: 'exploration',   x: 0.22, bottomPct: 0.08, scale: 1.0  },
+  { id: 'fortification', x: 0.05, bottomPct: 0.20, scale: 1.0 },
+  { id: 'warfare',       x: 0.13, bottomPct: 0.20, scale: 1.0 },
+  { id: 'stewardship',   x: 0.08, bottomPct: 0.30, scale: 1.0 },
+  { id: 'ritual',        x: 0.18, bottomPct: 0.30, scale: 1.0 },
+  { id: 'exploration',   x: 0.22, bottomPct: 0.20, scale: 1.0 },
 
   // ── Town Center (middle zone) ──────────────────────────────────────────
-  { id: 'embassy',       x: 0.32, bottomPct: 0.08, scale: 1.0  },
-  { id: 'shop',          x: 0.40, bottomPct: 0.08, scale: 1.0  },
-  { id: 'townhall',      x: 0.50, bottomPct: 0.08, scale: 1.1  },
-  { id: 'divination',    x: 0.60, bottomPct: 0.08, scale: 1.0  },
-  { id: 'commerce',      x: 0.55, bottomPct: 0.22, scale: 0.85 },
-  { id: 'craftsmanship', x: 0.65, bottomPct: 0.22, scale: 0.85 },
+  { id: 'embassy',       x: 0.32, bottomPct: 0.20, scale: 1.0 },
+  { id: 'shop',          x: 0.40, bottomPct: 0.20, scale: 1.0 },
+  { id: 'townhall',      x: 0.50, bottomPct: 0.20, scale: 1.0 },
+  { id: 'divination',    x: 0.60, bottomPct: 0.20, scale: 1.0 },
+  { id: 'commerce',      x: 0.55, bottomPct: 0.30, scale: 1.0 },
+  { id: 'craftsmanship', x: 0.65, bottomPct: 0.30, scale: 1.0 },
 
-  // ── Sacred Hill (right zone — elevated terrain) ────────────────────────
-  { id: 'temple_roadside', x: 0.75, bottomPct: 0.08, scale: 1.0, templeType: 'roadside_shrine'  },
-  { id: 'temple_minor',    x: 0.80, bottomPct: 0.08, scale: 1.0, templeType: 'minor_temple'    },
-  { id: 'temple_grand',    x: 0.85, bottomPct: 0.12, scale: 1.0, templeType: 'grand_temple'    },
-  { id: 'temple_divine',   x: 0.90, bottomPct: 0.18, scale: 1.0, templeType: 'divine_fortress' },
-  { id: 'temple_citadel',  x: 0.95, bottomPct: 0.26, scale: 1.0, templeType: 'pantheon_citadel'},
+  // ── Sacred Hill (right zone — elevated terrain, steps up progressively) ─
+  { id: 'temple_roadside', x: 0.75, bottomPct: 0.20, scale: 1.0, templeType: 'roadside_shrine'  },
+  { id: 'temple_minor',    x: 0.80, bottomPct: 0.28, scale: 1.0, templeType: 'minor_temple'     },
+  { id: 'temple_grand',    x: 0.85, bottomPct: 0.37, scale: 1.0, templeType: 'grand_temple'     },
+  { id: 'temple_divine',   x: 0.90, bottomPct: 0.46, scale: 1.0, templeType: 'divine_fortress'  },
+  { id: 'temple_citadel',  x: 0.95, bottomPct: 0.56, scale: 1.0, templeType: 'pantheon_citadel' },
 ]
 
 // Temple visual config: size scale range and glow colour

@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect, useState } from 'react'
+import { lazy, Suspense, useEffect, useState, Component } from 'react'
 import { BrowserRouter, Routes, Route, Outlet, useLocation } from 'react-router-dom'
 import { AnimatePresence } from 'framer-motion'
 
@@ -55,6 +55,23 @@ const PantheonResetPw     = lazy(() => import('@/pages/games/pantheon-wars/Reset
 const PantheonComingSoon  = lazy(() => import('@/pages/games/pantheon-wars/ComingSoon'))
 const PantheonCodex        = lazy(() => import('@/pages/games/pantheon-wars/Codex'))
 const PantheonTownshipView = lazy(() => import('@/pages/games/pantheon-wars/TownshipView'))
+
+class TownshipErrorBoundary extends Component {
+  constructor(props) { super(props); this.state = { error: null } }
+  static getDerivedStateFromError(e) { return { error: e } }
+  render() {
+    if (this.state.error) {
+      return (
+        <div style={{ padding: 32, background: '#0A0710', minHeight: '100vh', color: '#EDC87C', fontFamily: 'monospace', fontSize: 13, whiteSpace: 'pre-wrap' }}>
+          <strong>TOWNSHIP VIEW ERROR</strong>{'\n\n'}
+          {String(this.state.error)}{'\n\n'}
+          {this.state.error?.stack}
+        </div>
+      )
+    }
+    return this.props.children
+  }
+}
 
 function PageLoader() {
   return (
@@ -182,8 +199,7 @@ function PantheonWarsRoutes() {
         <Route path="/games/pantheon-wars/profile"      element={<PantheonProfile />} />
         <Route path="/games/pantheon-wars/adventures"       element={<PantheonAdventures />} />
         <Route path="/games/pantheon-wars/township"         element={<PantheonTownship />} />
-        {/* DISABLED: Township View - re-enable when asset/alignment issues are resolved */}
-        {/* <Route path="/games/pantheon-wars/township-view"  element={<PantheonTownshipView />} /> */}
+        <Route path="/games/pantheon-wars/township-view"  element={<TownshipErrorBoundary><PantheonTownshipView /></TownshipErrorBoundary>} />
         <Route path="/games/pantheon-wars/titan"           element={<PantheonTitan />} />
         <Route path="/games/pantheon-wars/forgot-password" element={<PantheonForgotPw />} />
         <Route path="/games/pantheon-wars/reset-password"  element={<PantheonResetPw />} />

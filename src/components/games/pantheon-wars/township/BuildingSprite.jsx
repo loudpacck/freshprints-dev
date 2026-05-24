@@ -8,7 +8,25 @@ import {
   getBuildingAriaLabel,
 } from './townshipConfig'
 
-const BASE_HEIGHT_PCT = 28
+// Returns the base height as % of scene height for each building category.
+// Tier 1 < Tier 2 < Tier 3; Town Hall is the most prominent structure.
+// Temples use this as a base multiplied by templeScale (level-based).
+function getBuildingBaseHeight(plot, townships) {
+  if (plot.templeType) return 10
+  if (plot.id === 'embassy' || plot.id === 'shop') return 10
+  if (plot.id === 'townhall') {
+    const tier = getTownhallTier(townships)
+    if (tier >= 3) return 18
+    if (tier >= 2) return 14
+    return 10
+  }
+  const t = (townships || []).find(t => t.type === plot.id)
+  if (!t || !t.is_owned) return 6
+  const tier = levelToTier(t.current_level)
+  if (tier >= 3) return 16
+  if (tier >= 2) return 12
+  return 8
+}
 
 function getBuildingAssetUrl(plot, assetKey, townships, templeData) {
   if (plot.templeType) {
@@ -59,7 +77,7 @@ export default function BuildingSprite({
       : `${filterStyle} brightness(1.22)`
   }
 
-  const heightPct = BASE_HEIGHT_PCT * plot.scale * templeScale
+  const heightPct = getBuildingBaseHeight(plot, townships) * templeScale
   const ariaLabel = getBuildingAriaLabel(plot, assetKey, townships, templeData)
 
   function handleMouseEnter() {
