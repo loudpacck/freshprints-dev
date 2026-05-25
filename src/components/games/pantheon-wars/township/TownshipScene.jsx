@@ -9,6 +9,7 @@ import {
 } from './townshipConfig'
 
 const WORLD_NATIVE_HEIGHT = 1080
+const CHAT_BAR_HEIGHT     = 40
 
 const SCENE_KEYFRAMES = `
   @keyframes tw-bldg-popin {
@@ -36,10 +37,10 @@ export default function TownshipScene({ faction, townships, templeData, onBuildi
   useEffect(() => {
     const el = containerRef.current
     if (!el) return
-    // Scale world to fit viewport height; world is wider than viewport (camera scrolls)
-    scaleRef.current = el.clientHeight / WORLD_NATIVE_HEIGHT
+    // Scale world to fit available height above chat bar
+    scaleRef.current = (el.clientHeight - CHAT_BAR_HEIGHT) / WORLD_NATIVE_HEIGHT
     const ro = new ResizeObserver(([entry]) => {
-      scaleRef.current = entry.contentRect.height / WORLD_NATIVE_HEIGHT
+      scaleRef.current = (entry.contentRect.height - CHAT_BAR_HEIGHT) / WORLD_NATIVE_HEIGHT
     })
     ro.observe(el)
     return () => ro.disconnect()
@@ -235,7 +236,7 @@ export default function TownshipScene({ faction, townships, templeData, onBuildi
         ref={worldRef}
         style={{
           position:        'absolute',
-          bottom:          0,
+          bottom:          CHAT_BAR_HEIGHT,
           left:            0,
           width:           SCENE_WIDTH,
           height:          WORLD_NATIVE_HEIGHT,
