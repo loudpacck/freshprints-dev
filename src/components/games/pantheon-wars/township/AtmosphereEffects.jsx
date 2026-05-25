@@ -120,32 +120,51 @@ function AtmosphereEffects({ assetKey, group = 'all' }) {
   useEffect(() => {
     if (reducedMotion) return
 
+    // DIAGNOSTIC: log mount for each sprite
+    filtered.forEach(cfg => {
+      console.log(`[AtmFX] MOUNT group=${group} sprite=${cfg.id} asset=${assetKey} name=${cfg.name}`)
+    })
+
     // Set initial frame positions directly on DOM so React's style prop cannot reset them.
-    // (Parent re-renders would re-apply `backgroundPosition` shorthand and zero out the interval's work.)
     filtered.forEach((_, i) => {
       const el = refs.current[i]
-      if (!el) return
+      if (!el) {
+        console.warn(`[AtmFX] INIT ref missing at i=${i} (${filtered[i]?.id})`)
+        return
+      }
       const f   = frames.current[i]
       const col = f % COLS
       const row = Math.floor(f / COLS)
       el.style.backgroundPositionX = `${-(col * CELL_PX)}px`
       el.style.backgroundPositionY = `${-(row * CELL_PX)}px`
+      console.log(`[AtmFX] INIT ${filtered[i].id} frame=${f} pos=${-(col*CELL_PX)}px,${-(row*CELL_PX)}px el=`, el)
     })
 
     const timers = filtered.map((cfg, i) =>
       setInterval(() => {
         frames.current[i] = (frames.current[i] + 1) % TOTAL_FRAMES
         const el = refs.current[i]
-        if (!el) return
+        if (!el) {
+          console.warn(`[AtmFX] TICK ref gone i=${i} sprite=${cfg.id}`)
+          return
+        }
         const f   = frames.current[i]
         const col = f % COLS
         const row = Math.floor(f / COLS)
-        el.style.backgroundPositionX = `${-(col * CELL_PX)}px`
-        el.style.backgroundPositionY = `${-(row * CELL_PX)}px`
+        const px = `${-(col * CELL_PX)}px`
+        const py = `${-(row * CELL_PX)}px`
+        el.style.backgroundPositionX = px
+        el.style.backgroundPositionY = py
+        if (f === 1) console.log(`[AtmFX] TICK ${cfg.id} frame=${f} posX=${px} posY=${py} el.style.bpX=${el.style.backgroundPositionX}`)
       }, Math.round(1000 / cfg.fps))
     )
 
-    return () => timers.forEach(id => clearInterval(id))
+    return () => {
+      filtered.forEach(cfg => {
+        console.log(`[AtmFX] UNMOUNT group=${group} sprite=${cfg.id}`)
+      })
+      timers.forEach(id => clearInterval(id))
+    }
   }, [reducedMotion]) // eslint-disable-line react-hooks/exhaustive-deps
 
   if (reducedMotion) return null
