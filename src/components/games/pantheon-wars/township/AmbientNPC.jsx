@@ -7,8 +7,10 @@ const GROUND_BOTTOM      = '0%'
 
 // Per-faction, per-type sprite info derived from actual sprite sheet pixel measurements
 // srcW/srcH = one frame's natural dimensions; display height is fixed, width scales proportionally
+// animalDisplayH overrides ANIMAL_DISPLAY_H per faction (norse frames are much larger source images)
 const SPRITE_CONFIG = {
   greek: {
+    animalDisplayH: 110,
     villager: {
       idle: { frames: 11, srcW: 140, srcH: 140 },
       walk: { frames: 8,  srcW: 140, srcH: 140 },
@@ -19,6 +21,7 @@ const SPRITE_CONFIG = {
     },
   },
   mesop: {
+    animalDisplayH: 130,
     villager: {
       idle: { frames: 6,  srcW: 184, srcH: 137 },
       walk: { frames: 8,  srcW: 184, srcH: 137 },
@@ -29,6 +32,7 @@ const SPRITE_CONFIG = {
     },
   },
   norse: {
+    animalDisplayH: 160,
     villager: {
       idle: { frames: 8,  srcW: 150, srcH: 150 },
       walk: { frames: 8,  srcW: 150, srcH: 150 },
@@ -45,10 +49,11 @@ function getDisplayW(srcW, srcH, displayH) {
 }
 
 function makeNPCKeyframes(cfg) {
+  const animalH  = cfg.animalDisplayH ?? ANIMAL_DISPLAY_H
   const v_idle_w = getDisplayW(cfg.villager.idle.srcW, cfg.villager.idle.srcH, VILLAGER_DISPLAY_H)
   const v_walk_w = getDisplayW(cfg.villager.walk.srcW, cfg.villager.walk.srcH, VILLAGER_DISPLAY_H)
-  const a_idle_w = getDisplayW(cfg.animal.idle.srcW, cfg.animal.idle.srcH, ANIMAL_DISPLAY_H)
-  const a_walk_w = getDisplayW(cfg.animal.walk.srcW, cfg.animal.walk.srcH, ANIMAL_DISPLAY_H)
+  const a_idle_w = getDisplayW(cfg.animal.idle.srcW, cfg.animal.idle.srcH, animalH)
+  const a_walk_w = getDisplayW(cfg.animal.walk.srcW, cfg.animal.walk.srcH, animalH)
 
   return `
     @keyframes npc-villager-idle {
@@ -71,10 +76,11 @@ function makeNPCKeyframes(cfg) {
 }
 
 function makeSpriteInfo(cfg) {
+  const animalH  = cfg.animalDisplayH ?? ANIMAL_DISPLAY_H
   const v_idle_w = getDisplayW(cfg.villager.idle.srcW, cfg.villager.idle.srcH, VILLAGER_DISPLAY_H)
   const v_walk_w = getDisplayW(cfg.villager.walk.srcW, cfg.villager.walk.srcH, VILLAGER_DISPLAY_H)
-  const a_idle_w = getDisplayW(cfg.animal.idle.srcW, cfg.animal.idle.srcH, ANIMAL_DISPLAY_H)
-  const a_walk_w = getDisplayW(cfg.animal.walk.srcW, cfg.animal.walk.srcH, ANIMAL_DISPLAY_H)
+  const a_idle_w = getDisplayW(cfg.animal.idle.srcW, cfg.animal.idle.srcH, animalH)
+  const a_walk_w = getDisplayW(cfg.animal.walk.srcW, cfg.animal.walk.srcH, animalH)
 
   return {
     villager: {
@@ -82,8 +88,8 @@ function makeSpriteInfo(cfg) {
       walk: { frames: cfg.villager.walk.frames, w: v_walk_w, h: VILLAGER_DISPLAY_H, anim: 'npc-villager-walk', dur: '0.8s' },
     },
     animal: {
-      idle: { frames: cfg.animal.idle.frames, w: a_idle_w, h: ANIMAL_DISPLAY_H, anim: 'npc-animal-idle', dur: '0.8s' },
-      walk: { frames: cfg.animal.walk.frames, w: a_walk_w, h: ANIMAL_DISPLAY_H, anim: 'npc-animal-walk', dur: '0.7s' },
+      idle: { frames: cfg.animal.idle.frames, w: a_idle_w, h: animalH, anim: 'npc-animal-idle', dur: '0.8s' },
+      walk: { frames: cfg.animal.walk.frames, w: a_walk_w, h: animalH, anim: 'npc-animal-walk', dur: '0.7s' },
     },
   }
 }

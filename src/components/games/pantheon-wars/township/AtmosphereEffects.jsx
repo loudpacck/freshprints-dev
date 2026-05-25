@@ -1,11 +1,17 @@
-import { memo, useEffect, useRef } from 'react'
+import { useEffect, useRef } from 'react'
 import { getExtrasUrl } from './townshipConfig'
 
-const COLS         = 3
-const ROWS         = 3
+const COLS    = 3
+const CELL_PX = 120
+const SHEET_PX = CELL_PX * COLS  // 360px
 const TOTAL_FRAMES = 9
-const CELL_PX      = 120
-const SHEET_PX     = CELL_PX * COLS  // 360px
+
+// Convert cell index (0–8) to background-position string
+function cellPos(cell) {
+  const col = cell % COLS
+  const row = Math.floor(cell / COLS)
+  return `${-(col * CELL_PX)}px ${-(row * CELL_PX)}px`
+}
 
 const KEYFRAMES = `
   @keyframes tw-particles {
@@ -27,7 +33,7 @@ const KEYFRAMES = `
 `
 
 const SPRITES = [
-  // ── Birds (sky — drift horizontally) ─────────────────────────────────
+  // ── Birds (sky — drift horizontally, frame-animated) ─────────────────
   {
     id: 'birds-a', name: 'birds', fps: 10, group: 'sky',
     style: {
@@ -50,63 +56,87 @@ const SPRITES = [
     },
   },
 
-  // ── Fire (pinned to ground) ───────────────────────────────────────────
+  // ── Fire (static decorations — fixed cell per instance) ───────────────
   {
-    id: 'fire-a', name: 'fire', fps: 12, group: 'ground',
-    style: { position: 'absolute', bottom: '0%', left: '25%', opacity: 0.5, zIndex: 15 },
+    id: 'fire-a', name: 'fire', group: 'ground',
+    style: {
+      position: 'absolute', bottom: '0%', left: '25%', opacity: 0.5, zIndex: 15,
+      backgroundPosition: cellPos(4),
+    },
   },
   {
-    id: 'fire-b', name: 'fire', fps: 12, group: 'ground',
-    style: { position: 'absolute', bottom: '0%', left: '50%', opacity: 0.4, zIndex: 15 },
+    id: 'fire-b', name: 'fire', group: 'ground',
+    style: {
+      position: 'absolute', bottom: '0%', left: '50%', opacity: 0.4, zIndex: 15,
+      backgroundPosition: cellPos(1),
+    },
   },
   {
-    id: 'fire-c', name: 'fire', fps: 12, group: 'ground',
-    style: { position: 'absolute', bottom: '0%', left: '72%', opacity: 0.35, zIndex: 15 },
-  },
-
-  // ── Smoke (pinned just above fire — no vertical drift) ────────────────
-  {
-    id: 'smoke-a', name: 'smoke', fps: 8, group: 'ground',
-    style: { position: 'absolute', bottom: '5%', left: '25%', opacity: 0.28, zIndex: 15 },
-  },
-  {
-    id: 'smoke-b', name: 'smoke', fps: 8, group: 'ground',
-    style: { position: 'absolute', bottom: '5%', left: '50%', opacity: 0.2, zIndex: 15 },
-  },
-  {
-    id: 'smoke-c', name: 'smoke', fps: 8, group: 'ground',
-    style: { position: 'absolute', bottom: '5%', left: '72%', opacity: 0.15, zIndex: 15 },
+    id: 'fire-c', name: 'fire', group: 'ground',
+    style: {
+      position: 'absolute', bottom: '0%', left: '72%', opacity: 0.35, zIndex: 15,
+      backgroundPosition: cellPos(7),
+    },
   },
 
-  // ── Ashes (pinned near ground — no vertical drift) ───────────────────
+  // ── Smoke (static decorations) ────────────────────────────────────────
   {
-    id: 'ashes-a', name: 'ashes', fps: 8, group: 'ground',
-    style: { position: 'absolute', bottom: '3%', left: '30%', opacity: 0.18, zIndex: 15 },
+    id: 'smoke-a', name: 'smoke', group: 'ground',
+    style: {
+      position: 'absolute', bottom: '5%', left: '25%', opacity: 0.28, zIndex: 15,
+      backgroundPosition: cellPos(0),
+    },
   },
   {
-    id: 'ashes-b', name: 'ashes', fps: 8, group: 'ground',
-    style: { position: 'absolute', bottom: '3%', left: '60%', opacity: 0.13, zIndex: 15 },
+    id: 'smoke-b', name: 'smoke', group: 'ground',
+    style: {
+      position: 'absolute', bottom: '5%', left: '50%', opacity: 0.2, zIndex: 15,
+      backgroundPosition: cellPos(4),
+    },
+  },
+  {
+    id: 'smoke-c', name: 'smoke', group: 'ground',
+    style: {
+      position: 'absolute', bottom: '5%', left: '72%', opacity: 0.15, zIndex: 15,
+      backgroundPosition: cellPos(8),
+    },
   },
 
-  // ── Enviro particles (mid-scene scatter — gentle horizontal drift) ────
+  // ── Ashes (static decorations) ────────────────────────────────────────
   {
-    id: 'env-a', name: 'enviroparticles', fps: 8, group: 'ground',
+    id: 'ashes-a', name: 'ashes', group: 'ground',
+    style: {
+      position: 'absolute', bottom: '3%', left: '30%', opacity: 0.18, zIndex: 15,
+      backgroundPosition: cellPos(0),
+    },
+  },
+  {
+    id: 'ashes-b', name: 'ashes', group: 'ground',
+    style: {
+      position: 'absolute', bottom: '3%', left: '60%', opacity: 0.13, zIndex: 15,
+      backgroundPosition: cellPos(4),
+    },
+  },
+
+  // ── Enviro particles (static decorations — CSS position drift only) ───
+  {
+    id: 'env-a', name: 'enviroparticles', group: 'ground',
     style: {
       position: 'absolute', top: '35%', left: '38%', opacity: 0.1, zIndex: 8,
+      backgroundPosition: cellPos(4),
       animation: 'tw-particles 14s ease-in-out infinite',
     },
   },
   {
-    id: 'env-b', name: 'enviroparticles', fps: 8, group: 'ground',
+    id: 'env-b', name: 'enviroparticles', group: 'ground',
     style: {
       position: 'absolute', top: '55%', left: '72%', opacity: 0.08, zIndex: 8,
+      backgroundPosition: cellPos(0),
       animation: 'tw-particles 18s ease-in-out infinite 3s',
     },
   },
 ]
 
-// group: 'sky' = birds (render outside world container, viewport-relative)
-//        'ground' = fire/smoke/ashes/env (render inside world container, world-relative)
 function AtmosphereEffects({ assetKey, group = 'all' }) {
   const reducedMotion = typeof window !== 'undefined'
     ? window.matchMedia('(prefers-reduced-motion: reduce)').matches
@@ -114,57 +144,30 @@ function AtmosphereEffects({ assetKey, group = 'all' }) {
 
   const filtered = group === 'all' ? SPRITES : SPRITES.filter(s => s.group === group)
 
+  // Refs and frame counters are only needed for birds
+  const birdSprites = filtered.filter(s => s.group === 'sky')
   const refs   = useRef(filtered.map(() => null))
-  const frames = useRef(filtered.map((_, i) => i % TOTAL_FRAMES))
+  const frames = useRef(birdSprites.map((_, i) => i % TOTAL_FRAMES))
 
   useEffect(() => {
     if (reducedMotion) return
 
-    // DIAGNOSTIC: log mount for each sprite
-    filtered.forEach(cfg => {
-      console.log(`[AtmFX] MOUNT group=${group} sprite=${cfg.id} asset=${assetKey} name=${cfg.name}`)
-    })
-
-    // Set initial frame positions directly on DOM so React's style prop cannot reset them.
-    filtered.forEach((_, i) => {
-      const el = refs.current[i]
-      if (!el) {
-        console.warn(`[AtmFX] INIT ref missing at i=${i} (${filtered[i]?.id})`)
-        return
-      }
-      const f   = frames.current[i]
-      const col = f % COLS
-      const row = Math.floor(f / COLS)
-      el.style.backgroundPositionX = `${-(col * CELL_PX)}px`
-      el.style.backgroundPositionY = `${-(row * CELL_PX)}px`
-      console.log(`[AtmFX] INIT ${filtered[i].id} frame=${f} pos=${-(col*CELL_PX)}px,${-(row*CELL_PX)}px el=`, el)
-    })
-
-    const timers = filtered.map((cfg, i) =>
-      setInterval(() => {
+    // Advance frames only for birds (sprite sheet animation)
+    const timers = birdSprites.map((cfg, i) => {
+      const globalIdx = filtered.indexOf(cfg)
+      return setInterval(() => {
         frames.current[i] = (frames.current[i] + 1) % TOTAL_FRAMES
-        const el = refs.current[i]
-        if (!el) {
-          console.warn(`[AtmFX] TICK ref gone i=${i} sprite=${cfg.id}`)
-          return
-        }
+        const el = refs.current[globalIdx]
+        if (!el) return
         const f   = frames.current[i]
         const col = f % COLS
         const row = Math.floor(f / COLS)
-        const px = `${-(col * CELL_PX)}px`
-        const py = `${-(row * CELL_PX)}px`
-        el.style.backgroundPositionX = px
-        el.style.backgroundPositionY = py
-        if (f === 1) console.log(`[AtmFX] TICK ${cfg.id} frame=${f} posX=${px} posY=${py} el.style.bpX=${el.style.backgroundPositionX}`)
+        el.style.backgroundPositionX = `${-(col * CELL_PX)}px`
+        el.style.backgroundPositionY = `${-(row * CELL_PX)}px`
       }, Math.round(1000 / cfg.fps))
-    )
+    })
 
-    return () => {
-      filtered.forEach(cfg => {
-        console.log(`[AtmFX] UNMOUNT group=${group} sprite=${cfg.id}`)
-      })
-      timers.forEach(id => clearInterval(id))
-    }
+    return () => timers.forEach(id => clearInterval(id))
   }, [reducedMotion]) // eslint-disable-line react-hooks/exhaustive-deps
 
   if (reducedMotion) return null
@@ -186,7 +189,6 @@ function AtmosphereEffects({ assetKey, group = 'all' }) {
               backgroundRepeat: 'no-repeat',
               pointerEvents:    'none',
               userSelect:       'none',
-              willChange:       'background-position',
               ...cfg.style,
             }}
           />
@@ -196,4 +198,4 @@ function AtmosphereEffects({ assetKey, group = 'all' }) {
   )
 }
 
-export default memo(AtmosphereEffects)
+export default AtmosphereEffects

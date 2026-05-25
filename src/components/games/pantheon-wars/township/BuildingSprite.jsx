@@ -8,11 +8,21 @@ import {
   getBuildingAriaLabel,
 } from './townshipConfig'
 
+// Per-temple-type size multiplier — stacks on top of the level-based scale.
+// roadside_shrine is ~0.25× the height of pantheon_citadel at the same level.
+const TEMPLE_SIZE_MULTIPLIER = {
+  roadside_shrine:  0.45,
+  minor_temple:     0.65,
+  grand_temple:     0.90,
+  divine_fortress:  1.30,
+  pantheon_citadel: 1.80,
+}
+
 // Returns the base height as % of scene height for each building category.
 // Tier 1 < Tier 2 < Tier 3; Town Hall is the most prominent structure.
-// Temples use this as a base multiplied by templeScale (level-based).
+// Temples use this as a base multiplied by templeScale (level-based) × TEMPLE_SIZE_MULTIPLIER.
 function getBuildingBaseHeight(plot, townships) {
-  if (plot.templeType) return 16
+  if (plot.templeType) return 22
   if (plot.id === 'embassy' || plot.id === 'shop') return 20
   if (plot.id === 'townhall') {
     const tier = getTownhallTier(townships)
@@ -65,6 +75,7 @@ export default function BuildingSprite({
       if (cfg) {
         const lvl = Math.min(25, Math.max(1, owned.upgrade_level || 1))
         templeScale = cfg.min + (cfg.max - cfg.min) * (lvl - 1) / 24
+        templeScale *= (TEMPLE_SIZE_MULTIPLIER[plot.templeType] ?? 1)
         const glowPx = Math.max(4, Math.round(lvl * 0.8))
         filterStyle = `drop-shadow(0 0 ${glowPx}px ${cfg.glow})`
       }
