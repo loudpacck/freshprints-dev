@@ -6,7 +6,7 @@ import {
   getSessionFromCookie, revokeUserSession, buildClearSessionCookie,
   requireUser,
 } from '../../../lib/pwAuth.js'
-import { regenPlayer, getEquipmentBonuses, getRaceClassCombatBonuses } from '../../../lib/pwHelpers.js'
+import { regenPlayer, getEquipmentBonuses, getRaceClassCombatBonuses, getPlayerTownships, aggregateTownshipBonuses } from '../../../lib/pwHelpers.js'
 
 export const config = { runtime: 'nodejs' }
 
@@ -196,16 +196,29 @@ async function handleMe(req, res) {
       energy_regen_base: row.energy_regen_base, health_regen_base: row.health_regen_base,
     }
 
-    const statsRegen = regenPlayer(statsRaw)
+    // Fetch temples + townships so regenPlayer can credit offline temple income
+    const meTemples = await sql`
+      SELECT pt.upgrade_level, t.income_per_hour
+      FROM pw_player_temples pt
+      JOIN pw_temples t ON t.type = pt.temple_type
+      WHERE pt.user_id = ${req.userId}
+    `
+    const meTownships = await getPlayerTownships(sql, req.userId)
+    const meTownshipBonuses = aggregateTownshipBonuses(meTownships)
+
+    const statsRegen = regenPlayer(statsRaw, meTemples, row.class, row.faction, meTownshipBonuses)
     if (
       statsRegen.energy !== statsRaw.energy ||
       statsRegen.health !== statsRaw.health ||
+      statsRegen.drachma !== statsRaw.drachma ||
       statsRegen.energy_regen_base !== statsRaw.energy_regen_base ||
       statsRegen.health_regen_base !== statsRaw.health_regen_base
     ) {
       await sql`
         UPDATE pw_player_stats
         SET energy = ${statsRegen.energy}, health = ${statsRegen.health},
+            drachma = ${statsRegen.drachma},
+            drachma_lifetime = ${statsRegen.drachma_lifetime},
             energy_regen_base = ${statsRegen.energy_regen_base},
             health_regen_base = ${statsRegen.health_regen_base},
             last_updated = ${statsRegen.last_updated}

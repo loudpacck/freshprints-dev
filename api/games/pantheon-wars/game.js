@@ -667,17 +667,16 @@ async function handleConsume(req, res) {
       const { attackBaseline, defenseBaseline, agilityBaseline, energyMaxBaseline, healthMaxBaseline } =
         computeResetBaselines(stats, playerClass, faction)
 
-      const refundAttack    = Math.max(0, (stats.attack    ?? attackBaseline)    - attackBaseline)
-      const refundDefense   = Math.max(0, (stats.defense   ?? defenseBaseline)   - defenseBaseline)
-      const refundAgility   = Math.max(0, (stats.agility   ?? agilityBaseline)   - agilityBaseline)
-      const refundEnergyMax = Math.max(0, (stats.energy_max ?? energyMaxBaseline) - energyMaxBaseline)
-      const refundHealthMax = Math.max(0, (stats.health_max ?? healthMaxBaseline) - healthMaxBaseline)
-      const totalRefunded   = refundAttack + refundDefense + refundAgility + refundEnergyMax + refundHealthMax
+      const refundAttack  = Math.max(0, (stats.attack  ?? attackBaseline)  - attackBaseline)
+      const refundDefense = Math.max(0, (stats.defense ?? defenseBaseline) - defenseBaseline)
+      const refundAgility = Math.max(0, (stats.agility ?? agilityBaseline) - agilityBaseline)
+      // energy_max and health_max are intentionally excluded — only atk/def/agi are refunded
+      const totalRefunded = refundAttack + refundDefense + refundAgility
 
       const newStatPoints = (stats.stat_points || 0) + totalRefunded
-      // Restore to full on reset (QoL + prevents exploit loop)
-      const newEnergy     = energyMaxBaseline
-      const newHealth     = healthMaxBaseline
+      // Restore to current max (preserve any allocated energy/health capacity)
+      const newEnergy = stats.energy_max
+      const newHealth = stats.health_max
 
       await sql`DELETE FROM pw_inventory WHERE id = ${inventory_id}`
       await sql`
@@ -685,8 +684,6 @@ async function handleConsume(req, res) {
           attack            = ${attackBaseline},
           defense           = ${defenseBaseline},
           agility           = ${agilityBaseline},
-          energy_max        = ${energyMaxBaseline},
-          health_max        = ${healthMaxBaseline},
           energy            = ${newEnergy},
           health            = ${newHealth},
           stat_points       = ${newStatPoints},
@@ -710,8 +707,8 @@ async function handleConsume(req, res) {
           attack:      attackBaseline,
           defense:     defenseBaseline,
           agility:     agilityBaseline,
-          energy_max:  energyMaxBaseline,
-          health_max:  healthMaxBaseline,
+          energy_max:  stats.energy_max,
+          health_max:  stats.health_max,
           energy:      newEnergy,
           health:      newHealth,
           stat_points: newStatPoints,
@@ -2433,25 +2430,22 @@ async function handleFreeStatReset(req, res) {
     const { attackBaseline, defenseBaseline, agilityBaseline, energyMaxBaseline, healthMaxBaseline } =
       computeResetBaselines(stats, playerClass, faction)
 
-    const refundAttack    = Math.max(0, (stats.attack    ?? attackBaseline)    - attackBaseline)
-    const refundDefense   = Math.max(0, (stats.defense   ?? defenseBaseline)   - defenseBaseline)
-    const refundAgility   = Math.max(0, (stats.agility   ?? agilityBaseline)   - agilityBaseline)
-    const refundEnergyMax = Math.max(0, (stats.energy_max ?? energyMaxBaseline) - energyMaxBaseline)
-    const refundHealthMax = Math.max(0, (stats.health_max ?? healthMaxBaseline) - healthMaxBaseline)
-    const totalRefunded   = refundAttack + refundDefense + refundAgility + refundEnergyMax + refundHealthMax
+    const refundAttack  = Math.max(0, (stats.attack  ?? attackBaseline)  - attackBaseline)
+    const refundDefense = Math.max(0, (stats.defense ?? defenseBaseline) - defenseBaseline)
+    const refundAgility = Math.max(0, (stats.agility ?? agilityBaseline) - agilityBaseline)
+    // energy_max and health_max excluded — only atk/def/agi are refunded
+    const totalRefunded = refundAttack + refundDefense + refundAgility
 
     const newStatPoints = (stats.stat_points || 0) + totalRefunded
-    // Restore to full on reset (QoL + prevents exploit loop)
-    const newEnergy     = energyMaxBaseline
-    const newHealth     = healthMaxBaseline
+    // Restore to current max (preserve any allocated energy/health capacity)
+    const newEnergy = stats.energy_max
+    const newHealth = stats.health_max
 
     await sql`
       UPDATE pw_player_stats SET
         attack               = ${attackBaseline},
         defense              = ${defenseBaseline},
         agility              = ${agilityBaseline},
-        energy_max           = ${energyMaxBaseline},
-        health_max           = ${healthMaxBaseline},
         energy               = ${newEnergy},
         health               = ${newHealth},
         stat_points          = ${newStatPoints},
@@ -2472,8 +2466,8 @@ async function handleFreeStatReset(req, res) {
         attack:               attackBaseline,
         defense:              defenseBaseline,
         agility:              agilityBaseline,
-        energy_max:           energyMaxBaseline,
-        health_max:           healthMaxBaseline,
+        energy_max:           stats.energy_max,
+        health_max:           stats.health_max,
         energy:               newEnergy,
         health:               newHealth,
         stat_points:          newStatPoints,
