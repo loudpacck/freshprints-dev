@@ -75,10 +75,10 @@ export const PLOTS = [
   { id: 'craftsmanship', x: 0.63, bottomPct: 0.05, scale: 1.0 },
 
   // ── Sacred Hill (right zone — gentle elevation curve) ─────────────────
-  { id: 'temple_roadside', x: 0.70, bottomPct: 0,    scale: 1.0, templeType: 'roadside_shrine'  },
-  { id: 'temple_minor',    x: 0.79, bottomPct: 0.02, scale: 1.0, templeType: 'minor_temple'     },
-  { id: 'temple_grand',    x: 0.87, bottomPct: 0.04, scale: 1.0, templeType: 'grand_temple'     },
-  { id: 'temple_divine',   x: 0.94, bottomPct: 0.07, scale: 1.0, templeType: 'divine_fortress'  },
+  { id: 'temple_roadside', x: 0.68, bottomPct: 0,    scale: 1.0, templeType: 'roadside_shrine'  },
+  { id: 'temple_minor',    x: 0.77, bottomPct: 0.02, scale: 1.0, templeType: 'minor_temple'     },
+  { id: 'temple_grand',    x: 0.85, bottomPct: 0.04, scale: 1.0, templeType: 'grand_temple'     },
+  { id: 'temple_divine',   x: 0.92, bottomPct: 0.07, scale: 1.0, templeType: 'divine_fortress'  },
   { id: 'temple_citadel',  x: 0.99, bottomPct: 0.10, scale: 1.0, templeType: 'pantheon_citadel' },
 ]
 

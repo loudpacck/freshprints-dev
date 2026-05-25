@@ -235,11 +235,11 @@ export default function TownshipScene({ faction, townships, templeData, onBuildi
         ref={worldRef}
         style={{
           position:        'absolute',
-          top:             0,
+          bottom:          0,
           left:            0,
           width:           SCENE_WIDTH,
           height:          WORLD_NATIVE_HEIGHT,
-          transformOrigin: '0 0',
+          transformOrigin: '0 100%',
           willChange:      'transform',
           zIndex:          10,
         }}

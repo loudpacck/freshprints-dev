@@ -355,7 +355,7 @@ export default function TownshipView() {
       ) : !sceneReady ? (
         <LoadingScreen assetKey={assetKey} />
       ) : (
-        <div style={{ flex: 1, position: 'relative', display: 'flex', flexDirection: 'column', overflow: 'hidden', paddingBottom: 48 }}>
+        <div style={{ flex: 1, position: 'relative', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
           <TownshipScene
             faction={user?.faction}
             townships={townships}
