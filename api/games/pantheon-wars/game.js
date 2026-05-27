@@ -7,7 +7,7 @@ import {
   calculatePowerRating,
   getRaceClassCombatBonuses,
   getShopRotationSeed, getShopRotationExpiry, pickRotatedItems, getDailyRotationPool,
-  getGloryRotationSeed, getGloryRotationExpiry,
+  getGloryRotationSeed, getGloryRotationExpiry, getGloryRotationPool,
   getQuestRotationSeed, getQuestRotationExpiry,
   getAdventureRotationSeed, getAdventureRotationExpiry,
   pickRotatedFromPool, checkAndCompleteAdventures, checkAndCompleteUpgrades,
@@ -817,18 +817,14 @@ async function handleShop(req, res) {
     `
 
     // Glory items — consumables always shown, equipment rotates daily
-    const gloryRows = await sql`
-      SELECT id, name, description, slot, attack_bonus, defense_bonus, agility_bonus,
-             crit_chance, block_chance, dodge_chance,
-             rarity, level_required, faction_exclusive, buy_price, sell_price, glory_price,
-             consumable_effect, consumable_value
+    const glory_always_available = await sql`
+      SELECT id, name, description, slot, rarity, level_required, faction_exclusive,
+             buy_price, sell_price, glory_price, consumable_effect, consumable_value
       FROM pw_items
-      WHERE glory_price IS NOT NULL
-      ORDER BY slot, level_required, id
+      WHERE glory_price IS NOT NULL AND slot = 'consumable'
+      ORDER BY level_required, id
     `
-    const glory_always_available = gloryRows.filter(i => i.slot === 'consumable')
-    const gloryEquipPool = gloryRows.filter(i => i.slot !== 'consumable')
-    const glory_rotation_items = pickRotatedItems(gloryEquipPool, getGloryRotationSeed(), 3)
+    const glory_rotation_items = await getGloryRotationPool(sql, 3)
 
     // Equipped items for gear comparison in the shop UI
     const equippedRows = await sql`
@@ -949,10 +945,7 @@ async function handleBuy(req, res) {
     }
 
     if (currency === 'glory' && item.slot !== 'consumable') {
-      const gloryEquipRows = await sql`
-        SELECT id FROM pw_items WHERE glory_price IS NOT NULL AND slot != 'consumable'
-      `
-      const gloryRotated = pickRotatedItems(gloryEquipRows, getGloryRotationSeed(), 3)
+      const gloryRotated = await getGloryRotationPool(sql, 3)
       if (!gloryRotated.some(r => r.id === item_id)) {
         return res.status(400).json({ error: 'glory_item_not_in_rotation' })
       }
