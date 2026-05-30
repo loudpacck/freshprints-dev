@@ -15,11 +15,13 @@ const BB_FONT     = "'Rajdhani', sans-serif"
 // ─── Constants ────────────────────────────────────────────────────────────────
 
 const LANE_COLORS = [
-  '#FF3B3B', '#FF9F0A', '#30D158', '#0A84FF', '#FFFFFF',
-  '#BF5AF2', '#FF375F', '#64D2FF', '#FFD60A',
+  '#FF3B3B', '#FF7A1A', '#FFB300', '#FFE600', '#4CD964', '#FFFFFF',
+  '#5AC8FA', '#0A84FF', '#5E5CE6', '#AF52DE', '#FF2D92',
 ]
-const KEY_LABELS = ['W', 'A', 'S', 'D', 'SPACE', 'I', 'J', 'K', 'L']
-const KEY_MAP    = { w: 0, a: 1, s: 2, d: 3, i: 5, j: 6, k: 7, l: 8 }
+const KEY_LABELS = ['A', 'S', 'D', 'F', 'G', 'SPACE', 'H', 'J', 'K', 'L', ';']
+const KEY_MAP    = { a: 0, s: 1, d: 2, f: 3, g: 4, h: 6, j: 7, k: 8, l: 9 }
+const LANE_COUNT = 11
+const SPACE_LANE = 5
 
 const DEFAULT_SCROLL_SPEED = 380
 const HIT_ZONE_FRAC = 0.85
@@ -52,21 +54,25 @@ const BEAT_METER_ACTIVATE_KEY     = 'Shift'
 
 // ─── Pure helpers ─────────────────────────────────────────────────────────────
 
+const EDGE_PAD = 0
+
 function computeLayout(w, h) {
-  const totalFixedGap = 3 * LANE_GAP + CLUSTER_GAP + CLUSTER_GAP + 3 * LANE_GAP
-  const unitW = (w - totalFixedGap) / (8 + SPACE_MULT)
-  const laneWidths = [unitW, unitW, unitW, unitW, unitW * SPACE_MULT, unitW, unitW, unitW, unitW]
-  const laneX = new Array(9)
-  laneX[0] = 0
-  laneX[1] = unitW + LANE_GAP
-  laneX[2] = 2 * unitW + 2 * LANE_GAP
-  laneX[3] = 3 * unitW + 3 * LANE_GAP
-  laneX[4] = 4 * unitW + 3 * LANE_GAP + CLUSTER_GAP
-  const rs  = laneX[4] + unitW * SPACE_MULT + CLUSTER_GAP
-  laneX[5]  = rs
-  laneX[6]  = rs + unitW + LANE_GAP
-  laneX[7]  = rs + 2 * unitW + 2 * LANE_GAP
-  laneX[8]  = rs + 3 * unitW + 3 * LANE_GAP
+  // 10 standard lanes + 1 wide (2.5x) Space lane = 12.5 width units.
+  // 8 standard lane gaps (2px) + 2 cluster gaps (6px) = 28px of fixed gaps.
+  const totalFixedGap = 8 * LANE_GAP + 2 * CLUSTER_GAP
+  const unitW = (w - totalFixedGap - EDGE_PAD) / (10 + SPACE_MULT)
+  const laneWidths = new Array(LANE_COUNT)
+  for (let i = 0; i < LANE_COUNT; i++) laneWidths[i] = i === SPACE_LANE ? unitW * SPACE_MULT : unitW
+  const laneX = new Array(LANE_COUNT)
+  let x = EDGE_PAD / 2
+  for (let i = 0; i < LANE_COUNT; i++) {
+    laneX[i] = x
+    x += laneWidths[i]
+    if (i < LANE_COUNT - 1) {
+      // Cluster gaps flank the Space lane: after G (4|5) and after Space (5|6)
+      x += (i === 4 || i === 5) ? CLUSTER_GAP : LANE_GAP
+    }
+  }
   return { laneWidths, laneX, hitZoneY: h * HIT_ZONE_FRAC, w, h }
 }
 
@@ -77,10 +83,28 @@ function hexAlpha(hex, a) {
   return `rgba(${r},${g},${b},${a})`
 }
 
-function lerpColor(hex1, hex2, t) {
-  const r1=parseInt(hex1.slice(1,3),16),g1=parseInt(hex1.slice(3,5),16),b1=parseInt(hex1.slice(5,7),16)
-  const r2=parseInt(hex2.slice(1,3),16),g2=parseInt(hex2.slice(3,5),16),b2=parseInt(hex2.slice(5,7),16)
-  return [Math.round(r1+(r2-r1)*t), Math.round(g1+(g2-g1)*t), Math.round(b1+(b2-b1)*t)]
+// Pull a hex toward its most vivid form by boosting saturation around the
+// channel mean, clamped to valid [0,255]. Returns an [r,g,b] tuple.
+function saturate(hex, f) {
+  const r = parseInt(hex.slice(1, 3), 16)
+  const g = parseInt(hex.slice(3, 5), 16)
+  const b = parseInt(hex.slice(5, 7), 16)
+  const m = (r + g + b) / 3
+  const cl = v => Math.max(0, Math.min(255, Math.round(v)))
+  return [cl(m + (r - m) * f), cl(m + (g - m) * f), cl(m + (b - m) * f)]
+}
+
+// Vivid version of the lane palette — precomputed once.
+const VIVID = LANE_COLORS.map(c => saturate(c, 1.5))
+
+// Sample a continuously-looping position p (any real) across VIVID, wrapping
+// from the last color back to the first. Returns a float [r,g,b] tuple.
+function vividCycle(p) {
+  const n = VIVID.length
+  const f = (((p % 1) + 1) % 1) * n
+  const i = Math.floor(f), fr = f - i
+  const a = VIVID[i % n], b = VIVID[(i + 1) % n]
+  return [a[0] + (b[0] - a[0]) * fr, a[1] + (b[1] - a[1]) * fr, a[2] + (b[2] - a[2]) * fr]
 }
 
 function rrect(ctx, x, y, w, h, r) {
@@ -127,7 +151,7 @@ function initGame() {
   return {
     state: 'IDLE',
     notes: [],  // set by startGame()
-    hitFlashes: Array.from({ length: 9 }, () => ({ opacity: 0, color: '#fff' })),
+    hitFlashes: Array.from({ length: LANE_COUNT }, () => ({ opacity: 0, color: '#fff' })),
     popups: [],
     pressedLanes: new Set(),
     activeHolds: new Map(),
@@ -154,77 +178,274 @@ function initGame() {
 }
 
 // ─── Visualizer ───────────────────────────────────────────────────────────────
+//
+// Vivid, Windows-Media-Player-style background. Five modes cycle every 22s with
+// a 1.8s crossfade. Everything is drawn under additive ('lighter') compositing
+// so overlapping layers bloom into bright glow — the signature WMP look. Glow
+// comes from drawing each element in 2-3 widening, dimming passes; shadowBlur is
+// kept OFF in every hot loop to protect the frame rate.
+//
+// Hard rules for mode functions: never touch ctx.globalAlpha (the master alpha
+// set by drawMode drives the crossfade), and never set shadowBlur.
 
-function drawVisualizer(ctx, w, h, analyser, freqData, waveData, audioReady, pulse, now) {
-  const isDemo  = !analyser || !audioReady
-  const cx      = w / 2
-  const cy      = h * 0.45
-  const baseR   = w * 0.28
-  const maxBarL = 80
-  const numBars = analyser ? Math.floor(analyser.frequencyBinCount / 2) : 512
+const MODE_COUNT    = 5
+const MODE_DURATION = 22000 // ms per mode
+const CROSSFADE     = 1800  // ms crossfade between modes
+const MAX_PARTICLES = 250
+const FORCE_MODE    = null  // set 0..4 to lock a single mode for debugging
 
-  if (!isDemo && freqData) {
-    let bassAvg = 0
-    for (let i = 0; i < 8; i++) bassAvg += freqData[i]
-    bassAvg /= 8
-    if (bassAvg > 180 && now - pulse.lastRingPulse > 300) {
-      pulse.lastRingPulse = now; pulse.amt = 12
+// Per-frame audio snapshot. In demo mode (no live audio) all fields are
+// synthesized from sines so the visualizer animates on the IDLE screen.
+function computeAudio(analyser, freqData, waveData, audioReady, viz, now, dt) {
+  const isDemo = !analyser || !audioReady || !freqData
+  const N = 64
+  const bands = new Float32Array(N)
+  let bass, mid, treble, level
+
+  if (isDemo) {
+    let sum = 0
+    for (let i = 0; i < N; i++) {
+      const v = (Math.sin(now / 280 + i * 0.5) * 0.5 + 0.5) *
+                (0.45 + 0.55 * Math.pow(Math.sin(now / 1900 + i * 0.16), 2))
+      bands[i] = v; sum += v
+    }
+    level  = sum / N
+    bass   = 0.5  + 0.45 * Math.sin(now / 240)
+    mid    = 0.4  + 0.3  * Math.sin(now / 330 + 1)
+    treble = 0.35 + 0.3  * Math.sin(now / 180 + 2)
+  } else {
+    const len    = freqData.length
+    const usable = Math.floor(len * 0.75)
+    let sum = 0
+    for (let i = 0; i < N; i++) {
+      const a = Math.floor(i / N * usable), b = Math.floor((i + 1) / N * usable)
+      let s = 0, c = 0
+      for (let j = a; j <= b && j < len; j++) { s += freqData[j]; c++ }
+      bands[i] = c ? (s / c) / 255 : 0; sum += bands[i]
+    }
+    level = sum / N
+    let bs = 0; for (let i = 0;  i < 8;   i++)         bs += freqData[i]; bass   = bs / 8  / 255
+    let ms = 0; for (let i = 8;  i < 32;  i++)         ms += freqData[i]; mid    = ms / 24 / 255
+    let ttl = 0; for (let i = 64; i < 128 && i < len; i++) ttl += freqData[i]; treble = ttl / 64 / 255
+  }
+
+  // Shared beat flag — bass over threshold with a short refractory window.
+  let beat = false
+  if (bass > 0.55 && now - viz.lastBeat > 170) { beat = true; viz.lastBeat = now }
+
+  // Bass envelope for the color wash: snaps up to bass, decays quickly.
+  viz.washAmt = Math.max(bass, viz.washAmt - dt * 2.5)
+
+  return { isDemo, bands, wave: waveData, bass, mid, treble, level, beat }
+}
+
+// Advance persistent particle/ring physics every frame (independent of which
+// mode is drawing) so nothing accumulates or freezes between mode windows.
+function updateViz(viz, dt) {
+  const grav = 480
+  for (let i = viz.particles.length - 1; i >= 0; i--) {
+    const p = viz.particles[i]; p.life += dt
+    if (p.life >= p.maxLife) { viz.particles.splice(i, 1); continue }
+    p.vy += grav * dt; p.x += p.vx * dt; p.y += p.vy * dt
+  }
+  for (let i = viz.rings.length - 1; i >= 0; i--) {
+    const r = viz.rings[i]; r.life += dt
+    if (r.life >= r.dur) viz.rings.splice(i, 1)
+  }
+}
+
+// A glowing line = wide-faint pass + mid pass + bright core, additive.
+function glowLine(ctx, x1, y1, x2, y2, r, g, b, a, width) {
+  const ri = r | 0, gi = g | 0, bi = b | 0
+  ctx.strokeStyle = `rgba(${ri},${gi},${bi},${a * 0.45})`; ctx.lineWidth = width * 2.6
+  ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); ctx.stroke()
+  ctx.strokeStyle = `rgba(${ri},${gi},${bi},${a * 0.8})`;  ctx.lineWidth = width * 1.4
+  ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); ctx.stroke()
+  ctx.strokeStyle = `rgba(${ri},${gi},${bi},${a})`;        ctx.lineWidth = width
+  ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); ctx.stroke()
+}
+
+// Mode 0 — RADIAL BARS: frequency bars radiating from a large central ring.
+function modeRadial(ctx, A, w, h, viz, now) {
+  const cx = w / 2, cy = h * 0.42
+  const baseR = Math.min(w * 0.40, h * 0.42) + A.bass * 24
+  const M = 110
+  // Ring outline glow
+  for (let pass = 0; pass < 3; pass++) {
+    ctx.lineWidth   = [6, 3, 1.5][pass]
+    ctx.strokeStyle = `rgba(120,180,255,${[0.05, 0.08, 0.14][pass]})`
+    ctx.beginPath(); ctx.arc(cx, cy, baseR, 0, Math.PI * 2); ctx.stroke()
+  }
+  for (let i = 0; i < M; i++) {
+    const t   = i / M
+    // Mirror across the vertical axis so the ring reads symmetric and full.
+    const mir = t < 0.5 ? t * 2 : (1 - t) * 2
+    const v   = A.bands[Math.min(A.bands.length - 1, Math.floor(mir * (A.bands.length - 1)))]
+    const ang = t * Math.PI * 2 - Math.PI / 2
+    const len = (0.12 + v * 0.88) * 180
+    const [r, g, b] = vividCycle(t + now / 26000)
+    const ca = Math.cos(ang), sa = Math.sin(ang)
+    glowLine(ctx, cx + ca * baseR, cy + sa * baseR,
+                  cx + ca * (baseR + len), cy + sa * (baseR + len),
+                  r, g, b, 0.35 + v * 0.6, 2.2)
+  }
+}
+
+// Mode 1 — SPECTRUM BARS: classic full-width bars with a mirrored reflection.
+function modeSpectrum(ctx, A, w, h, viz, now) {
+  const N = A.bands.length
+  const bw = w / N
+  const baseY = h * 0.72
+  const maxH  = h * 0.5
+  for (let i = 0; i < N; i++) {
+    const v  = A.bands[i]
+    const bh = (0.06 + v * 0.94) * maxH
+    const x  = i * bw
+    const [r, g, b] = vividCycle(i / N + now / 30000)
+    const ri = r | 0, gi = g | 0, bi = b | 0
+    const a  = 0.4 + v * 0.55
+    ctx.fillStyle = `rgba(${ri},${gi},${bi},${a * 0.4})`            // glow halo
+    ctx.fillRect(x - bw * 0.1, baseY - bh, bw * 1.0, bh)
+    ctx.fillStyle = `rgba(${ri},${gi},${bi},${a})`                  // bright core
+    ctx.fillRect(x + bw * 0.18, baseY - bh, bw * 0.64, bh)
+    ctx.fillStyle = `rgba(${ri},${gi},${bi},${a * 0.18})`          // reflection
+    ctx.fillRect(x + bw * 0.18, baseY, bw * 0.64, bh * 0.4)
+    ctx.fillStyle = `rgba(255,255,255,${a * 0.5})`                 // cap
+    ctx.fillRect(x + bw * 0.18, baseY - bh - 2, bw * 0.64, 2)
+  }
+}
+
+// Mode 2 — WAVEFORM TUNNEL: concentric waveform-modulated rings, slowly turning.
+function modeTunnel(ctx, A, w, h, viz, now) {
+  const cx = w / 2, cy = h * 0.45
+  const rings = 6
+  const maxR  = Math.min(w * 0.45, h * 0.5)
+  const wave  = A.wave
+  const segs  = 90
+  for (let ringi = 0; ringi < rings; ringi++) {
+    const baseRad = maxR * (0.2 + 0.8 * ringi / (rings - 1))
+    const [r, g, b] = vividCycle(ringi / rings + now / 24000)
+    const ri = r | 0, gi = g | 0, bi = b | 0
+    const rot = now / 2600 * (ringi % 2 ? 1 : -1)
+    const amp = (8 + A.level * 44) * (0.6 + ringi * 0.12)
+    for (let pass = 0; pass < 2; pass++) {
+      ctx.lineWidth   = pass === 0 ? 5 : 2
+      ctx.strokeStyle = pass === 0
+        ? `rgba(${ri},${gi},${bi},0.12)`
+        : `rgba(${ri},${gi},${bi},${0.5 + A.level * 0.4})`
+      ctx.beginPath()
+      for (let s = 0; s <= segs; s++) {
+        const ang = s / segs * Math.PI * 2 + rot
+        let wv
+        if (wave) { const idx = Math.floor((s / segs) * wave.length) % wave.length; wv = (wave[idx] - 128) / 128 }
+        else      { wv = Math.sin(s * 0.5 + now / 200 + ringi) }
+        const rad = baseRad + wv * amp
+        const x = cx + Math.cos(ang) * rad, y = cy + Math.sin(ang) * rad
+        if (s === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y)
+      }
+      ctx.closePath(); ctx.stroke()
     }
   }
+}
 
-  const effectiveR = isDemo ? baseR + Math.sin(now / 600) * 8 : baseR + pulse.amt
-
-  if (!isDemo && freqData) {
-    let beatAvg = 0
-    for (let i = 0; i < 5; i++) beatAvg += freqData[i]
-    beatAvg /= 5
-    if (beatAvg > 190 && now - pulse.lastBeatFlash > 300) {
-      pulse.lastBeatFlash = now
-      ctx.fillStyle = 'rgba(255,255,255,0.03)'
-      ctx.fillRect(0, 0, w, h)
+// Mode 3 — PARTICLE FOUNTAIN: bursts erupt on each beat, arc up, fall, fade.
+function modeFountain(ctx, A, w, h, viz, now) {
+  if (A.beat) {
+    const count = 26 + Math.floor(A.bass * 34)
+    for (let i = 0; i < count && viz.particles.length < MAX_PARTICLES; i++) {
+      const ang = -Math.PI / 2 + (Math.random() - 0.5) * 1.4
+      const spd = 240 + Math.random() * 460
+      const [r, g, b] = vividCycle(Math.random() + now / 20000)
+      viz.particles.push({
+        x: w * 0.5 + (Math.random() - 0.5) * w * 0.28, y: h * 0.84,
+        vx: Math.cos(ang) * spd, vy: Math.sin(ang) * spd,
+        life: 0, maxLife: 1.8 + Math.random() * 1.6,
+        size: 2.5 + Math.random() * 5, r, g, b,
+      })
     }
   }
-
-  ctx.beginPath()
-  ctx.strokeStyle = 'rgba(255,255,255,0.12)'
-  ctx.lineWidth = 1; ctx.shadowBlur = 0
-  const waveY = h * 0.5
-  let first = true
-  for (let xi = 0; xi <= w; xi += 2) {
-    let y
-    if (isDemo) y = waveY + Math.sin(now / 400 + xi * 0.05) * 15
-    else if (waveData) {
-      const idx = Math.min(Math.floor((xi / w) * waveData.length), waveData.length - 1)
-      y = waveY + ((waveData[idx] - 128) / 128) * 20
-    } else y = waveY
-    if (first) { ctx.moveTo(xi, y); first = false } else ctx.lineTo(xi, y)
+  for (const p of viz.particles) {
+    const lifeT = 1 - p.life / p.maxLife
+    const a  = lifeT * lifeT
+    const sz = p.size * (0.55 + lifeT * 0.45)
+    const ri = p.r | 0, gi = p.g | 0, bi = p.b | 0
+    ctx.fillStyle = `rgba(${ri},${gi},${bi},${a * 0.32})`; ctx.beginPath(); ctx.arc(p.x, p.y, sz * 2.4, 0, Math.PI * 2); ctx.fill()
+    ctx.fillStyle = `rgba(${ri},${gi},${bi},${a * 0.9})`;  ctx.beginPath(); ctx.arc(p.x, p.y, sz,       0, Math.PI * 2); ctx.fill()
+    ctx.fillStyle = `rgba(255,255,255,${a * 0.7})`;        ctx.beginPath(); ctx.arc(p.x, p.y, sz * 0.4, 0, Math.PI * 2); ctx.fill()
   }
-  ctx.stroke()
+}
 
-  ctx.beginPath(); ctx.strokeStyle = 'rgba(255,255,255,0.15)'
-  ctx.lineWidth = 1; ctx.shadowBlur = 0
-  ctx.arc(cx, cy, effectiveR, 0, Math.PI * 2); ctx.stroke()
-
-  ctx.lineWidth = 2; ctx.shadowBlur = 0
-  for (let i = 0; i < numBars; i++) {
-    const angle = (i / numBars) * Math.PI * 2 - Math.PI / 2
-    let amp, freqVal
-    if (isDemo) { freqVal = Math.sin(now / 200 + i * 0.3) * 0.5 + 0.5; amp = freqVal * 60 }
-    else if (freqData) { freqVal = freqData[i] / 255; amp = freqVal * maxBarL }
-    else { freqVal = 0; amp = 0 }
-    if (amp < 0.5) continue
-    const colorT = i / numBars
-    const ci     = colorT * (LANE_COLORS.length - 1)
-    const c0     = ci | 0
-    const [r, g, b] = lerpColor(LANE_COLORS[c0], LANE_COLORS[Math.min(c0+1, LANE_COLORS.length-1)], ci - c0)
-    const op = 0.5 + freqVal * 0.5
-    const cosA = Math.cos(angle), sinA = Math.sin(angle)
-    ctx.beginPath()
-    ctx.strokeStyle = `rgba(${r},${g},${b},${op})`
-    ctx.moveTo(cx + cosA * effectiveR, cy + sinA * effectiveR)
-    ctx.lineTo(cx + cosA * (effectiveR + amp), cy + sinA * (effectiveR + amp))
-    ctx.stroke()
+// Mode 4 — PLASMA PULSE: a breathing core glow plus rings emitted on each beat.
+function modePlasma(ctx, A, w, h, viz, now) {
+  const cx = w / 2, cy = h * 0.45
+  // Central breathing glow
+  const gr = (0.2 + A.level * 0.85) * Math.min(w, h) * 0.5
+  const [cr, cg, cb] = vividCycle(now / 16000)
+  const grad = ctx.createRadialGradient(cx, cy, 0, cx, cy, Math.max(1, gr))
+  grad.addColorStop(0, `rgba(${cr | 0},${cg | 0},${cb | 0},${0.18 + A.bass * 0.24})`)
+  grad.addColorStop(1, `rgba(${cr | 0},${cg | 0},${cb | 0},0)`)
+  ctx.fillStyle = grad
+  ctx.beginPath(); ctx.arc(cx, cy, Math.max(1, gr), 0, Math.PI * 2); ctx.fill()
+  // Emit a ring on the beat
+  if (A.beat) {
+    const [r, g, b] = vividCycle(now / 12000 + 0.3)
+    viz.rings.push({ x: cx, y: cy, maxR: Math.min(w, h) * 0.7, life: 0, dur: 1.3 + Math.random() * 0.5, r, g, b })
   }
+  for (const ring of viz.rings) {
+    const t   = ring.life / ring.dur
+    const rad = ring.maxR * t
+    const a   = (1 - t) * 0.55 // higher peak opacity
+    const ri = ring.r | 0, gi = ring.g | 0, bi = ring.b | 0
+    ctx.lineWidth = 10; ctx.strokeStyle = `rgba(${ri},${gi},${bi},${a * 0.4})`
+    ctx.beginPath(); ctx.arc(ring.x, ring.y, rad, 0, Math.PI * 2); ctx.stroke()
+    ctx.lineWidth = 4;  ctx.strokeStyle = `rgba(${ri},${gi},${bi},${a})`
+    ctx.beginPath(); ctx.arc(ring.x, ring.y, rad, 0, Math.PI * 2); ctx.stroke()
+  }
+}
+
+const MODE_FNS = [modeRadial, modeSpectrum, modeTunnel, modeFountain, modePlasma]
+
+// Draw a single mode at a master alpha (drives the crossfade). The mode itself
+// never touches globalAlpha; we set it here and reset after.
+function drawMode(ctx, idx, A, w, h, viz, now, alpha) {
+  if (alpha <= 0.001) return
+  ctx.globalAlpha = alpha
+  MODE_FNS[idx](ctx, A, w, h, viz, now)
+  ctx.globalAlpha = 1
+}
+
+function drawVisualizer(ctx, w, h, analyser, freqData, waveData, audioReady, viz, now, dt) {
+  if (!viz.startTS) viz.startTS = now
+  const A = computeAudio(analyser, freqData, waveData, audioReady, viz, now, dt)
+  updateViz(viz, dt)
+
+  // Mode selection + crossfade window
+  const elapsed = now - viz.startTS
+  const curIdx  = Math.floor(elapsed / MODE_DURATION) % MODE_COUNT
+  const into    = elapsed % MODE_DURATION
+  let nextIdx = -1, nextA = 0, curA = 1
+  if (into > MODE_DURATION - CROSSFADE) {
+    const t = (into - (MODE_DURATION - CROSSFADE)) / CROSSFADE
+    curA = 1 - t; nextIdx = (curIdx + 1) % MODE_COUNT; nextA = t
+  }
+
+  ctx.globalCompositeOperation = 'lighter'
+  ctx.shadowBlur = 0
+
+  // §4 — bass-driven full-screen color wash, hue drifting slowly through palette
+  const [wr, wg, wb] = vividCycle(now / 45000)
+  const washA = Math.min(0.06, viz.washAmt * 0.06)
+  if (washA > 0.002) { ctx.fillStyle = `rgba(${wr | 0},${wg | 0},${wb | 0},${washA})`; ctx.fillRect(0, 0, w, h) }
+
+  if (FORCE_MODE != null) {
+    drawMode(ctx, FORCE_MODE, A, w, h, viz, now, 1)
+  } else {
+    drawMode(ctx, curIdx, A, w, h, viz, now, curA)
+    if (nextIdx >= 0) drawMode(ctx, nextIdx, A, w, h, viz, now, nextA)
+  }
+
+  ctx.globalCompositeOperation = 'source-over'
+  ctx.globalAlpha = 1
 }
 
 // ─── End Screen ───────────────────────────────────────────────────────────────
@@ -387,7 +608,7 @@ export default function BeatBeaters() {
   const waveDataRef   = useRef(null)
   const audioReadyRef = useRef(false)
 
-  const pulseRef = useRef({ amt: 0, lastRingPulse: -1000, lastBeatFlash: -1000 })
+  const vizRef = useRef({ startTS: 0, particles: [], rings: [], lastBeat: -1e9, washAmt: 0 })
 
   const [uiState,    setUiState]    = useState('IDLE')
   const [finalStats, setFinalStats] = useState(null)
@@ -441,10 +662,6 @@ export default function BeatBeaters() {
         analyser.getByteFrequencyData(freqData)
         analyser.getByteTimeDomainData(waveData)
       }
-
-      // Visualizer pulse decay
-      const pulse = pulseRef.current
-      if (pulse.amt > 0) pulse.amt = Math.max(0, pulse.amt - dt * 150)
 
       // Shake offset
       let shakeX = 0
@@ -524,7 +741,7 @@ export default function BeatBeaters() {
         }
 
         // Fade hit flashes
-        for (let i = 0; i < 9; i++) {
+        for (let i = 0; i < LANE_COUNT; i++) {
           const flash = game.hitFlashes[i]
           if (!game.pressedLanes.has(i) && !game.activeHolds.has(i) && flash.opacity > 0) {
             flash.opacity = Math.max(0, flash.opacity - dt * 8)
@@ -583,31 +800,31 @@ export default function BeatBeaters() {
         game.comboBreakFlash = false
       }
 
-      // ── Visualizer ─────────────────────────────────────────────────────────
-      drawVisualizer(ctx, w, h, analyser, freqData, waveData, audioReady, pulse, ts)
+      // ── Visualizer (additive bloom; restores composite + alpha internally) ──
+      drawVisualizer(ctx, w, h, analyser, freqData, waveData, audioReady, vizRef.current, ts, dt)
 
-      // ── Lane tints ─────────────────────────────────────────────────────────
-      for (let i = 0; i < 9; i++) {
-        ctx.fillStyle = hexAlpha(LANE_COLORS[i], 0.06)
+      // ── Lane tints (very translucent so the visualizer dominates) ──────────
+      for (let i = 0; i < LANE_COUNT; i++) {
+        ctx.fillStyle = hexAlpha(LANE_COLORS[i], 0.02)
         ctx.fillRect(laneX[i], 0, laneWidths[i], h)
       }
 
       // ── Center guide lines ──────────────────────────────────────────────────
       ctx.strokeStyle = 'rgba(255,255,255,0.04)'; ctx.lineWidth = 1
-      for (let i = 0; i < 9; i++) {
+      for (let i = 0; i < LANE_COUNT; i++) {
         const cx = laneX[i] + laneWidths[i] / 2
         ctx.beginPath(); ctx.moveTo(cx, 0); ctx.lineTo(cx, hitZoneY); ctx.stroke()
       }
 
       // ── Top accent strips ───────────────────────────────────────────────────
-      for (let i = 0; i < 9; i++) {
+      for (let i = 0; i < LANE_COUNT; i++) {
         ctx.fillStyle = hexAlpha(LANE_COLORS[i], 0.7)
         ctx.fillRect(laneX[i], 0, laneWidths[i], 3)
       }
 
       // ── Beat meter bar ──────────────────────────────────────────────────────
       const barX = laneX[0]
-      const barW = laneX[8] + laneWidths[8] - barX
+      const barW = laneX[LANE_COUNT - 1] + laneWidths[LANE_COUNT - 1] - barX
       const barY = hitZoneY - BEAT_BAR_H - BEAT_BAR_GAP
 
       ctx.shadowBlur = 0
@@ -634,13 +851,13 @@ export default function BeatBeaters() {
       }
 
       // ── Hit zone tiles ──────────────────────────────────────────────────────
-      for (let i = 0; i < 9; i++) {
+      for (let i = 0; i < LANE_COUNT; i++) {
         const flash   = game.hitFlashes[i]
         const pressed = game.pressedLanes.has(i)
         const holdLit = game.activeHolds.has(i)
         const isLit   = pressed || holdLit
         const tileClr = isLit ? LANE_COLORS[i] : (flash.opacity > 0.01 ? flash.color : LANE_COLORS[i])
-        const fillOp  = isLit ? 0.8 : 0.35 + flash.opacity * 0.45
+        const fillOp  = isLit ? 0.8 : 0.15 + flash.opacity * 0.45
 
         ctx.shadowColor = tileClr; ctx.shadowBlur = isLit ? 24 : flash.opacity * 14
         ctx.fillStyle   = hexAlpha(tileClr, fillOp)
@@ -665,16 +882,26 @@ export default function BeatBeaters() {
           if (headY + NOTE_H < 0 || tailY > h + 20) continue
           if (isMissed) continue
           const rectTop = Math.max(tailY, -10); const rectH = headY - rectTop + NOTE_H
+          // Dark backing keeps the note legible over peak visualizer bloom.
+          ctx.shadowBlur = 0
+          ctx.fillStyle  = 'rgba(0,0,0,0.45)'
+          rrect(ctx, nx + 3, rectTop - 1, nw - 6, rectH + 2, 7); ctx.fill()
           ctx.shadowColor = col; ctx.shadowBlur = isHit ? 4 : 10
-          ctx.fillStyle   = hexAlpha(col, isHit ? 0.25 : 0.6)
-          ctx.strokeStyle = isHit ? hexAlpha(col, 0.35) : col; ctx.lineWidth = 1
+          ctx.fillStyle   = hexAlpha(col, isHit ? 0.3 : 0.7)
+          ctx.strokeStyle = isHit ? hexAlpha(col, 0.4) : col; ctx.lineWidth = 1.5
           rrect(ctx, nx + 5, rectTop, nw - 10, rectH, 6); ctx.fill(); ctx.stroke(); ctx.shadowBlur = 0
         } else {
           if (headY + NOTE_H < 0 || headY > h + 10) continue
           if (isHit) continue
+          // Dark backing + white edge keep the note legible over peak bloom.
+          if (!isMissed) {
+            ctx.shadowBlur = 0
+            ctx.fillStyle  = 'rgba(0,0,0,0.5)'
+            rrect(ctx, nx + 1, headY - 1.5, nw - 2, NOTE_H + 3, 5); ctx.fill()
+          }
           ctx.shadowColor = isMissed ? 'transparent' : col; ctx.shadowBlur = isMissed ? 0 : 8
-          ctx.fillStyle   = isMissed ? hexAlpha('#555', 0.35) : hexAlpha(col, 0.9)
-          ctx.strokeStyle = isMissed ? '#333' : col; ctx.lineWidth = 1
+          ctx.fillStyle   = isMissed ? hexAlpha('#555', 0.35) : hexAlpha(col, 0.95)
+          ctx.strokeStyle = isMissed ? '#333' : '#ffffff'; ctx.lineWidth = isMissed ? 1 : 1.5
           rrect(ctx, nx + 3, headY, nw - 6, NOTE_H, 4); ctx.fill()
           if (!isMissed) ctx.stroke(); ctx.shadowBlur = 0
         }
@@ -683,7 +910,7 @@ export default function BeatBeaters() {
       // ── Key labels ──────────────────────────────────────────────────────────
       ctx.font = '11px "IBM Plex Mono", monospace'
       ctx.textAlign = 'center'; ctx.textBaseline = 'top'
-      for (let i = 0; i < 9; i++) {
+      for (let i = 0; i < LANE_COUNT; i++) {
         ctx.fillStyle = hexAlpha(LANE_COLORS[i], 0.6)
         ctx.fillText(KEY_LABELS[i], laneX[i] + laneWidths[i] / 2, hitZoneY + HIT_ZONE_H + 8)
       }
@@ -726,7 +953,11 @@ export default function BeatBeaters() {
   // ── Input ──────────────────────────────────────────────────────────────────
 
   useEffect(() => {
-    function getLane(e) { return e.key === ' ' ? 4 : KEY_MAP[e.key.toLowerCase()] }
+    function getLane(e) {
+      if (e.key === ' ') return SPACE_LANE
+      if (e.key === ';') return 10
+      return KEY_MAP[e.key.toLowerCase()]
+    }
 
     function onKeyDown(e) {
       if (e.repeat) return
@@ -739,7 +970,7 @@ export default function BeatBeaters() {
       }
       const lane = getLane(e)
       if (lane === undefined) return
-      if (e.key === ' ') e.preventDefault()
+      if (e.key === ' ' || e.key === ';') e.preventDefault()
       const game = gameRef.current
       game.pressedLanes.add(lane)
       if (game.state !== 'PLAYING') return
@@ -858,7 +1089,7 @@ export default function BeatBeaters() {
     g.stats            = { perfect: 0, good: 0, late: 0, miss: 0, holdComplete: 0, holdPartial: 0 }
     g.shakeFrames      = 0; g.comboBreakFlash = false
     g.popups           = []; g.pressedLanes = new Set(); g.activeHolds = new Map()
-    g.hitFlashes       = Array.from({ length: 9 }, () => ({ opacity: 0, color: '#fff' }))
+    g.hitFlashes       = Array.from({ length: LANE_COUNT }, () => ({ opacity: 0, color: '#fff' }))
     g.state            = 'COUNTDOWN'
     g.countdownStartTS = performance.now()
     g.countdown        = 0
@@ -977,7 +1208,7 @@ export default function BeatBeaters() {
             PRESS START
           </button>
           <div style={{ marginTop: 20, color: BB_TEXT_SEC, fontSize: 13, fontWeight: 500, letterSpacing: '0.15em' }}>
-            W A S D — SPACE — I J K L
+            A S D F G — SPACE — H J K L ;
           </div>
         </div>
       )}

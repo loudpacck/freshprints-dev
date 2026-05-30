@@ -16,11 +16,13 @@ const BB_FONT     = "'Rajdhani', sans-serif"
 // ─── Constants ────────────────────────────────────────────────────────────────
 
 const LANE_COLORS = [
-  '#FF3B3B', '#FF9F0A', '#30D158', '#0A84FF', '#FFFFFF',
-  '#BF5AF2', '#FF375F', '#64D2FF', '#FFD60A',
+  '#FF3B3B', '#FF7A1A', '#FFB300', '#FFE600', '#4CD964', '#FFFFFF',
+  '#5AC8FA', '#0A84FF', '#5E5CE6', '#AF52DE', '#FF2D92',
 ]
-const LANE_LABELS = ['W', 'A', 'S', 'D', 'SP', 'I', 'J', 'K', 'L']
-const REC_KEY_MAP = { w: 0, a: 1, s: 2, d: 3, i: 5, j: 6, k: 7, l: 8 }
+const LANE_LABELS = ['A', 'S', 'D', 'F', 'G', 'SP', 'H', 'J', 'K', 'L', ';']
+const REC_KEY_MAP = { a: 0, s: 1, d: 2, f: 3, g: 4, h: 6, j: 7, k: 8, l: 9 }
+const LANE_COUNT  = 11
+const SPACE_LANE  = 5
 
 const PX_PER_SEC = 120
 const LABEL_COL  = 64
@@ -77,13 +79,13 @@ function drawTimeline(canvas, notes, scroll, currentTime, duration, selIds) {
   const H   = canvas.height / dpr
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
 
-  const laneH = (H - RULER_H) / 9
+  const laneH = (H - RULER_H) / LANE_COUNT
 
   ctx.fillStyle = '#0a0a0f'
   ctx.fillRect(0, 0, W, H)
 
   // Lane rows
-  for (let i = 0; i < 9; i++) {
+  for (let i = 0; i < LANE_COUNT; i++) {
     const ry = RULER_H + i * laneH
     if (i % 2 === 0) {
       ctx.fillStyle = 'rgba(255,255,255,0.025)'
@@ -359,9 +361,9 @@ export default function BeatBeatersEditor() {
     function onKeyDown(e) {
       if (isRecordingRef.current) {
         if (e.repeat) return
-        const lane = e.key === ' ' ? 4 : REC_KEY_MAP[e.key.toLowerCase()]
+        const lane = e.key === ' ' ? SPACE_LANE : e.key === ';' ? 10 : REC_KEY_MAP[e.key.toLowerCase()]
         if (lane === undefined) return
-        if (e.key === ' ') e.preventDefault()
+        if (e.key === ' ' || e.key === ';') e.preventDefault()
         const audio = audioRef.current
         const time  = audio ? audio.currentTime : 0
         pendingHoldsRef.current.set(lane, { id: makeId(), lane, time, duration: 0, type: 'tap' })
@@ -388,7 +390,7 @@ export default function BeatBeatersEditor() {
 
     function onKeyUp(e) {
       if (!isRecordingRef.current) return
-      const lane = e.key === ' ' ? 4 : REC_KEY_MAP[e.key.toLowerCase()]
+      const lane = e.key === ' ' ? SPACE_LANE : e.key === ';' ? 10 : REC_KEY_MAP[e.key.toLowerCase()]
       if (lane === undefined) return
       const pending = pendingHoldsRef.current.get(lane)
       if (!pending) return
@@ -665,17 +667,19 @@ export default function BeatBeatersEditor() {
 
       // ── Pass 2 — Assign lanes using RELATIVE brightness ──
       // cluster cycling and pattern shifts
-      const leftOrderFwd  = [0, 3, 1, 2]
-      const leftOrderRev  = [2, 1, 3, 0]
-      const rightOrderFwd = [5, 8, 6, 7]
-      const rightOrderRev = [7, 6, 8, 5]
+      // Left cluster [0,1,2,3,4] cycled center-out; right cluster [6,7,8,9,10]
+      // mirrored; Space (5) reserved for downbeat punches.
+      const leftOrderFwd  = [2, 0, 4, 1, 3]
+      const leftOrderRev  = [3, 1, 4, 0, 2]
+      const rightOrderFwd = [8, 6, 10, 7, 9]
+      const rightOrderRev = [9, 7, 10, 6, 8]
       let leftIdx      = 0
       let rightIdx     = 0
       let midToggle    = 'right'
       let patternRev   = false
       let lastShiftBar = 0
 
-      const lastLaneTime = new Array(9).fill(-Infinity)
+      const lastLaneTime = new Array(LANE_COUNT).fill(-Infinity)
       const placed       = []
 
       for (const c of candidates) {
@@ -694,8 +698,8 @@ export default function BeatBeatersEditor() {
         let lane = -1
 
         if (c.isDownbeat && c.totalE >= energyHiBound) {
-          if (c.T - lastLaneTime[4] < MIN_GAP) continue
-          lane = 4
+          if (c.T - lastLaneTime[SPACE_LANE] < MIN_GAP) continue
+          lane = SPACE_LANE
         } else if (c.brightness <= loBoundary) {
           const picked = lo_[leftIdx % lo_.length]
           if (c.T - lastLaneTime[picked] < MIN_GAP) continue
@@ -738,9 +742,9 @@ export default function BeatBeatersEditor() {
         .map(c => ({ id: makeId(), lane: c.lane, time: c.T, duration: 0, type: 'tap' }))
         .sort((a, b) => a.time - b.time)
 
-      const spaceN  = notes.filter(n => n.lane === 4).length
-      const leftN   = notes.filter(n => n.lane <= 3).length
-      const rightN  = notes.filter(n => n.lane >= 5).length
+      const spaceN  = notes.filter(n => n.lane === SPACE_LANE).length
+      const leftN   = notes.filter(n => n.lane < SPACE_LANE).length
+      const rightN  = notes.filter(n => n.lane > SPACE_LANE).length
       console.log('[AutoGen]', {
         total: notes.length, space: spaceN, left: leftN, right: rightN,
         bassRatio:   (leftN  / (notes.length || 1)).toFixed(2),
@@ -813,7 +817,7 @@ export default function BeatBeatersEditor() {
     const canvas = canvasRef.current
     if (!canvas) return 30
     const dpr = window.devicePixelRatio || 1
-    return (canvas.height / dpr - RULER_H) / 9
+    return (canvas.height / dpr - RULER_H) / LANE_COUNT
   }
 
   function findNoteAt(cx, cy) {
@@ -876,7 +880,7 @@ export default function BeatBeatersEditor() {
     } else {
       // Click empty → deselect, start create-drag
       const lane = Math.floor((y - RULER_H) / getLaneH())
-      if (lane >= 0 && lane < 9) {
+      if (lane >= 0 && lane < LANE_COUNT) {
         const t = snap(Math.max(0, (x - LABEL_COL + scrollRef.current) / PX_PER_SEC), bpmRef.current, quantizeRef.current)
         dragRef.current = { type: 'create', lane, startX: x, startTime: t, created: null }
       }
@@ -1199,7 +1203,7 @@ export default function BeatBeatersEditor() {
           </button>
           {isRecording && (
             <div style={{ fontSize: 12, fontWeight: 600, color: '#FF9100', letterSpacing: '0.08em', textAlign: 'center', marginTop: 6 }}>
-              PRESS W A S D SPACE I J K L
+              PRESS A S D F G SPACE H J K L ;
             </div>
           )}
 

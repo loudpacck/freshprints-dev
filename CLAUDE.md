@@ -702,7 +702,7 @@ Temples (passive income) + PvP (combat, target list, combat log).
 
 ## Beat Beaters — Rhythm Game (Lab Experiment)
 
-9-lane keyboard rhythm game built as a Lab experiment and portfolio piece. Guitar Hero meets DDR. All 5 phases complete — no open build debt. Uses the CRT aesthetic (dark bg, scanlines, vignette) shared with the rest of the game section.
+11-lane keyboard rhythm game built as a Lab experiment and portfolio piece. Guitar Hero meets DDR. All 5 phases complete — no open build debt. Uses the CRT aesthetic (dark bg, scanlines, vignette) shared with the rest of the game section.
 
 ### Routes
 - `/lab/beat-beaters` → `BeatBeatersSelect.jsx` — song select screen (entry point)
@@ -711,16 +711,17 @@ Temples (passive income) + PvP (combat, target list, combat log).
 
 All three are standalone full-screen pages with no `PageLayout` wrapper.
 
-### 9 Lanes (keyboard split)
-Left cluster: **W A S D** — Center: **Space** (2.5× wide) — Right cluster: **I J K L**
+### 11 Lanes (home-row split)
+Left cluster: **A S D F G** — Center: **Space** (2.5× wide) — Right cluster: **H J K L ;**
 ```
-W=#FF3B3B  A=#FF9F0A  S=#30D158  D=#0A84FF  Space=#FFFFFF
-I=#BF5AF2  J=#FF375F  K=#64D2FF  L=#FFD60A
+A=#FF3B3B  S=#FF7A1A  D=#FFB300  F=#FFE600  G=#4CD964  Space=#FFFFFF
+H=#5AC8FA  J=#0A84FF  K=#5E5CE6  L=#AF52DE  ;=#FF2D92
 ```
-6px cluster gaps between D/Space and Space/I visually separate the hand groups.
+Lane index → key: A=0 S=1 D=2 F=3 G=4 Space=5 H=6 J=7 K=8 L=9 ;=10.
+6px cluster gaps flank Space (between G/Space and Space/H) to visually separate the hand groups; 2px gaps between all other adjacent lanes. Layout math: 10 standard lanes + 1 wide (2.5×) Space = 12.5 width units, laid out across the full canvas width.
 
 ### Song Registry — `src/data/beatBeatersCharts.js`
-**The only file to edit when adding a new song.** Schema per entry:
+**The only file to edit when adding a new song.** `BEAT_BEATERS_CHARTS` ships **empty** (`export const BEAT_BEATERS_CHARTS = []`) — songs are authored with the chart editor and added back here. With no songs, the select screen shows the "NO TRACKS YET" empty state with an "OPEN CHART EDITOR" link. Schema per entry:
 ```js
 {
   id: 'unique-slug',
@@ -759,7 +760,7 @@ Chart files are fetched at runtime via `fetch()` — no Vite rebuild needed.
   }
 }
 ```
-- `lane`: 0–8 (W=0 A=1 S=2 D=3 Space=4 I=5 J=6 K=7 L=8)
+- `lane`: 0–10 (A=0 S=1 D=2 F=3 G=4 Space=5 H=6 J=7 K=8 L=9 ;=10)
 - `time`: seconds from song start
 - `duration`: 0 for tap, >0 seconds for hold
 - `noteSpeed`: 3.0–8.0; multiplied by 80 internally for px/sec scroll speed
@@ -769,7 +770,7 @@ Chart files are fetched at runtime via `fetch()` — no Vite rebuild needed.
 
 ### Technical Notes
 - **No new npm packages** — uses browser Web Audio API (AudioContext + AnalyserNode) natively
-- **Audio-reactive visualizer** — circular frequency ring + waveform line behind the lanes; falls back to sine-wave demo mode when no audio file is present
+- **Audio-reactive visualizer** — vivid Windows-Media-Player-style background with **5 modes** that cycle every 22s with a 1.8s crossfade: **radial bars** (frequency bars radiating from a large central ring), **spectrum bars** (full-width mirrored rainbow bars), **waveform tunnel** (6 rotating waveform-modulated rings), **particle fountain** (beat-triggered glowing particle bursts, capped at 250), **plasma pulse** (breathing core glow + beat-emitted expanding rings). All layers draw under **additive (`'lighter'`) blending** for bloom; glow comes from multi-pass overdraw, not `shadowBlur` (kept off in the hot loops for frame rate). A bass-driven full-screen color wash (hue drifting slowly through the palette) and per-mode crossfades are managed in a single `vizRef` state object. Lane tints (0.02) and resting hit-zone fill (0.15) are kept low so the visualizer dominates; notes get a dark backing + white edge to stay readable over peak bloom. Falls back to a synthesized sine demo when no live audio is present (e.g., the IDLE screen). A `FORCE_MODE` debug const (0–4) locks a single mode for tuning.
 - **Scoring**: PERFECT=300 / GOOD=150 / LATE=50 pts, combo multiplier (1×/2×/3×/4× at 0/10/20/30 combo), Beat Meter (fill on PERFECT → Shift to activate 2× multiplier for 8s)
 - **Hold notes**: partial scoring on early release, completion bonus on full hold
 - **End screen**: letter grade S/A/B/C/D/F by accuracy, score, max combo, stat breakdown

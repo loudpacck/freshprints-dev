@@ -88,6 +88,25 @@ export default function BeatBeatersSelect() {
         background: 'radial-gradient(ellipse at center, transparent 55%, rgba(0,0,0,0.55) 100%)',
       }} />
 
+      {/* HUB button — bottom-left, song select only */}
+      <Link
+        to="/lab"
+        style={{
+          position: 'fixed', bottom: 24, left: 32, zIndex: 60,
+          fontFamily: BB_FONT, fontSize: 14, fontWeight: 700,
+          letterSpacing: '0.1em', color: BB_TEXT_SEC, textDecoration: 'none',
+          padding: '10px 22px',
+          background: BB_PANEL_BG,
+          border: `1px solid ${BB_BORDER}`,
+          clipPath: BB_BEVEL,
+          transition: 'all 0.2s',
+        }}
+        onMouseEnter={e => { e.currentTarget.style.color = '#FFFFFF'; e.currentTarget.style.borderColor = BB_BORDER_A }}
+        onMouseLeave={e => { e.currentTarget.style.color = BB_TEXT_SEC; e.currentTarget.style.borderColor = BB_BORDER }}
+      >
+        ← HUB
+      </Link>
+
       {/* Top bar */}
       <div style={{
         flexShrink: 0,
@@ -110,17 +129,6 @@ export default function BeatBeatersSelect() {
             SELECT TRACK
           </div>
         </div>
-        <Link
-          to="/lab"
-          style={{
-            fontSize: 13, fontWeight: 500, color: BB_TEXT_SEC, textDecoration: 'none',
-            letterSpacing: '0.05em', transition: 'color 0.2s', paddingBottom: 2,
-          }}
-          onMouseEnter={e => { e.currentTarget.style.color = '#FFFFFF' }}
-          onMouseLeave={e => { e.currentTarget.style.color = BB_TEXT_SEC }}
-        >
-          ← BACK TO LAB
-        </Link>
       </div>
 
       {/* Neon divider line */}
