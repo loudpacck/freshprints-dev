@@ -702,7 +702,7 @@ Temples (passive income) + PvP (combat, target list, combat log).
 
 ## Beat Beaters — Rhythm Game (Lab Experiment)
 
-11-lane keyboard rhythm game built as a Lab experiment and portfolio piece. Guitar Hero meets DDR. All 5 phases complete — no open build debt. Uses the CRT aesthetic (dark bg, scanlines, vignette) shared with the rest of the game section.
+9-lane keyboard rhythm game built as a Lab experiment and portfolio piece. Guitar Hero meets DDR. All 5 phases complete — no open build debt. Uses the CRT aesthetic (dark bg, scanlines, vignette) shared with the rest of the game section.
 
 ### Routes
 - `/lab/beat-beaters` → `BeatBeatersSelect.jsx` — song select screen (entry point)
@@ -711,14 +711,15 @@ Temples (passive income) + PvP (combat, target list, combat log).
 
 All three are standalone full-screen pages with no `PageLayout` wrapper.
 
-### 11 Lanes (home-row split)
-Left cluster: **A S D F G** — Center: **Space** (2.5× wide) — Right cluster: **H J K L ;**
+### 9 Lanes (home-row split)
+Left cluster: **A S D F** — Center: **Space** (2.5× wide) — Right cluster: **J K L ;**
 ```
-A=#FF3B3B  S=#FF7A1A  D=#FFB300  F=#FFE600  G=#4CD964  Space=#FFFFFF
-H=#5AC8FA  J=#0A84FF  K=#5E5CE6  L=#AF52DE  ;=#FF2D92
+A=#FF3B3B  S=#FF7A1A  D=#FFB300  F=#FFE600  Space=#FFFFFF
+J=#0A84FF  K=#5E5CE6  L=#AF52DE  ;=#FF2D92
 ```
-Lane index → key: A=0 S=1 D=2 F=3 G=4 Space=5 H=6 J=7 K=8 L=9 ;=10.
-6px cluster gaps flank Space (between G/Space and Space/H) to visually separate the hand groups; 2px gaps between all other adjacent lanes. Layout math: 10 standard lanes + 1 wide (2.5×) Space = 12.5 width units, laid out across the full canvas width.
+Lane index → key: A=0 S=1 D=2 F=3 Space=4 J=5 K=6 L=7 ;=8.
+The old G and H keys were removed in the 9-lane revision.
+6px cluster gaps flank Space (between F/Space and Space/J) to visually separate the hand groups; 2px gaps between all other adjacent lanes. Layout math: 8 standard lanes + 1 wide (2.5×) Space = 10.5 width units; fixed gaps total 24px (6 lane gaps × 2px + 2 cluster gaps × 6px). Standard lane width = (canvasWidth − 24) / 10.5, laid out across the full canvas width.
 
 ### Song Registry — `src/data/beatBeatersCharts.js`
 **The only file to edit when adding a new song.** `BEAT_BEATERS_CHARTS` ships **empty** (`export const BEAT_BEATERS_CHARTS = []`) — songs are authored with the chart editor and added back here. With no songs, the select screen shows the "NO TRACKS YET" empty state with an "OPEN CHART EDITOR" link. Schema per entry:
@@ -760,7 +761,7 @@ Chart files are fetched at runtime via `fetch()` — no Vite rebuild needed.
   }
 }
 ```
-- `lane`: 0–10 (A=0 S=1 D=2 F=3 G=4 Space=5 H=6 J=7 K=8 L=9 ;=10)
+- `lane`: 0–8 (A=0 S=1 D=2 F=3 Space=4 J=5 K=6 L=7 ;=8)
 - `time`: seconds from song start
 - `duration`: 0 for tap, >0 seconds for hold
 - `noteSpeed`: 3.0–8.0; multiplied by 80 internally for px/sec scroll speed
@@ -781,7 +782,15 @@ Beat Beaters is registered in `src/data/labExperiments.js` with `external: false
 ### Chart Editor (`BeatBeatersEditor.jsx`)
 Full-featured chart creation tool:
 - Upload audio → record keypresses while song plays → notes appear on timeline
-- Timeline canvas: click to create tap notes, drag to create hold notes, drag to move notes
+- Timeline canvas: 9 lane rows (labels A S D F SP J K L ;), click to create tap notes, drag to create hold notes, drag to move notes
 - Quantize grid: 1/4 / 1/8 / 1/16 note snapping
 - Right-click context menu: lane reassignment, tap↔hold conversion, delete
-- Export: downloads `[artist]-[title]-[difficulty].json` matching the chart format above
+- Export: downloads `[artist]-[title]-[difficulty].json` for the **currently-selected difficulty** (one difficulty per export; there is no "generate/export all difficulties" workflow — re-run per difficulty and merge the `difficulties` objects by hand if a multi-difficulty chart is needed)
+
+### Difficulty-aware Auto-Generate (`handleAutoGenerate`)
+Decodes the uploaded audio, builds a beat grid from BPM + quantize grid, scores each grid position by energy/brightness against an adaptive rolling threshold (tuned by the SENSITIVITY slider), then assigns lanes for the **currently-selected difficulty**:
+- **Easy** — single hand at a time. 2-bar ACTIVE → 1-bar BREAK phrasing, hands alternate per cycle, never simultaneous notes (single-hand chunks separated by breathers).
+- **Medium** — primary note via brightness→hand mapping, plus occasional chords: simultaneous opposite-hand note on strong beats (top ~40% energy, ~15% chance).
+- **Hard** — dense slams: top-20% downbeats have a ~20% chance to fire one note per cluster + Space simultaneously, and any beat has a ~40% chance of an opposite-hand chord.
+
+Lane assignment uses center-out cluster cycle orders with an 8-bar pattern reversal: **left cluster [0,1,2,3]** (order [2,0,3,1]), **right cluster [5,6,7,8]** (order [6,5,8,7]), **Space (lane 4)** reserved for downbeat punches. A 150ms per-lane gap-skip prevents same-lane spam. Brightness boundaries are computed per-song from percentile distribution (dark→left, bright→right, mid→toggle). REPLACE vs MERGE controls whether output replaces existing notes or merges into them.

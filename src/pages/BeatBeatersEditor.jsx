@@ -16,13 +16,13 @@ const BB_FONT     = "'Rajdhani', sans-serif"
 // ─── Constants ────────────────────────────────────────────────────────────────
 
 const LANE_COLORS = [
-  '#FF3B3B', '#FF7A1A', '#FFB300', '#FFE600', '#4CD964', '#FFFFFF',
-  '#5AC8FA', '#0A84FF', '#5E5CE6', '#AF52DE', '#FF2D92',
+  '#FF3B3B', '#FF7A1A', '#FFB300', '#FFE600', '#FFFFFF',
+  '#0A84FF', '#5E5CE6', '#AF52DE', '#FF2D92',
 ]
-const LANE_LABELS = ['A', 'S', 'D', 'F', 'G', 'SP', 'H', 'J', 'K', 'L', ';']
-const REC_KEY_MAP = { a: 0, s: 1, d: 2, f: 3, g: 4, h: 6, j: 7, k: 8, l: 9 }
-const LANE_COUNT  = 11
-const SPACE_LANE  = 5
+const LANE_LABELS = ['A', 'S', 'D', 'F', 'SP', 'J', 'K', 'L', ';']
+const REC_KEY_MAP = { a: 0, s: 1, d: 2, f: 3, j: 5, k: 6, l: 7 }
+const LANE_COUNT  = 9
+const SPACE_LANE  = 4
 
 const PX_PER_SEC = 120
 const LABEL_COL  = 64
@@ -361,7 +361,7 @@ export default function BeatBeatersEditor() {
     function onKeyDown(e) {
       if (isRecordingRef.current) {
         if (e.repeat) return
-        const lane = e.key === ' ' ? SPACE_LANE : e.key === ';' ? 10 : REC_KEY_MAP[e.key.toLowerCase()]
+        const lane = e.key === ' ' ? SPACE_LANE : e.key === ';' ? 8 : REC_KEY_MAP[e.key.toLowerCase()]
         if (lane === undefined) return
         if (e.key === ' ' || e.key === ';') e.preventDefault()
         const audio = audioRef.current
@@ -390,7 +390,7 @@ export default function BeatBeatersEditor() {
 
     function onKeyUp(e) {
       if (!isRecordingRef.current) return
-      const lane = e.key === ' ' ? SPACE_LANE : e.key === ';' ? 10 : REC_KEY_MAP[e.key.toLowerCase()]
+      const lane = e.key === ' ' ? SPACE_LANE : e.key === ';' ? 8 : REC_KEY_MAP[e.key.toLowerCase()]
       if (lane === undefined) return
       const pending = pendingHoldsRef.current.get(lane)
       if (!pending) return
@@ -678,11 +678,11 @@ export default function BeatBeatersEditor() {
 
       // ── Pass 2 — Assign lanes (difficulty-aware) ──
       // Cluster cycle orders (center-out, mirrored). 8-bar pattern reversal kept.
-      // Left cluster [0,1,2,3,4]; right cluster [6,7,8,9,10]; Space (5) for punches.
-      const leftOrderFwd  = [2, 0, 4, 1, 3]
-      const leftOrderRev  = [3, 1, 4, 0, 2]
-      const rightOrderFwd = [8, 6, 10, 7, 9]
-      const rightOrderRev = [9, 7, 10, 6, 8]
+      // Left cluster [0,1,2,3]; right cluster [5,6,7,8]; Space (4) for punches.
+      const leftOrderFwd  = [2, 0, 3, 1]
+      const leftOrderRev  = [1, 3, 0, 2]
+      const rightOrderFwd = [6, 5, 8, 7]
+      const rightOrderRev = [7, 8, 5, 6]
       let leftIdx      = 0
       let rightIdx     = 0
       let midToggle    = 'right'
@@ -1306,7 +1306,7 @@ export default function BeatBeatersEditor() {
           </button>
           {isRecording && (
             <div style={{ fontSize: 12, fontWeight: 600, color: '#FF9100', letterSpacing: '0.08em', textAlign: 'center', marginTop: 6 }}>
-              PRESS A S D F G SPACE H J K L ;
+              PRESS A S D F SPACE J K L ;
             </div>
           )}
 

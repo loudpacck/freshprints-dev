@@ -15,13 +15,13 @@ const BB_FONT     = "'Rajdhani', sans-serif"
 // ─── Constants ────────────────────────────────────────────────────────────────
 
 const LANE_COLORS = [
-  '#FF3B3B', '#FF7A1A', '#FFB300', '#FFE600', '#4CD964', '#FFFFFF',
-  '#5AC8FA', '#0A84FF', '#5E5CE6', '#AF52DE', '#FF2D92',
+  '#FF3B3B', '#FF7A1A', '#FFB300', '#FFE600', '#FFFFFF',
+  '#0A84FF', '#5E5CE6', '#AF52DE', '#FF2D92',
 ]
-const KEY_LABELS = ['A', 'S', 'D', 'F', 'G', 'SPACE', 'H', 'J', 'K', 'L', ';']
-const KEY_MAP    = { a: 0, s: 1, d: 2, f: 3, g: 4, h: 6, j: 7, k: 8, l: 9 }
-const LANE_COUNT = 11
-const SPACE_LANE = 5
+const KEY_LABELS = ['A', 'S', 'D', 'F', 'SPACE', 'J', 'K', 'L', ';']
+const KEY_MAP    = { a: 0, s: 1, d: 2, f: 3, j: 5, k: 6, l: 7 }
+const LANE_COUNT = 9
+const SPACE_LANE = 4
 
 const DEFAULT_SCROLL_SPEED = 380
 const HIT_ZONE_FRAC = 0.85
@@ -57,10 +57,10 @@ const BEAT_METER_ACTIVATE_KEY     = 'Shift'
 const EDGE_PAD = 0
 
 function computeLayout(w, h) {
-  // 10 standard lanes + 1 wide (2.5x) Space lane = 12.5 width units.
-  // 8 standard lane gaps (2px) + 2 cluster gaps (6px) = 28px of fixed gaps.
-  const totalFixedGap = 8 * LANE_GAP + 2 * CLUSTER_GAP
-  const unitW = (w - totalFixedGap - EDGE_PAD) / (10 + SPACE_MULT)
+  // 8 standard lanes + 1 wide (2.5x) Space lane = 10.5 width units.
+  // 6 standard lane gaps (2px) + 2 cluster gaps (6px) = 24px of fixed gaps.
+  const totalFixedGap = 6 * LANE_GAP + 2 * CLUSTER_GAP
+  const unitW = (w - totalFixedGap - EDGE_PAD) / (8 + SPACE_MULT)
   const laneWidths = new Array(LANE_COUNT)
   for (let i = 0; i < LANE_COUNT; i++) laneWidths[i] = i === SPACE_LANE ? unitW * SPACE_MULT : unitW
   const laneX = new Array(LANE_COUNT)
@@ -69,8 +69,8 @@ function computeLayout(w, h) {
     laneX[i] = x
     x += laneWidths[i]
     if (i < LANE_COUNT - 1) {
-      // Cluster gaps flank the Space lane: after G (4|5) and after Space (5|6)
-      x += (i === 4 || i === 5) ? CLUSTER_GAP : LANE_GAP
+      // Cluster gaps flank the Space lane: after F (3|4) and after Space (4|5)
+      x += (i === 3 || i === 4) ? CLUSTER_GAP : LANE_GAP
     }
   }
   return { laneWidths, laneX, hitZoneY: h * HIT_ZONE_FRAC, w, h }
@@ -955,7 +955,7 @@ export default function BeatBeaters() {
   useEffect(() => {
     function getLane(e) {
       if (e.key === ' ') return SPACE_LANE
-      if (e.key === ';') return 10
+      if (e.key === ';') return 8
       return KEY_MAP[e.key.toLowerCase()]
     }
 
@@ -1208,7 +1208,7 @@ export default function BeatBeaters() {
             PRESS START
           </button>
           <div style={{ marginTop: 20, color: BB_TEXT_SEC, fontSize: 13, fontWeight: 500, letterSpacing: '0.15em' }}>
-            A S D F G — SPACE — H J K L ;
+            A S D F — SPACE — J K L ;
           </div>
         </div>
       )}
