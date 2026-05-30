@@ -1,6 +1,7 @@
 // Add new songs here after dropping chart JSON into
 // public/charts/ and audio into public/audio/
 
+
 export const BEAT_BEATERS_CHARTS = [
   {
     id: 'demo',
@@ -12,9 +13,6 @@ export const BEAT_BEATERS_CHARTS = [
     availableDifficulties: ['easy'],
     accentColor: '#0A84FF',
   },
-]
-
-export const BEAT_BEATERS_CHARTS = [
   {
     id: 'pray',
     title: 'Pray',
@@ -22,7 +20,7 @@ export const BEAT_BEATERS_CHARTS = [
     bpm: 85,
     audioFile: 'Pray.mp3',
     chartFile: 'pray.json',
-    availableDifficulties: ['Medium'],
+    availableDifficulties: ['medium'],
     accentColor: '#faac04',
   },
-]
+];
