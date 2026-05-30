@@ -614,20 +614,10 @@ export default function BeatBeatersEditor() {
       const ROLLING    = 64
       const MIN_GAP    = 0.15
 
-      // Step 5 state — cluster cycling and pattern shifts
-      const leftOrderFwd  = [0, 3, 1, 2]
-      const leftOrderRev  = [2, 1, 3, 0]
-      const rightOrderFwd = [5, 8, 6, 7]
-      const rightOrderRev = [7, 6, 8, 5]
-      let leftIdx      = 0
-      let rightIdx     = 0
-      let midToggle    = 'right'
-      let patternRev   = false
-      let lastShiftBar = 0
-
-      const lastLaneTime = new Array(9).fill(-Infinity)
-      const candidates   = []
-
+      // ── Pass 1 — Collect every grid position that clears the energy threshold ──
+      // No lane assignment here: just gather candidates so brightness can be
+      // normalized relative to THIS song before we decide left/right/space.
+      const candidates = []
       for (let i = 0; i < analysis.length; i++) {
         const d = analysis[i]
 
@@ -640,8 +630,57 @@ export default function BeatBeatersEditor() {
 
         if (d.totalE <= thresh) continue
 
+        candidates.push({
+          T:          d.T,
+          totalE:     d.totalE,
+          brightness: d.brightness,
+          isBeat:     d.isBeat,
+          isDownbeat: d.isDownbeat,
+        })
+      }
+
+      // ── Between passes — compute brightness distribution for THIS song ──
+      // brightness = highE / totalE clusters near zero in absolute terms, so a
+      // fixed threshold rarely picks the right cluster. Instead derive per-song
+      // percentile boundaries: ~45% dark (left), ~25% bright (right), ~30% mid.
+      const pctl = (sorted, p) =>
+        sorted.length === 0 ? 0 : sorted[Math.min(sorted.length - 1, Math.floor(p * sorted.length))]
+
+      const brightSorted = candidates.map(c => c.brightness).sort((a, b) => a - b)
+      const loBoundary   = pctl(brightSorted, 0.45)
+      const hiBoundary   = pctl(brightSorted, 0.70)
+
+      // Energy top-30% boundary — used to gate the Space (downbeat punch) lane.
+      const energySorted   = candidates.map(c => c.totalE).sort((a, b) => a - b)
+      const energyHiBound  = pctl(energySorted, 0.70)
+
+      console.log('[AutoGen] brightness distribution', {
+        count:            candidates.length,
+        brightnessMin:    brightSorted[0] ?? 0,
+        brightnessMedian: pctl(brightSorted, 0.5),
+        brightnessMax:    brightSorted[brightSorted.length - 1] ?? 0,
+        loBoundary,
+        hiBoundary,
+      })
+
+      // ── Pass 2 — Assign lanes using RELATIVE brightness ──
+      // cluster cycling and pattern shifts
+      const leftOrderFwd  = [0, 3, 1, 2]
+      const leftOrderRev  = [2, 1, 3, 0]
+      const rightOrderFwd = [5, 8, 6, 7]
+      const rightOrderRev = [7, 6, 8, 5]
+      let leftIdx      = 0
+      let rightIdx     = 0
+      let midToggle    = 'right'
+      let patternRev   = false
+      let lastShiftBar = 0
+
+      const lastLaneTime = new Array(9).fill(-Infinity)
+      const placed       = []
+
+      for (const c of candidates) {
         // Pattern shift every 8 bars — reset indices and reverse cluster order
-        const curBar = Math.floor(d.T / barDur)
+        const curBar = Math.floor(c.T / barDur)
         if (curBar >= lastShiftBar + 8) {
           lastShiftBar = curBar
           patternRev   = !patternRev
@@ -654,26 +693,26 @@ export default function BeatBeatersEditor() {
 
         let lane = -1
 
-        if (d.isDownbeat && d.lowE > thresh * 0.6) {
-          if (d.T - lastLaneTime[4] < MIN_GAP) continue
+        if (c.isDownbeat && c.totalE >= energyHiBound) {
+          if (c.T - lastLaneTime[4] < MIN_GAP) continue
           lane = 4
-        } else if (d.brightness < 0.25) {
+        } else if (c.brightness <= loBoundary) {
           const picked = lo_[leftIdx % lo_.length]
-          if (d.T - lastLaneTime[picked] < MIN_GAP) continue
+          if (c.T - lastLaneTime[picked] < MIN_GAP) continue
           lane = picked
           leftIdx++
-        } else if (d.brightness > 0.65) {
+        } else if (c.brightness >= hiBoundary) {
           const picked = ro_[rightIdx % ro_.length]
-          if (d.T - lastLaneTime[picked] < MIN_GAP) continue
+          if (c.T - lastLaneTime[picked] < MIN_GAP) continue
           lane = picked
           rightIdx++
         } else {
-          // Mid brightness — pick lane first, check gap, then advance state
+          // Mid band — pick lane first, check gap, then advance state
           const usingRight = midToggle === 'right'
           const order  = usingRight ? ro_ : lo_
           const idx    = usingRight ? rightIdx : leftIdx
           const picked = order[idx % order.length]
-          if (d.T - lastLaneTime[picked] < MIN_GAP) continue
+          if (c.T - lastLaneTime[picked] < MIN_GAP) continue
           midToggle = usingRight ? 'left' : 'right'
           if (usingRight) rightIdx++
           else leftIdx++
@@ -681,16 +720,16 @@ export default function BeatBeatersEditor() {
         }
 
         if (lane < 0) continue
-        lastLaneTime[lane] = d.T
-        candidates.push({ T: d.T, lane, totalE: d.totalE })
+        lastLaneTime[lane] = c.T
+        placed.push({ T: c.T, lane, totalE: c.totalE })
       }
 
       // Step 6 — Remove isolated noise in sparse mode
-      const generated = candidates.filter((c, i) => {
+      const generated = placed.filter((c, i) => {
         if (c.totalE >= globalMean * 0.4) return true
         if (autoSensitivity >= 50) return true
-        const tPrev = candidates[i - 1]?.T ?? -Infinity
-        const tNext = candidates[i + 1]?.T ?? Infinity
+        const tPrev = placed[i - 1]?.T ?? -Infinity
+        const tNext = placed[i + 1]?.T ?? Infinity
         return (c.T - tPrev) <= sub * 2 || (tNext - c.T) <= sub * 2
       })
 
