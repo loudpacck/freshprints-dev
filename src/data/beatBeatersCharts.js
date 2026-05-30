@@ -13,3 +13,16 @@ export const BEAT_BEATERS_CHARTS = [
     accentColor: '#0A84FF',
   },
 ]
+
+export const BEAT_BEATERS_CHARTS = [
+  {
+    id: 'pray',
+    title: 'Pray',
+    artist: 'LOUDDAI',
+    bpm: 85,
+    audioFile: 'Pray.mp3',
+    chartFile: 'pray.json',
+    availableDifficulties: ['Medium'],
+    accentColor: '#faac04',
+  },
+]
