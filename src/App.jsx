@@ -29,8 +29,11 @@ const Portfolio       = lazy(() => import('@/pages/Portfolio'))
 const ProjectPage     = lazy(() => import('@/pages/ProjectPage'))
 const Skills          = lazy(() => import('@/pages/Skills'))
 const Services        = lazy(() => import('@/pages/Services'))
-const Lab             = lazy(() => import('@/pages/Lab'))
-const LabExperiment   = lazy(() => import('@/pages/LabExperiment'))
+const Lab                = lazy(() => import('@/pages/Lab'))
+const LabExperiment      = lazy(() => import('@/pages/LabExperiment'))
+const BeatBeatersSelect  = lazy(() => import('@/pages/BeatBeatersSelect'))
+const BeatBeaters        = lazy(() => import('@/pages/BeatBeaters'))
+const BeatBeatersEditor  = lazy(() => import('@/pages/BeatBeatersEditor'))
 const Store           = lazy(() => import('@/pages/Store'))
 const Media           = lazy(() => import('@/pages/Media'))
 const Contact         = lazy(() => import('@/pages/Contact'))
@@ -167,8 +170,11 @@ function AnimatedRoutes() {
         <Route path="/skills"             element={<PageLayout><Skills /></PageLayout>} />
         <Route path="/services"           element={<PageLayout><Services /></PageLayout>} />
         <Route path="/services/:category" element={<PageLayout><Services /></PageLayout>} />
-        <Route path="/lab"                element={<PageLayout><Lab /></PageLayout>} />
-        <Route path="/lab/:slug"          element={<PageLayout><LabExperiment /></PageLayout>} />
+        <Route path="/lab"                        element={<PageLayout><Lab /></PageLayout>} />
+        <Route path="/lab/beat-beaters"         element={<BeatBeatersSelect />} />
+        <Route path="/lab/beat-beaters/play"    element={<BeatBeaters />} />
+        <Route path="/lab/beat-beaters/editor"  element={<BeatBeatersEditor />} />
+        <Route path="/lab/:slug"                element={<PageLayout><LabExperiment /></PageLayout>} />
         <Route path="/store"              element={<PageLayout><Store /></PageLayout>} />
         <Route path="/media"              element={<PageLayout><Media /></PageLayout>} />
         <Route path="/contact"            element={<PageLayout><Contact /></PageLayout>} />

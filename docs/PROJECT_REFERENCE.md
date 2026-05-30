@@ -221,6 +221,9 @@ All routes in `src/App.jsx`. All lazy-loaded. `PageLayout` adds theme-appropriat
 | `/services` | `Services.jsx` | `StandardServices` | `DigitalServices` |
 | `/services/:category` | `Services.jsx` | same | same |
 | `/lab` | `Lab.jsx` | `StandardLab` | `DigitalLab` |
+| `/lab/beat-beaters` | `BeatBeatersSelect.jsx` | none (standalone) | Song select; entry point for the rhythm game |
+| `/lab/beat-beaters/play` | `BeatBeaters.jsx` | none (standalone) | Game engine; requires `location.state.chartData` — redirects to select if missing |
+| `/lab/beat-beaters/editor` | `BeatBeatersEditor.jsx` | none (standalone) | Chart creation tool |
 | `/lab/:slug` | `LabExperiment.jsx` | `StandardLabExperiment` | `DigitalLabExperiment` |
 | `/store` | `Store.jsx` | `StandardStore` | `DigitalStore` |
 | `/media` | `Media.jsx` | `StandardMedia` | `DigitalMedia` |
@@ -243,6 +246,8 @@ All routes in `src/App.jsx`. All lazy-loaded. `PageLayout` adds theme-appropriat
 | `/games/pantheon-wars/profile` | `Profile.jsx` | Built ✅ |
 
 ### Special Behaviors
+- `/lab/beat-beaters` and `/lab/beat-beaters/play` are defined **before** `/lab/:slug` in App.jsx — they take priority over the generic experiment slug matcher
+- `/lab/beat-beaters/play` with no router state → redirects to `/lab/beat-beaters` (song select)
 - `/lab/pantheon-wars` → `<Navigate replace />` to `/games/pantheon-wars` (in LabExperiment.jsx)
 - `/admin` uses no layout wrapper (standalone page, auth-gated)
 - Digital theme: `PageChrome` (HubReturnButton), `SoundToggle`, `Terminal` rendered globally in `AppInner`
@@ -536,6 +541,7 @@ Indexes: timestamp DESC, event_type, session_id, visitor_id, path
 | `media.js` | YouTube video array (id = YouTube ID, tabId), tabs[], featuredVideoId, newsletterCopy | Media |
 | `socialLinks.js` | Single source of truth for email, LinkedIn, GitHub, YouTube (@loudd + @LouddDocs) | About, Contact, Footer, nav |
 | `cadModels.js` | 6 CAD models → `.glb` files in `public/3d_files/` | CADViewer lab experiment |
+| `beatBeatersCharts.js` | Beat Beaters song registry — **add entries here to add songs** (id, title, artist, bpm, audioFile, chartFile, availableDifficulties[], accentColor) | BeatBeatersSelect |
 | `siteStatus.js` | Current availability (OPEN), per-project status | About, Services |
 
 ### Social Links (actual values)
@@ -625,7 +631,95 @@ Persistent multiplayer browser idle RPG at `/games/pantheon-wars`. Greek/Norse/M
 
 ---
 
-## 13. KNOWN ISSUES / TECHNICAL DEBT
+## 13. BEAT BEATERS — RHYTHM GAME
+
+### Summary
+9-lane keyboard rhythm game at `/lab/beat-beaters`. All 5 build phases complete. No open build debt. No new npm packages — uses browser Web Audio API only.
+
+### Routes
+| Route | Component | Purpose |
+|---|---|---|
+| `/lab/beat-beaters` | `BeatBeatersSelect.jsx` | Song select; fetches chart JSON on difficulty click |
+| `/lab/beat-beaters/play` | `BeatBeaters.jsx` | Game engine; reads data from `location.state` |
+| `/lab/beat-beaters/editor` | `BeatBeatersEditor.jsx` | Chart creation + export tool |
+
+### Adding a Song (3 steps, no rebuild)
+1. Drop MP3 → `public/audio/your-song.mp3`
+2. Drop chart JSON → `public/charts/your-song.json`
+3. Add one entry to `src/data/beatBeatersCharts.js`
+
+Chart files are `fetch()`'d at runtime. Vercel serves them as static files with no server code involved.
+
+### Lane Layout
+```
+Lanes:  W(0)  A(1)  S(2)  D(3)  |  Space(4)  |  I(5)  J(6)  K(7)  L(8)
+Colors: #FF3B3B #FF9F0A #30D158 #0A84FF  #FFFFFF  #BF5AF2 #FF375F #64D2FF #FFD60A
+```
+6px cluster gap between D/Space and Space/I.
+
+### Chart JSON Schema (`public/charts/*.json`)
+```json
+{
+  "title": "string",
+  "artist": "string",
+  "bpm": 120,
+  "audioFile": "filename.mp3",
+  "difficulties": {
+    "easy": {
+      "noteSpeed": 4.0,
+      "notes": [{ "lane": 0-8, "time": 1.5, "duration": 0, "type": "tap|hold" }]
+    }
+  }
+}
+```
+`noteSpeed` × 80 = scroll speed px/sec. `duration` = 0 for tap, seconds for hold.
+
+### Song Registry Schema (`src/data/beatBeatersCharts.js`)
+```js
+{
+  id, title, artist, bpm,
+  audioFile,              // relative to public/audio/
+  chartFile,              // relative to public/charts/
+  availableDifficulties,  // ['easy'] | ['easy','medium','hard']
+  accentColor,            // hex — used for card border and difficulty glow
+}
+```
+
+### Game Architecture
+- **State flow:** `BeatBeatersSelect` fetches chart → `navigate('/lab/beat-beaters/play', { state: { chartData, difficulty, audioFile, songTitle, songArtist } })`
+- **Guard:** `BeatBeaters` redirects to `/lab/beat-beaters` if `location.state.chartData` is null (direct URL visit)
+- **Notes**: loaded via `useMemo` from `chartData.difficulties[difficulty].notes`. Refs (`chartNotesRef`, `scrollSpeedRef`) make dynamic values available inside the RAF loop without re-creating the effect.
+- **Audio**: `AudioContext` + `AnalyserNode` created on first START click (user gesture required). Graceful fallback to sine-wave demo visualizer when audio file is missing.
+- **Timing**: `audio.currentTime` used for sample-accurate note sync when audio is loaded; falls back to `performance.now()`.
+
+### Scoring System
+| Judgment | Window | Base Points |
+|---|---|---|
+| PERFECT | ±30ms | 300 |
+| GOOD | ±80ms | 150 |
+| LATE/EARLY | ±150ms | 50 |
+| MISS | past 150ms | 0, breaks combo |
+
+Combo multiplier: 1× (0–9), 2× (10–19), 3× (20–29), 4× (30+)
+Beat Meter: fills 10% per PERFECT. Shift at 50%+ activates 8s × 2 score multiplier.
+
+### Build Phases
+| Phase | What Was Built |
+|---|---|
+| Phase 1 | 9-lane canvas, note scrolling, input detection, hit detection, hold notes |
+| Phase 2 | Web Audio API, AudioContext/AnalyserNode, audio-reactive visualizer |
+| Phase 3 | Full scoring, combo multiplier, Beat Meter, end screen with grade |
+| Phase 4 | Chart editor (BeatBeatersEditor.jsx) — record, timeline, quantize, export |
+| Phase 5 | Song select screen, dynamic chart loading, router-state flow |
+
+### Public Asset Directories
+- `public/audio/` — MP3 audio files (referenced by `audioFile` in chart JSON and song registry)
+- `public/charts/` — Chart JSON files (referenced by `chartFile` in song registry)
+- Both have README.txt files with instructions
+
+---
+
+## 14. KNOWN ISSUES / TECHNICAL DEBT
 
 - **`react-three-fiber` chunk is ~868KB** — pre-existing, non-critical, not blocking. Hub background 3D scene loads this.
 - **CAD model descriptions** — all 6 models in `cadModels.js` have `description: 'Description coming soon.'`
@@ -640,7 +734,7 @@ Persistent multiplayer browser idle RPG at `/games/pantheon-wars`. Greek/Norse/M
 
 ---
 
-## 14. DEVELOPMENT RULES (READ BEFORE DOING ANYTHING)
+## 15. DEVELOPMENT RULES (READ BEFORE DOING ANYTHING)
 
 1. **PowerShell commands only:** `ls`, `cd`, `mkdir`, `cat`, `npm`, `npx` — no `Get-ChildItem`, no PS flags
 2. **One npm install per command** — never `npm install pkg1 pkg2`
@@ -662,7 +756,7 @@ Persistent multiplayer browser idle RPG at `/games/pantheon-wars`. Greek/Norse/M
 
 ---
 
-## 15. ENVIRONMENT VARIABLES
+## 16. ENVIRONMENT VARIABLES
 
 All must be set in `.env.local` for local dev AND in Vercel dashboard for production.
 
@@ -681,7 +775,7 @@ All must be set in `.env.local` for local dev AND in Vercel dashboard for produc
 
 ---
 
-## 16. FILE STRUCTURE OVERVIEW
+## 17. FILE STRUCTURE OVERVIEW
 
 ```
 B:\freshprints-dev\
@@ -717,6 +811,8 @@ B:\freshprints-dev\
 │
 ├── public/
 │   ├── 3d_files/                 CAD .glb models (6 files)
+│   ├── audio/                    MP3 audio files for Beat Beaters (test.mp3 = demo)
+│   ├── charts/                   Chart JSON files for Beat Beaters (demo.json = demo)
 │   ├── thumbnails/               Project card thumbnails
 │   ├── images/                   Project gallery images
 │   └── og-image.svg              Open Graph image
@@ -753,6 +849,7 @@ B:\freshprints-dev\
 │   │   └── PantheonWarsContext.jsx
 │   │
 │   ├── data/                     All local data (projects, skills, services, media, etc.)
+│   │   └── beatBeatersCharts.js  Beat Beaters song registry — ADD SONGS HERE
 │   ├── hooks/                    useTerminal, useReducedMotion, useTheme (re-export)
 │   │
 │   ├── pages/
@@ -760,6 +857,9 @@ B:\freshprints-dev\
 │   │   ├── Hub.jsx               Digital navigation center (/hub)
 │   │   ├── StandardLanding.jsx   Standard home (/home)
 │   │   ├── RetroLanding.jsx      Retro home (/home when retro)
+│   │   ├── BeatBeatersSelect.jsx Song select screen (/lab/beat-beaters)
+│   │   ├── BeatBeaters.jsx       Game engine (/lab/beat-beaters/play)
+│   │   ├── BeatBeatersEditor.jsx Chart editor (/lab/beat-beaters/editor)
 │   │   ├── Admin.jsx             Admin dashboard (/admin)
 │   │   ├── NotFound.jsx          404
 │   │   ├── [PageName].jsx        Thin theme switchers for all inner pages
@@ -799,7 +899,7 @@ B:\freshprints-dev\
 
 ---
 
-## 17. COMPONENT QUICK-REFERENCE
+## 18. COMPONENT QUICK-REFERENCE
 
 ### Digital-Specific Components
 - `Hub.jsx` — 8-node hex grid, 3-2-3 layout, keyboard nav, mobile radial drawer, terminal trigger
@@ -835,7 +935,7 @@ B:\freshprints-dev\
 
 ---
 
-## 18. PLAUSIBLE ANALYTICS
+## 19. PLAUSIBLE ANALYTICS
 
 - Account at plausible.io, site: freshprints.dev
 - Script tag already in `index.html`

@@ -48,6 +48,18 @@ export const experiments = [
     thumbnail: null,
   },
   {
+    slug: 'beat-beaters',
+    name: 'BEAT BEATERS',
+    shortName: 'BEAT BEATERS',
+    status: 'IN_DEVELOPMENT',
+    classification: 'RHYTHM GAME',
+    description: '9-lane rhythm game. Guitar Hero meets DDR.',
+    category: 'games',
+    component: null,
+    accentColor: '#FF3B3B',
+    thumbnail: null,
+  },
+  {
     slug: 'pantheon-wars',
     name: 'Pantheon Wars',
     shortName: 'PANTHEON WARS',

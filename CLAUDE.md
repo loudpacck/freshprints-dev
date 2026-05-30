@@ -93,6 +93,7 @@ Status values are defined in `src/components/ui/Badge.jsx` (Digital), `src/compo
 - [x] Phase 11 — Stats Foundation + Admin Auth (2026-05-10)
 - [x] Phase 14a — Standard UI Foundation (2026-05-11)
 - [x] Phase 14b — Standard UI Inner Pages (2026-05-12)
+- [x] Phase 16 — Beat Beaters Rhythm Game (2026-05-30)
 
 ## Phase 10 — Mobile Audit Results (2026-05-10)
 
@@ -696,3 +697,90 @@ Vercel Hobby plan allows max 12 serverless functions. All 14 Pantheon Wars API f
 
 ### Next phase (B4/B5)
 Temples (passive income) + PvP (combat, target list, combat log).
+
+---
+
+## Beat Beaters — Rhythm Game (Lab Experiment)
+
+9-lane keyboard rhythm game built as a Lab experiment and portfolio piece. Guitar Hero meets DDR. All 5 phases complete — no open build debt. Uses the CRT aesthetic (dark bg, scanlines, vignette) shared with the rest of the game section.
+
+### Routes
+- `/lab/beat-beaters` → `BeatBeatersSelect.jsx` — song select screen (entry point)
+- `/lab/beat-beaters/play` → `BeatBeaters.jsx` — game engine (requires `location.state.chartData`)
+- `/lab/beat-beaters/editor` → `BeatBeatersEditor.jsx` — chart editor
+
+All three are standalone full-screen pages with no `PageLayout` wrapper.
+
+### 9 Lanes (keyboard split)
+Left cluster: **W A S D** — Center: **Space** (2.5× wide) — Right cluster: **I J K L**
+```
+W=#FF3B3B  A=#FF9F0A  S=#30D158  D=#0A84FF  Space=#FFFFFF
+I=#BF5AF2  J=#FF375F  K=#64D2FF  L=#FFD60A
+```
+6px cluster gaps between D/Space and Space/I visually separate the hand groups.
+
+### Song Registry — `src/data/beatBeatersCharts.js`
+**The only file to edit when adding a new song.** Schema per entry:
+```js
+{
+  id: 'unique-slug',
+  title: 'Song Title',
+  artist: 'Artist Name',
+  bpm: 120,
+  audioFile: 'filename.mp3',     // relative to public/audio/
+  chartFile: 'filename.json',    // relative to public/charts/
+  availableDifficulties: ['easy'],
+  accentColor: '#0A84FF',
+}
+```
+
+### Adding a New Song (3 steps, no rebuild)
+1. Drop MP3 → `public/audio/your-song.mp3`
+2. Drop chart JSON → `public/charts/your-song.json` (create with chart editor or export from editor)
+3. Add one entry to `src/data/beatBeatersCharts.js`
+
+Chart files are fetched at runtime via `fetch()` — no Vite rebuild needed.
+
+### Chart JSON Format (`public/charts/*.json`)
+```json
+{
+  "title": "Song Title",
+  "artist": "Artist Name",
+  "bpm": 120,
+  "audioFile": "filename.mp3",
+  "difficulties": {
+    "easy": {
+      "noteSpeed": 4.0,
+      "notes": [
+        { "lane": 0, "time": 1.5, "duration": 0, "type": "tap" },
+        { "lane": 3, "time": 2.0, "duration": 0.8, "type": "hold" }
+      ]
+    }
+  }
+}
+```
+- `lane`: 0–8 (W=0 A=1 S=2 D=3 Space=4 I=5 J=6 K=7 L=8)
+- `time`: seconds from song start
+- `duration`: 0 for tap, >0 seconds for hold
+- `noteSpeed`: 3.0–8.0; multiplied by 80 internally for px/sec scroll speed
+
+### Game Flow
+`BeatBeatersSelect` → fetch chart JSON → `navigate('/lab/beat-beaters/play', { state: { chartData, difficulty, audioFile, songTitle, songArtist } })` → `BeatBeaters` reads `useLocation().state`. Direct navigation to `/lab/beat-beaters/play` without state redirects to song select.
+
+### Technical Notes
+- **No new npm packages** — uses browser Web Audio API (AudioContext + AnalyserNode) natively
+- **Audio-reactive visualizer** — circular frequency ring + waveform line behind the lanes; falls back to sine-wave demo mode when no audio file is present
+- **Scoring**: PERFECT=300 / GOOD=150 / LATE=50 pts, combo multiplier (1×/2×/3×/4× at 0/10/20/30 combo), Beat Meter (fill on PERFECT → Shift to activate 2× multiplier for 8s)
+- **Hold notes**: partial scoring on early release, completion bonus on full hold
+- **End screen**: letter grade S/A/B/C/D/F by accuracy, score, max combo, stat breakdown
+
+### labExperiments.js entry
+Beat Beaters is registered in `src/data/labExperiments.js` with `external: false`. It does NOT use the `LabExperiment.jsx` component system — the `/lab/beat-beaters` and `/lab/beat-beaters/play` routes are defined before the generic `/lab/:slug` route in `App.jsx` so they take priority.
+
+### Chart Editor (`BeatBeatersEditor.jsx`)
+Full-featured chart creation tool:
+- Upload audio → record keypresses while song plays → notes appear on timeline
+- Timeline canvas: click to create tap notes, drag to create hold notes, drag to move notes
+- Quantize grid: 1/4 / 1/8 / 1/16 note snapping
+- Right-click context menu: lane reassignment, tap↔hold conversion, delete
+- Export: downloads `[artist]-[title]-[difficulty].json` matching the chart format above
