@@ -1,6 +1,18 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 
+// ─── Beat Saber design tokens ──────────────────────────────────────────────────
+
+const BB_BG       = '#05060f'
+const BB_PANEL_BG = 'rgba(4, 8, 28, 0.88)'
+const BB_BORDER   = 'rgba(0, 140, 255, 0.2)'
+const BB_BORDER_A = 'rgba(0, 180, 255, 0.6)'
+const BB_PRIMARY  = '#0088FF'
+const BB_TEXT_SEC = 'rgba(255,255,255,0.55)'
+const BB_SUCCESS  = '#00E676'
+const BB_BEVEL    = 'polygon(0 0, calc(100% - 8px) 0, 100% 8px, 100% 100%, 0 100%)'
+const BB_FONT     = "'Rajdhani', sans-serif"
+
 // ─── Constants ────────────────────────────────────────────────────────────────
 
 const LANE_COLORS = [
@@ -849,32 +861,37 @@ export default function BeatBeatersEditor() {
   // ── Shared styles ─────────────────────────────────────────────────────────────
 
   const inputSt = {
-    background: 'rgba(255,255,255,0.05)',
-    border: '1px solid rgba(255,255,255,0.12)',
-    color: '#F0F0F8',
-    fontFamily: '"IBM Plex Mono", monospace',
-    fontSize: 12, padding: '5px 8px',
+    background: '#0a1020',
+    border: `1px solid ${BB_BORDER}`,
+    color: '#FFFFFF',
+    fontFamily: BB_FONT,
+    fontSize: 14, fontWeight: 500,
+    padding: '6px 10px',
     width: '100%', boxSizing: 'border-box',
     outline: 'none',
+    transition: 'border-color 0.2s',
   }
 
   const btnSt = (active, accent) => ({
-    background: active ? (accent ? hexA(accent, 0.2) : 'rgba(255,255,255,0.12)') : 'rgba(255,255,255,0.05)',
-    border: `1px solid ${active ? (accent || 'rgba(255,255,255,0.5)') : 'rgba(255,255,255,0.12)'}`,
-    color: active ? (accent || '#FFFFFF') : 'rgba(255,255,255,0.6)',
-    fontFamily: '"IBM Plex Mono", monospace',
-    fontSize: 11, padding: '5px 10px',
-    cursor: 'pointer', letterSpacing: 1,
+    background: active ? (accent ? hexA(accent, 0.2) : 'rgba(255,255,255,0.12)') : 'rgba(255,255,255,0.04)',
+    border: `1px solid ${active ? (accent || 'rgba(255,255,255,0.5)') : BB_BORDER}`,
+    color: active ? (accent || '#FFFFFF') : BB_TEXT_SEC,
+    fontFamily: BB_FONT,
+    fontSize: 13, fontWeight: active ? 700 : 600,
+    padding: '6px 12px',
+    cursor: 'pointer', letterSpacing: '0.05em',
     transition: 'all 0.15s',
+    clipPath: BB_BEVEL,
   })
 
   const secHdr = {
-    fontSize: 9, color: 'rgba(255,255,255,0.3)',
-    letterSpacing: 3, marginBottom: 8, marginTop: 16,
-    paddingBottom: 4, borderBottom: '1px solid rgba(255,255,255,0.07)',
+    fontSize: 11, fontWeight: 600, fontFamily: BB_FONT,
+    color: BB_PRIMARY, letterSpacing: '0.25em',
+    marginBottom: 10, marginTop: 18,
+    paddingBottom: 6,
   }
 
-  const lbl = { fontSize: 10, color: 'rgba(255,255,255,0.45)', letterSpacing: 1, marginBottom: 3, display: 'block' }
+  const lbl = { fontSize: 12, fontWeight: 600, fontFamily: BB_FONT, color: BB_TEXT_SEC, letterSpacing: '0.08em', marginBottom: 4, display: 'block' }
 
   const ctxNote = contextMenu ? notesRef.current.find(n => n.id === contextMenu.noteId) : null
 
@@ -882,18 +899,20 @@ export default function BeatBeatersEditor() {
 
   return (
     <div style={{
-      position: 'fixed', inset: 0, background: '#0a0a0f', overflow: 'hidden',
+      position: 'fixed', inset: 0, background: BB_BG, overflow: 'hidden',
       display: 'flex', flexDirection: 'column',
-      fontFamily: '"IBM Plex Mono", monospace', color: '#F0F0F8',
+      fontFamily: BB_FONT, color: '#FFFFFF',
+      backgroundImage: `linear-gradient(rgba(0,140,255,0.03) 1px, transparent 1px), linear-gradient(90deg, rgba(0,140,255,0.03) 1px, transparent 1px)`,
+      backgroundSize: '40px 40px',
     }}>
       <style>{`
         @keyframes rec-pulse {
-          0%,100% { box-shadow: 0 0 0 0 rgba(255,59,59,0.5) }
-          50%      { box-shadow: 0 0 0 8px rgba(255,59,59,0) }
+          0%,100% { opacity: 1 }
+          50%      { opacity: 0.6 }
         }
         .rec-on { animation: rec-pulse 1s ease-in-out infinite; }
-        .editor-btn:hover { filter: brightness(1.2); }
-        input[type=range] { cursor: pointer; accent-color: #00C8FF; }
+        .editor-btn:hover { filter: brightness(1.15); }
+        input[type=range] { cursor: pointer; accent-color: #0088FF; }
       `}</style>
 
       {/* Hidden audio element */}
@@ -907,31 +926,33 @@ export default function BeatBeatersEditor() {
 
       {/* Top bar */}
       <div style={{
-        height: 48, flexShrink: 0,
-        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-        padding: '0 20px',
-        borderBottom: '1px solid rgba(255,255,255,0.1)',
-        background: 'rgba(8,8,14,0.9)',
+        flexShrink: 0,
+        display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between',
+        padding: '16px 24px 0',
+        background: 'rgba(4, 8, 28, 0.6)',
+        zIndex: 10,
       }}>
-        <div style={{ fontSize: 11, letterSpacing: 4, color: 'rgba(255,255,255,0.6)' }}>
+        <div style={{ fontSize: 18, fontWeight: 700, letterSpacing: '0.15em', color: '#FFFFFF', paddingBottom: 12 }}>
           BEAT BEATERS — CHART EDITOR
         </div>
-        <div style={{ display: 'flex', gap: 20 }}>
+        <div style={{ display: 'flex', gap: 24, paddingBottom: 12 }}>
           {[
             { to: '/lab/beat-beaters', label: '← BACK TO GAME' },
             { to: '/lab',              label: '← LAB' },
           ].map(({ to, label }) => (
             <Link key={to} to={to} style={{
-              fontSize: 10, color: 'rgba(255,255,255,0.35)', textDecoration: 'none',
-              letterSpacing: 2, transition: 'color 0.2s',
+              fontSize: 13, fontWeight: 500, color: BB_TEXT_SEC, textDecoration: 'none',
+              letterSpacing: '0.05em', transition: 'color 0.2s',
             }}
-            onMouseEnter={e => { e.currentTarget.style.color = 'rgba(255,255,255,0.8)' }}
-            onMouseLeave={e => { e.currentTarget.style.color = 'rgba(255,255,255,0.35)' }}>
+            onMouseEnter={e => { e.currentTarget.style.color = '#FFFFFF' }}
+            onMouseLeave={e => { e.currentTarget.style.color = BB_TEXT_SEC }}>
               {label}
             </Link>
           ))}
         </div>
       </div>
+      {/* Neon blue divider */}
+      <div style={{ height: 1, background: BB_PRIMARY, opacity: 0.5, boxShadow: `0 0 6px ${BB_PRIMARY}`, flexShrink: 0 }} />
 
       {/* Body */}
       <div style={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
@@ -939,9 +960,9 @@ export default function BeatBeatersEditor() {
         {/* Sidebar */}
         <div style={{
           width: 280, flexShrink: 0, overflowY: 'auto',
-          padding: '12px 16px 20px',
-          borderRight: '1px solid rgba(255,255,255,0.08)',
-          background: 'rgba(8,8,14,0.6)',
+          padding: '14px 16px 24px',
+          borderRight: `1px solid ${BB_BORDER}`,
+          background: 'rgba(4, 8, 28, 0.7)',
           display: 'flex', flexDirection: 'column',
         }}>
 
@@ -951,19 +972,26 @@ export default function BeatBeatersEditor() {
           <button
             className="editor-btn"
             style={{
-              ...btnSt(false), width: '100%', padding: '8px', marginBottom: 8,
-              border: '1px solid rgba(0,200,255,0.4)', color: '#00C8FF',
+              width: '100%', padding: '10px', marginBottom: 6,
+              background: 'transparent',
+              border: `1px solid ${BB_PRIMARY}`,
+              color: BB_PRIMARY,
+              fontFamily: BB_FONT, fontSize: 14, fontWeight: 700,
+              letterSpacing: '0.1em', cursor: 'pointer',
+              clipPath: BB_BEVEL, transition: 'all 0.2s',
             }}
+            onMouseEnter={e => { e.currentTarget.style.background = hexA(BB_PRIMARY, 0.12) }}
+            onMouseLeave={e => { e.currentTarget.style.background = 'transparent' }}
             onClick={() => fileInputRef.current?.click()}
           >
             UPLOAD AUDIO
           </button>
 
           {filename
-            ? <div style={{ fontSize: 10, color: '#30D158', letterSpacing: 1, marginBottom: 8, wordBreak: 'break-all' }}>
+            ? <div style={{ fontSize: 12, fontWeight: 600, color: BB_SUCCESS, letterSpacing: '0.03em', marginBottom: 8, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                 ✓ {filename}
               </div>
-            : <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.25)', marginBottom: 8 }}>
+            : <div style={{ fontSize: 12, fontWeight: 500, color: BB_TEXT_SEC, marginBottom: 8 }}>
                 No file selected
               </div>
           }
@@ -1007,15 +1035,34 @@ export default function BeatBeatersEditor() {
           {/* ── TRANSPORT ─────────────────────────── */}
           <div style={secHdr}>TRANSPORT</div>
 
-          <div style={{ display: 'flex', gap: 6, marginBottom: 8 }}>
+          <div style={{ display: 'flex', gap: 8, marginBottom: 8 }}>
             <button className="editor-btn"
-              style={{ ...btnSt(isPlaying, '#30D158'), flex: 1, opacity: audioLoaded ? 1 : 0.4 }}
+              style={{
+                flex: 1, padding: '10px 0',
+                background: isPlaying ? hexA(BB_SUCCESS, 0.15) : BB_PRIMARY,
+                border: `1px solid ${isPlaying ? BB_SUCCESS : BB_PRIMARY}`,
+                color: '#FFFFFF',
+                fontFamily: BB_FONT, fontSize: 14, fontWeight: 700,
+                letterSpacing: '0.08em',
+                cursor: audioLoaded ? 'pointer' : 'not-allowed',
+                opacity: audioLoaded ? 1 : 0.4,
+                clipPath: BB_BEVEL, transition: 'all 0.15s',
+              }}
               disabled={!audioLoaded}
               onClick={isPlaying ? handlePause : handlePlay}>
               {isPlaying ? '⏸ PAUSE' : '▶ PLAY'}
             </button>
             <button className="editor-btn"
-              style={{ ...btnSt(false), opacity: audioLoaded ? 1 : 0.4 }}
+              style={{
+                padding: '10px 14px',
+                background: 'transparent',
+                border: `1px solid ${BB_BORDER}`,
+                color: BB_TEXT_SEC,
+                fontFamily: BB_FONT, fontSize: 13, fontWeight: 600,
+                cursor: audioLoaded ? 'pointer' : 'not-allowed',
+                opacity: audioLoaded ? 1 : 0.4,
+                clipPath: BB_BEVEL, transition: 'all 0.15s',
+              }}
               disabled={!audioLoaded}
               onClick={handleStop}>
               ■ STOP
@@ -1023,8 +1070,8 @@ export default function BeatBeatersEditor() {
           </div>
 
           <div ref={timeDispRef} style={{
-            fontSize: 13, color: '#00C8FF', letterSpacing: 2,
-            textAlign: 'center', marginBottom: 6,
+            fontSize: 15, fontWeight: 500, color: BB_PRIMARY, letterSpacing: '0.08em',
+            textAlign: 'center', marginBottom: 6, fontFamily: '"IBM Plex Mono", monospace',
           }}>
             0:00 / 0:00
           </div>
@@ -1058,15 +1105,16 @@ export default function BeatBeatersEditor() {
           <button
             className={`editor-btn${isRecording ? ' rec-on' : ''}`}
             style={{
-              width: '100%', padding: '10px',
-              background:   isRecording ? '#FF3B3B' : 'rgba(255,59,59,0.08)',
-              border:       `1px solid ${isRecording ? '#FF3B3B' : 'rgba(255,59,59,0.3)'}`,
-              color:        isRecording ? '#FFFFFF' : 'rgba(255,59,59,0.7)',
-              fontFamily:   '"IBM Plex Mono", monospace',
-              fontSize:     13, letterSpacing: 3,
+              width: '100%', padding: '12px',
+              background:   isRecording ? '#FF1744' : 'transparent',
+              border:       `1px solid ${isRecording ? '#FF1744' : 'rgba(255,23,68,0.4)'}`,
+              color:        isRecording ? '#FFFFFF' : 'rgba(255,23,68,0.75)',
+              fontFamily:   BB_FONT,
+              fontSize:     14, fontWeight: 700, letterSpacing: '0.1em',
               cursor:       audioLoaded ? 'pointer' : 'not-allowed',
               opacity:      audioLoaded ? 1 : 0.4,
               transition:   'all 0.2s',
+              clipPath:     BB_BEVEL,
             }}
             disabled={!audioLoaded}
             onClick={toggleRecording}
@@ -1074,7 +1122,7 @@ export default function BeatBeatersEditor() {
             {isRecording ? '● RECORDING' : '○ REC'}
           </button>
           {isRecording && (
-            <div style={{ fontSize: 9, color: '#FF9F0A', letterSpacing: 2, textAlign: 'center', marginTop: 6 }}>
+            <div style={{ fontSize: 12, fontWeight: 600, color: '#FF9100', letterSpacing: '0.08em', textAlign: 'center', marginTop: 6 }}>
               PRESS W A S D SPACE I J K L
             </div>
           )}
@@ -1115,27 +1163,26 @@ export default function BeatBeatersEditor() {
             </button>
           </div>
 
-          <div style={{ fontSize: 11, color: '#00C8FF', letterSpacing: 2, marginTop: 10 }}>
+          <div style={{ fontSize: 14, fontWeight: 700, color: BB_PRIMARY, letterSpacing: '0.1em', marginTop: 10 }}>
             {noteCount} NOTE{noteCount !== 1 ? 'S' : ''}
           </div>
 
           {/* ── AUTO-GENERATE ────────────────────── */}
-          <div style={secHdr}>AUTO-GENERATE</div>
+          <div style={{ ...secHdr, color: '#a78bfa' }}>AUTO-GENERATE</div>
 
           <button
             className="editor-btn"
             style={{
-              width: '100%', padding: '9px',
-              background: autoAnalyzing
-                ? 'rgba(139,92,246,0.18)'
-                : audioLoaded ? 'rgba(139,92,246,0.08)' : 'rgba(139,92,246,0.04)',
-              border: `1px solid ${audioLoaded ? 'rgba(139,92,246,0.5)' : 'rgba(139,92,246,0.2)'}`,
-              color: audioLoaded ? (autoAnalyzing ? '#d4a8ff' : '#BF5AF2') : 'rgba(139,92,246,0.35)',
-              fontFamily: '"IBM Plex Mono", monospace',
-              fontSize: 11, letterSpacing: 2,
+              width: '100%', padding: '10px',
+              background: audioLoaded ? 'rgba(123,47,255,0.18)' : 'rgba(123,47,255,0.06)',
+              border: `1px solid ${audioLoaded ? '#7B2FFF' : 'rgba(123,47,255,0.3)'}`,
+              color: audioLoaded ? (autoAnalyzing ? 'rgba(180,150,255,0.7)' : '#c084fc') : 'rgba(123,47,255,0.4)',
+              fontFamily: BB_FONT,
+              fontSize: 14, fontWeight: 700, letterSpacing: '0.08em',
               cursor: audioLoaded && !autoAnalyzing ? 'pointer' : 'not-allowed',
               opacity: audioLoaded ? 1 : 0.5,
               transition: 'all 0.2s',
+              clipPath: BB_BEVEL,
             }}
             disabled={!audioLoaded || autoAnalyzing}
             onClick={handleAutoGenerate}
@@ -1146,21 +1193,21 @@ export default function BeatBeatersEditor() {
           <div style={{ marginTop: 10, marginBottom: 2 }}>
             <span style={{ ...lbl, display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
               <span>SENSITIVITY</span>
-              <span style={{ color: '#BF5AF2' }}>{autoSensitivity}</span>
+              <span style={{ color: '#a78bfa' }}>{autoSensitivity}</span>
             </span>
             <input
               type="range" min={0} max={100} value={autoSensitivity}
-              style={{ width: '100%', accentColor: '#BF5AF2' }}
+              style={{ width: '100%', accentColor: '#7B2FFF' }}
               disabled={!audioLoaded || autoAnalyzing}
               onChange={e => setAutoSensitivity(parseInt(e.target.value))}
             />
           </div>
 
           <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
-            <span style={{ fontSize: 9, color: 'rgba(255,255,255,0.3)', letterSpacing: 1 }}>
+            <span style={{ fontSize: 12, fontWeight: 600, color: BB_TEXT_SEC }}>
               {autoEstimate > 0 ? `~${autoEstimate} NOTES` : 'DENSITY'}
             </span>
-            <span style={{ fontSize: 9, color: 'rgba(139,92,246,0.55)' }}>
+            <span style={{ fontSize: 12, fontWeight: 700, color: '#a78bfa' }}>
               {autoSensitivity < 33 ? 'SPARSE' : autoSensitivity < 67 ? 'MODERATE' : 'DENSE'}
             </span>
           </div>
@@ -1175,19 +1222,18 @@ export default function BeatBeatersEditor() {
             ))}
           </div>
 
-          <div style={{ fontSize: 9, color: 'rgba(255,255,255,0.2)', lineHeight: 1.65, marginBottom: 8 }}>
+          <div style={{ fontSize: 12, fontWeight: 500, color: BB_TEXT_SEC, lineHeight: 1.65, marginBottom: 8, opacity: 0.8 }}>
             Generates a draft from the beat.<br />
             Edit afterward to taste.
           </div>
 
           {autoGenMsg && (
             <div style={{
-              fontSize: 9, letterSpacing: 0.5, lineHeight: 1.5, padding: '5px 8px',
-              background: autoGenMsg.startsWith('Generated')
-                ? 'rgba(48,209,88,0.08)' : 'rgba(255,59,59,0.08)',
-              border: `1px solid ${autoGenMsg.startsWith('Generated')
-                ? 'rgba(48,209,88,0.3)' : 'rgba(255,59,59,0.3)'}`,
-              color: autoGenMsg.startsWith('Generated') ? '#30D158' : '#FF3B3B',
+              fontSize: 12, fontWeight: 600, letterSpacing: '0.03em', lineHeight: 1.5, padding: '7px 10px',
+              background: autoGenMsg.startsWith('Generated') ? 'rgba(0,230,118,0.08)' : 'rgba(255,23,68,0.08)',
+              border: `1px solid ${autoGenMsg.startsWith('Generated') ? 'rgba(0,230,118,0.3)' : 'rgba(255,23,68,0.3)'}`,
+              borderLeft: `3px solid ${autoGenMsg.startsWith('Generated') ? BB_SUCCESS : '#FF1744'}`,
+              color: autoGenMsg.startsWith('Generated') ? BB_SUCCESS : '#FF1744',
             }}>
               {autoGenMsg}
             </div>
@@ -1198,26 +1244,30 @@ export default function BeatBeatersEditor() {
 
           <button className="editor-btn"
             style={{
-              width: '100%', padding: '9px',
-              background: 'rgba(255,180,0,0.1)',
-              border: '1px solid rgba(255,180,0,0.4)',
-              color: '#FFD60A',
-              fontFamily: '"IBM Plex Mono", monospace',
-              fontSize: 12, letterSpacing: 2, cursor: 'pointer',
+              width: '100%', padding: '12px',
+              background: exportMsg ? BB_SUCCESS : BB_PRIMARY,
+              border: 'none',
+              color: exportMsg ? '#04160b' : '#FFFFFF',
+              fontFamily: BB_FONT,
+              fontSize: 16, fontWeight: 700, letterSpacing: '0.1em',
+              cursor: 'pointer',
+              clipPath: BB_BEVEL, transition: 'all 0.3s',
             }}
+            onMouseEnter={e => { if (!exportMsg) e.currentTarget.style.filter = `drop-shadow(0 0 8px ${BB_PRIMARY})` }}
+            onMouseLeave={e => { e.currentTarget.style.filter = 'none' }}
             onClick={exportChart}>
             EXPORT JSON
           </button>
 
           {exportMsg && (
-            <div style={{ fontSize: 10, color: '#30D158', marginTop: 6, letterSpacing: 1 }}>
+            <div style={{ fontSize: 12, fontWeight: 600, color: BB_SUCCESS, marginTop: 6, letterSpacing: '0.05em' }}>
               {exportMsg}
             </div>
           )}
 
           {/* ── HELP ─────────────────────────────── */}
           <div style={{ marginTop: 'auto', paddingTop: 20 }}>
-            <div style={{ fontSize: 9, color: 'rgba(255,255,255,0.2)', lineHeight: 1.7 }}>
+            <div style={{ fontSize: 12, fontWeight: 500, color: BB_TEXT_SEC, lineHeight: 1.8, opacity: 0.7 }}>
               REC to record · DEL to delete<br />
               SCROLL to navigate · drag note to move<br />
               right-click note for options
@@ -1229,7 +1279,7 @@ export default function BeatBeatersEditor() {
         {/* Timeline canvas area */}
         <div
           ref={canvasAreaRef}
-          style={{ flex: 1, overflow: 'hidden', position: 'relative', cursor: 'crosshair' }}
+          style={{ flex: 1, overflow: 'hidden', position: 'relative', cursor: 'crosshair', borderTop: `1px solid ${BB_PRIMARY}` }}
         >
           <canvas
             ref={canvasRef}
@@ -1249,24 +1299,28 @@ export default function BeatBeatersEditor() {
         <div
           style={{
             position: 'fixed', left: contextMenu.x, top: contextMenu.y,
-            background: '#14141e', border: '1px solid rgba(255,255,255,0.15)',
-            zIndex: 200, minWidth: 190, padding: '6px 0',
-            boxShadow: '0 8px 32px rgba(0,0,0,0.6)',
+            background: 'rgba(4, 8, 28, 0.97)',
+            border: `1px solid ${BB_BORDER}`,
+            borderLeft: `3px solid ${BB_PRIMARY}`,
+            zIndex: 200, minWidth: 190, padding: '8px 0',
+            boxShadow: `0 8px 32px rgba(0,0,0,0.8), 0 0 20px rgba(0,136,255,0.1)`,
           }}
           onClick={e => e.stopPropagation()}
           onContextMenu={e => e.preventDefault()}
         >
-          <div style={{ padding: '4px 12px 6px', fontSize: 9, color: 'rgba(255,255,255,0.35)', letterSpacing: 2 }}>
+          <div style={{ padding: '4px 12px 8px', fontSize: 11, fontWeight: 600, color: BB_PRIMARY, letterSpacing: '0.2em', fontFamily: BB_FONT }}>
             MOVE TO LANE
           </div>
-          <div style={{ padding: '0 10px 8px', display: 'flex', gap: 4, flexWrap: 'wrap' }}>
+          <div style={{ padding: '0 10px 10px', display: 'flex', gap: 4, flexWrap: 'wrap' }}>
             {LANE_LABELS.map((lbl, i) => (
               <button key={i} style={{
-                background: hexA(LANE_COLORS[i], 0.18),
+                background: hexA(LANE_COLORS[i], 0.15),
                 border: `1px solid ${LANE_COLORS[i]}`,
                 color: LANE_COLORS[i],
-                fontFamily: '"IBM Plex Mono", monospace',
-                fontSize: 10, padding: '3px 7px', cursor: 'pointer',
+                fontFamily: BB_FONT,
+                fontSize: 12, fontWeight: 700,
+                padding: '4px 8px', cursor: 'pointer',
+                clipPath: BB_BEVEL,
               }} onClick={() => {
                 const n = notesRef.current.find(x => x.id === contextMenu.noteId)
                 if (n) { n.lane = i; dirtyRef.current = true }
@@ -1274,11 +1328,11 @@ export default function BeatBeatersEditor() {
               }}>{lbl}</button>
             ))}
           </div>
-          <div style={{ borderTop: '1px solid rgba(255,255,255,0.07)', margin: '0 0 4px' }} />
+          <div style={{ borderTop: `1px solid ${BB_BORDER}`, margin: '0 0 4px' }} />
           {[
             {
               label: `Convert to ${ctxNote.type === 'hold' ? 'TAP' : 'HOLD'}`,
-              color: '#F0F0F8',
+              color: '#FFFFFF',
               action: () => {
                 const n = notesRef.current.find(x => x.id === contextMenu.noteId)
                 if (n) {
@@ -1291,7 +1345,7 @@ export default function BeatBeatersEditor() {
             },
             {
               label: 'Delete',
-              color: '#FF3B3B',
+              color: '#FF1744',
               action: () => {
                 notesRef.current = notesRef.current.filter(n => n.id !== contextMenu.noteId)
                 setNoteCount(notesRef.current.length)
@@ -1302,9 +1356,9 @@ export default function BeatBeatersEditor() {
           ].map(({ label, color, action }) => (
             <button key={label} style={{
               display: 'block', width: '100%', textAlign: 'left',
-              padding: '7px 14px', background: 'none', border: 'none',
-              color, fontFamily: '"IBM Plex Mono", monospace',
-              fontSize: 11, cursor: 'pointer',
+              padding: '8px 14px', background: 'none', border: 'none',
+              color, fontFamily: BB_FONT,
+              fontSize: 13, fontWeight: 600, cursor: 'pointer',
             }}
             onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.06)' }}
             onMouseLeave={e => { e.currentTarget.style.background = 'none' }}

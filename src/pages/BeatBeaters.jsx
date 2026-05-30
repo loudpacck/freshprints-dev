@@ -1,6 +1,17 @@
 import { useEffect, useRef, useState, useMemo } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 
+// ─── Beat Saber design tokens ──────────────────────────────────────────────────
+
+const BB_BG       = '#05060f'
+const BB_PANEL_BG = 'rgba(4, 8, 28, 0.88)'
+const BB_BORDER   = 'rgba(0, 140, 255, 0.2)'
+const BB_BORDER_A = 'rgba(0, 180, 255, 0.6)'
+const BB_PRIMARY  = '#0088FF'
+const BB_TEXT_SEC = 'rgba(255,255,255,0.55)'
+const BB_BEVEL    = 'polygon(0 0, calc(100% - 8px) 0, 100% 8px, 100% 100%, 0 100%)'
+const BB_FONT     = "'Rajdhani', sans-serif"
+
 // ─── Constants ────────────────────────────────────────────────────────────────
 
 const LANE_COLORS = [
@@ -225,15 +236,10 @@ function EndScreen({ score, maxCombo, stats, totalNotes, onPlayAgain }) {
 
   const statBoxes = [
     { label: 'PERFECT', val: stats.perfect, color: '#FFD60A' },
-    { label: 'GOOD',    val: stats.good,    color: '#30D158' },
-    { label: 'LATE',    val: stats.late,    color: '#FF9F0A' },
-    { label: 'MISS',    val: stats.miss,    color: '#FF3B3B' },
+    { label: 'GOOD',    val: stats.good,    color: '#00E676' },
+    { label: 'LATE',    val: stats.late,    color: '#FF9100' },
+    { label: 'MISS',    val: stats.miss,    color: '#FF1744' },
   ]
-
-  const btn = {
-    background: 'transparent', fontFamily: '"IBM Plex Mono", monospace',
-    fontSize: 13, letterSpacing: 3, padding: '10px 28px', cursor: 'pointer', transition: 'all 0.2s',
-  }
 
   return (
     <div style={{
@@ -243,52 +249,78 @@ function EndScreen({ score, maxCombo, stats, totalNotes, onPlayAgain }) {
     }}>
       <div style={{
         pointerEvents: 'all',
-        background: 'rgba(8,8,14,0.97)',
-        border: `1px solid ${gc}`,
-        padding: '40px 52px', minWidth: 400, maxWidth: '90vw',
-        fontFamily: '"IBM Plex Mono", monospace', color: '#F0F0F8',
+        background: BB_PANEL_BG,
+        border: `1px solid ${BB_BORDER}`,
+        borderLeft: `3px solid ${gc}`,
+        padding: '40px 52px', minWidth: 400, maxWidth: 480, width: '90vw',
+        fontFamily: BB_FONT, color: '#FFFFFF',
         textAlign: 'center',
-        boxShadow: `0 0 60px ${gc}22, 0 0 120px rgba(0,0,0,0.9)`,
+        clipPath: BB_BEVEL,
+        boxShadow: '0 0 80px rgba(0,0,0,0.9)',
       }}>
-        <div style={{ fontSize: 9, letterSpacing: 4, color: 'rgba(255,255,255,0.35)', marginBottom: 16 }}>
-          BEAT BEATERS
+        <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: '0.3em', color: BB_TEXT_SEC, marginBottom: 8 }}>
+          RANK
         </div>
-        <div style={{ fontSize: 72, fontWeight: 700, color: gc, lineHeight: 1, marginBottom: 6, textShadow: `0 0 30px ${gc}` }}>
+        <div style={{ fontSize: 96, fontWeight: 700, color: gc, lineHeight: 1, marginBottom: 8, filter: `drop-shadow(0 0 20px ${gc})` }}>
           {grade}
         </div>
-        <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.45)', letterSpacing: 2, marginBottom: 20 }}>
+        <div style={{ fontSize: 15, fontWeight: 500, color: BB_TEXT_SEC, letterSpacing: '0.1em', marginBottom: 20 }}>
           {accuracy.toFixed(1)}% ACCURACY
         </div>
-        <div style={{ fontSize: 38, fontWeight: 700, letterSpacing: 3, marginBottom: 10 }}>
-          {score.toLocaleString()}
+
+        <div style={{ borderTop: `1px solid ${BB_BORDER}`, paddingTop: 20, marginBottom: 20 }}>
+          <div style={{ fontSize: 11, fontWeight: 600, color: BB_TEXT_SEC, letterSpacing: '0.2em', marginBottom: 4 }}>SCORE</div>
+          <div style={{ fontSize: 42, fontWeight: 700, letterSpacing: '0.05em', fontFamily: '"IBM Plex Mono", monospace' }}>
+            {score.toLocaleString()}
+          </div>
+          <div style={{ fontSize: 14, fontWeight: 700, color: '#FFD60A', letterSpacing: '0.1em', marginTop: 8 }}>
+            ★ {maxCombo}× MAX COMBO
+          </div>
         </div>
-        <div style={{ fontSize: 13, color: '#FFD60A', letterSpacing: 2, marginBottom: 28 }}>
-          ★ {maxCombo}x MAX COMBO
-        </div>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 8, marginBottom: 32 }}>
+
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 8, marginBottom: 32 }}>
           {statBoxes.map(({ label, val, color }) => (
-            <div key={label} style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', padding: '10px 6px' }}>
-              <div style={{ fontSize: 20, fontWeight: 700, color }}>{val}</div>
-              <div style={{ fontSize: 9, color: 'rgba(255,255,255,0.4)', letterSpacing: 1, marginTop: 4 }}>{label}</div>
+            <div key={label} style={{
+              background: 'rgba(255,255,255,0.03)',
+              border: `1px solid ${BB_BORDER}`,
+              borderLeft: `2px solid ${color}`,
+              padding: '10px 12px', textAlign: 'left',
+            }}>
+              <div style={{ fontSize: 22, fontWeight: 700, color, fontFamily: '"IBM Plex Mono", monospace' }}>{val}</div>
+              <div style={{ fontSize: 11, fontWeight: 600, color: BB_TEXT_SEC, letterSpacing: '0.15em', marginTop: 2 }}>{label}</div>
             </div>
           ))}
         </div>
-        <div style={{ display: 'flex', gap: 14, justifyContent: 'center' }}>
+
+        <div style={{ display: 'flex', gap: 12, justifyContent: 'center' }}>
           <button
             onClick={onPlayAgain}
-            style={{ ...btn, border: `1px solid ${gc}`, color: gc }}
-            onMouseEnter={e => { e.currentTarget.style.background = `${gc}18` }}
-            onMouseLeave={e => { e.currentTarget.style.background = 'transparent' }}
+            style={{
+              background: BB_PRIMARY, color: '#FFFFFF', border: 'none',
+              fontFamily: BB_FONT, fontSize: 16, fontWeight: 700,
+              letterSpacing: '0.1em', padding: '12px 28px',
+              cursor: 'pointer', transition: 'filter 0.2s',
+              clipPath: BB_BEVEL,
+            }}
+            onMouseEnter={e => { e.currentTarget.style.filter = `drop-shadow(0 0 8px ${BB_PRIMARY})` }}
+            onMouseLeave={e => { e.currentTarget.style.filter = 'none' }}
           >
             PLAY AGAIN
           </button>
           <Link
             to="/lab/beat-beaters"
-            style={{ ...btn, display: 'flex', alignItems: 'center', textDecoration: 'none', border: '1px solid rgba(255,255,255,0.25)', color: 'rgba(255,255,255,0.6)' }}
-            onMouseEnter={e => { e.currentTarget.style.borderColor = 'rgba(255,255,255,0.6)' }}
-            onMouseLeave={e => { e.currentTarget.style.borderColor = 'rgba(255,255,255,0.25)' }}
+            style={{
+              display: 'flex', alignItems: 'center', textDecoration: 'none',
+              border: `1px solid ${BB_BORDER}`, color: BB_TEXT_SEC,
+              fontFamily: BB_FONT, fontSize: 16, fontWeight: 600,
+              letterSpacing: '0.1em', padding: '12px 24px',
+              transition: 'all 0.2s',
+              clipPath: BB_BEVEL,
+            }}
+            onMouseEnter={e => { e.currentTarget.style.borderColor = BB_BORDER_A; e.currentTarget.style.color = '#FFFFFF' }}
+            onMouseLeave={e => { e.currentTarget.style.borderColor = BB_BORDER; e.currentTarget.style.color = BB_TEXT_SEC }}
           >
-            ← LAB
+            ← SONG SELECT
           </Link>
         </div>
       </div>
@@ -542,7 +574,7 @@ export default function BeatBeaters() {
 
       // ── Canvas clear ───────────────────────────────────────────────────────
       const bgPad = Math.abs(shakeX) + 1
-      ctx.fillStyle = '#0a0a0f'
+      ctx.fillStyle = BB_BG
       ctx.fillRect(-bgPad, 0, w + bgPad * 2, h)
 
       if (game.comboBreakFlash) {
@@ -849,7 +881,7 @@ export default function BeatBeaters() {
   if (!chartData) return null
 
   return (
-    <div style={{ position: 'fixed', inset: 0, background: '#0a0a0f', overflow: 'hidden', fontFamily: '"IBM Plex Mono", monospace' }}>
+    <div style={{ position: 'fixed', inset: 0, background: BB_BG, overflow: 'hidden', fontFamily: BB_FONT }}>
 
       <canvas ref={canvasRef} style={{ display: 'block', position: 'absolute', inset: 0 }} />
       <audio  ref={audioElRef} preload="auto" style={{ display: 'none' }} />
@@ -861,21 +893,21 @@ export default function BeatBeaters() {
 
       {/* HUD top bar */}
       <div style={{
-        position: 'absolute', top: 0, left: 0, right: 0, padding: '12px 20px',
+        position: 'absolute', top: 0, left: 0, right: 0, padding: '14px 20px',
         display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start',
-        background: 'linear-gradient(to bottom, rgba(0,0,0,0.65) 0%, transparent 100%)',
+        background: 'linear-gradient(to bottom, rgba(0,0,0,0.72) 0%, transparent 100%)',
         zIndex: 10, pointerEvents: 'none',
       }}>
-        {/* Song info */}
+        {/* Song info — floating text, no bg panel */}
         <div>
-          <div style={{ fontSize: 9, color: 'rgba(255,255,255,0.3)', letterSpacing: 3, marginBottom: 4 }}>
+          <div style={{ fontSize: 11, fontWeight: 600, color: BB_PRIMARY, letterSpacing: '0.3em', marginBottom: 5 }}>
             BEAT BEATERS
           </div>
-          <div style={{ fontSize: 14, fontWeight: 700, color: '#FFFFFF', letterSpacing: '0.1em' }}>
+          <div style={{ fontSize: 18, fontWeight: 700, color: '#FFFFFF', letterSpacing: '0.05em', lineHeight: 1.2 }}>
             {songTitle}
           </div>
           {songArtist && (
-            <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.45)', letterSpacing: '0.05em', marginTop: 2 }}>
+            <div style={{ fontSize: 13, fontWeight: 500, color: BB_TEXT_SEC, marginTop: 3 }}>
               {songArtist}
             </div>
           )}
@@ -884,12 +916,12 @@ export default function BeatBeaters() {
         {/* Score + Combo */}
         <div style={{ textAlign: 'right' }}>
           <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'flex-end', gap: 8 }}>
-            <span style={{ fontSize: 10, color: 'rgba(255,255,255,0.35)', letterSpacing: 2 }}>SCORE</span>
-            <span ref={hudScoreRef} style={{ fontSize: 20, fontWeight: 700, color: '#FFFFFF', letterSpacing: 2, display: 'inline-block', transformOrigin: 'right center' }}>0</span>
+            <span style={{ fontSize: 11, fontWeight: 600, color: BB_TEXT_SEC, letterSpacing: '0.15em' }}>SCORE</span>
+            <span ref={hudScoreRef} style={{ fontSize: 28, fontWeight: 700, color: '#FFFFFF', letterSpacing: '0.05em', display: 'inline-block', transformOrigin: 'right center', fontFamily: '"IBM Plex Mono", monospace' }}>0</span>
           </div>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 6, marginTop: 5, minHeight: 22 }}>
-            <span ref={hudMultRef} style={{ display: 'none', fontSize: 10, fontWeight: 700, background: 'rgba(255,255,255,0.12)', padding: '2px 6px', transformOrigin: 'right center' }}>×2</span>
-            <span ref={hudComboRef} style={{ display: 'none', fontSize: 18, fontWeight: 700, letterSpacing: 1, transformOrigin: 'right center' }}>0x</span>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 6, marginTop: 6, minHeight: 24 }}>
+            <span ref={hudMultRef} style={{ display: 'none', fontSize: 11, fontWeight: 700, padding: '2px 8px', transformOrigin: 'right center', clipPath: BB_BEVEL }}>×2</span>
+            <span ref={hudComboRef} style={{ display: 'none', fontSize: 18, fontWeight: 700, letterSpacing: '0.05em', transformOrigin: 'right center' }}>0x</span>
           </div>
         </div>
       </div>
@@ -899,11 +931,12 @@ export default function BeatBeaters() {
         to="/lab/beat-beaters"
         style={{
           position: 'absolute', top: 16, left: '50%', transform: 'translateX(-50%)',
-          fontSize: 10, color: 'rgba(255,255,255,0.22)', textDecoration: 'none',
-          letterSpacing: 2, zIndex: 10, transition: 'color 0.2s',
+          fontSize: 13, fontWeight: 500,
+          color: BB_TEXT_SEC, textDecoration: 'none',
+          letterSpacing: '0.1em', zIndex: 10, transition: 'color 0.2s',
         }}
-        onMouseEnter={e => { e.currentTarget.style.color = 'rgba(255,255,255,0.6)' }}
-        onMouseLeave={e => { e.currentTarget.style.color = 'rgba(255,255,255,0.22)' }}
+        onMouseEnter={e => { e.currentTarget.style.color = '#FFFFFF' }}
+        onMouseLeave={e => { e.currentTarget.style.color = BB_TEXT_SEC }}
       >
         ← SELECT
       </Link>
@@ -911,31 +944,39 @@ export default function BeatBeaters() {
       {/* IDLE — PRESS START */}
       {uiState === 'IDLE' && (
         <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', zIndex: 20, pointerEvents: 'none' }}>
+          <div style={{ textAlign: 'center', marginBottom: 36 }}>
+            <div style={{
+              fontSize: 56, fontWeight: 700, color: '#FFFFFF',
+              letterSpacing: '0.2em', lineHeight: 1,
+              textShadow: `0 0 30px ${BB_PRIMARY}, 0 0 80px rgba(0,136,255,0.3)`,
+            }}>
+              BEAT BEATERS
+            </div>
+            <div style={{ fontSize: 17, fontWeight: 500, color: BB_TEXT_SEC, marginTop: 12 }}>
+              {songTitle}
+            </div>
+            {songArtist && (
+              <div style={{ fontSize: 14, fontWeight: 400, color: BB_TEXT_SEC, opacity: 0.7, marginTop: 4 }}>
+                {songArtist}
+              </div>
+            )}
+          </div>
           <button
             onClick={startGame}
             style={{
-              pointerEvents: 'all', background: 'transparent',
-              border: '1px solid rgba(255,255,255,0.6)', color: '#FFFFFF',
-              fontFamily: '"IBM Plex Mono", monospace',
-              fontSize: 18, letterSpacing: 5, padding: '14px 44px', cursor: 'pointer',
-              textShadow: '0 0 12px rgba(255,255,255,0.5)',
-              boxShadow: '0 0 24px rgba(255,255,255,0.1), inset 0 0 24px rgba(255,255,255,0.03)',
-              transition: 'all 0.2s',
+              pointerEvents: 'all',
+              background: BB_PRIMARY, color: '#FFFFFF', border: 'none',
+              fontSize: 18, fontWeight: 700, letterSpacing: '0.15em',
+              padding: '16px 52px', cursor: 'pointer',
+              transition: 'filter 0.2s',
+              clipPath: BB_BEVEL,
             }}
-            onMouseEnter={e => {
-              e.currentTarget.style.background  = 'rgba(255,255,255,0.07)'
-              e.currentTarget.style.boxShadow   = '0 0 48px rgba(255,255,255,0.25), inset 0 0 24px rgba(255,255,255,0.05)'
-              e.currentTarget.style.borderColor = 'rgba(255,255,255,0.9)'
-            }}
-            onMouseLeave={e => {
-              e.currentTarget.style.background  = 'transparent'
-              e.currentTarget.style.boxShadow   = '0 0 24px rgba(255,255,255,0.1), inset 0 0 24px rgba(255,255,255,0.03)'
-              e.currentTarget.style.borderColor = 'rgba(255,255,255,0.6)'
-            }}
+            onMouseEnter={e => { e.currentTarget.style.filter = `drop-shadow(0 0 12px ${BB_PRIMARY})` }}
+            onMouseLeave={e => { e.currentTarget.style.filter = 'none' }}
           >
             PRESS START
           </button>
-          <div style={{ marginTop: 18, color: 'rgba(255,255,255,0.25)', fontSize: 11, letterSpacing: 3 }}>
+          <div style={{ marginTop: 20, color: BB_TEXT_SEC, fontSize: 13, fontWeight: 500, letterSpacing: '0.15em' }}>
             W A S D — SPACE — I J K L
           </div>
         </div>
