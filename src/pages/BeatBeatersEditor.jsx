@@ -207,6 +207,13 @@ export default function BeatBeatersEditor() {
   const [exportMsg,   setExportMsg]   = useState('')
   const [contextMenu, setContextMenu] = useState(null) // { x, y, noteId }
 
+  // Auto-generate state
+  const [autoSensitivity, setAutoSensitivity] = useState(50)
+  const [autoMerge,       setAutoMerge]       = useState(false)
+  const [autoAnalyzing,   setAutoAnalyzing]   = useState(false)
+  const [autoGenMsg,      setAutoGenMsg]      = useState('')
+  const [autoEstimate,    setAutoEstimate]    = useState(0)
+
   // DOM refs
   const canvasRef     = useRef(null)
   const canvasAreaRef = useRef(null)
@@ -503,6 +510,177 @@ export default function BeatBeatersEditor() {
     setSelectedIds(new Set())
     setNoteCount(0)
     dirtyRef.current = true
+  }
+
+  // ── Auto-generate ────────────────────────────────────────────────────────────
+
+  async function handleAutoGenerate() {
+    if (!audioLoaded || autoAnalyzing) return
+    setAutoAnalyzing(true)
+    setAutoGenMsg('')
+
+    // Yield so the ANALYZING state renders before the heavy work starts
+    await new Promise(resolve => setTimeout(resolve, 50))
+
+    try {
+      const response = await fetch(audioRef.current.src)
+      const arrayBuffer = await response.arrayBuffer()
+
+      const analysisCtx = new (window.AudioContext || window.webkitAudioContext)()
+      const buffer = await analysisCtx.decodeAudioData(arrayBuffer)
+      analysisCtx.close()
+
+      const numChannels = buffer.numberOfChannels
+      const length      = buffer.length
+      const sampleRate  = buffer.sampleRate
+
+      // Downmix to mono
+      const mono = new Float32Array(length)
+      for (let c = 0; c < numChannels; c++) {
+        const ch = buffer.getChannelData(c)
+        for (let i = 0; i < length; i++) mono[i] += ch[i] / numChannels
+      }
+
+      // Energy per frame
+      const frameSize = 1024
+      const hopSize   = 512
+      const numFrames = Math.floor((length - frameSize) / hopSize) + 1
+      const energy    = new Float32Array(numFrames)
+      for (let f = 0; f < numFrames; f++) {
+        const start = f * hopSize
+        let sum = 0
+        for (let i = start; i < start + frameSize && i < length; i++) sum += mono[i] * mono[i]
+        energy[f] = sum
+      }
+
+      // Onset detection function — positive energy flux (rectified spectral difference)
+      const odf = new Float32Array(numFrames)
+      for (let f = 1; f < numFrames; f++) odf[f] = Math.max(0, energy[f] - energy[f - 1])
+
+      // Adaptive threshold — sliding local mean + stddev
+      const windowFrames = Math.max(3, Math.round(0.5 * sampleRate / hopSize))
+      const halfWin      = Math.floor(windowFrames / 2)
+      // Higher slider = more notes = lower factor (more permissive threshold)
+      const sensitivityFactor = 3.0 - (autoSensitivity / 100) * 2.5
+      const threshold = new Float32Array(numFrames)
+      for (let f = 0; f < numFrames; f++) {
+        const lo = Math.max(0, f - halfWin)
+        const hi = Math.min(numFrames - 1, f + halfWin)
+        const count = hi - lo + 1
+        let mean = 0, sqMean = 0
+        for (let i = lo; i <= hi; i++) { mean += odf[i]; sqMean += odf[i] * odf[i] }
+        mean /= count; sqMean /= count
+        const std = Math.sqrt(Math.max(0, sqMean - mean * mean))
+        threshold[f] = mean + sensitivityFactor * std
+      }
+
+      // Peak-pick with 100 ms debounce
+      const minGapFrames = Math.max(1, Math.ceil(0.1 * sampleRate / hopSize))
+      const onsetFrames  = []
+      let lastFrame = -minGapFrames - 1
+      for (let f = 1; f < numFrames - 1; f++) {
+        if (
+          odf[f] > odf[f - 1] &&
+          odf[f] > odf[f + 1] &&
+          odf[f] > threshold[f] &&
+          f - lastFrame >= minGapFrames
+        ) {
+          onsetFrames.push(f)
+          lastFrame = f
+        }
+      }
+
+      if (onsetFrames.length === 0) {
+        setAutoGenMsg('No onsets detected — try raising sensitivity')
+        return
+      }
+
+      const onsetTimes = onsetFrames.map(f => (f * hopSize) / sampleRate)
+
+      // Zero-crossing rate per onset frame — cheap brightness proxy (high ZCR ≈ treble)
+      const zcrs = onsetFrames.map(f => {
+        const start = f * hopSize
+        let crossings = 0
+        for (let i = start; i < start + frameSize - 1 && i + 1 < length; i++) {
+          if ((mono[i] >= 0) !== (mono[i + 1] >= 0)) crossings++
+        }
+        return crossings / frameSize
+      })
+
+      // Normalize ZCR to [0,1]
+      let minZ = Infinity, maxZ = -Infinity
+      for (const z of zcrs) { if (z < minZ) minZ = z; if (z > maxZ) maxZ = z }
+      const zRange    = maxZ - minZ || 1
+      const brightness = zcrs.map(z => (z - minZ) / zRange)
+
+      // Lane assignment — bass → left cluster, treble → right cluster, mid → occasionally Space
+      const leftCluster  = [0, 1, 2, 3]
+      const rightCluster = [5, 6, 7, 8]
+      const lastLaneTime = new Array(9).fill(-Infinity)
+      const MIN_LANE_GAP = 0.15
+      let leftIdx = 0, rightIdx = 0
+
+      function pickFromCluster(cluster, rotIdx, t) {
+        let best = cluster[rotIdx % cluster.length]
+        if (t - lastLaneTime[best] < MIN_LANE_GAP) {
+          for (let j = 1; j < cluster.length; j++) {
+            const alt = cluster[(rotIdx + j) % cluster.length]
+            if (t - lastLaneTime[alt] >= MIN_LANE_GAP) { best = alt; break }
+          }
+        }
+        return best
+      }
+
+      const generatedNotes = []
+      for (let i = 0; i < onsetTimes.length; i++) {
+        const t = onsetTimes[i]
+        const b = brightness[i]
+        let lane
+
+        if (b >= 0.66) {
+          lane = pickFromCluster(rightCluster, rightIdx++, t)
+        } else if (b <= 0.34) {
+          lane = pickFromCluster(leftCluster, leftIdx++, t)
+        } else {
+          // Mid — route 1-in-5 to Space, rest split toward their sub-band
+          if (i % 5 === 2 && t - lastLaneTime[4] >= MIN_LANE_GAP) {
+            lane = 4
+          } else if (b >= 0.5) {
+            lane = pickFromCluster(rightCluster, rightIdx++, t)
+          } else {
+            lane = pickFromCluster(leftCluster, leftIdx++, t)
+          }
+        }
+
+        lastLaneTime[lane] = t
+        generatedNotes.push({ id: makeId(), lane, time: t, duration: 0, type: 'tap' })
+      }
+
+      // Quantize to current BPM grid
+      const bpmVal  = bpmRef.current
+      const gridVal = quantizeRef.current
+      const quantized = generatedNotes.map(n => ({
+        ...n,
+        time: Math.max(0, snap(n.time, bpmVal, gridVal)),
+      }))
+
+      if (autoMerge) {
+        notesRef.current = [...notesRef.current, ...quantized].sort((a, b) => a.time - b.time)
+      } else {
+        notesRef.current = quantized
+      }
+
+      dirtyRef.current = true
+      setNoteCount(notesRef.current.length)
+      setAutoEstimate(quantized.length)
+      setAutoGenMsg(`Generated ${quantized.length} notes — edit and export when ready`)
+
+    } catch (err) {
+      console.error('[AutoGen]', err)
+      setAutoGenMsg('Analysis failed — try again')
+    } finally {
+      setAutoAnalyzing(false)
+    }
   }
 
   // ── Export ───────────────────────────────────────────────────────────────────
@@ -940,6 +1118,80 @@ export default function BeatBeatersEditor() {
           <div style={{ fontSize: 11, color: '#00C8FF', letterSpacing: 2, marginTop: 10 }}>
             {noteCount} NOTE{noteCount !== 1 ? 'S' : ''}
           </div>
+
+          {/* ── AUTO-GENERATE ────────────────────── */}
+          <div style={secHdr}>AUTO-GENERATE</div>
+
+          <button
+            className="editor-btn"
+            style={{
+              width: '100%', padding: '9px',
+              background: autoAnalyzing
+                ? 'rgba(139,92,246,0.18)'
+                : audioLoaded ? 'rgba(139,92,246,0.08)' : 'rgba(139,92,246,0.04)',
+              border: `1px solid ${audioLoaded ? 'rgba(139,92,246,0.5)' : 'rgba(139,92,246,0.2)'}`,
+              color: audioLoaded ? (autoAnalyzing ? '#d4a8ff' : '#BF5AF2') : 'rgba(139,92,246,0.35)',
+              fontFamily: '"IBM Plex Mono", monospace',
+              fontSize: 11, letterSpacing: 2,
+              cursor: audioLoaded && !autoAnalyzing ? 'pointer' : 'not-allowed',
+              opacity: audioLoaded ? 1 : 0.5,
+              transition: 'all 0.2s',
+            }}
+            disabled={!audioLoaded || autoAnalyzing}
+            onClick={handleAutoGenerate}
+          >
+            {autoAnalyzing ? 'ANALYZING...' : 'AUTO-GENERATE CHART'}
+          </button>
+
+          <div style={{ marginTop: 10, marginBottom: 2 }}>
+            <span style={{ ...lbl, display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
+              <span>SENSITIVITY</span>
+              <span style={{ color: '#BF5AF2' }}>{autoSensitivity}</span>
+            </span>
+            <input
+              type="range" min={0} max={100} value={autoSensitivity}
+              style={{ width: '100%', accentColor: '#BF5AF2' }}
+              disabled={!audioLoaded || autoAnalyzing}
+              onChange={e => setAutoSensitivity(parseInt(e.target.value))}
+            />
+          </div>
+
+          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
+            <span style={{ fontSize: 9, color: 'rgba(255,255,255,0.3)', letterSpacing: 1 }}>
+              {autoEstimate > 0 ? `~${autoEstimate} NOTES` : 'DENSITY'}
+            </span>
+            <span style={{ fontSize: 9, color: 'rgba(139,92,246,0.55)' }}>
+              {autoSensitivity < 33 ? 'SPARSE' : autoSensitivity < 67 ? 'MODERATE' : 'DENSE'}
+            </span>
+          </div>
+
+          <div style={{ display: 'flex', gap: 4, marginBottom: 8 }}>
+            {['REPLACE', 'MERGE'].map(mode => (
+              <button key={mode} className="editor-btn"
+                style={{ ...btnSt((mode === 'MERGE') === autoMerge, '#BF5AF2'), flex: 1, fontSize: 10 }}
+                onClick={() => setAutoMerge(mode === 'MERGE')}>
+                {mode}
+              </button>
+            ))}
+          </div>
+
+          <div style={{ fontSize: 9, color: 'rgba(255,255,255,0.2)', lineHeight: 1.65, marginBottom: 8 }}>
+            Generates a draft from the beat.<br />
+            Edit afterward to taste.
+          </div>
+
+          {autoGenMsg && (
+            <div style={{
+              fontSize: 9, letterSpacing: 0.5, lineHeight: 1.5, padding: '5px 8px',
+              background: autoGenMsg.startsWith('Generated')
+                ? 'rgba(48,209,88,0.08)' : 'rgba(255,59,59,0.08)',
+              border: `1px solid ${autoGenMsg.startsWith('Generated')
+                ? 'rgba(48,209,88,0.3)' : 'rgba(255,59,59,0.3)'}`,
+              color: autoGenMsg.startsWith('Generated') ? '#30D158' : '#FF3B3B',
+            }}>
+              {autoGenMsg}
+            </div>
+          )}
 
           {/* ── EXPORT ───────────────────────────── */}
           <div style={secHdr}>EXPORT</div>
