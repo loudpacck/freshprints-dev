@@ -535,157 +535,194 @@ export default function BeatBeatersEditor() {
     await new Promise(resolve => setTimeout(resolve, 50))
 
     try {
-      const response = await fetch(audioRef.current.src)
+      // Step 1 — Decode audio
+      const response    = await fetch(audioRef.current.src)
       const arrayBuffer = await response.arrayBuffer()
-
       const analysisCtx = new (window.AudioContext || window.webkitAudioContext)()
-      const buffer = await analysisCtx.decodeAudioData(arrayBuffer)
+      const buffer      = await analysisCtx.decodeAudioData(arrayBuffer)
       analysisCtx.close()
 
-      const numChannels = buffer.numberOfChannels
-      const length      = buffer.length
       const sampleRate  = buffer.sampleRate
+      const duration    = buffer.duration
+      const length      = buffer.length
 
       // Downmix to mono
       const mono = new Float32Array(length)
-      for (let c = 0; c < numChannels; c++) {
+      for (let c = 0; c < buffer.numberOfChannels; c++) {
         const ch = buffer.getChannelData(c)
-        for (let i = 0; i < length; i++) mono[i] += ch[i] / numChannels
+        for (let i = 0; i < length; i++) mono[i] += ch[i] / buffer.numberOfChannels
       }
 
-      // Energy per frame
-      const frameSize = 1024
-      const hopSize   = 512
-      const numFrames = Math.floor((length - frameSize) / hopSize) + 1
-      const energy    = new Float32Array(numFrames)
-      for (let f = 0; f < numFrames; f++) {
-        const start = f * hopSize
-        let sum = 0
-        for (let i = start; i < start + frameSize && i < length; i++) sum += mono[i] * mono[i]
-        energy[f] = sum
+      // Step 2 — Build beat grid
+      const bpmVal  = bpmRef.current
+      const gridVal = quantizeRef.current
+      const beatDur = 60 / bpmVal
+      const sub     = beatDur / (gridVal === '1/4' ? 1 : gridVal === '1/8' ? 2 : 4)
+      const barDur  = beatDur * 4
+      const beatTol = sub * 0.1
+
+      const gridTimes = []
+      for (let i = 0; ; i++) {
+        const t = i * sub
+        if (t > duration) break
+        gridTimes.push(t)
       }
 
-      // Onset detection function — positive energy flux (rectified spectral difference)
-      const odf = new Float32Array(numFrames)
-      for (let f = 1; f < numFrames; f++) odf[f] = Math.max(0, energy[f] - energy[f - 1])
+      // Step 3 — Analyze each grid position
+      const winSize  = 512
+      const analysis = []
+      for (const T of gridTimes) {
+        const center = Math.floor(T * sampleRate)
+        const start  = Math.max(0, center - (winSize >> 1))
+        const win    = mono.slice(start, start + winSize)
+        if (win.length < 64) continue
 
-      // Adaptive threshold — sliding local mean + stddev
-      const windowFrames = Math.max(3, Math.round(0.5 * sampleRate / hopSize))
-      const halfWin      = Math.floor(windowFrames / 2)
-      // Higher slider = more notes = lower factor (more permissive threshold)
-      const sensitivityFactor = 3.0 - (autoSensitivity / 100) * 2.5
-      const threshold = new Float32Array(numFrames)
-      for (let f = 0; f < numFrames; f++) {
-        const lo = Math.max(0, f - halfWin)
-        const hi = Math.min(numFrames - 1, f + halfWin)
-        const count = hi - lo + 1
-        let mean = 0, sqMean = 0
-        for (let i = lo; i <= hi; i++) { mean += odf[i]; sqMean += odf[i] * odf[i] }
-        mean /= count; sqMean /= count
-        const std = Math.sqrt(Math.max(0, sqMean - mean * mean))
-        threshold[f] = mean + sensitivityFactor * std
-      }
+        let totalE = 0
+        for (let i = 0; i < win.length; i++) totalE += win[i] * win[i]
+        totalE /= win.length
 
-      // Peak-pick with 100 ms debounce
-      const minGapFrames = Math.max(1, Math.ceil(0.1 * sampleRate / hopSize))
-      const onsetFrames  = []
-      let lastFrame = -minGapFrames - 1
-      for (let f = 1; f < numFrames - 1; f++) {
-        if (
-          odf[f] > odf[f - 1] &&
-          odf[f] > odf[f + 1] &&
-          odf[f] > threshold[f] &&
-          f - lastFrame >= minGapFrames
-        ) {
-          onsetFrames.push(f)
-          lastFrame = f
+        let lowE = 0, lowN = 0
+        for (let i = 0; i < win.length; i += 4) { lowE += win[i] * win[i]; lowN++ }
+        lowE = lowN > 0 ? lowE / lowN : 0
+
+        let highE = 0
+        for (let i = 1; i < win.length; i++) {
+          const d = win[i] - win[i - 1]
+          highE += d * d
         }
+        highE /= (win.length - 1)
+
+        const brightness = highE / (totalE + 0.000001)
+
+        const tModBeat   = T % beatDur
+        const tModBar    = T % barDur
+        const isBeat     = tModBeat < beatTol || (beatDur - tModBeat) < beatTol
+        const isDownbeat = tModBar  < beatTol || (barDur  - tModBar)  < beatTol
+
+        analysis.push({ T, totalE, lowE, brightness, isBeat, isDownbeat })
       }
 
-      if (onsetFrames.length === 0) {
-        setAutoGenMsg('No onsets detected — try raising sensitivity')
+      if (analysis.length === 0) {
+        setAutoGenMsg('No grid positions — check BPM')
         return
       }
 
-      const onsetTimes = onsetFrames.map(f => (f * hopSize) / sampleRate)
+      const globalMean = analysis.reduce((s, d) => s + d.totalE, 0) / analysis.length
 
-      // Zero-crossing rate per onset frame — cheap brightness proxy (high ZCR ≈ treble)
-      const zcrs = onsetFrames.map(f => {
-        const start = f * hopSize
-        let crossings = 0
-        for (let i = start; i < start + frameSize - 1 && i + 1 < length; i++) {
-          if ((mono[i] >= 0) !== (mono[i + 1] >= 0)) crossings++
+      // Step 4 — Adaptive threshold (lerp from 2.8 at 0 sensitivity to 0.9 at 100)
+      const sensMult   = 2.8 - 1.9 * (autoSensitivity / 100)
+      const ROLLING    = 64
+      const MIN_GAP    = 0.15
+
+      // Step 5 state — cluster cycling and pattern shifts
+      const leftOrderFwd  = [0, 3, 1, 2]
+      const leftOrderRev  = [2, 1, 3, 0]
+      const rightOrderFwd = [5, 8, 6, 7]
+      const rightOrderRev = [7, 6, 8, 5]
+      let leftIdx      = 0
+      let rightIdx     = 0
+      let midToggle    = 'right'
+      let patternRev   = false
+      let lastShiftBar = 0
+
+      const lastLaneTime = new Array(9).fill(-Infinity)
+      const candidates   = []
+
+      for (let i = 0; i < analysis.length; i++) {
+        const d = analysis[i]
+
+        // Adaptive threshold from rolling mean of previous 64 positions
+        const lo = Math.max(0, i - ROLLING)
+        let rollingSum = 0
+        for (let j = lo; j < i; j++) rollingSum += analysis[j].totalE
+        const rollingMean = i > lo ? rollingSum / (i - lo) : d.totalE
+        const thresh = rollingMean * sensMult
+
+        if (d.totalE <= thresh) continue
+
+        // Pattern shift every 8 bars — reset indices and reverse cluster order
+        const curBar = Math.floor(d.T / barDur)
+        if (curBar >= lastShiftBar + 8) {
+          lastShiftBar = curBar
+          patternRev   = !patternRev
+          leftIdx  = 0
+          rightIdx = 0
         }
-        return crossings / frameSize
+
+        const lo_ = patternRev ? leftOrderRev  : leftOrderFwd
+        const ro_ = patternRev ? rightOrderRev : rightOrderFwd
+
+        let lane = -1
+
+        if (d.isDownbeat && d.lowE > thresh * 0.6) {
+          if (d.T - lastLaneTime[4] < MIN_GAP) continue
+          lane = 4
+        } else if (d.brightness < 0.25) {
+          const picked = lo_[leftIdx % lo_.length]
+          if (d.T - lastLaneTime[picked] < MIN_GAP) continue
+          lane = picked
+          leftIdx++
+        } else if (d.brightness > 0.65) {
+          const picked = ro_[rightIdx % ro_.length]
+          if (d.T - lastLaneTime[picked] < MIN_GAP) continue
+          lane = picked
+          rightIdx++
+        } else {
+          // Mid brightness — pick lane first, check gap, then advance state
+          const usingRight = midToggle === 'right'
+          const order  = usingRight ? ro_ : lo_
+          const idx    = usingRight ? rightIdx : leftIdx
+          const picked = order[idx % order.length]
+          if (d.T - lastLaneTime[picked] < MIN_GAP) continue
+          midToggle = usingRight ? 'left' : 'right'
+          if (usingRight) rightIdx++
+          else leftIdx++
+          lane = picked
+        }
+
+        if (lane < 0) continue
+        lastLaneTime[lane] = d.T
+        candidates.push({ T: d.T, lane, totalE: d.totalE })
+      }
+
+      // Step 6 — Remove isolated noise in sparse mode
+      const generated = candidates.filter((c, i) => {
+        if (c.totalE >= globalMean * 0.4) return true
+        if (autoSensitivity >= 50) return true
+        const tPrev = candidates[i - 1]?.T ?? -Infinity
+        const tNext = candidates[i + 1]?.T ?? Infinity
+        return (c.T - tPrev) <= sub * 2 || (tNext - c.T) <= sub * 2
       })
 
-      // Normalize ZCR to [0,1]
-      let minZ = Infinity, maxZ = -Infinity
-      for (const z of zcrs) { if (z < minZ) minZ = z; if (z > maxZ) maxZ = z }
-      const zRange    = maxZ - minZ || 1
-      const brightness = zcrs.map(z => (z - minZ) / zRange)
+      // Step 7 — Build note objects and apply
+      const notes = generated
+        .map(c => ({ id: makeId(), lane: c.lane, time: c.T, duration: 0, type: 'tap' }))
+        .sort((a, b) => a.time - b.time)
 
-      // Lane assignment — bass → left cluster, treble → right cluster, mid → occasionally Space
-      const leftCluster  = [0, 1, 2, 3]
-      const rightCluster = [5, 6, 7, 8]
-      const lastLaneTime = new Array(9).fill(-Infinity)
-      const MIN_LANE_GAP = 0.15
-      let leftIdx = 0, rightIdx = 0
+      const spaceN  = notes.filter(n => n.lane === 4).length
+      const leftN   = notes.filter(n => n.lane <= 3).length
+      const rightN  = notes.filter(n => n.lane >= 5).length
+      console.log('[AutoGen]', {
+        total: notes.length, space: spaceN, left: leftN, right: rightN,
+        bassRatio:   (leftN  / (notes.length || 1)).toFixed(2),
+        trebleRatio: (rightN / (notes.length || 1)).toFixed(2),
+      })
 
-      function pickFromCluster(cluster, rotIdx, t) {
-        let best = cluster[rotIdx % cluster.length]
-        if (t - lastLaneTime[best] < MIN_LANE_GAP) {
-          for (let j = 1; j < cluster.length; j++) {
-            const alt = cluster[(rotIdx + j) % cluster.length]
-            if (t - lastLaneTime[alt] >= MIN_LANE_GAP) { best = alt; break }
-          }
-        }
-        return best
+      if (notes.length === 0) {
+        setAutoGenMsg('No notes generated — try raising sensitivity')
+        return
       }
-
-      const generatedNotes = []
-      for (let i = 0; i < onsetTimes.length; i++) {
-        const t = onsetTimes[i]
-        const b = brightness[i]
-        let lane
-
-        if (b >= 0.66) {
-          lane = pickFromCluster(rightCluster, rightIdx++, t)
-        } else if (b <= 0.34) {
-          lane = pickFromCluster(leftCluster, leftIdx++, t)
-        } else {
-          // Mid — route 1-in-5 to Space, rest split toward their sub-band
-          if (i % 5 === 2 && t - lastLaneTime[4] >= MIN_LANE_GAP) {
-            lane = 4
-          } else if (b >= 0.5) {
-            lane = pickFromCluster(rightCluster, rightIdx++, t)
-          } else {
-            lane = pickFromCluster(leftCluster, leftIdx++, t)
-          }
-        }
-
-        lastLaneTime[lane] = t
-        generatedNotes.push({ id: makeId(), lane, time: t, duration: 0, type: 'tap' })
-      }
-
-      // Quantize to current BPM grid
-      const bpmVal  = bpmRef.current
-      const gridVal = quantizeRef.current
-      const quantized = generatedNotes.map(n => ({
-        ...n,
-        time: Math.max(0, snap(n.time, bpmVal, gridVal)),
-      }))
 
       if (autoMerge) {
-        notesRef.current = [...notesRef.current, ...quantized].sort((a, b) => a.time - b.time)
+        notesRef.current = [...notesRef.current, ...notes].sort((a, b) => a.time - b.time)
       } else {
-        notesRef.current = quantized
+        notesRef.current = notes
       }
 
       dirtyRef.current = true
       setNoteCount(notesRef.current.length)
-      setAutoEstimate(quantized.length)
-      setAutoGenMsg(`Generated ${quantized.length} notes — edit and export when ready`)
+      setAutoEstimate(notes.length)
+      setAutoGenMsg(`Generated ${notes.length} notes — edit and export when ready`)
 
     } catch (err) {
       console.error('[AutoGen]', err)
