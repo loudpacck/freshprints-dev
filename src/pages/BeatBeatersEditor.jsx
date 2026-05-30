@@ -611,10 +611,17 @@ export default function BeatBeatersEditor() {
 
       const globalMean = analysis.reduce((s, d) => s + d.totalE, 0) / analysis.length
 
-      // Step 4 — Adaptive threshold (lerp from 2.8 at 0 sensitivity to 0.9 at 100)
+      // Step 4 — Difficulty + adaptive threshold
+      // Difficulty read at generation time; default to medium if unset.
+      const diff = (difficulty === 'easy' || difficulty === 'medium' || difficulty === 'hard')
+        ? difficulty : 'medium'
+      // Density multiplier stacks on top of the sensitivity slider.
+      const diffThreshMult = diff === 'easy' ? 1.4 : diff === 'hard' ? 0.7 : 1.0
+
+      // Adaptive threshold (lerp from 2.8 at 0 sensitivity to 0.9 at 100)
       const sensMult   = 2.8 - 1.9 * (autoSensitivity / 100)
       const ROLLING    = 64
-      const MIN_GAP    = 0.15
+      const MIN_GAP    = 0.15   // 150ms per-lane gap-skip
 
       // ── Pass 1 — Collect every grid position that clears the energy threshold ──
       // No lane assignment here: just gather candidates so brightness can be
@@ -628,7 +635,7 @@ export default function BeatBeatersEditor() {
         let rollingSum = 0
         for (let j = lo; j < i; j++) rollingSum += analysis[j].totalE
         const rollingMean = i > lo ? rollingSum / (i - lo) : d.totalE
-        const thresh = rollingMean * sensMult
+        const thresh = rollingMean * sensMult * diffThreshMult
 
         if (d.totalE <= thresh) continue
 
@@ -656,6 +663,10 @@ export default function BeatBeatersEditor() {
       const energySorted   = candidates.map(c => c.totalE).sort((a, b) => a - b)
       const energyHiBound  = pctl(energySorted, 0.70)
 
+      // Strong-beat energy gates for chord layering (Medium/Hard).
+      const strongEnergyBound = pctl(energySorted, 0.60)  // top ~40%
+      const slamEnergyBound   = pctl(energySorted, 0.80)  // top ~20%
+
       console.log('[AutoGen] brightness distribution', {
         count:            candidates.length,
         brightnessMin:    brightSorted[0] ?? 0,
@@ -665,10 +676,9 @@ export default function BeatBeatersEditor() {
         hiBoundary,
       })
 
-      // ── Pass 2 — Assign lanes using RELATIVE brightness ──
-      // cluster cycling and pattern shifts
-      // Left cluster [0,1,2,3,4] cycled center-out; right cluster [6,7,8,9,10]
-      // mirrored; Space (5) reserved for downbeat punches.
+      // ── Pass 2 — Assign lanes (difficulty-aware) ──
+      // Cluster cycle orders (center-out, mirrored). 8-bar pattern reversal kept.
+      // Left cluster [0,1,2,3,4]; right cluster [6,7,8,9,10]; Space (5) for punches.
       const leftOrderFwd  = [2, 0, 4, 1, 3]
       const leftOrderRev  = [3, 1, 4, 0, 2]
       const rightOrderFwd = [8, 6, 10, 7, 9]
@@ -681,6 +691,22 @@ export default function BeatBeatersEditor() {
 
       const lastLaneTime = new Array(LANE_COUNT).fill(-Infinity)
       const placed       = []
+
+      const commit = (lane, T, totalE) => {
+        lastLaneTime[lane] = T
+        placed.push({ T, lane, totalE })
+      }
+      // Peek a lane from a cluster order; returns the lane if it clears the
+      // 150ms per-lane gap, else -1. Does not advance the index or commit.
+      const peek = (order, idx, T) => {
+        const lane = order[idx % order.length]
+        return (T - lastLaneTime[lane] < MIN_GAP) ? -1 : lane
+      }
+
+      // EASY phrase structure: 2-bar ACTIVE → 1-bar BREAK, alternating hands.
+      const phraseLen = 2 * barDur
+      const breakLen  = barDur
+      const cycleLen  = phraseLen + breakLen
 
       for (const c of candidates) {
         // Pattern shift every 8 bars — reset indices and reverse cluster order
@@ -695,37 +721,97 @@ export default function BeatBeatersEditor() {
         const lo_ = patternRev ? leftOrderRev  : leftOrderFwd
         const ro_ = patternRev ? rightOrderRev : rightOrderFwd
 
-        let lane = -1
+        // ── EASY — one hand at a time, chunks with breaks, never simultaneous ──
+        if (diff === 'easy') {
+          const posInCycle = c.T % cycleLen
+          if (posInCycle >= phraseLen) continue   // BREAK window — breather, discard
+          const activeHand = Math.floor(c.T / cycleLen) % 2 === 0 ? 'left' : 'right'
+          if (activeHand === 'left') {
+            const lane = peek(lo_, leftIdx, c.T)
+            if (lane < 0) continue
+            leftIdx++
+            commit(lane, c.T, c.totalE)
+          } else {
+            const lane = peek(ro_, rightIdx, c.T)
+            if (lane < 0) continue
+            rightIdx++
+            commit(lane, c.T, c.totalE)
+          }
+          continue
+        }
+
+        // ── HARD slam — top-20% downbeat, ~20% chance: one per cluster + Space ──
+        if (diff === 'hard' && c.isDownbeat && c.totalE >= slamEnergyBound && Math.random() < 0.20) {
+          const lL = peek(lo_, leftIdx,  c.T)
+          const rL = peek(ro_, rightIdx, c.T)
+          const sL = (c.T - lastLaneTime[SPACE_LANE] < MIN_GAP) ? -1 : SPACE_LANE
+          if (lL >= 0 && rL >= 0 && sL >= 0) {
+            leftIdx++
+            rightIdx++
+            commit(lL, c.T, c.totalE)
+            commit(rL, c.T, c.totalE)
+            commit(SPACE_LANE, c.T, c.totalE)
+            continue
+          }
+        }
+
+        // ── MEDIUM / HARD — primary note via frequency-based assignment ──
+        let primaryLane = -1
+        let primarySide = 'space'
 
         if (c.isDownbeat && c.totalE >= energyHiBound) {
           if (c.T - lastLaneTime[SPACE_LANE] < MIN_GAP) continue
-          lane = SPACE_LANE
+          primaryLane = SPACE_LANE
+          primarySide = 'space'
+          commit(SPACE_LANE, c.T, c.totalE)
         } else if (c.brightness <= loBoundary) {
-          const picked = lo_[leftIdx % lo_.length]
-          if (c.T - lastLaneTime[picked] < MIN_GAP) continue
-          lane = picked
+          const lane = peek(lo_, leftIdx, c.T)
+          if (lane < 0) continue
           leftIdx++
+          primaryLane = lane
+          primarySide = 'left'
+          commit(lane, c.T, c.totalE)
         } else if (c.brightness >= hiBoundary) {
-          const picked = ro_[rightIdx % ro_.length]
-          if (c.T - lastLaneTime[picked] < MIN_GAP) continue
-          lane = picked
+          const lane = peek(ro_, rightIdx, c.T)
+          if (lane < 0) continue
           rightIdx++
+          primaryLane = lane
+          primarySide = 'right'
+          commit(lane, c.T, c.totalE)
         } else {
-          // Mid band — pick lane first, check gap, then advance state
           const usingRight = midToggle === 'right'
-          const order  = usingRight ? ro_ : lo_
-          const idx    = usingRight ? rightIdx : leftIdx
-          const picked = order[idx % order.length]
-          if (c.T - lastLaneTime[picked] < MIN_GAP) continue
+          const order = usingRight ? ro_ : lo_
+          const idx   = usingRight ? rightIdx : leftIdx
+          const lane  = peek(order, idx, c.T)
+          if (lane < 0) continue
           midToggle = usingRight ? 'left' : 'right'
           if (usingRight) rightIdx++
           else leftIdx++
-          lane = picked
+          primaryLane = lane
+          primarySide = usingRight ? 'right' : 'left'
+          commit(lane, c.T, c.totalE)
         }
 
-        if (lane < 0) continue
-        lastLaneTime[lane] = c.T
-        placed.push({ T: c.T, lane, totalE: c.totalE })
+        if (primaryLane < 0 || primarySide === 'space') continue
+
+        // ── Simultaneous opposite-hand note ──
+        let addSecond = false
+        if (diff === 'medium') {
+          // Strong beats only (top ~40% energy), ~15% of them.
+          if (c.isBeat && c.totalE >= strongEnergyBound && Math.random() < 0.15) addSecond = true
+        } else { // hard — eligible on any beat, ~40%
+          if (c.isBeat && Math.random() < 0.40) addSecond = true
+        }
+
+        if (addSecond) {
+          if (primarySide === 'left') {
+            const lane = peek(ro_, rightIdx, c.T)
+            if (lane >= 0) { rightIdx++; commit(lane, c.T, c.totalE) }
+          } else {
+            const lane = peek(lo_, leftIdx, c.T)
+            if (lane >= 0) { leftIdx++; commit(lane, c.T, c.totalE) }
+          }
+        }
       }
 
       // Step 6 — Remove isolated noise in sparse mode
@@ -737,18 +823,35 @@ export default function BeatBeatersEditor() {
         return (c.T - tPrev) <= sub * 2 || (tNext - c.T) <= sub * 2
       })
 
-      // Step 7 — Build note objects and apply
+      // Step 7 — Build note objects, dedupe (same time AND lane), and apply
+      const seen = new Set()
       const notes = generated
+        .slice()
+        .sort((a, b) => a.T - b.T)
+        .filter(c => {
+          const key = `${c.T.toFixed(4)}:${c.lane}`
+          if (seen.has(key)) return false
+          seen.add(key)
+          return true
+        })
         .map(c => ({ id: makeId(), lane: c.lane, time: c.T, duration: 0, type: 'tap' }))
-        .sort((a, b) => a.time - b.time)
 
-      const spaceN  = notes.filter(n => n.lane === SPACE_LANE).length
-      const leftN   = notes.filter(n => n.lane < SPACE_LANE).length
-      const rightN  = notes.filter(n => n.lane > SPACE_LANE).length
+      const spaceN = notes.filter(n => n.lane === SPACE_LANE).length
+      const leftN  = notes.filter(n => n.lane < SPACE_LANE).length
+      const rightN = notes.filter(n => n.lane > SPACE_LANE).length
+      const timeCounts = {}
+      for (const n of notes) {
+        const k = n.time.toFixed(4)
+        timeCounts[k] = (timeCounts[k] || 0) + 1
+      }
+      const simultaneousPairs = Object.values(timeCounts).filter(v => v > 1).length
       console.log('[AutoGen]', {
-        total: notes.length, space: spaceN, left: leftN, right: rightN,
-        bassRatio:   (leftN  / (notes.length || 1)).toFixed(2),
-        trebleRatio: (rightN / (notes.length || 1)).toFixed(2),
+        difficulty: diff,
+        total: notes.length,
+        simultaneousPairs,
+        space: spaceN,
+        left: leftN,
+        right: rightN,
       })
 
       if (notes.length === 0) {
