@@ -8,6 +8,7 @@ const THEME_DESCS = {
   standard: 'Premium portfolio experience',
   digital:  'Hub-based command center',
   retro:    'A nostalgic 90s computer experience',
+  funky:    'Optical-art playground — fluid, colorful, alive',
   pantheon: 'Mythological grandeur. WotLK meets myth.',
 }
 
@@ -72,6 +73,27 @@ const THEME_PREVIEWS = {
       </div>
     ),
   },
+  funky: {
+    bg: '#12041F',
+    accent: '#BFFF00',
+    label: 'Funky',
+    preview: (
+      <div style={{ padding: '8px 10px', background: '#12041F', border: '1px solid rgba(191,255,0,0.3)' }}>
+        <div style={{
+          fontFamily: "'Unbounded', system-ui", fontSize: 10, fontWeight: 700, marginBottom: 4,
+          background: 'linear-gradient(120deg, #BFFF00, #00CFC1 55%, #FF6B5B)',
+          WebkitBackgroundClip: 'text', backgroundClip: 'text', WebkitTextFillColor: 'transparent', color: '#BFFF00',
+        }}>
+          Fresh Prints
+        </div>
+        <div style={{ display: 'flex', gap: 4 }}>
+          {['#BFFF00', '#00CFC1', '#FF6B5B', '#FFD4BC'].map(c => (
+            <span key={c} style={{ width: 10, height: 10, borderRadius: '50%', background: c, display: 'inline-block' }} />
+          ))}
+        </div>
+      </div>
+    ),
+  },
   pantheon: {
     bg: '#0A0710',
     accent: '#C9A961',
@@ -93,6 +115,7 @@ function getThemeHome(id) {
   if (id === 'digital') return '/hub'
   if (id === 'standard') return '/home'
   if (id === 'retro') return '/home'
+  if (id === 'funky') return '/home'
   return '/'
 }
 
@@ -108,7 +131,8 @@ export default function UIPicker({ isOpen, onClose }) {
   }, [isOpen, onClose])
 
   const pickerThemes = getPickerThemes()
-  const isRetro = themeId === 'retro'
+  // Single-mode themes (no light/dark) hide the mode picker
+  const isRetro = themeId === 'retro' || themeId === 'funky'
 
   return (
     <AnimatePresence>

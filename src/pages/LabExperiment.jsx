@@ -11,5 +11,5 @@ export default function LabExperiment() {
 
   if (experiment?.external) return <Navigate to={experiment.externalUrl} replace />
 
-  return (themeId === 'standard' || themeId === 'retro') ? <StandardLabExperiment /> : <DigitalLabExperiment />
+  return (themeId === 'standard' || themeId === 'retro' || themeId === 'funky') ? <StandardLabExperiment /> : <DigitalLabExperiment />
 }

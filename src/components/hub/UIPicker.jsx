@@ -10,6 +10,7 @@ import { themes, themeIds } from '@/themes/registry'
 function getThemeHome(id) {
   if (id === 'digital') return '/hub'
   if (id === 'standard') return '/home'
+  if (id === 'funky') return '/home'
   return '/'
 }
 

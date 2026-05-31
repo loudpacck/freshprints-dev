@@ -27,6 +27,7 @@ class SoundManager {
     if (id === 'retro')    return 'fp-sound-muted-retro'
     if (id === 'digital')  return 'fp-sound-muted-digital'
     if (id === 'pantheon') return 'fp-sound-muted-pantheon'
+    if (id === 'funky')    return 'fp-sound-muted-funky'
     return 'fp-sound-muted'
   }
 

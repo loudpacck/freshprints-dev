@@ -4,5 +4,5 @@ import StandardMedia from '@/components/standard/pages/StandardMedia'
 
 export default function Media() {
   const { themeId } = useTheme()
-  return (themeId === 'standard' || themeId === 'retro') ? <StandardMedia /> : <DigitalMedia />
+  return (themeId === 'standard' || themeId === 'retro' || themeId === 'funky') ? <StandardMedia /> : <DigitalMedia />
 }

@@ -1,0 +1,579 @@
+/* ============================================================
+   Funky UI — "Psychedelic Studio" optical-art playground
+   Dark only. One unconditional [data-ui="funky"] block so the
+   hosted Standard page variants render funky's palette no matter
+   what data-mode ThemeProvider happens to set.
+   Everything scoped to [data-ui="funky"] — nothing leaks.
+   ============================================================ */
+
+[data-ui="funky"] {
+  /* ─── Surfaces (Psychedelic Studio) ─── */
+  --bg-base:    #12041F;   /* deepest background */
+  --bg-surface: #21093A;   /* surface panels — calm, readable */
+  --bg-card:    #21093A;
+  --bg-elevated: #2D0A4E;  /* elevated / raised */
+  --bg-content: #21093A;
+  --bg-overlay: rgba(18, 4, 31, 0.88);
+  --bg-input:   #1A0630;
+
+  /* ─── Text ─── */
+  --text-primary:    #F5ECFF;
+  --text-secondary:  #C9B3E0;
+  --text-tertiary:   #9B82B8;
+  --text-quaternary: #6E5688;
+  --text-inverse:    #12041F;
+  --text-disabled:   #5A4675;
+
+  /* ─── Borders / hairlines ─── */
+  --border-subtle: rgba(245, 236, 255, 0.08);
+  --border-strong: rgba(245, 236, 255, 0.18);
+  --border-accent: rgba(191, 255, 0, 0.45);
+  --hairline:      rgba(245, 236, 255, 0.10);
+
+  /* ─── Accents ─── */
+  --accent:        #BFFF00;             /* lime — primary */
+  --accent-hover:  #D4FF4D;
+  --accent-muted:  rgba(191, 255, 0, 0.14);
+  --accent-text:   #12041F;
+
+  --accent-amber:        #00CFC1;       /* secondary → turquoise */
+  --accent-amber-hover:  #4DE0D5;
+  --accent-amber-muted:  rgba(0, 207, 193, 0.14);
+  --accent-amber-text:   #04140F;
+
+  /* Funky-specific named accents (use directly in funky chrome) */
+  --accent-lime:      #BFFF00;
+  --accent-turquoise: #00CFC1;
+  --accent-coral:     #FF6B5B;
+  --accent-peach:     #FFD4BC;
+
+  /* ─── Type families ─── */
+  --font-display: 'Unbounded', system-ui, sans-serif;   /* big headings only */
+  --font-body:    'Outfit', system-ui, sans-serif;      /* clean, readable */
+  --font-mono:    'Space Mono', ui-monospace, monospace;
+
+  /* ─── Base type scale (mirrors Standard — hosted pages depend on it) ─── */
+  --text-xs:   0.75rem;
+  --text-sm:   0.875rem;
+  --text-base: 1rem;
+  --text-lg:   1.125rem;
+  --text-xl:   1.25rem;
+  --text-2xl:  1.5rem;
+  --text-3xl:  1.875rem;
+  --text-4xl:  2.5rem;
+  --text-5xl:  3.5rem;
+  --text-6xl:  4.5rem;
+  --text-7xl:  6rem;
+
+  /* ─── Editorial display tier ─── */
+  --display-2xl: clamp(3.25rem, 2rem + 6.2vw, 7.5rem);
+  --display-xl:  clamp(2.75rem, 1.9rem + 4.2vw, 5.25rem);
+  --display-lg:  clamp(2.25rem, 1.7rem + 2.7vw, 3.75rem);
+  --display-md:  clamp(1.875rem, 1.55rem + 1.6vw, 2.75rem);
+  --display-sm:  clamp(1.5rem, 1.35rem + 0.75vw, 2rem);
+
+  /* ─── Eyebrow / mono label ─── */
+  --label-size:     0.78125rem;
+  --label-tracking: 0.16em;
+
+  --leading-display: 0.95;
+  --leading-tight:   1.1;
+  --leading-snug:    1.3;
+  --leading-normal:  1.55;
+  --leading-relaxed: 1.7;
+  --leading-loose:   1.8;
+
+  --tracking-display: -0.02em;
+  --tracking-tight:  -0.01em;
+  --tracking-normal: 0;
+  --tracking-wide:   0.04em;
+  --tracking-wider:  0.1em;
+  --tracking-widest: 0.2em;
+
+  --weight-light:     300;
+  --weight-regular:   400;
+  --weight-medium:    500;
+  --weight-semibold:  600;
+  --weight-bold:      700;
+  --weight-extrabold: 800;
+
+  /* ─── Organic / blob radii ─── */
+  --radius-sm:   0.5rem;
+  --radius-md:   0.875rem;
+  --radius-lg:   1.25rem;
+  --radius-xl:   1.75rem;
+  --radius-2xl:  2.25rem;
+  --radius-full: 9999px;
+  --radius-blob:   42% 58% 63% 37% / 41% 44% 56% 59%;
+  --radius-blob-2: 58% 42% 38% 62% / 49% 60% 40% 51%;
+  --radius-blob-3: 63% 37% 47% 53% / 38% 57% 43% 62%;
+
+  /* ─── Spacing / rhythm (mirrors Standard) ─── */
+  --space-px: 1px;
+  --space-1:  0.25rem;
+  --space-2:  0.5rem;
+  --space-3:  0.75rem;
+  --space-4:  1rem;
+  --space-5:  1.5rem;
+  --space-6:  2rem;
+  --space-7:  2.5rem;
+  --space-8:  3rem;
+  --space-10: 4rem;
+  --space-12: 6rem;
+  --space-14: 7rem;
+  --space-16: 8rem;
+  --space-20: 12rem;
+
+  --nav-height:    76px;
+  --container-max: 1280px;
+  --measure-card:  26rem;
+  --measure-prose: 60ch;
+
+  /* ─── Colorful shadows ─── */
+  --shadow-sm: 0 2px 8px rgba(18, 4, 31, 0.45);
+  --shadow-md: 0 8px 24px rgba(18, 4, 31, 0.55);
+  --shadow-lg: 0 16px 40px rgba(18, 4, 31, 0.6);
+  --shadow-xl: 0 28px 60px rgba(18, 4, 31, 0.65);
+
+  /* Offset (tinted) shadows — the op-art poster card look */
+  --shadow-lime:      8px 8px 0 rgba(191, 255, 0, 0.28);
+  --shadow-turquoise: 8px 8px 0 rgba(0, 207, 193, 0.30);
+  --shadow-coral:     8px 8px 0 rgba(255, 107, 91, 0.30);
+  --shadow-offset-card:       10px 10px 0 rgba(0, 207, 193, 0.22);
+  --shadow-offset-card-hover: 14px 14px 0 rgba(255, 107, 91, 0.32);
+
+  /* Glows */
+  --shadow-glow-lime:      0 0 28px rgba(191, 255, 0, 0.35);
+  --shadow-glow-turquoise: 0 0 28px rgba(0, 207, 193, 0.35);
+  --shadow-glow-coral:     0 0 28px rgba(255, 107, 91, 0.35);
+
+  /* ─── Gradients ─── */
+  --gradient-hero: linear-gradient(135deg, rgba(191,255,0,0.08) 0%, rgba(0,207,193,0.05) 45%, rgba(255,107,91,0.07) 100%);
+  --gradient-text: linear-gradient(120deg, #BFFF00 0%, #00CFC1 45%, #FF6B5B 100%);
+  --gradient-pill: linear-gradient(120deg, #BFFF00, #00CFC1 55%, #FF6B5B);
+
+  /* ─── Motion ─── */
+  --ease-standard: cubic-bezier(0.4, 0, 0.2, 1);
+  --ease-liquid:   cubic-bezier(0.5, 1.4, 0.4, 1);   /* rubbery overshoot */
+  --ease-smooth:   cubic-bezier(0.45, 0, 0.15, 1);
+  --duration-fast:   200ms;
+  --duration-base:   320ms;
+  --duration-slow:   520ms;
+
+  --z-modal: 1000;
+
+  /* ─── Status colors ─── */
+  --color-status-active:         #22C55E;
+  --color-status-beta:           #F59E0B;
+  --color-status-stable:         var(--accent);
+  --color-status-concept:        #8B5CF6;
+  --color-status-error:          #FF6B5B;
+  --color-status-in-development: #F59E0B;
+  --color-status-available:      #FFFFFF;
+
+  /* ─── Digital-name aliases — lets shared components render in Funky context ─── */
+  --color-bg-base:        var(--bg-base);
+  --color-bg-surface:     var(--bg-surface);
+  --color-bg-elevated:    var(--bg-elevated);
+  --color-bg-overlay:     var(--bg-overlay);
+  --color-border-subtle:  var(--border-subtle);
+  --color-border-default: var(--border-strong);
+  --color-border-strong:  var(--border-strong);
+  --color-accent-primary: var(--accent);
+  --color-accent-secondary: var(--accent-amber);
+  --color-text-primary:   var(--text-primary);
+  --color-text-secondary: var(--text-secondary);
+  --color-text-muted:     var(--text-tertiary);
+  --color-text-accent:    var(--accent);
+  --color-text-inverse:   var(--text-inverse);
+}
+
+/* ─── Global resets scoped to Funky ─── */
+[data-ui="funky"] body {
+  background-color: var(--bg-base);
+  color: var(--text-primary);
+  font-family: var(--font-body);
+  font-size: var(--text-base);
+  line-height: var(--leading-normal);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* ============================================================
+   Hosted-page utility classes — replicated from Standard,
+   re-scoped to [data-ui="funky"] so the Standard page variants
+   funky hosts keep their layout grid / max-width / rhythm.
+   ============================================================ */
+
+[data-ui="funky"] .s-container {
+  max-width: var(--container-max);
+  margin: 0 auto;
+  padding: 0 var(--space-8);
+}
+@media (max-width: 768px) {
+  [data-ui="funky"] .s-container { padding: 0 var(--space-5); }
+}
+
+[data-ui="funky"] .s-section { padding: var(--space-20) 0; }
+@media (max-width: 768px) {
+  [data-ui="funky"] .s-section { padding: var(--space-12) 0; }
+  [data-ui="funky"] {
+    --text-7xl: 3.5rem;
+    --text-6xl: 3rem;
+    --text-5xl: 2.5rem;
+  }
+}
+
+[data-ui="funky"] .s-grid-3 {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--space-6);
+}
+[data-ui="funky"] .s-grid-2 {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: var(--space-6);
+}
+@media (max-width: 960px) {
+  [data-ui="funky"] .s-grid-3 { grid-template-columns: repeat(2, 1fr); }
+}
+@media (max-width: 640px) {
+  [data-ui="funky"] .s-grid-3,
+  [data-ui="funky"] .s-grid-2 { grid-template-columns: 1fr; }
+}
+
+[data-ui="funky"] .s-cap-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--space-5);
+}
+@media (max-width: 960px) {
+  [data-ui="funky"] .s-cap-grid { grid-template-columns: repeat(2, 1fr); }
+}
+@media (max-width: 540px) {
+  [data-ui="funky"] .s-cap-grid { grid-template-columns: 1fr; }
+}
+
+/* ============================================================
+   Funky chrome treatments
+   ============================================================ */
+
+[data-ui="funky"] .funky-layout {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  background: var(--bg-base);
+}
+
+[data-ui="funky"] .funky-main {
+  flex: 1;
+  padding-top: var(--nav-height);
+  position: relative;
+  z-index: 1;
+}
+
+/* Liquid nav pill */
+[data-ui="funky"] .funky-pill {
+  position: relative;
+  border: none;
+  cursor: pointer;
+  font-family: var(--font-body);
+  font-weight: var(--weight-semibold);
+  color: var(--text-secondary);
+  background: transparent;
+  border-radius: var(--radius-full);
+  padding: 0.5rem 1.1rem;
+  isolation: isolate;
+  transition: color var(--duration-fast) var(--ease-smooth),
+              transform var(--duration-base) var(--ease-liquid);
+}
+[data-ui="funky"] .funky-pill::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  border-radius: var(--radius-full);
+  background: var(--gradient-pill);
+  opacity: 0;
+  transform: scaleX(0.6);
+  transform-origin: left center;
+  transition: opacity var(--duration-fast) var(--ease-smooth),
+              transform var(--duration-base) var(--ease-liquid);
+}
+[data-ui="funky"] .funky-pill:hover,
+[data-ui="funky"] .funky-pill:focus-visible {
+  color: var(--accent-text);
+  transform: translateY(-1px) scale(1.04);
+}
+[data-ui="funky"] .funky-pill:hover::before,
+[data-ui="funky"] .funky-pill:focus-visible::before {
+  opacity: 1;
+  transform: scaleX(1);
+}
+[data-ui="funky"] .funky-pill.active {
+  color: var(--accent-text);
+}
+[data-ui="funky"] .funky-pill.active::before {
+  opacity: 1;
+  transform: scaleX(1);
+}
+
+/* Organic morphing card — real frosted glass (Part B).
+   Translucent palette fill + backdrop-blur so the blobs breathe behind it
+   while body content stays clean. This is the ONE frosted layer; its host
+   section is kept transparent so blurs never stack into mud. */
+[data-ui="funky"] .funky-card {
+  background: var(--frost-panel);
+  border: 1px solid var(--frost-border);
+  border-radius: var(--radius-blob);
+  box-shadow: var(--shadow-offset-card);
+  -webkit-backdrop-filter: blur(var(--frost-blur)) saturate(140%);
+  backdrop-filter: blur(var(--frost-blur)) saturate(140%);
+  transition: border-radius var(--duration-slow) var(--ease-liquid),
+              box-shadow var(--duration-base) var(--ease-smooth),
+              transform var(--duration-base) var(--ease-liquid);
+}
+[data-ui="funky"] .funky-card:hover {
+  border-radius: var(--radius-blob-2);
+  box-shadow: var(--shadow-offset-card-hover);
+  transform: translateY(-3px);
+}
+
+/* Tactile liquid button */
+[data-ui="funky"] .funky-button {
+  position: relative;
+  border: none;
+  cursor: pointer;
+  font-family: var(--font-body);
+  font-weight: var(--weight-bold);
+  border-radius: var(--radius-full);
+  padding: 0.7rem 1.6rem;
+  isolation: isolate;
+  transition: transform var(--duration-base) var(--ease-liquid),
+              box-shadow var(--duration-base) var(--ease-smooth);
+}
+[data-ui="funky"] .funky-button:hover {
+  transform: translateY(-2px) scale(1.03);
+}
+[data-ui="funky"] .funky-button:active {
+  transform: translateY(0) scale(0.98);
+}
+
+/* ============================================================
+   Background animation — keyframes uniquely namespaced
+   so they never collide with other themes' global keyframes.
+   ============================================================ */
+@keyframes funky-blob-drift-a {
+  0%, 100% { transform: translate(0, 0) scale(1) rotate(0deg); border-radius: 42% 58% 63% 37% / 41% 44% 56% 59%; }
+  33%      { transform: translate(6vw, -4vh) scale(1.12) rotate(40deg); border-radius: 58% 42% 38% 62% / 49% 60% 40% 51%; }
+  66%      { transform: translate(-4vw, 5vh) scale(0.94) rotate(-30deg); border-radius: 63% 37% 47% 53% / 38% 57% 43% 62%; }
+}
+@keyframes funky-blob-drift-b {
+  0%, 100% { transform: translate(0, 0) scale(1) rotate(0deg); border-radius: 58% 42% 38% 62% / 49% 60% 40% 51%; }
+  50%      { transform: translate(-7vw, 6vh) scale(1.18) rotate(-50deg); border-radius: 42% 58% 63% 37% / 41% 44% 56% 59%; }
+}
+@keyframes funky-blob-drift-c {
+  0%, 100% { transform: translate(0, 0) scale(1) rotate(0deg); border-radius: 63% 37% 47% 53% / 38% 57% 43% 62%; }
+  40%      { transform: translate(5vw, 7vh) scale(0.9) rotate(35deg); }
+  75%      { transform: translate(-6vw, -5vh) scale(1.15) rotate(-25deg); border-radius: 42% 58% 63% 37% / 41% 44% 56% 59%; }
+}
+@keyframes funky-wash-hue {
+  0%   { filter: hue-rotate(0deg); }
+  100% { filter: hue-rotate(360deg); }
+}
+@keyframes funky-ripple-breathe {
+  0%, 100% { transform: scale(1); opacity: 0.5; }
+  50%      { transform: scale(1.08); opacity: 0.8; }
+}
+
+[data-ui="funky"] .funky-bg {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  overflow: hidden;
+  pointer-events: none;
+  background: var(--bg-base);
+}
+[data-ui="funky"] .funky-blob {
+  position: absolute;
+  width: 46vmax;
+  height: 46vmax;
+  filter: blur(60px);
+  opacity: 0.55;
+  mix-blend-mode: screen;
+  will-change: transform, border-radius;
+}
+[data-ui="funky"] .funky-blob--a {
+  top: -10vmax; left: -8vmax;
+  background: radial-gradient(circle at 35% 35%, var(--accent-lime), transparent 70%);
+  animation: funky-blob-drift-a 34s var(--ease-smooth) infinite;
+}
+[data-ui="funky"] .funky-blob--b {
+  bottom: -14vmax; right: -10vmax;
+  background: radial-gradient(circle at 50% 50%, var(--accent-turquoise), transparent 70%);
+  animation: funky-blob-drift-b 42s var(--ease-smooth) infinite;
+}
+[data-ui="funky"] .funky-blob--c {
+  top: 30%; left: 40%;
+  background: radial-gradient(circle at 50% 50%, var(--accent-coral), transparent 70%);
+  animation: funky-blob-drift-c 38s var(--ease-smooth) infinite;
+}
+/* Faint optical-illusion concentric field, low-contrast, behind content */
+[data-ui="funky"] .funky-optical {
+  position: absolute;
+  inset: -25%;
+  background: repeating-radial-gradient(
+    circle at 50% 50%,
+    rgba(245, 236, 255, 0.022) 0px,
+    rgba(245, 236, 255, 0.022) 2px,
+    transparent 2px,
+    transparent 26px
+  );
+  animation: funky-ripple-breathe 16s ease-in-out infinite;
+}
+
+/* ============================================================
+   Reduced motion — freeze the background, calm all liquid.
+   ============================================================ */
+@media (prefers-reduced-motion: reduce) {
+  [data-ui="funky"] .funky-blob,
+  [data-ui="funky"] .funky-optical {
+    animation: none !important;
+  }
+  [data-ui="funky"] .funky-pill,
+  [data-ui="funky"] .funky-pill::before,
+  [data-ui="funky"] .funky-card,
+  [data-ui="funky"] .funky-button {
+    transition: opacity var(--duration-fast) ease, color var(--duration-fast) ease !important;
+  }
+  [data-ui="funky"] .funky-pill:hover,
+  [data-ui="funky"] .funky-pill:focus-visible,
+  [data-ui="funky"] .funky-button:hover,
+  [data-ui="funky"] .funky-card:hover {
+    transform: none !important;
+  }
+}
+
+/* ============================================================
+   FUNKY — PART B : Frosted panel system + showpiece motion
+   Everything here is scoped to [data-ui="funky"]. No other theme
+   changes. This block is intentionally LATER in the file so its
+   token redefinitions override the Part A defaults above.
+   ============================================================ */
+
+[data-ui="funky"] {
+  /* ── Frosted glass (paired with backdrop-blur on .funky-card) ──
+     Opacity is high enough to stay legible even if backdrop-filter silently
+     no-ops (it dies under any transform/filter ancestor, e.g. framer-motion),
+     so the fill alone carries the contrast; the blur is an enhancement. ── */
+  --frost-panel:  rgba(33, 9, 58, 0.76);
+  --frost-border: rgba(245, 236, 255, 0.16);
+  --frost-blur:   16px;
+
+  /* ── Hosted Standard cards/panels become translucent so the blobs glow
+     behind them. These are inline-styled (no class), so they can't take a
+     backdrop-blur cleanly — opacity is kept HIGH so body text stays legible
+     against even the brightest accent blob (lime is very bright) passing
+     behind. Contrast beats blob visibility on content cards (per spec). ── */
+  --bg-card:     rgba(33, 9, 58, 0.90);
+  --bg-content:  rgba(33, 9, 58, 0.90);
+  --bg-elevated: rgba(45, 10, 78, 0.88);
+  --color-bg-elevated: var(--bg-elevated);
+}
+
+/* ── Section transparency ──
+   Hosted page sections set their fill via inline `background: var(--bg-*)`
+   (a background-COLOR). Hero sections use `background: var(--gradient-hero)`
+   (a background-IMAGE). Nulling only the color layer drops the solid section
+   fills — revealing the fixed FunkyBackground on EVERY route — while hero
+   gradients survive. Catches both classed (.s-section) and unclassed sections. */
+[data-ui="funky"] .funky-main section {
+  background-color: transparent !important;
+}
+
+/* ============================================================
+   Optical-illusion section dividers (decorative, aria-hidden)
+   ============================================================ */
+@keyframes funky-divider-drift {
+  0%   { background-position: 0 0, 0 0; }
+  100% { background-position: 120px 0, -90px 0; }
+}
+[data-ui="funky"] .funky-divider {
+  position: relative;
+  width: 100%;
+  height: 96px;
+  pointer-events: none;
+  overflow: hidden;
+}
+[data-ui="funky"] .funky-divider::before {
+  content: '';
+  position: absolute;
+  inset: -60% -10%;
+  background-image:
+    repeating-radial-gradient(circle at 50% 50%,
+      rgba(0, 207, 193, 0.10) 0px, rgba(0, 207, 193, 0.10) 1.5px,
+      transparent 1.5px, transparent 16px),
+    repeating-radial-gradient(circle at 50% 50%,
+      rgba(191, 255, 0, 0.08) 0px, rgba(191, 255, 0, 0.08) 1.5px,
+      transparent 1.5px, transparent 21px);
+  -webkit-mask-image: linear-gradient(90deg, transparent, #000 18%, #000 82%, transparent);
+  mask-image: linear-gradient(90deg, transparent, #000 18%, #000 82%, transparent);
+  animation: funky-divider-drift 26s linear infinite;
+}
+/* Wavy variant — concentric rings swapped for soft sine bands */
+[data-ui="funky"] .funky-divider--waves::before {
+  background-image:
+    repeating-linear-gradient(90deg,
+      rgba(255, 107, 91, 0.09) 0px, rgba(255, 107, 91, 0.09) 1.5px,
+      transparent 1.5px, transparent 14px),
+    repeating-linear-gradient(90deg,
+      rgba(0, 207, 193, 0.07) 0px, rgba(0, 207, 193, 0.07) 1.5px,
+      transparent 1.5px, transparent 19px);
+}
+
+/* ============================================================
+   Liquid page transition overlay (funky-only)
+   Rendered by FunkyPageTransition; framer-motion drives the wipe.
+   ============================================================ */
+[data-ui="funky"] .funky-transition {
+  position: fixed;
+  inset: 0;
+  z-index: 49;            /* above content (z 1), below the sticky nav (z 50) */
+  pointer-events: none;
+  background: var(--gradient-pill);
+  transform-origin: top center;
+}
+
+/* ============================================================
+   Cursor click-pulse (funky-only) — soft color ripple on click
+   ============================================================ */
+[data-ui="funky"] .funky-pulse-layer {
+  position: fixed;
+  inset: 0;
+  z-index: 45;            /* under nav + transition, over content bg */
+  pointer-events: none;
+  overflow: hidden;
+}
+[data-ui="funky"] .funky-pulse {
+  position: absolute;
+  width: 14px;
+  height: 14px;
+  margin: -7px 0 0 -7px;
+  border-radius: var(--radius-full);
+  background: radial-gradient(circle, var(--accent-turquoise) 0%, transparent 70%);
+  mix-blend-mode: screen;
+  animation: funky-pulse-expand 620ms var(--ease-smooth) forwards;
+}
+@keyframes funky-pulse-expand {
+  0%   { transform: scale(1);  opacity: 0.55; }
+  100% { transform: scale(26); opacity: 0; }
+}
+
+/* ============================================================
+   Part B reduced-motion — freeze dividers, pulses, transitions
+   ============================================================ */
+@media (prefers-reduced-motion: reduce) {
+  [data-ui="funky"] .funky-divider::before { animation: none !important; }
+  [data-ui="funky"] .funky-pulse { display: none !important; }
+}

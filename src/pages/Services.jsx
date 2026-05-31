@@ -4,5 +4,5 @@ import StandardServices from '@/components/standard/pages/StandardServices'
 
 export default function Services() {
   const { themeId } = useTheme()
-  return (themeId === 'standard' || themeId === 'retro') ? <StandardServices /> : <DigitalServices />
+  return (themeId === 'standard' || themeId === 'retro' || themeId === 'funky') ? <StandardServices /> : <DigitalServices />
 }

@@ -19,10 +19,12 @@ import { ambienceManager } from '@/sound/AmbienceManager'
 import PWTitleCardSequence from '@/components/games/pantheon-wars/PWTitleCardSequence'
 import StandardLayout from '@/components/standard/StandardLayout'
 import RetroLayout from '@/components/retro/RetroLayout'
+import FunkyLayout from '@/components/funky/FunkyLayout'
 
 const Landing         = lazy(() => import('@/pages/Landing'))
 const StandardLanding = lazy(() => import('@/pages/StandardLanding'))
 const RetroLanding    = lazy(() => import('@/pages/RetroLanding'))
+const FunkyLanding    = lazy(() => import('@/pages/FunkyLanding'))
 const Hub             = lazy(() => import('@/pages/Hub'))
 const About           = lazy(() => import('@/pages/About'))
 const Portfolio       = lazy(() => import('@/pages/Portfolio'))
@@ -89,6 +91,7 @@ function PageLayout({ children }) {
   const { themeId } = useTheme()
   if (themeId === 'standard') return <StandardLayout>{children}</StandardLayout>
   if (themeId === 'retro')    return <RetroLayout>{children}</RetroLayout>
+  if (themeId === 'funky')    return <FunkyLayout>{children}</FunkyLayout>
   return <>{children}</>
 }
 
@@ -148,6 +151,9 @@ function HomeRoute() {
   const { themeId } = useTheme()
   if (themeId === 'retro') {
     return <RetroLayout><RetroLanding /></RetroLayout>
+  }
+  if (themeId === 'funky') {
+    return <FunkyLayout><FunkyLanding /></FunkyLayout>
   }
   return <PageLayout><StandardLanding /></PageLayout>
 }

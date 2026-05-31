@@ -1,13 +1,23 @@
-export default {
+export const funkyManifest = {
   id: 'funky',
   label: 'Funky',
-  status: 'stub',
-  hidden: true,
-  navigation: 'hub',
+  description: 'Optical-art playground — trippy, fluid, alive, but fully usable.',
+  tagline: 'Psychedelic studio. Liquid and loud.',
+  status: 'complete',
+  supportsLightMode: false,
+  supportsDarkMode: true,
+  defaultMode: 'dark',
+  layoutType: 'traditional',
+  navigation: 'navbar',
   hasSoundFx: true,
-  soundPack: null,
-  fonts: {},
-  tagline: 'Locked — for now.',
-  description: 'Something different is brewing. Details TBA.',
-  palette: ['#0D0D1A', '#1A1A40', '#8B5CF6', '#EC4899', '#F59E0B'],
+  soundPack: 'funky',
+  fonts: {
+    display: 'Unbounded',
+    body: 'Outfit',
+    mono: 'Space Mono',
+  },
+  hidden: false,
+  palette: ['#12041F', '#2D0A4E', '#BFFF00', '#00CFC1', '#FF6B5B'],
 }
+
+export default funkyManifest

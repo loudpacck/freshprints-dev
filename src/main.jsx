@@ -8,10 +8,13 @@ import '@/themes/retro/tokens.css'
 import '@/themes/retro/fonts.css'
 import '@/themes/pantheon/tokens.css'
 import '@/themes/pantheon/fonts.css'
+import '@/themes/funky/tokens.css'
+import '@/themes/funky/fonts.css'
 import './styles/global.css'
 import './sound/packs/digital'
 import './sound/packs/retro'
 import './sound/packs/pantheon'
+import './sound/packs/funky'
 import App from './App.jsx'
 
 createRoot(document.getElementById('root')).render(

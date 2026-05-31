@@ -94,6 +94,8 @@ Status values are defined in `src/components/ui/Badge.jsx` (Digital), `src/compo
 - [x] Phase 14a — Standard UI Foundation (2026-05-11)
 - [x] Phase 14b — Standard UI Inner Pages (2026-05-12)
 - [x] Phase 16 — Beat Beaters Rhythm Game (2026-05-30)
+- [x] Phase 17a — Funky UI Foundation (2026-05-31)
+- [x] Phase 17b — Funky Showpiece (frosted panels, liquid transitions, dividers) (2026-05-31)
 
 ## Phase 10 — Mobile Audit Results (2026-05-10)
 
@@ -794,3 +796,80 @@ Decodes the uploaded audio, builds a beat grid from BPM + quantize grid, scores 
 - **Hard** — dense slams: top-20% downbeats have a ~20% chance to fire one note per cluster + Space simultaneously, and any beat has a ~40% chance of an opposite-hand chord.
 
 Lane assignment uses center-out cluster cycle orders with an 8-bar pattern reversal: **left cluster [0,1,2,3]** (order [2,0,3,1]), **right cluster [5,6,7,8]** (order [6,5,8,7]), **Space (lane 4)** reserved for downbeat punches. A 150ms per-lane gap-skip prevents same-lane spam. Brightness boundaries are computed per-song from percentile distribution (dark→left, bright→right, mid→toggle). REPLACE vs MERGE controls whether output replaces existing notes or merges into them.
+
+---
+
+## Phase 17a — Funky UI Foundation (2026-05-31)
+
+Fourth UI variant. "Psychedelic Studio" — an optical-art playground: trippy, fluid, colorful, hypnotic, but fully usable. Headings/backgrounds/chrome are wild; body text and content panels stay clean and readable. Slow, smooth motion only — no strobe, no spinning. **Dark only.** Funky is now a normal selectable theme (no longer hidden/locked).
+
+Built entirely alongside Digital/Standard/Retro — every Funky style is scoped to `[data-ui="funky"]`; no other theme changes appearance.
+
+### Manifest
+- `src/themes/funky/manifest.js` — `id:'funky'`, `status:'complete'`, `hidden` removed, `layoutType:'traditional'`, `navigation:'navbar'`, `soundPack:'funky'`, fonts Unbounded/Outfit/Space Mono, `palette` (used by the hub UIPicker ThemeCard).
+- Registered in `src/themes/registry.js` (no edit needed — already imported; now surfaces as complete + non-hidden).
+
+### Palette — "Psychedelic Studio"
+- bg-base `#12041F` · surface `#21093A` · elevated `#2D0A4E`
+- accent lime `#BFFF00` (primary) · turquoise `#00CFC1` (secondary) · coral `#FF6B5B` · peach `#FFD4BC`
+- text primary `#F5ECFF` · secondary `#C9B3E0`
+
+### Tokens (`src/themes/funky/tokens.css`)
+- One **unconditional** `[data-ui="funky"]` block (dark-only) — so the hosted Standard page variants render Funky's palette regardless of whatever `data-mode` ThemeProvider sets.
+- Defines the **full Standard-native token vocabulary** (`--bg-*`, `--accent*`, type scale, `--display-*`, `--label-*`, spacing, `--nav-height`, `--container-max`, `--measure-*`, motion) PLUS the Digital `--color-*` aliases. This is required because Funky hosts the Standard pages, which read both vocabularies.
+- Funky-specific tokens: organic/blob radii (`--radius-blob`, `--radius-blob-2/3`), colorful offset shadows (`--shadow-lime/turquoise/coral`, `--shadow-offset-card[-hover]`), glows, `--gradient-text/pill/hero`, liquid easings (`--ease-liquid`, `--ease-smooth`).
+- Replicates the `[data-ui="standard"]`-scoped page utility classes under `[data-ui="funky"]`: `.s-container`, `.s-section`, `.s-grid-2`, `.s-grid-3`, `.s-cap-grid` (those classes are theme-scoped, so the hosted pages need Funky copies). `ss-process-grid` is global and `StandardReveal` is inline — no copies needed.
+- Background keyframes are **uniquely namespaced** (`funky-blob-drift-a/b/c`, `funky-wash-hue`, `funky-ripple-breathe`) to avoid global keyframe collisions with other themes.
+- `prefers-reduced-motion` block freezes blobs/optical field and removes liquid transforms (global.css also nukes all animations under reduced-motion).
+
+### Fonts (`src/themes/funky/fonts.css`)
+- Unbounded (display, big headings only), Outfit (body, clean/readable), Space Mono (mono). Distinct from all other themes. Loaded via `@import` and via a dedicated `<link>` appended in `index.html` (existing font link untouched). Imported in `src/main.jsx`.
+
+### Sound Pack (`src/sound/packs/funky.js`)
+- Web Audio synthesized, **all-fresh** waveforms (nothing copied from digital/retro): soft synth bloops (`click`), liquid droplets (`hover`), rubbery FM pop (`select`), bass pluck (`activate`), smooth band-pass `whoosh`, `modalOpen/Close`, shimmer `success`, detuned wobble `error`, `toggle`, soft `keyType`. Includes digital-named aliases (`terminalOpen/Close/Key/Submit`) so shared components never hit a missing sound.
+- Registered `soundManager.registerPack('funky', …)` in `main.jsx`. Per-theme mute key `fp-sound-muted-funky`, **default MUTED** (added to `SoundManager._muteKey`; default falls through to `true`).
+
+### Chrome (`src/components/funky/`)
+- `FunkyLayout.jsx` — `.funky-layout` wrapper: `FunkyBackground` + `FunkyNav` + `<main id="main-content" class="funky-main">` + `FunkyFooter` + `UIPicker`.
+- `FunkyBackground.jsx` — fixed, behind content (z-index 0): three slow morphing liquid blobs (lime/turquoise/coral, `mix-blend-mode:screen`, blurred) + faint low-contrast concentric optical field. All motion is CSS (GPU-friendly).
+- `FunkyNav.jsx` — sticky blur nav, gradient-text logo, **all 8 tabs incl. Skills** (About, Portfolio, Skills, Services, Lab, Store, Media, Contact) as liquid `.funky-pill` buttons (fill slides across, slight stretch, text stays crisp), mute toggle + UI-picker icon; hamburger < 768px.
+- `FunkyFooter.jsx` — 3-col (Brand/Site/Connect), connect links from `socialLinks`, "Switch Interface →" opens UIPicker.
+- `FunkyButton.jsx` — tactile liquid pill, variants primary (lime gradient) / secondary (turquoise outline) / ghost; plays `select`/`hover`; supports `href`.
+- `FunkyCard.jsx` — organic `.funky-card`: blob radius that morphs + colored offset shadow that shifts on hover; content stays clean.
+
+### Page integration
+- Inner pages render the **Standard variants inside FunkyLayout** (like Retro). The 10 thin page switchers (`src/pages/*.jsx`) now match `themeId === 'standard' || 'retro' || 'funky'` → Standard variant. (Funky previously fell through to the Digital variant — fixed.)
+- `App.jsx`: `PageLayout` and `HomeRoute` both gained a `funky` branch → `FunkyLayout`. `/home` renders `FunkyLanding` when funky.
+- `src/pages/FunkyLanding.jsx` — basic themed landing (hero w/ gradient heading + capability chips, featured work via `FunkyCard`, contact CTA). Full showpiece landing is Part B.
+- **Known Part-A limitation:** hosted Standard sections set opaque `background: var(--bg-base)`, so the morphing blob background shows fully only on FunkyLanding (and through hero gradients/gaps elsewhere). Inner-page background integration is deferred to Part B by design.
+
+### UI Picker registration
+- Standard picker (`src/components/ui/UIPicker.jsx`): added Funky description + mini preview + `getThemeHome('funky')→'/home'`; mode picker hidden for funky (single-mode, like retro).
+- Hub picker (`src/components/hub/UIPicker.jsx`): `getThemeHome('funky')→'/home'` (accent already present; selectability follows from `status:'complete'`).
+
+### Routing into Funky
+- `?ui=funky` and both UI pickers route into Funky chrome. Persisted via existing `fp-theme` key.
+
+### Verified
+`npm run build` compiles clean; `npm run dev` boots (200 OK). Digital/Standard/Retro unchanged (all Funky CSS scoped to `[data-ui="funky"]`; shared-file edits are additive funky branches; keyframes uniquely named).
+
+### Phase 17b — Funky Showpiece (complete, 2026-05-31)
+
+Funky is now fully realized — inner pages FEEL funky, not just the landing. All work is scoped to `[data-ui="funky"]`; Digital/Standard/Retro are byte-for-byte unchanged (verified: `npm run build` clean, dev 200).
+
+**1. Frosted panel system (the core).** The hosted Standard pages set section fills via inline `background: var(--bg-*)` (a background-COLOR) while heroes use `background: var(--gradient-hero)` (a background-IMAGE). One funky-scoped rule — `[data-ui="funky"] .funky-main section { background-color: transparent !important }` — drops every solid section fill (revealing the fixed `FunkyBackground` blobs on EVERY route) while hero gradients survive, and it catches both `.s-section` and the handful of unclassed sections uniformly. Then `--bg-card` / `--bg-elevated` / `--bg-content` are redefined under `[data-ui="funky"]` to **high-opacity translucent tints** (`rgba(33,9,58,0.85)` / `rgba(45,10,78,0.84)`) so the hosted cards/panels read as frosted glass with the blobs glowing behind — opacity is kept high so body text stays legible against even the brightest accent blob (legibility wins over blob visibility on content cards, per spec). `.funky-card` (the owned component, used on the landing) gets **true backdrop-blur** frosted glass via `--frost-panel` + `backdrop-filter: blur(16px) saturate(140%)`. Sticky filter/tab bars keep `var(--bg-overlay)` (not overridden) so they stay readable. `--bg-surface` is NOT overridden, so the footer stays a calm solid anchor.
+  - **One frost layer only:** sections transparent → card is the single frosted layer between blobs and text. No stacked blurs (perf + mud avoidance). Hosted inline-styled cards use the translucent-fill fallback (no per-card backdrop-blur) — deliberate, since stacking 20+ backdrop-filters over animated blobs would tank frame rate.
+
+**2. Showpiece landing** (`src/pages/FunkyLanding.jsx`, rewritten). Oversized Unbounded gradient title with an orchestrated word-by-word load reveal (rise + settling skew + deblur via framer-motion stagger), liquid pill CTAs routing into the main sections (Portfolio / Services / Lab / Contact), capability chips, frosted `FunkyCard` featured work, optical dividers between sections, contact CTA. No mascot (deferred by spec).
+
+**3. Liquid page transitions** (`src/components/funky/FunkyPageTransition.jsx`). Funky-only. `FunkyLayout` remounts per route (it lives inside each route element under `AnimatePresence key={pathname}`), so the overlay plays a one-shot liquid wipe-reveal (`scaleY 1→0` + border-radius morph, ~560ms, `--ease-liquid`) on every navigation. A module-level flag suppresses it on first cold load. `z-index: 49` (below the sticky nav z-50, above content). Scoped entirely to Funky — other themes' navigation untouched. Reduced motion → renders nothing (the page's own opacity fade serves as the simple fade).
+
+**4. Optical-illusion section dividers** (`src/components/funky/FunkyDivider.jsx`). Decorative, `aria-hidden`, low-contrast moiré (`rings` = concentric, `waves` = linear bands) in the palette, edge-masked, drifting (frozen under reduced motion). Used as section breaks on the landing. **Not** injected into hosted inner pages (would require editing shared Standard files) — see follow-up below.
+
+**5. Cursor reactivity** (`src/components/funky/FunkyCursorPulse.jsx`). Soft turquoise color pulse spawned at the pointer on click (CSS `funky-pulse-expand`, self-removing). Deliberately minimal: **no blob parallax** (it would fight the keyframe transforms and risk jank). Gated by `prefers-reduced-motion` and `(pointer: fine)`.
+
+**Guardrails.** All new colors/radii/shadows come from Funky tokens. `prefers-reduced-motion` freezes blobs, dividers, pulses, and the transition (existing `useReducedMotion` hook). New keyframes are uniquely namespaced (`funky-divider-drift`, `funky-pulse-expand`). backdrop-blur is limited to the single `.funky-card` layer for perf.
+
+**New files:** `FunkyDivider.jsx`, `FunkyPageTransition.jsx`, `FunkyCursorPulse.jsx`. **Edited:** `funky/tokens.css` (frost tokens, section-transparency rule, frosted `.funky-card`, divider/transition/pulse CSS, Part B reduced-motion), `FunkyLayout.jsx` (mounts transition + pulse), `FunkyLanding.jsx` (rewrite).
+
+**Possible targeted follow-up:** hosted inner pages get frosted panels + blob background + liquid transitions, but **not** explicit `FunkyDivider` section breaks or per-card backdrop-blur, because both would require editing the shared `Standard*` page files (forbidden — would change the Standard theme). If bespoke Funky inner-page variants are ever wanted, that's the path to add inline dividers and true per-card glass.
