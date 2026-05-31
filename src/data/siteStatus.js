@@ -4,7 +4,7 @@ export const siteStatus = {
   availabilityNote: 'Available for new contracts — 2 week lead time',
   projects: [
     { name: 'Predictinator', status: 'ACTIVE',         note: 'Live and iterating' },
-    { name: 'Plutus',        status: 'BETA',           note: 'Private beta' },
+    { name: 'Plutus',        status: 'IN_DEVELOPMENT', note: 'Private beta' },
     { name: 'Pantheon UE5',  status: 'ACTIVE',         note: 'Active development' },
     { name: 'Jogger',        status: 'IN_DEVELOPMENT', note: 'UE5 endless runner — early development' },
     { name: 'Hot Potato',    status: 'ACTIVE',         note: '2,000+ monthly players on Roblox' },
