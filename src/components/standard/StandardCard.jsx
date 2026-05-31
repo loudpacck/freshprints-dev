@@ -11,10 +11,13 @@ export default function StandardCard({
   href,
   status,
   external = false,
+  accentColor,   // optional: category color for the top hairline accent
+  metric,        // optional: { label, value } shown as a mono stat chip
 }) {
   const navigate = useNavigate()
   const reduced = useReducedMotion()
   const [imgFailed, setImgFailed] = useState(false)
+  const [hover, setHover] = useState(false)
 
   function handleClick() {
     if (external && href) {
@@ -24,6 +27,8 @@ export default function StandardCard({
     }
   }
 
+  // Status colors — kept as literal hexes to stay in sync with the documented
+  // 4-location status map (Badge, StandardCard, StandardPortfolio, StandardProjectPage).
   const STATUS_DOT = {
     ACTIVE:         '#22C55E',
     BETA:           '#F59E0B',
@@ -42,20 +47,28 @@ export default function StandardCard({
   return (
     <motion.div
       onClick={handleClick}
-      whileHover={reduced ? {} : { y: -2, boxShadow: 'var(--shadow-lg)' }}
-      transition={{ duration: 0.2 }}
+      onHoverStart={() => setHover(true)}
+      onHoverEnd={() => setHover(false)}
+      whileHover={reduced ? {} : { y: -4, boxShadow: 'var(--shadow-lg)' }}
+      transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
       style={{
         background: 'var(--bg-card)',
-        border: '1px solid var(--border-subtle)',
-        borderRadius: 'var(--radius-xl)',
+        border: '1px solid',
+        borderColor: hover && !reduced ? 'var(--border-accent)' : 'var(--border-subtle)',
+        borderRadius: 'var(--radius-lg)',
         boxShadow: 'var(--shadow-sm)',
         overflow: 'hidden',
         cursor: href ? 'pointer' : 'default',
         display: 'flex',
         flexDirection: 'column',
-        transition: 'border-color 200ms ease',
+        transition: 'border-color var(--duration-fast) var(--ease-standard)',
       }}
     >
+      {/* Category accent hairline */}
+      {accentColor && (
+        <div style={{ height: '2px', background: accentColor, flexShrink: 0 }} />
+      )}
+
       {/* Image area */}
       <div style={{
         aspectRatio: '16/10',
@@ -69,8 +82,8 @@ export default function StandardCard({
             alt={title}
             onError={() => setImgFailed(true)}
             style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
-            whileHover={reduced ? {} : { scale: 1.02 }}
-            transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
+            animate={reduced ? {} : { scale: hover ? 1.03 : 1 }}
+            transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
           />
         ) : (
           <div style={{
@@ -82,24 +95,25 @@ export default function StandardCard({
         {status && (
           <div style={{
             position: 'absolute',
-            top: '0.75rem',
-            right: '0.75rem',
+            top: 'var(--space-3)',
+            right: 'var(--space-3)',
             display: 'flex',
             alignItems: 'center',
-            gap: '0.375rem',
+            gap: 'var(--space-2)',
             background: 'var(--bg-overlay)',
             backdropFilter: 'blur(8px)',
+            WebkitBackdropFilter: 'blur(8px)',
             borderRadius: '999px',
-            padding: '0.25rem 0.625rem',
+            padding: 'var(--space-1) var(--space-3)',
             border: '1px solid var(--border-subtle)',
           }}>
             <div style={{ width: 6, height: 6, borderRadius: '50%', background: dotColor, flexShrink: 0, ...dotExtra }} />
             <span style={{
               fontFamily: 'var(--font-mono)',
-              fontSize: '0.65rem',
+              fontSize: 'var(--text-xs)',
               color: 'var(--text-secondary)',
               textTransform: 'uppercase',
-              letterSpacing: '0.08em',
+              letterSpacing: 'var(--tracking-wide)',
             }}>
               {status.replace(/_/g, ' ')}
             </span>
@@ -108,24 +122,25 @@ export default function StandardCard({
       </div>
 
       {/* Card body */}
-      <div style={{ padding: 'var(--space-5)', flex: 1, display: 'flex', flexDirection: 'column', gap: 'var(--space-2)' }}>
+      <div style={{ padding: 'var(--space-5)', flex: 1, display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
         {eyebrow && (
           <div style={{
             fontFamily: 'var(--font-mono)',
-            fontSize: 'var(--text-xs)',
-            color: 'var(--accent)',
+            fontSize: 'var(--label-size)',
+            color: accentColor || 'var(--accent)',
             textTransform: 'uppercase',
-            letterSpacing: 'var(--tracking-wider)',
+            letterSpacing: 'var(--label-tracking)',
           }}>
             {eyebrow}
           </div>
         )}
         <div style={{
-          fontFamily: 'var(--font-body)',
-          fontSize: 'var(--text-xl)',
+          fontFamily: 'var(--font-display)',
+          fontSize: 'var(--display-sm)',
           fontWeight: 'var(--weight-semibold)',
           color: 'var(--text-primary)',
           lineHeight: 'var(--leading-snug)',
+          letterSpacing: 'var(--tracking-tight)',
         }}>
           {title}
         </div>
@@ -143,17 +158,53 @@ export default function StandardCard({
             {description}
           </div>
         )}
-        {href && (
-          <div style={{
-            marginTop: 'auto',
-            paddingTop: 'var(--space-3)',
-            fontFamily: 'var(--font-body)',
-            fontSize: 'var(--text-sm)',
-            fontWeight: 'var(--weight-medium)',
-            color: 'var(--accent)',
-          }}>
-            View →
-          </div>
+
+        {/* Footer row: metric (optional) + view affordance */}
+        {(metric || href) && (
+        <div style={{
+          marginTop: 'auto',
+          paddingTop: 'var(--space-3)',
+          display: 'flex',
+          alignItems: 'flex-end',
+          justifyContent: 'space-between',
+          gap: 'var(--space-3)',
+          borderTop: metric ? '1px solid var(--hairline)' : 'none',
+        }}>
+          {metric ? (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-1)' }}>
+              <span style={{
+                fontFamily: 'var(--font-display)',
+                fontSize: 'var(--text-2xl)',
+                fontWeight: 'var(--weight-bold)',
+                color: 'var(--text-primary)',
+                lineHeight: 1,
+                letterSpacing: 'var(--tracking-tight)',
+              }}>
+                {metric.value}
+              </span>
+              <span style={{
+                fontFamily: 'var(--font-mono)',
+                fontSize: 'var(--text-xs)',
+                color: 'var(--text-tertiary)',
+                textTransform: 'uppercase',
+                letterSpacing: 'var(--tracking-wide)',
+              }}>
+                {metric.label}
+              </span>
+            </div>
+          ) : <span />}
+          {href && (
+            <span style={{
+              fontFamily: 'var(--font-mono)',
+              fontSize: 'var(--text-sm)',
+              fontWeight: 'var(--weight-medium)',
+              color: 'var(--accent)',
+              whiteSpace: 'nowrap',
+            }}>
+              View →
+            </span>
+          )}
+        </div>
         )}
       </div>
     </motion.div>

@@ -36,21 +36,23 @@ export default function StandardButton({
 
   const sizeStyle =
     size === 'lg'
-      ? { fontSize: 'var(--text-base)', padding: 'var(--space-4) var(--space-8)' }
+      ? { fontSize: 'var(--text-base)', padding: 'var(--space-4) var(--space-7)' }
       : size === 'sm'
       ? { fontSize: 'var(--text-sm)', padding: 'var(--space-2) var(--space-5)' }
-      : { fontSize: 'var(--text-base)', padding: 'var(--space-3) var(--space-6)' }
+      : { fontSize: 'var(--text-sm)', padding: 'var(--space-3) var(--space-6)' }
 
   const base = {
     display: 'inline-flex',
     alignItems: 'center',
     justifyContent: 'center',
+    gap: 'var(--space-2)',
     fontFamily: 'var(--font-body)',
-    fontWeight: 'var(--weight-medium)',
-    borderRadius: 'var(--radius-lg)',
+    fontWeight: 'var(--weight-semibold)',
+    letterSpacing: 'var(--tracking-wide)',
+    borderRadius: 'var(--radius-md)',
     cursor: disabled ? 'not-allowed' : 'pointer',
     opacity: disabled ? 0.5 : 1,
-    transition: 'all 200ms ease',
+    transition: 'background var(--duration-fast) var(--ease-standard), border-color var(--duration-fast) var(--ease-standard), box-shadow var(--duration-fast) var(--ease-standard)',
     textDecoration: 'none',
     lineHeight: 1,
     whiteSpace: 'nowrap',

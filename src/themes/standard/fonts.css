@@ -1,1 +1,5 @@
-@import url('https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700;800&family=Geist+Mono:wght@400;500;600&display=swap');
+/* Standard theme fonts:
+   - Bricolage Grotesque → display headlines (distinctive, confident at large sizes)
+   - Geist               → body (refined, readable)
+   - Geist Mono          → eyebrow labels / metadata */
+@import url('https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,600;12..96,700;12..96,800&family=Geist:wght@300;400;500;600;700;800&family=Geist+Mono:wght@400;500;600&display=swap');

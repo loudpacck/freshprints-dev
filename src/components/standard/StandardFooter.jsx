@@ -1,6 +1,5 @@
-import { Link, useNavigate } from 'react-router-dom'
+import { Link } from 'react-router-dom'
 import { socialLinks } from '@/data/socialLinks'
-import { useTheme } from '@/themes/useTheme'
 
 const SITE_LINKS = [
   { to: '/lab',    label: 'Lab' },
@@ -20,10 +19,10 @@ const CONNECT_LINKS = [
 const col = {
   heading: {
     fontFamily: 'var(--font-mono)',
-    fontSize: '0.65rem',
+    fontSize: 'var(--label-size)',
     color: 'var(--text-tertiary)',
     textTransform: 'uppercase',
-    letterSpacing: '0.1em',
+    letterSpacing: 'var(--label-tracking)',
     marginBottom: 'var(--space-4)',
   },
   link: {
@@ -33,14 +32,12 @@ const col = {
     color: 'var(--text-tertiary)',
     textDecoration: 'none',
     paddingBottom: 'var(--space-3)',
-    transition: 'color 150ms ease',
+    transition: 'color var(--duration-fast) var(--ease-standard)',
   },
 }
 
 export default function StandardFooter({ onOpenPicker }) {
   const year = new Date().getFullYear()
-  const { setTheme } = useTheme()
-  const navigate = useNavigate()
 
   return (
     <footer style={{
@@ -65,19 +62,21 @@ export default function StandardFooter({ onOpenPicker }) {
           {/* Col 1 — Brand */}
           <div>
             <div style={{
-              fontFamily: 'var(--font-body)',
-              fontWeight: 'var(--weight-semibold)',
-              fontSize: 'var(--text-base)',
+              fontFamily: 'var(--font-display)',
+              fontWeight: 'var(--weight-bold)',
+              fontSize: 'var(--text-xl)',
               color: 'var(--text-primary)',
-              marginBottom: '0.25rem',
+              letterSpacing: 'var(--tracking-tight)',
+              marginBottom: 'var(--space-1)',
             }}>
               Kyle DeBord
             </div>
             <div style={{
               fontFamily: 'var(--font-mono)',
-              fontSize: '0.65rem',
+              fontSize: 'var(--label-size)',
               color: 'var(--text-tertiary)',
-              letterSpacing: '0.06em',
+              letterSpacing: 'var(--label-tracking)',
+              textTransform: 'uppercase',
               marginBottom: 'var(--space-4)',
             }}>
               Fresh Prints
@@ -87,9 +86,8 @@ export default function StandardFooter({ onOpenPicker }) {
               fontSize: 'var(--text-sm)',
               color: 'var(--text-tertiary)',
               lineHeight: 'var(--leading-relaxed)',
-              maxWidth: 240,
             }}>
-              Creative engineering across software, hardware, and game systems.
+              Creative engineering across software, AI, hardware, and game systems.
             </p>
           </div>
 
@@ -139,41 +137,43 @@ export default function StandardFooter({ onOpenPicker }) {
           gap: 'var(--space-4)',
         }}>
           <span style={{
-            fontFamily: 'var(--font-body)',
+            fontFamily: 'var(--font-mono)',
             fontSize: 'var(--text-xs)',
             color: 'var(--text-quaternary)',
+            letterSpacing: 'var(--tracking-wide)',
           }}>
-            © {year} Kyle DeBord · All rights reserved
+            © {year} Kyle DeBord — All rights reserved
           </span>
           <button
-            onClick={() => { setTheme('digital'); navigate('/hub') }}
+            onClick={onOpenPicker}
             style={{
               background: 'none',
               border: 'none',
               padding: 0,
-              fontFamily: 'var(--font-body)',
+              fontFamily: 'var(--font-mono)',
               fontSize: 'var(--text-xs)',
               color: 'var(--text-tertiary)',
+              letterSpacing: 'var(--tracking-wide)',
               cursor: 'pointer',
-              transition: 'color 150ms ease',
+              transition: 'color var(--duration-fast) var(--ease-standard)',
             }}
             onMouseEnter={e => e.target.style.color = 'var(--accent)'}
             onMouseLeave={e => e.target.style.color = 'var(--text-tertiary)'}
           >
-            Switch to Digital UI →
+            Switch to Operations Terminal →
           </button>
         </div>
       </div>
 
       <style>{`
-        @media (max-width: 640px) {
-          .s-footer-grid {
-            grid-template-columns: 1fr !important;
+        @media (max-width: 960px) {
+          [data-ui="standard"] .s-footer-grid {
+            grid-template-columns: repeat(2, 1fr) !important;
           }
         }
-        @media (max-width: 960px) {
-          .s-footer-grid {
-            grid-template-columns: repeat(2, 1fr) !important;
+        @media (max-width: 640px) {
+          [data-ui="standard"] .s-footer-grid {
+            grid-template-columns: 1fr !important;
           }
         }
       `}</style>

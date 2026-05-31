@@ -74,12 +74,6 @@ export default function StandardNav({ onOpenPicker }) {
 
   const isActive = (to) => location.pathname === to || location.pathname.startsWith(to + '/')
 
-  const navBg = scrolled
-    ? mode === 'dark'
-      ? 'rgba(11, 11, 16, 0.97)'
-      : 'rgba(250, 250, 250, 0.97)'
-    : 'var(--bg-overlay)'
-
   return (
     <header
       style={{
@@ -89,11 +83,12 @@ export default function StandardNav({ onOpenPicker }) {
         right: 0,
         zIndex: 50,
         height: 'var(--nav-height)',
-        background: navBg,
+        background: scrolled ? 'var(--bg-overlay)' : 'transparent',
         backdropFilter: 'blur(12px)',
         WebkitBackdropFilter: 'blur(12px)',
-        borderBottom: '1px solid var(--border-subtle)',
-        transition: 'background 250ms ease, padding 250ms ease',
+        borderBottom: '1px solid',
+        borderColor: scrolled ? 'var(--border-subtle)' : 'transparent',
+        transition: 'background var(--duration-fast) var(--ease-standard), border-color var(--duration-fast) var(--ease-standard)',
       }}
     >
       <div
@@ -112,22 +107,24 @@ export default function StandardNav({ onOpenPicker }) {
         {/* Logo */}
         <Link
           to="/home"
-          style={{ textDecoration: 'none', display: 'flex', flexDirection: 'column', gap: '2px', flexShrink: 0 }}
+          style={{ textDecoration: 'none', display: 'flex', flexDirection: 'column', gap: 'var(--space-1)', flexShrink: 0 }}
         >
           <span style={{
-            fontFamily: 'var(--font-body)',
-            fontWeight: 'var(--weight-semibold)',
-            fontSize: 'var(--text-base)',
+            fontFamily: 'var(--font-display)',
+            fontWeight: 'var(--weight-bold)',
+            fontSize: 'var(--text-lg)',
             color: 'var(--text-primary)',
+            letterSpacing: 'var(--tracking-tight)',
             lineHeight: 1,
           }}>
             Kyle DeBord
           </span>
           <span style={{
             fontFamily: 'var(--font-mono)',
-            fontSize: '0.65rem',
+            fontSize: 'var(--label-size)',
             color: 'var(--text-tertiary)',
-            letterSpacing: '0.06em',
+            letterSpacing: 'var(--label-tracking)',
+            textTransform: 'uppercase',
           }}>
             Fresh Prints
           </span>
@@ -307,15 +304,15 @@ export default function StandardNav({ onOpenPicker }) {
         )}
       </AnimatePresence>
 
-      {/* CSS to show/hide desktop vs mobile nav */}
+      {/* CSS to show/hide desktop vs mobile nav (scoped to Standard) */}
       <style>{`
         @media (min-width: 768px) {
-          .s-desktop-nav { display: flex !important; }
-          .s-mobile-nav { display: none !important; }
+          [data-ui="standard"] .s-desktop-nav { display: flex !important; }
+          [data-ui="standard"] .s-mobile-nav { display: none !important; }
         }
         @media (max-width: 767px) {
-          .s-desktop-nav { display: none !important; }
-          .s-mobile-nav { display: flex !important; }
+          [data-ui="standard"] .s-desktop-nav { display: none !important; }
+          [data-ui="standard"] .s-mobile-nav { display: flex !important; }
         }
       `}</style>
     </header>
