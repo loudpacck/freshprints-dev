@@ -620,14 +620,13 @@ Third UI variant. Late 90s / early 2000s desktop computing aesthetic — Win95/9
 - `src/components/retro/RetroCard.jsx` — raised bevel panel with optional title bar (blue gradient)
 
 ### Boot Sequence (`src/components/retro/RetroBootSequence.jsx`)
-- Controlled by `fp-retro-booted` in localStorage — plays once, never again
+- Plays on **every** mount of RetroLanding — i.e. every navigation to `/home` in Retro UI (including switching TO Retro from another UI). No longer gated by localStorage; the old `fp-retro-booted` key and `shouldShowBoot()` helper were removed.
 - Phase 1: BIOS text lines appear one-by-one on black screen
 - Phase 2: Win95 splash with logo window, progress bar, boot chime audio
 - Skip: click anywhere or press any key
-- Exported: `shouldShowBoot()` helper
 
 ### RetroLanding (`src/pages/RetroLanding.jsx`)
-- Checks `shouldShowBoot()` on mount — shows `RetroBootSequence` if needed
+- Mounts `RetroBootSequence` on every mount (`booting` state initializes `true`); the sequence calls `onComplete` to reveal the landing
 - Sections: Hero panel (PORTFOLIO heading + intro + CTA buttons), Featured Work (3 project cards), About snippet + Services tiles (side-by-side), Contact CTA (dialog box style)
 
 ### Routing

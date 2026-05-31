@@ -182,7 +182,7 @@ Three complete UIs, one planned stub. Each is a fully scoped CSS + layout system
 
 ### Retro-Specific Features
 - CRT scanline effect: toggled by `data-crt="on"` on `<html>`, persisted in `fp-retro-crt` localStorage
-- Boot sequence: `RetroBootSequence.jsx` plays once (controlled by `fp-retro-booted` localStorage)
+- Boot sequence: `RetroBootSequence.jsx` plays on every navigation to `/home` in Retro UI (mounted by RetroLanding, no longer gated by localStorage)
 - Status bar at bottom with clock, CRT toggle, mute toggle, UI picker
 
 ### Page Variants Per Theme
@@ -924,7 +924,7 @@ B:\freshprints-dev\
 - `RetroStatusBar.jsx` — sticky bottom: READY | path | CRT toggle | mute | UI picker | clock
 - `RetroButton.jsx` — beveled Win95-style button
 - `RetroCard.jsx` — beveled panel with optional title bar
-- `RetroBootSequence.jsx` — one-time BIOS + splash sequence
+- `RetroBootSequence.jsx` — BIOS + splash sequence (replays on every /home mount in Retro)
 
 ### Shared UI Components
 - `UIPicker.jsx` — theme switcher modal (Standard: `src/components/ui/`, Digital/Hub: `src/components/hub/`)

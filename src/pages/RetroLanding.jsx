@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import RetroCard from '@/components/retro/RetroCard'
 import RetroButton from '@/components/retro/RetroButton'
-import RetroBootSequence, { shouldShowBoot } from '@/components/retro/RetroBootSequence'
+import RetroBootSequence from '@/components/retro/RetroBootSequence'
 import { getFeaturedProjects } from '@/data/projects'
 
 const SERVICE_TILES = [
@@ -95,7 +95,8 @@ function ProjectCard({ project, onClick }) {
 
 export default function RetroLanding() {
   const navigate = useNavigate()
-  const [booting, setBooting] = useState(() => shouldShowBoot())
+  // Boot sequence replays on every mount — i.e. every navigation to /home in Retro UI.
+  const [booting, setBooting] = useState(true)
   const featured = getFeaturedProjects().slice(0, 3)
 
   if (booting) {

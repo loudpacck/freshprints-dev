@@ -12,15 +12,12 @@ const BIOS_LINES = [
   'Press any key to continue, or wait...',
 ]
 
-const STORAGE_KEY = 'fp-retro-booted'
-
 export default function RetroBootSequence({ onComplete }) {
   const [phase, setPhase] = useState('bios')    // 'bios' | 'splash' | 'done'
   const [visibleLines, setVisibleLines] = useState([])
   const [progress, setProgress] = useState(0)
 
   const finish = useCallback(() => {
-    localStorage.setItem(STORAGE_KEY, '1')
     setPhase('done')
     setTimeout(onComplete, 400)
   }, [onComplete])
@@ -227,8 +224,4 @@ export default function RetroBootSequence({ onComplete }) {
       )}
     </AnimatePresence>
   )
-}
-
-export function shouldShowBoot() {
-  return !localStorage.getItem(STORAGE_KEY)
 }
