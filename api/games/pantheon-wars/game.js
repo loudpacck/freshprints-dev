@@ -4981,6 +4981,30 @@ async function handleAllianceDonateItem(req, res) {
   }
 }
 
+// ── User lookup (Phase E1) ────────────────────────────────────────────────────
+// Username → { id, username, level } resolver for the alliance invite flow, which
+// needs a UUID (invite_send takes target_user_id). Read-only, auth-gated by the
+// standard player session, and exposes nothing beyond identity + level.
+async function handleUserLookup(req, res) {
+  if (req.method !== 'GET') return res.status(405).json({ error: 'Method not allowed' })
+  const username = typeof req.query.username === 'string' ? req.query.username.trim() : ''
+  if (!username) return res.status(400).json({ error: 'username_required' })
+  try {
+    const rows = await sql`
+      SELECT u.id, u.username, ps.level
+      FROM pw_users u
+      LEFT JOIN pw_player_stats ps ON ps.user_id = u.id
+      WHERE LOWER(u.username) = LOWER(${username})
+      LIMIT 1
+    `
+    if (rows.length === 0) return res.status(404).json({ error: 'user_not_found' })
+    return res.status(200).json({ id: rows[0].id, username: rows[0].username, level: rows[0].level ?? 0 })
+  } catch (err) {
+    console.error('user_lookup error:', err)
+    return res.status(500).json({ error: 'server_error' })
+  }
+}
+
 // ── Router ────────────────────────────────────────────────────────────────────
 
 const innerHandler = requireUserWithModCheck(async function handler(req, res) {
@@ -5063,6 +5087,7 @@ const innerHandler = requireUserWithModCheck(async function handler(req, res) {
   if (action === 'alliance_donate_drachma')       return handleAllianceDonateDrachma(req, res)
   if (action === 'alliance_donate_glory')         return handleAllianceDonateGlory(req, res)
   if (action === 'alliance_donate_item')          return handleAllianceDonateItem(req, res)
+  if (action === 'user_lookup')                   return handleUserLookup(req, res)
   return res.status(400).json({ error: 'Unknown action' })
 })
 

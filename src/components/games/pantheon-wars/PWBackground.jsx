@@ -16,6 +16,7 @@ const VARIANTS = {
   titan:       { count: 85, baseSpeed: 0.42, color: [180,  60,  80], flashChance: 0.006 },
   township:    { count: 48, baseSpeed: 0.14, color: [120, 160, 100], flashChance: 0 },
   codex:       { count: 35, baseSpeed: 0.08, color: [200, 180, 140], flashChance: 0 },
+  alliance:    { count: 50, baseSpeed: 0.12, color: [196, 150,  90], flashChance: 0 },
 }
 
 function makeParticle(canvas, cfg) {
