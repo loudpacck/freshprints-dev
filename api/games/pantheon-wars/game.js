@@ -29,6 +29,9 @@ import { isProfane } from '../../../lib/profanityFilter.js'
 
 export const config = { runtime: 'nodejs' }
 
+// Validates the alliance UUID embedded in 'private-alliance-{uuid}' Pusher channel names.
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+
 // ── Quests (GET) ──────────────────────────────────────────────────────────────
 
 async function handleQuests(req, res) {
@@ -3349,8 +3352,8 @@ async function handleChatSend(req, res) {
 
   try {
     const { channel, content } = req.body || {}
-    if (channel !== 'general') {
-      return res.status(400).json({ error: 'invalid_channel', message: 'Only general channel is supported.' })
+    if (channel !== 'general' && channel !== 'alliance') {
+      return res.status(400).json({ error: 'invalid_channel', message: 'Only general and alliance channels are supported.' })
     }
     if (!content || typeof content !== 'string') {
       return res.status(400).json({ error: 'invalid_content' })
@@ -3358,6 +3361,14 @@ async function handleChatSend(req, res) {
     const trimmed = content.trim()
     if (trimmed.length < 1 || trimmed.length > 500) {
       return res.status(400).json({ error: 'invalid_length', message: 'Message must be 1-500 characters.' })
+    }
+
+    // Alliance chat: caller must be a current member; messages scope to their alliance.
+    let allianceId = null
+    if (channel === 'alliance') {
+      const member = await getUserAllianceMembership(sql, req.userId)
+      if (!member) return res.status(403).json({ error: 'not_in_alliance', message: 'You are not in an alliance.' })
+      allianceId = member.alliance_id
     }
 
     const rl = await checkChatRateLimit(sql, req.userId)
@@ -3379,18 +3390,20 @@ async function handleChatSend(req, res) {
     const senderUsername = userRows[0]?.username
     if (!senderUsername) return res.status(404).json({ error: 'user_not_found' })
 
+    const channelType = channel // 'general' | 'alliance'
     const insertRows = await sql`
       INSERT INTO pw_chat_messages (channel_type, channel_id, sender_id, sender_username, content)
-      VALUES ('general', NULL, ${req.userId}, ${senderUsername}, ${trimmed})
+      VALUES (${channelType}, ${allianceId}, ${req.userId}, ${senderUsername}, ${trimmed})
       RETURNING id, created_at
     `
     const inserted = insertRows[0]
 
     const pusher = getPusherServer()
-    await pusher.trigger('general', 'new_message', {
+    const pusherChannel = channel === 'alliance' ? `private-alliance-${allianceId}` : 'general'
+    await pusher.trigger(pusherChannel, 'new_message', {
       id:              Number(inserted.id),
-      channel_type:    'general',
-      channel_id:      null,
+      channel_type:    channelType,
+      channel_id:      allianceId,
       sender_id:       req.userId,
       sender_username: senderUsername,
       content:         trimmed,
@@ -3414,8 +3427,27 @@ async function handleChatFetch(req, res) {
 
   try {
     const channel = req.query?.channel || 'general'
-    if (channel !== 'general') {
+    if (channel !== 'general' && channel !== 'alliance') {
       return res.status(400).json({ error: 'invalid_channel' })
+    }
+
+    if (channel === 'alliance') {
+      const member = await getUserAllianceMembership(sql, req.userId)
+      if (!member) return res.status(403).json({ error: 'not_in_alliance' })
+
+      const allianceRows = await sql`
+        SELECT id, channel_type, channel_id, sender_id, sender_username, content,
+               is_system, created_at, deleted_at, deleted_by_name, deleted_by_type
+        FROM pw_chat_messages
+        WHERE channel_type = 'alliance' AND channel_id = ${member.alliance_id}
+        ORDER BY created_at DESC
+        LIMIT 100
+      `
+      return res.status(200).json({
+        ok:       true,
+        channel:  'alliance',
+        messages: allianceRows.reverse(),
+      })
     }
 
     const rows = await sql`
@@ -3457,6 +3489,24 @@ async function handleChatPusherAuth(req, res) {
       const requestedUserId = channel_name.replace('private-user-', '')
       if (requestedUserId !== req.userId) {
         return res.status(403).json({ error: 'not_your_channel' })
+      }
+      const pusher = getPusherServer()
+      const auth = pusher.authorizeChannel(socket_id, channel_name)
+      return res.status(200).json(auth)
+    }
+    // Alliance chat: only current members of the alliance may subscribe.
+    if (channel_name.startsWith('private-alliance-')) {
+      const allianceId = channel_name.replace('private-alliance-', '')
+      if (!UUID_RE.test(allianceId)) {
+        return res.status(403).json({ error: 'invalid_alliance_id' })
+      }
+      const memberCheck = await sql`
+        SELECT 1 FROM pw_alliance_members
+        WHERE user_id = ${req.userId} AND alliance_id = ${allianceId}
+        LIMIT 1
+      `
+      if (memberCheck.length === 0) {
+        return res.status(403).json({ error: 'not_alliance_member' })
       }
       const pusher = getPusherServer()
       const auth = pusher.authorizeChannel(socket_id, channel_name)
@@ -3650,11 +3700,30 @@ async function handleChatDmSend(req, res) {
 // ── Chat State (GET) ──────────────────────────────────────────────────────────
 
 async function handleChatState(req, res) {
+  // Alliance membership tells the frontend whether to render the ALLIANCE tab.
+  let allianceId = null, allianceName = null, allianceTag = null
+  try {
+    const member = await getUserAllianceMembership(sql, req.userId)
+    if (member) {
+      allianceId = member.alliance_id
+      const allianceRows = await sql`
+        SELECT name, tag FROM pw_alliances WHERE id = ${member.alliance_id}
+      `
+      allianceName = allianceRows[0]?.name || null
+      allianceTag  = allianceRows[0]?.tag  || null
+    }
+  } catch (err) {
+    console.error('chat_state alliance lookup error:', err)
+  }
+
   return res.status(200).json({
-    ok:           true,
-    isMod:        !!req.modId,
-    modUsername:  req.modUsername || null,
-    modShowBadge: req.modId ? req.modShowBadge : false,
+    ok:            true,
+    isMod:         !!req.modId,
+    modUsername:   req.modUsername || null,
+    modShowBadge:  req.modId ? req.modShowBadge : false,
+    alliance_id:   allianceId,
+    alliance_name: allianceName,
+    alliance_tag:  allianceTag,
   })
 }
 
@@ -3763,6 +3832,8 @@ async function handleChatModerate(req, res) {
         await pusher.trigger('general', 'message_deleted', { id: Number(message_id) })
       } else if (channelType === 'mod') {
         await pusher.trigger('private-mod', 'message_deleted', { id: Number(message_id) })
+      } else if (channelType === 'alliance') {
+        await pusher.trigger(`private-alliance-${channelId}`, 'message_deleted', { id: Number(message_id) })
       } else if (channelType === 'dm') {
         const threadId = parseInt(channelId)
         if (!isNaN(threadId)) {
@@ -3820,7 +3891,10 @@ async function handleChatModerate(req, res) {
         RETURNING id, created_at
       `
       const pusher = getPusherServer()
-      const sysChan = sysChannelType === 'general' ? 'general' : sysChannelType === 'mod' ? 'private-mod' : null
+      const sysChan = sysChannelType === 'general' ? 'general'
+        : sysChannelType === 'mod' ? 'private-mod'
+        : sysChannelType === 'alliance' ? `private-alliance-${sysChannelId}`
+        : null
       if (sysChan) {
         await pusher.trigger(sysChan, 'new_message', {
           id:              Number(sysRows[0].id),
@@ -3947,6 +4021,79 @@ async function handleChatSetModBadge(req, res) {
   } catch (err) {
     console.error('chat_set_mod_badge error:', err)
     return res.status(500).json({ error: 'update_failed' })
+  }
+}
+
+// ── Chat Alliance Delete (POST) ───────────────────────────────────────────────
+// Founder/Officer can delete messages in their OWN alliance chat. Moderators can
+// delete any alliance message. The player path never touches pw_chat_moderations
+// (that audit table is keyed by mod_id); only the message row is tombstoned.
+
+async function handleChatAllianceDelete(req, res) {
+  if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' })
+
+  try {
+    const { message_id } = req.body || {}
+    if (!message_id) return res.status(400).json({ error: 'missing_message_id' })
+
+    const msgRows = await sql`
+      SELECT id, channel_type, channel_id, sender_username
+      FROM pw_chat_messages WHERE id = ${message_id} AND deleted_at IS NULL
+    `
+    if (msgRows.length === 0) return res.status(404).json({ error: 'message_not_found' })
+    const msg = msgRows[0]
+    if (msg.channel_type !== 'alliance') {
+      return res.status(400).json({ error: 'not_alliance_message' })
+    }
+
+    // Resolve permission + the deleter's display identity.
+    let deletedByType, deletedByName
+    if (req.modId) {
+      deletedByType = 'moderator'
+      deletedByName = req.modUsername
+    } else {
+      const member = await getUserAllianceMembership(sql, req.userId)
+      if (!member || member.alliance_id !== msg.channel_id ||
+          (member.rank !== 'founder' && member.rank !== 'officer')) {
+        return res.status(403).json({ error: 'insufficient_permissions' })
+      }
+      const userRows = await sql`SELECT username FROM pw_users WHERE id = ${req.userId}`
+      deletedByType = 'player'
+      deletedByName = userRows[0]?.username || 'Alliance Officer'
+    }
+
+    await sql`
+      UPDATE pw_chat_messages
+      SET deleted_at = NOW(), deleted_by_name = ${deletedByName}, deleted_by_type = ${deletedByType}
+      WHERE id = ${message_id}
+    `
+
+    const pusher = getPusherServer()
+    const allianceChannel = `private-alliance-${msg.channel_id}`
+    await pusher.trigger(allianceChannel, 'message_deleted', { id: Number(message_id) })
+
+    // System message so clients can re-render the tombstone with context.
+    const sysText = `${deletedByName} deleted a message from ${msg.sender_username}`
+    const sysRows = await sql`
+      INSERT INTO pw_chat_messages (channel_type, channel_id, sender_id, sender_username, content, is_system)
+      VALUES ('alliance', ${msg.channel_id}, ${req.userId}, ${deletedByName}, ${sysText}, TRUE)
+      RETURNING id, created_at
+    `
+    await pusher.trigger(allianceChannel, 'new_message', {
+      id:              Number(sysRows[0].id),
+      channel_type:    'alliance',
+      channel_id:      msg.channel_id,
+      sender_id:       null,
+      sender_username: deletedByName,
+      content:         sysText,
+      is_system:       true,
+      created_at:      sysRows[0].created_at,
+    })
+
+    return res.status(200).json({ ok: true, message_id: Number(message_id) })
+  } catch (err) {
+    console.error('chat_alliance_delete error:', err)
+    return res.status(500).json({ error: 'delete_failed' })
   }
 }
 
@@ -4897,6 +5044,7 @@ const innerHandler = requireUserWithModCheck(async function handler(req, res) {
   if (action === 'chat_lift_moderation')   return handleChatLiftModeration(req, res)
   if (action === 'chat_list_moderations')  return handleChatListModerations(req, res)
   if (action === 'chat_set_mod_badge')     return handleChatSetModBadge(req, res)
+  if (action === 'chat_alliance_delete')   return handleChatAllianceDelete(req, res)
   if (action === 'alliance_info')               return handleAllianceInfo(req, res)
   if (action === 'alliance_create')             return handleAllianceCreate(req, res)
   if (action === 'alliance_disband')            return handleAllianceDisband(req, res)
