@@ -4000,6 +4000,12 @@ const ALLIANCE_FOUND_GLORY   = 100
 const ALLIANCE_FOUND_LEVEL   = 25
 const ALLIANCE_MEMBER_CAP    = 25
 const ALLIANCE_LEAVE_COOLDOWN_MS = 24 * 60 * 60 * 1000
+const ALLIANCE_MIN_INVITE_LEVEL  = 5
+
+// Validate UUID inputs before they hit the DB — a malformed string against a uuid
+// column throws Postgres 22P02, which the generic 500 path can't disambiguate.
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+function isValidUuid(v) { return typeof v === 'string' && UUID_RE.test(v) }
 
 function allianceErrorResponse(res, err, logLabel) {
   if (err?.isAllianceError) return res.status(err.status).json({ error: err.code, message: err.message })
@@ -4399,6 +4405,242 @@ async function handleAllianceBrowse(req, res) {
   }
 }
 
+// ── Alliance Invites (Phase B) ──────────────────────────────────────────────────
+
+// alliance_invite_send (POST) — founder/officer invite a player to their alliance
+async function handleAllianceInviteSend(req, res) {
+  if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' })
+  const { target_user_id } = req.body ?? {}
+  try {
+    // Sender must be founder or officer (throws not_in_alliance / insufficient_rank).
+    const { alliance_id } = await requireAllianceRank(sql, req.userId, ['founder', 'officer'])
+    if (!isValidUuid(target_user_id)) return res.status(400).json({ error: 'invalid_uuid' })
+
+    // One round-trip: target existence, level, and current membership.
+    const targetRows = await sql`
+      SELECT u.id, u.username, ps.level, am.id AS membership_id
+      FROM pw_users u
+      LEFT JOIN pw_player_stats ps ON ps.user_id = u.id
+      LEFT JOIN pw_alliance_members am ON am.user_id = u.id
+      WHERE u.id = ${target_user_id}
+    `
+    if (targetRows.length === 0) return res.status(404).json({ error: 'target_not_found' })
+    const target = targetRows[0]
+    if ((target.level ?? 0) < ALLIANCE_MIN_INVITE_LEVEL) {
+      return res.status(400).json({ error: 'target_too_low_level', level_required: ALLIANCE_MIN_INVITE_LEVEL })
+    }
+    if (target.membership_id) return res.status(400).json({ error: 'target_already_in_alliance' })
+
+    // Don't bother inviting into a full alliance.
+    const aRows = await sql`SELECT member_count FROM pw_alliances WHERE id = ${alliance_id}`
+    if (aRows.length === 0) return res.status(404).json({ error: 'alliance_not_found' })
+    if (aRows[0].member_count >= ALLIANCE_MEMBER_CAP) return res.status(400).json({ error: 'alliance_full' })
+
+    // Friendly duplicate check; the partial UNIQUE index backstops the race below.
+    const dup = await sql`
+      SELECT 1 FROM pw_alliance_invites
+      WHERE alliance_id = ${alliance_id} AND invitee_user_id = ${target_user_id} AND status = 'pending'
+      LIMIT 1
+    `
+    if (dup.length) return res.status(400).json({ error: 'invite_exists' })
+
+    let inserted
+    try {
+      inserted = await sql`
+        INSERT INTO pw_alliance_invites (alliance_id, invitee_user_id, inviter_user_id, status)
+        VALUES (${alliance_id}, ${target_user_id}, ${req.userId}, 'pending')
+        RETURNING *
+      `
+    } catch (e) {
+      if (e?.code === '23505') return res.status(400).json({ error: 'invite_exists' })
+      throw e
+    }
+
+    return res.status(201).json({ invite: inserted[0], target_username: target.username })
+  } catch (err) {
+    return allianceErrorResponse(res, err, 'alliance_invite_send error:')
+  }
+}
+
+// alliance_invite_list_received (GET) — pending invites addressed to the caller
+async function handleAllianceInviteListReceived(req, res) {
+  if (req.method !== 'GET') return res.status(405).json({ error: 'Method not allowed' })
+  try {
+    const invites = await sql`
+      SELECT i.id, i.alliance_id, i.inviter_user_id, i.status, i.created_at,
+             a.name AS alliance_name, a.tag AS alliance_tag, a.description AS alliance_description,
+             a.member_count, a.military_tier, a.economic_tier, a.overall_tier,
+             u.username AS inviter_username
+      FROM pw_alliance_invites i
+      JOIN pw_alliances a ON a.id = i.alliance_id
+      JOIN pw_users u ON u.id = i.inviter_user_id
+      WHERE i.invitee_user_id = ${req.userId} AND i.status = 'pending'
+      ORDER BY i.created_at DESC
+    `
+    return res.status(200).json({ invites })
+  } catch (err) {
+    return allianceErrorResponse(res, err, 'alliance_invite_list_received error:')
+  }
+}
+
+// alliance_invite_list_sent (GET) — founder/officer view of their alliance's pending invites
+async function handleAllianceInviteListSent(req, res) {
+  if (req.method !== 'GET') return res.status(405).json({ error: 'Method not allowed' })
+  try {
+    const { alliance_id } = await requireAllianceRank(sql, req.userId, ['founder', 'officer'])
+    const invites = await sql`
+      SELECT i.id, i.invitee_user_id, i.inviter_user_id, i.status, i.created_at,
+             u.username AS invitee_username,
+             iu.username AS inviter_username
+      FROM pw_alliance_invites i
+      JOIN pw_users u ON u.id = i.invitee_user_id
+      JOIN pw_users iu ON iu.id = i.inviter_user_id
+      WHERE i.alliance_id = ${alliance_id} AND i.status = 'pending'
+      ORDER BY i.created_at DESC
+    `
+    return res.status(200).json({ invites })
+  } catch (err) {
+    return allianceErrorResponse(res, err, 'alliance_invite_list_sent error:')
+  }
+}
+
+// alliance_invite_accept (POST) — invitee joins; clears cooldown, auto-declines other invites
+async function handleAllianceInviteAccept(req, res) {
+  if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' })
+  const { invite_id } = req.body ?? {}
+  const inviteId = Number(invite_id)
+  if (!Number.isInteger(inviteId) || inviteId <= 0) return res.status(400).json({ error: 'invalid_uuid' })
+
+  try {
+    // Friendly pre-checks (separate autocommitted reads). The CTE below is the
+    // authoritative gate — these only produce nicer error messages.
+    const invRows = await sql`
+      SELECT alliance_id, status, invitee_user_id
+      FROM pw_alliance_invites WHERE id = ${inviteId}
+    `
+    if (invRows.length === 0 || invRows[0].invitee_user_id !== req.userId || invRows[0].status !== 'pending') {
+      return res.status(404).json({ error: 'invite_not_found' })
+    }
+    const allianceId = invRows[0].alliance_id
+
+    const existing = await getUserAllianceMembership(sql, req.userId)
+    if (existing) return res.status(400).json({ error: 'already_in_alliance' })
+
+    const uRows = await sql`
+      SELECT ps.level, u.last_left_alliance_at
+      FROM pw_users u JOIN pw_player_stats ps ON ps.user_id = u.id
+      WHERE u.id = ${req.userId}
+    `
+    if (uRows.length === 0) return res.status(404).json({ error: 'Player not found' })
+    if (uRows[0].level < ALLIANCE_MIN_INVITE_LEVEL) return res.status(400).json({ error: 'level_too_low' })
+
+    const lastLeft = uRows[0].last_left_alliance_at
+    if (lastLeft) {
+      const cooldownEnd = new Date(lastLeft).getTime() + ALLIANCE_LEAVE_COOLDOWN_MS
+      if (Date.now() < cooldownEnd) {
+        return res.status(400).json({ error: 'cooldown_active', cooldown_until: new Date(cooldownEnd).toISOString() })
+      }
+    }
+
+    const aRows = await sql`SELECT member_count FROM pw_alliances WHERE id = ${allianceId}`
+    if (aRows.length === 0) return res.status(404).json({ error: 'alliance_not_found' })
+    if (aRows[0].member_count >= ALLIANCE_MEMBER_CAP) return res.status(400).json({ error: 'alliance_full' })
+
+    // Atomic, all-or-nothing. The invite UPDATE is the gate (re-validates pending +
+    // ownership inside the same transaction); every other op hangs off it, so a
+    // concurrently-resolved invite makes the whole statement a clean no-op.
+    let result
+    try {
+      result = await sql`
+        WITH accept_invite AS (
+          UPDATE pw_alliance_invites SET status = 'accepted', resolved_at = NOW()
+          WHERE id = ${inviteId} AND invitee_user_id = ${req.userId} AND status = 'pending'
+          RETURNING alliance_id
+        ),
+        ins_member AS (
+          INSERT INTO pw_alliance_members (alliance_id, user_id, rank, veteran_eligible_at)
+          SELECT alliance_id, ${req.userId}::uuid, 'member', NOW() + INTERVAL '30 days' FROM accept_invite
+          RETURNING alliance_id
+        ),
+        bump AS (
+          UPDATE pw_alliances SET member_count = member_count + 1
+          WHERE id = (SELECT alliance_id FROM accept_invite)
+          RETURNING id
+        ),
+        decline_others AS (
+          UPDATE pw_alliance_invites SET status = 'declined', resolved_at = NOW()
+          WHERE invitee_user_id = ${req.userId} AND status = 'pending' AND id != ${inviteId}
+            AND EXISTS (SELECT 1 FROM accept_invite)
+          RETURNING id
+        ),
+        clear_cd AS (
+          UPDATE pw_users SET last_left_alliance_at = NULL
+          WHERE id = ${req.userId} AND EXISTS (SELECT 1 FROM accept_invite)
+          RETURNING id
+        )
+        SELECT (SELECT alliance_id FROM accept_invite) AS alliance_id
+      `
+    } catch (e) {
+      // UNIQUE(user_id) on pw_alliance_members — a concurrent join won the race.
+      if (e?.code === '23505') return res.status(400).json({ error: 'already_in_alliance' })
+      throw e
+    }
+
+    if (!result[0]?.alliance_id) {
+      // Invite was resolved (declined/cancelled/accepted) between pre-check and CTE.
+      return res.status(404).json({ error: 'invite_not_found' })
+    }
+
+    const allianceRow = await sql`SELECT * FROM pw_alliances WHERE id = ${result[0].alliance_id}`
+    return res.status(200).json({ ok: true, alliance: allianceRow[0] })
+  } catch (err) {
+    return allianceErrorResponse(res, err, 'alliance_invite_accept error:')
+  }
+}
+
+// alliance_invite_decline (POST) — invitee declines a pending invite
+async function handleAllianceInviteDecline(req, res) {
+  if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' })
+  const { invite_id } = req.body ?? {}
+  const inviteId = Number(invite_id)
+  if (!Number.isInteger(inviteId) || inviteId <= 0) return res.status(400).json({ error: 'invalid_uuid' })
+
+  try {
+    // Guarded UPDATE checks existence + ownership + pending atomically.
+    const updated = await sql`
+      UPDATE pw_alliance_invites SET status = 'declined', resolved_at = NOW()
+      WHERE id = ${inviteId} AND invitee_user_id = ${req.userId} AND status = 'pending'
+      RETURNING id
+    `
+    if (updated.length === 0) return res.status(404).json({ error: 'invite_not_found' })
+    return res.status(200).json({ ok: true })
+  } catch (err) {
+    return allianceErrorResponse(res, err, 'alliance_invite_decline error:')
+  }
+}
+
+// alliance_invite_cancel (POST) — founder/officer rescinds an invite their alliance sent
+async function handleAllianceInviteCancel(req, res) {
+  if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' })
+  const { invite_id } = req.body ?? {}
+  const inviteId = Number(invite_id)
+  if (!Number.isInteger(inviteId) || inviteId <= 0) return res.status(400).json({ error: 'invalid_uuid' })
+
+  try {
+    const { alliance_id } = await requireAllianceRank(sql, req.userId, ['founder', 'officer'])
+    // Guarded UPDATE checks existence + alliance ownership + pending atomically.
+    const updated = await sql`
+      UPDATE pw_alliance_invites SET status = 'cancelled', resolved_at = NOW()
+      WHERE id = ${inviteId} AND alliance_id = ${alliance_id} AND status = 'pending'
+      RETURNING id
+    `
+    if (updated.length === 0) return res.status(404).json({ error: 'invite_not_found' })
+    return res.status(200).json({ ok: true })
+  } catch (err) {
+    return allianceErrorResponse(res, err, 'alliance_invite_cancel error:')
+  }
+}
+
 // ── Router ────────────────────────────────────────────────────────────────────
 
 const innerHandler = requireUserWithModCheck(async function handler(req, res) {
@@ -4471,6 +4713,12 @@ const innerHandler = requireUserWithModCheck(async function handler(req, res) {
   if (action === 'alliance_demote')             return handleAllianceDemote(req, res)
   if (action === 'alliance_transfer_ownership') return handleAllianceTransferOwnership(req, res)
   if (action === 'alliance_browse')             return handleAllianceBrowse(req, res)
+  if (action === 'alliance_invite_send')          return handleAllianceInviteSend(req, res)
+  if (action === 'alliance_invite_list_received') return handleAllianceInviteListReceived(req, res)
+  if (action === 'alliance_invite_list_sent')     return handleAllianceInviteListSent(req, res)
+  if (action === 'alliance_invite_accept')        return handleAllianceInviteAccept(req, res)
+  if (action === 'alliance_invite_decline')       return handleAllianceInviteDecline(req, res)
+  if (action === 'alliance_invite_cancel')        return handleAllianceInviteCancel(req, res)
   return res.status(400).json({ error: 'Unknown action' })
 })
 
