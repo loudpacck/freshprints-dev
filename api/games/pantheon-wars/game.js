@@ -21,6 +21,8 @@ import {
   checkAndCompleteCrafts, getCraftCycleSeconds, rollCraftRarity,
   checkChatRateLimit,
   getUserAllianceMembership, requireAllianceRank,
+  recalculateAlliancePower, computeAlliancePowerBreakdown, getAlliancePerks,
+  RARITY_VALUE,
 } from '../../../lib/pwHelpers.js'
 import { getPusherServer } from '../../../lib/pwPusher.js'
 import { isProfane } from '../../../lib/profanityFilter.js'
@@ -170,9 +172,16 @@ async function handleComplete(req, res) {
     }
 
     const earnedXp      = computeXpReward(quest.xp_reward, faction, alignment, perSourceBonuses, townshipBonuses)
-    const earnedDrachma = computeDrachmaReward(baseDrachma, faction, playerClass, perSourceBonuses, townshipBonuses)
+    let   earnedDrachma = computeDrachmaReward(baseDrachma, faction, playerClass, perSourceBonuses, townshipBonuses)
     let effectiveLootChance = quest.loot_chance
     let lootUpgradeChance   = 0
+
+    // Phase C — alliance Economic tier perk boosts drachma earned (applied last,
+    // after all faction/class/township bonuses, before crediting). Quests grant no glory.
+    const questAlliancePerks = await getAlliancePerks(sql, req.userId)
+    if (questAlliancePerks.drachma_bonus_pct > 0) {
+      earnedDrachma = Math.floor(earnedDrachma * (1 + questAlliancePerks.drachma_bonus_pct))
+    }
 
     // Track bonuses applied for frontend display
     const bonuses_applied = []
@@ -182,6 +191,7 @@ async function handleComplete(req, res) {
     if (playerClass === 'broker') bonuses_applied.push({ source: 'broker', type: 'drachma', value: 10 })
     if (townshipBonuses.xp_pct > 0) bonuses_applied.push({ source: 'divination', type: 'xp', value: Math.round(townshipBonuses.xp_pct) })
     if (townshipBonuses.drachma_pct > 0) bonuses_applied.push({ source: 'commerce', type: 'drachma', value: Math.round(townshipBonuses.drachma_pct) })
+    if (questAlliancePerks.drachma_bonus_pct > 0) bonuses_applied.push({ source: 'alliance', type: 'drachma', value: Math.round(questAlliancePerks.drachma_bonus_pct * 100) })
 
     // Per-quest faction bonus: xp/drachma handled in computeXpReward/computeDrachmaReward; handle loot here
     if (quest.faction_bonus && faction === quest.faction_bonus) {
@@ -1869,16 +1879,27 @@ async function handlePvPAttack(req, res) {
       getEquipmentBonuses(sql, target_user_id),
     ])
 
-    // Apply township flat stat bonuses to combat simulation only — does not persist to DB
+    // Phase C — alliance tier perks for both combatants, fetched once per fight.
+    const [attAlliancePerks, defAlliancePerks] = await Promise.all([
+      getAlliancePerks(sql, req.userId),
+      getAlliancePerks(sql, target_user_id),
+    ])
+
+    // Apply township flat stat bonuses to combat simulation only — does not persist to DB.
+    // alliance_attack/defense_bonus_pct ride along into simulateCombat (applied there).
     const attStatsBoosted = {
       ...attStats,
       attack:  attStats.attack  + Math.floor(attTownshipBonuses.flat_attack  || 0),
       defense: attStats.defense + Math.floor(attTownshipBonuses.flat_defense || 0),
+      alliance_attack_bonus_pct:  attAlliancePerks.attack_bonus_pct,
+      alliance_defense_bonus_pct: attAlliancePerks.defense_bonus_pct,
     }
     const defStatsForCombatBoosted = {
       ...defStatsForCombat,
       attack:  defStatsForCombat.attack  + Math.floor(defTownshipBonuses.flat_attack  || 0),
       defense: defStatsForCombat.defense + Math.floor(defTownshipBonuses.flat_defense || 0),
+      alliance_attack_bonus_pct:  defAlliancePerks.attack_bonus_pct,
+      alliance_defense_bonus_pct: defAlliancePerks.defense_bonus_pct,
     }
 
     const combat = simulateCombat({
@@ -1907,6 +1928,10 @@ async function handlePvPAttack(req, res) {
     if (combat.result === 'win') {
       if (attUser.alignment === 'compact') {
         finalGlory = Math.ceil(combat.glory_earned * 1.10)
+      }
+      // Phase C — alliance Economic tier perk boosts glory earned, applied before crediting.
+      if (attAlliancePerks.glory_bonus_pct > 0) {
+        finalGlory = Math.floor(finalGlory * (1 + attAlliancePerks.glory_bonus_pct))
       }
       healthRestored = Math.floor(attStats.health_max * 0.30)
       attStats = {
@@ -4060,7 +4085,11 @@ async function handleAllianceInfo(req, res) {
     const members = await fetchAllianceRoster(allianceId)
     const me = members.find(m => m.user_id === req.userId) || member
 
-    return res.status(200).json({ alliance: aRows[0], member: me, members })
+    // Phase C — power_breakdown is computed on demand (cheap, only on Alliance page load).
+    // Raw military_power/economic_power + the three tiers already live on the alliance row.
+    const power_breakdown = await computeAlliancePowerBreakdown(sql, allianceId)
+
+    return res.status(200).json({ alliance: aRows[0], member: me, members, power_breakdown })
   } catch (err) {
     return allianceErrorResponse(res, err, 'alliance_info error:')
   }
@@ -4249,6 +4278,10 @@ async function handleAllianceLeave(req, res) {
     await sql`UPDATE pw_alliances SET member_count = GREATEST(member_count - 1, 0) WHERE id = ${allianceId}`
     await sql`UPDATE pw_users SET last_left_alliance_at = NOW() WHERE id = ${req.userId}`
 
+    // Phase C — losing a member lowers the combat baseline; refresh cached power/tiers.
+    // (Only the surviving path: the founder-is-last-member branch above deletes the alliance.)
+    try { await recalculateAlliancePower(sql, allianceId) } catch (e) { console.error('recalc after leave:', e) }
+
     return res.status(200).json({
       ok: true, left: true,
       cooldown_until: new Date(Date.now() + ALLIANCE_LEAVE_COOLDOWN_MS).toISOString(),
@@ -4285,6 +4318,9 @@ async function handleAllianceKick(req, res) {
     await sql`DELETE FROM pw_alliance_members WHERE alliance_id = ${member.alliance_id} AND user_id = ${target_user_id}`
     await sql`UPDATE pw_alliances SET member_count = GREATEST(member_count - 1, 0) WHERE id = ${member.alliance_id}`
     // Kick carries no cooldown — last_left_alliance_at intentionally left untouched.
+
+    // Phase C — removing a member lowers the combat baseline; refresh cached power/tiers.
+    try { await recalculateAlliancePower(sql, member.alliance_id) } catch (e) { console.error('recalc after kick:', e) }
 
     return res.status(200).json({ ok: true, kicked: true })
   } catch (err) {
@@ -4591,6 +4627,9 @@ async function handleAllianceInviteAccept(req, res) {
       return res.status(404).json({ error: 'invite_not_found' })
     }
 
+    // Phase C — new member changes the combat baseline; refresh cached power/tiers.
+    try { await recalculateAlliancePower(sql, result[0].alliance_id) } catch (e) { console.error('recalc after invite_accept:', e) }
+
     const allianceRow = await sql`SELECT * FROM pw_alliances WHERE id = ${result[0].alliance_id}`
     return res.status(200).json({ ok: true, alliance: allianceRow[0] })
   } catch (err) {
@@ -4638,6 +4677,160 @@ async function handleAllianceInviteCancel(req, res) {
     return res.status(200).json({ ok: true })
   } catch (err) {
     return allianceErrorResponse(res, err, 'alliance_invite_cancel error:')
+  }
+}
+
+// ── Alliance Treasury Donations (Phase C) ────────────────────────────────────────
+// All require alliance membership (any rank), use an atomic CTE to move the resource,
+// log it with its computed power_value, then refresh cached power/tiers.
+
+// alliance_donate_drachma (POST) — body { amount }
+async function handleAllianceDonateDrachma(req, res) {
+  if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' })
+  const amount = Number(req.body?.amount)
+  if (!Number.isInteger(amount) || amount <= 0) return res.status(400).json({ error: 'invalid_amount' })
+  try {
+    const member = await getUserAllianceMembership(sql, req.userId)
+    if (!member) return res.status(400).json({ error: 'not_in_alliance' })
+    const allianceId = member.alliance_id
+
+    const result = await sql`
+      WITH deducted AS (
+        UPDATE pw_player_stats SET drachma = drachma - ${amount}
+        WHERE user_id = ${req.userId} AND drachma >= ${amount}
+        RETURNING drachma
+      ),
+      bump AS (
+        UPDATE pw_alliances SET treasury_drachma = treasury_drachma + ${amount}
+        WHERE id = ${allianceId} AND EXISTS (SELECT 1 FROM deducted)
+        RETURNING treasury_drachma
+      ),
+      logged AS (
+        INSERT INTO pw_alliance_treasury_log
+          (alliance_id, donor_user_id, donation_type, amount, power_value, power_track)
+        SELECT ${allianceId}, ${req.userId}, 'drachma', ${amount}, FLOOR(${amount} * 0.1), 'economic'
+        WHERE EXISTS (SELECT 1 FROM deducted)
+        RETURNING id
+      )
+      SELECT (SELECT drachma FROM deducted) AS player_drachma,
+             (SELECT treasury_drachma FROM bump) AS alliance_treasury_drachma
+    `
+    if (result[0]?.alliance_treasury_drachma == null) {
+      return res.status(400).json({ error: 'insufficient_funds' })
+    }
+
+    const power = await recalculateAlliancePower(sql, allianceId)
+    return res.status(200).json({
+      ok: true,
+      player_drachma: Number(result[0].player_drachma),
+      alliance_treasury_drachma: Number(result[0].alliance_treasury_drachma),
+      power,
+    })
+  } catch (err) {
+    return allianceErrorResponse(res, err, 'alliance_donate_drachma error:')
+  }
+}
+
+// alliance_donate_glory (POST) — body { amount }
+async function handleAllianceDonateGlory(req, res) {
+  if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' })
+  const amount = Number(req.body?.amount)
+  if (!Number.isInteger(amount) || amount <= 0) return res.status(400).json({ error: 'invalid_amount' })
+  try {
+    const member = await getUserAllianceMembership(sql, req.userId)
+    if (!member) return res.status(400).json({ error: 'not_in_alliance' })
+    const allianceId = member.alliance_id
+
+    const result = await sql`
+      WITH deducted AS (
+        UPDATE pw_player_stats SET glory = glory - ${amount}
+        WHERE user_id = ${req.userId} AND glory >= ${amount}
+        RETURNING glory
+      ),
+      bump AS (
+        UPDATE pw_alliances SET treasury_glory = treasury_glory + ${amount}
+        WHERE id = ${allianceId} AND EXISTS (SELECT 1 FROM deducted)
+        RETURNING treasury_glory
+      ),
+      logged AS (
+        INSERT INTO pw_alliance_treasury_log
+          (alliance_id, donor_user_id, donation_type, amount, power_value, power_track)
+        SELECT ${allianceId}, ${req.userId}, 'glory', ${amount}, ${amount} * 10, 'economic'
+        WHERE EXISTS (SELECT 1 FROM deducted)
+        RETURNING id
+      )
+      SELECT (SELECT glory FROM deducted) AS player_glory,
+             (SELECT treasury_glory FROM bump) AS alliance_treasury_glory
+    `
+    if (result[0]?.alliance_treasury_glory == null) {
+      return res.status(400).json({ error: 'insufficient_funds' })
+    }
+
+    const power = await recalculateAlliancePower(sql, allianceId)
+    return res.status(200).json({
+      ok: true,
+      player_glory: Number(result[0].player_glory),
+      alliance_treasury_glory: Number(result[0].alliance_treasury_glory),
+      power,
+    })
+  } catch (err) {
+    return allianceErrorResponse(res, err, 'alliance_donate_glory error:')
+  }
+}
+
+// alliance_donate_item (POST) — body { inventory_id }; donates an unequipped owned item
+async function handleAllianceDonateItem(req, res) {
+  if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' })
+  const inventoryId = Number(req.body?.inventory_id)
+  if (!Number.isInteger(inventoryId) || inventoryId <= 0) return res.status(400).json({ error: 'invalid_inventory_id' })
+  try {
+    const member = await getUserAllianceMembership(sql, req.userId)
+    if (!member) return res.status(400).json({ error: 'not_in_alliance' })
+    const allianceId = member.alliance_id
+
+    // Look the row up to give precise errors and snapshot item details for the log.
+    const itemRows = await sql`
+      SELECT pi.id, pi.equipped, i.id AS item_id, i.rarity, i.level_required
+      FROM pw_inventory pi
+      JOIN pw_items i ON i.id = pi.item_id
+      WHERE pi.id = ${inventoryId} AND pi.user_id = ${req.userId}
+    `
+    if (itemRows.length === 0) return res.status(404).json({ error: 'item_not_found' })
+    if (itemRows[0].equipped) return res.status(400).json({ error: 'item_equipped' })
+
+    const { item_id, rarity } = itemRows[0]
+    const levelRequired = itemRows[0].level_required ?? 1
+    const powerValue = (RARITY_VALUE[rarity] || 0) * levelRequired
+
+    const result = await sql`
+      WITH removed AS (
+        DELETE FROM pw_inventory
+        WHERE id = ${inventoryId} AND user_id = ${req.userId} AND equipped = false
+        RETURNING item_id
+      ),
+      logged AS (
+        INSERT INTO pw_alliance_treasury_log
+          (alliance_id, donor_user_id, donation_type, item_id, item_rarity, item_level_required, power_value, power_track)
+        SELECT ${allianceId}, ${req.userId}, 'item', ${item_id}, ${rarity}, ${levelRequired}, ${powerValue}, 'military'
+        WHERE EXISTS (SELECT 1 FROM removed)
+        RETURNING id
+      )
+      SELECT (SELECT item_id FROM removed) AS removed_item_id,
+             (SELECT id FROM logged) AS log_id
+    `
+    if (result[0]?.removed_item_id == null) {
+      // Lost a race — equipped or already gone between the read and the delete.
+      return res.status(400).json({ error: 'item_not_found' })
+    }
+
+    const power = await recalculateAlliancePower(sql, allianceId)
+    return res.status(200).json({
+      ok: true,
+      donated: { inventory_id: inventoryId, item_id, rarity, level_required: levelRequired, power_value: powerValue },
+      power,
+    })
+  } catch (err) {
+    return allianceErrorResponse(res, err, 'alliance_donate_item error:')
   }
 }
 
@@ -4719,6 +4912,9 @@ const innerHandler = requireUserWithModCheck(async function handler(req, res) {
   if (action === 'alliance_invite_accept')        return handleAllianceInviteAccept(req, res)
   if (action === 'alliance_invite_decline')       return handleAllianceInviteDecline(req, res)
   if (action === 'alliance_invite_cancel')        return handleAllianceInviteCancel(req, res)
+  if (action === 'alliance_donate_drachma')       return handleAllianceDonateDrachma(req, res)
+  if (action === 'alliance_donate_glory')         return handleAllianceDonateGlory(req, res)
+  if (action === 'alliance_donate_item')          return handleAllianceDonateItem(req, res)
   return res.status(400).json({ error: 'Unknown action' })
 })
 
