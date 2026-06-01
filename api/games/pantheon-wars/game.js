@@ -20,8 +20,10 @@ import {
   processExpiredTitanEvents,
   checkAndCompleteCrafts, getCraftCycleSeconds, rollCraftRarity,
   checkChatRateLimit,
+  getUserAllianceMembership, requireAllianceRank,
 } from '../../../lib/pwHelpers.js'
 import { getPusherServer } from '../../../lib/pwPusher.js'
+import { isProfane } from '../../../lib/profanityFilter.js'
 
 export const config = { runtime: 'nodejs' }
 
@@ -3991,6 +3993,412 @@ async function handleAdminMetrics(req, res) {
   }
 }
 
+// ── Alliances (Phase A) ─────────────────────────────────────────────────────────
+
+const ALLIANCE_FOUND_DRACHMA = 100000
+const ALLIANCE_FOUND_GLORY   = 100
+const ALLIANCE_FOUND_LEVEL   = 25
+const ALLIANCE_MEMBER_CAP    = 25
+const ALLIANCE_LEAVE_COOLDOWN_MS = 24 * 60 * 60 * 1000
+
+function allianceErrorResponse(res, err, logLabel) {
+  if (err?.isAllianceError) return res.status(err.status).json({ error: err.code, message: err.message })
+  console.error(logLabel, err)
+  return res.status(500).json({ error: 'server_error' })
+}
+
+// Roster query shared by alliance_info — ranks ordered founder→officer→veteran→member.
+async function fetchAllianceRoster(allianceId) {
+  return sql`
+    SELECT m.id, m.user_id, m.rank, m.joined_at, m.veteran_eligible_at,
+           u.username, u.faction, u.class, ps.level
+    FROM pw_alliance_members m
+    JOIN pw_users u ON u.id = m.user_id
+    JOIN pw_player_stats ps ON ps.user_id = m.user_id
+    WHERE m.alliance_id = ${allianceId}
+    ORDER BY
+      CASE m.rank WHEN 'founder' THEN 0 WHEN 'officer' THEN 1 WHEN 'veteran' THEN 2 ELSE 3 END,
+      m.joined_at ASC
+  `
+}
+
+// alliance_info (GET)
+async function handleAllianceInfo(req, res) {
+  if (req.method !== 'GET') return res.status(405).json({ error: 'Method not allowed' })
+  try {
+    const member = await getUserAllianceMembership(sql, req.userId)
+    if (!member) {
+      const urows = await sql`SELECT last_left_alliance_at FROM pw_users WHERE id = ${req.userId}`
+      const lastLeft = urows[0]?.last_left_alliance_at
+      let cooldown_remaining_seconds = 0
+      if (lastLeft) {
+        const remainMs = ALLIANCE_LEAVE_COOLDOWN_MS - (Date.now() - new Date(lastLeft).getTime())
+        cooldown_remaining_seconds = remainMs > 0 ? Math.ceil(remainMs / 1000) : 0
+      }
+      return res.status(200).json({ alliance: null, cooldown_remaining_seconds })
+    }
+
+    const allianceId = member.alliance_id
+
+    // Lazy veteran auto-promotion: any member past their eligibility window becomes a veteran.
+    await sql`
+      UPDATE pw_alliance_members
+      SET rank = 'veteran'
+      WHERE alliance_id = ${allianceId}
+        AND rank = 'member'
+        AND NOW() >= veteran_eligible_at
+    `
+
+    const aRows = await sql`SELECT * FROM pw_alliances WHERE id = ${allianceId}`
+    if (aRows.length === 0) return res.status(404).json({ error: 'alliance_not_found' })
+    const members = await fetchAllianceRoster(allianceId)
+    const me = members.find(m => m.user_id === req.userId) || member
+
+    return res.status(200).json({ alliance: aRows[0], member: me, members })
+  } catch (err) {
+    return allianceErrorResponse(res, err, 'alliance_info error:')
+  }
+}
+
+// alliance_create (POST)
+async function handleAllianceCreate(req, res) {
+  if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' })
+  const { name, tag, description } = req.body ?? {}
+  try {
+    const existing = await getUserAllianceMembership(sql, req.userId)
+    if (existing) return res.status(400).json({ error: 'already_in_alliance' })
+
+    const nameTrim = typeof name === 'string' ? name.trim() : ''
+    const tagTrim  = typeof tag  === 'string' ? tag.trim()  : ''
+    const descTrim = typeof description === 'string' ? description.trim() : null
+
+    if (nameTrim.length < 3 || nameTrim.length > 30) {
+      return res.status(400).json({ error: 'invalid_name', message: 'Name must be 3-30 characters.' })
+    }
+    if (tagTrim.length < 2 || tagTrim.length > 4) {
+      return res.status(400).json({ error: 'invalid_tag', message: 'Tag must be 2-4 characters.' })
+    }
+    if (isProfane(nameTrim) || isProfane(tagTrim)) {
+      return res.status(400).json({ error: 'profane', message: 'Name or tag contains banned words.' })
+    }
+
+    // Best-effort case-insensitive uniqueness for a friendly error; the DB UNIQUE
+    // constraints (case-sensitive) remain the race-safe backstop via 23505 below.
+    const dupName = await sql`SELECT 1 FROM pw_alliances WHERE LOWER(name) = LOWER(${nameTrim}) LIMIT 1`
+    if (dupName.length) return res.status(400).json({ error: 'name_taken' })
+    const dupTag = await sql`SELECT 1 FROM pw_alliances WHERE LOWER(tag) = LOWER(${tagTrim}) LIMIT 1`
+    if (dupTag.length) return res.status(400).json({ error: 'tag_taken' })
+
+    const statsRows = await sql`
+      SELECT ps.*, u.faction, u.class AS player_class, u.last_left_alliance_at
+      FROM pw_player_stats ps
+      JOIN pw_users u ON u.id = ps.user_id
+      WHERE ps.user_id = ${req.userId}
+    `
+    if (statsRows.length === 0) return res.status(404).json({ error: 'Player not found' })
+
+    if (statsRows[0].level < ALLIANCE_FOUND_LEVEL) {
+      return res.status(400).json({ error: 'level_too_low', level_required: ALLIANCE_FOUND_LEVEL })
+    }
+
+    // Founding is becoming a member, so the leave cooldown applies here too.
+    const lastLeft = statsRows[0].last_left_alliance_at
+    if (lastLeft) {
+      const remainMs = ALLIANCE_LEAVE_COOLDOWN_MS - (Date.now() - new Date(lastLeft).getTime())
+      if (remainMs > 0) {
+        return res.status(400).json({ error: 'leave_cooldown', cooldown_remaining_seconds: Math.ceil(remainMs / 1000) })
+      }
+    }
+
+    // Credit temple income / advance regen clocks before the affordability check.
+    const owned = await fetchOwnedTemples(req.userId)
+    const tships = await getPlayerTownships(sql, req.userId)
+    const tbon = aggregateTownshipBonuses(tships)
+    let stats = regenPlayer(statsRows[0], owned, statsRows[0].player_class, statsRows[0].faction, tbon)
+
+    await sql`
+      UPDATE pw_player_stats
+      SET drachma            = ${stats.drachma},
+          drachma_lifetime   = ${stats.drachma_lifetime},
+          energy             = ${stats.energy},
+          health             = ${stats.health},
+          energy_regen_base  = ${stats.energy_regen_base},
+          health_regen_base  = ${stats.health_regen_base},
+          last_updated       = ${stats.last_updated}
+      WHERE user_id = ${req.userId}
+    `
+
+    if (stats.drachma < ALLIANCE_FOUND_DRACHMA) {
+      return res.status(400).json({ error: 'insufficient_drachma', cost: ALLIANCE_FOUND_DRACHMA })
+    }
+    if (stats.glory < ALLIANCE_FOUND_GLORY) {
+      return res.status(400).json({ error: 'insufficient_glory', cost: ALLIANCE_FOUND_GLORY })
+    }
+
+    // Atomic deduct + create + enroll in one round-trip. The guarded UPDATE backstops
+    // a concurrent spend; UNIQUE(name/tag/user_id) violations surface as 23505.
+    let created
+    try {
+      created = await sql`
+        WITH deducted AS (
+          UPDATE pw_player_stats
+          SET drachma = drachma - ${ALLIANCE_FOUND_DRACHMA},
+              glory   = glory   - ${ALLIANCE_FOUND_GLORY}
+          WHERE user_id = ${req.userId}
+            AND drachma >= ${ALLIANCE_FOUND_DRACHMA}
+            AND glory   >= ${ALLIANCE_FOUND_GLORY}
+          RETURNING user_id, drachma, glory
+        ),
+        new_alliance AS (
+          INSERT INTO pw_alliances (name, tag, description, founder_id, member_count)
+          SELECT ${nameTrim}::varchar, ${tagTrim}::varchar, ${descTrim}::text, user_id, 1 FROM deducted
+          RETURNING id
+        ),
+        new_member AS (
+          INSERT INTO pw_alliance_members (alliance_id, user_id, rank, veteran_eligible_at)
+          SELECT id, ${req.userId}::uuid, 'founder', NOW() + INTERVAL '30 days' FROM new_alliance
+          RETURNING alliance_id
+        )
+        SELECT (SELECT id FROM new_alliance) AS alliance_id,
+               (SELECT drachma FROM deducted) AS drachma,
+               (SELECT glory FROM deducted) AS glory
+      `
+    } catch (e) {
+      if (e?.code === '23505') {
+        // Unique violation — figure out which constraint lost the race.
+        const m = String(e.message || '').toLowerCase()
+        if (m.includes('user_id')) return res.status(400).json({ error: 'already_in_alliance' })
+        if (m.includes('tag'))     return res.status(400).json({ error: 'tag_taken' })
+        return res.status(400).json({ error: 'name_taken' })
+      }
+      throw e
+    }
+
+    if (!created[0]?.alliance_id) {
+      // Guarded UPDATE matched no row — a concurrent spend depleted funds.
+      return res.status(400).json({ error: 'insufficient_funds' })
+    }
+
+    // Founding clears any prior leave cooldown.
+    await sql`UPDATE pw_users SET last_left_alliance_at = NULL WHERE id = ${req.userId}`
+
+    const aRows = await sql`SELECT * FROM pw_alliances WHERE id = ${created[0].alliance_id}`
+    return res.status(201).json({
+      alliance: aRows[0],
+      stats: { ...stats, drachma: created[0].drachma, glory: created[0].glory },
+    })
+  } catch (err) {
+    return allianceErrorResponse(res, err, 'alliance_create error:')
+  }
+}
+
+// alliance_disband (POST) — founder only
+async function handleAllianceDisband(req, res) {
+  if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' })
+  try {
+    const { alliance_id } = await requireAllianceRank(sql, req.userId, ['founder'])
+    // Alliance chat has no FK — purge it explicitly before the cascade delete.
+    await sql`DELETE FROM pw_chat_messages WHERE channel_type = 'alliance' AND channel_id = ${alliance_id}`
+    await sql`DELETE FROM pw_alliances WHERE id = ${alliance_id}`  // cascades members/invites/treasury log
+    return res.status(200).json({ ok: true, disbanded: true })
+  } catch (err) {
+    return allianceErrorResponse(res, err, 'alliance_disband error:')
+  }
+}
+
+// alliance_leave (POST) — any rank
+async function handleAllianceLeave(req, res) {
+  if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' })
+  try {
+    const member = await getUserAllianceMembership(sql, req.userId)
+    if (!member) return res.status(400).json({ error: 'not_in_alliance' })
+    const allianceId = member.alliance_id
+
+    if (member.rank === 'founder') {
+      // Succession: oldest officer, else oldest veteran, else oldest member.
+      const successorRows = await sql`
+        SELECT user_id FROM pw_alliance_members
+        WHERE alliance_id = ${allianceId} AND user_id != ${req.userId}
+        ORDER BY
+          CASE rank WHEN 'officer' THEN 0 WHEN 'veteran' THEN 1 ELSE 2 END,
+          joined_at ASC
+        LIMIT 1
+      `
+      if (successorRows.length === 0) {
+        // Founder is the only member — disband instead of leaving an empty shell.
+        await sql`DELETE FROM pw_chat_messages WHERE channel_type = 'alliance' AND channel_id = ${allianceId}`
+        await sql`DELETE FROM pw_alliances WHERE id = ${allianceId}`
+        await sql`UPDATE pw_users SET last_left_alliance_at = NOW() WHERE id = ${req.userId}`
+        return res.status(200).json({
+          ok: true, left: true, disbanded: true,
+          cooldown_until: new Date(Date.now() + ALLIANCE_LEAVE_COOLDOWN_MS).toISOString(),
+        })
+      }
+      const successorId = successorRows[0].user_id
+      await sql`UPDATE pw_alliance_members SET rank = 'founder' WHERE alliance_id = ${allianceId} AND user_id = ${successorId}`
+      await sql`UPDATE pw_alliances SET founder_id = ${successorId} WHERE id = ${allianceId}`
+    }
+
+    await sql`DELETE FROM pw_alliance_members WHERE alliance_id = ${allianceId} AND user_id = ${req.userId}`
+    await sql`UPDATE pw_alliances SET member_count = GREATEST(member_count - 1, 0) WHERE id = ${allianceId}`
+    await sql`UPDATE pw_users SET last_left_alliance_at = NOW() WHERE id = ${req.userId}`
+
+    return res.status(200).json({
+      ok: true, left: true,
+      cooldown_until: new Date(Date.now() + ALLIANCE_LEAVE_COOLDOWN_MS).toISOString(),
+    })
+  } catch (err) {
+    return allianceErrorResponse(res, err, 'alliance_leave error:')
+  }
+}
+
+// alliance_kick (POST)
+async function handleAllianceKick(req, res) {
+  if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' })
+  const { target_user_id } = req.body ?? {}
+  try {
+    const member = await getUserAllianceMembership(sql, req.userId)
+    if (!member) return res.status(400).json({ error: 'not_in_alliance' })
+    if (!target_user_id) return res.status(400).json({ error: 'target_user_id is required' })
+    if (target_user_id === req.userId) return res.status(400).json({ error: 'cannot_kick_self' })
+    if (member.rank !== 'founder' && member.rank !== 'officer') {
+      return res.status(403).json({ error: 'insufficient_rank' })
+    }
+
+    const targetRows = await sql`
+      SELECT * FROM pw_alliance_members WHERE alliance_id = ${member.alliance_id} AND user_id = ${target_user_id}
+    `
+    if (targetRows.length === 0) return res.status(404).json({ error: 'target_not_in_alliance' })
+    const target = targetRows[0]
+
+    // Officers can only kick veterans and members; founder can kick anyone (except self).
+    if (member.rank === 'officer' && (target.rank === 'founder' || target.rank === 'officer')) {
+      return res.status(403).json({ error: 'insufficient_rank' })
+    }
+
+    await sql`DELETE FROM pw_alliance_members WHERE alliance_id = ${member.alliance_id} AND user_id = ${target_user_id}`
+    await sql`UPDATE pw_alliances SET member_count = GREATEST(member_count - 1, 0) WHERE id = ${member.alliance_id}`
+    // Kick carries no cooldown — last_left_alliance_at intentionally left untouched.
+
+    return res.status(200).json({ ok: true, kicked: true })
+  } catch (err) {
+    return allianceErrorResponse(res, err, 'alliance_kick error:')
+  }
+}
+
+// alliance_promote (POST) — founder only; member/veteran → officer
+async function handleAlliancePromote(req, res) {
+  if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' })
+  const { target_user_id } = req.body ?? {}
+  try {
+    const { alliance_id } = await requireAllianceRank(sql, req.userId, ['founder'])
+    if (!target_user_id) return res.status(400).json({ error: 'target_user_id is required' })
+
+    const targetRows = await sql`
+      SELECT * FROM pw_alliance_members WHERE alliance_id = ${alliance_id} AND user_id = ${target_user_id}
+    `
+    if (targetRows.length === 0) return res.status(404).json({ error: 'target_not_in_alliance' })
+    if (targetRows[0].rank === 'founder') return res.status(400).json({ error: 'cannot_promote_founder' })
+    if (targetRows[0].rank === 'officer') return res.status(400).json({ error: 'already_officer' })
+
+    const updated = await sql`
+      UPDATE pw_alliance_members SET rank = 'officer'
+      WHERE alliance_id = ${alliance_id} AND user_id = ${target_user_id}
+      RETURNING *
+    `
+    return res.status(200).json({ ok: true, member: updated[0] })
+  } catch (err) {
+    return allianceErrorResponse(res, err, 'alliance_promote error:')
+  }
+}
+
+// alliance_demote (POST) — founder only; officer → veteran (if eligible) or member
+async function handleAllianceDemote(req, res) {
+  if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' })
+  const { target_user_id } = req.body ?? {}
+  try {
+    const { alliance_id } = await requireAllianceRank(sql, req.userId, ['founder'])
+    if (!target_user_id) return res.status(400).json({ error: 'target_user_id is required' })
+
+    const targetRows = await sql`
+      SELECT * FROM pw_alliance_members WHERE alliance_id = ${alliance_id} AND user_id = ${target_user_id}
+    `
+    if (targetRows.length === 0) return res.status(404).json({ error: 'target_not_in_alliance' })
+    if (targetRows[0].rank !== 'officer') return res.status(400).json({ error: 'not_an_officer' })
+
+    // Drops to veteran if they've already passed their eligibility window, else member.
+    const updated = await sql`
+      UPDATE pw_alliance_members
+      SET rank = CASE WHEN NOW() >= veteran_eligible_at THEN 'veteran' ELSE 'member' END
+      WHERE alliance_id = ${alliance_id} AND user_id = ${target_user_id}
+      RETURNING *
+    `
+    return res.status(200).json({ ok: true, member: updated[0] })
+  } catch (err) {
+    return allianceErrorResponse(res, err, 'alliance_demote error:')
+  }
+}
+
+// alliance_transfer_ownership (POST) — founder only; target must be an officer
+async function handleAllianceTransferOwnership(req, res) {
+  if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' })
+  const { target_user_id } = req.body ?? {}
+  try {
+    const { alliance_id } = await requireAllianceRank(sql, req.userId, ['founder'])
+    if (!target_user_id) return res.status(400).json({ error: 'target_user_id is required' })
+    if (target_user_id === req.userId) return res.status(400).json({ error: 'cannot_transfer_to_self' })
+
+    const targetRows = await sql`
+      SELECT * FROM pw_alliance_members WHERE alliance_id = ${alliance_id} AND user_id = ${target_user_id}
+    `
+    if (targetRows.length === 0) return res.status(404).json({ error: 'target_not_in_alliance' })
+    if (targetRows[0].rank !== 'officer') return res.status(400).json({ error: 'target_not_officer' })
+
+    await sql`UPDATE pw_alliance_members SET rank = 'officer' WHERE alliance_id = ${alliance_id} AND user_id = ${req.userId}`
+    await sql`UPDATE pw_alliance_members SET rank = 'founder' WHERE alliance_id = ${alliance_id} AND user_id = ${target_user_id}`
+    await sql`UPDATE pw_alliances SET founder_id = ${target_user_id} WHERE id = ${alliance_id}`
+
+    return res.status(200).json({ ok: true, new_founder: target_user_id })
+  } catch (err) {
+    return allianceErrorResponse(res, err, 'alliance_transfer_ownership error:')
+  }
+}
+
+// alliance_browse (GET) — paginated, sortable
+async function handleAllianceBrowse(req, res) {
+  if (req.method !== 'GET') return res.status(405).json({ error: 'Method not allowed' })
+  try {
+    const sort = req.query.sort
+    const page = Math.max(0, parseInt(req.query.page, 10) || 0)
+    const limit = 50
+    const offset = page * limit
+
+    // Column names can't be parameterized in the sql tag — branch on a whitelist.
+    let rows
+    if (sort === 'military_tier') {
+      rows = await sql`
+        SELECT id, name, tag, description, member_count, military_tier, economic_tier, overall_tier, created_at
+        FROM pw_alliances ORDER BY military_tier DESC, created_at DESC LIMIT ${limit} OFFSET ${offset}`
+    } else if (sort === 'economic_tier') {
+      rows = await sql`
+        SELECT id, name, tag, description, member_count, military_tier, economic_tier, overall_tier, created_at
+        FROM pw_alliances ORDER BY economic_tier DESC, created_at DESC LIMIT ${limit} OFFSET ${offset}`
+    } else if (sort === 'member_count') {
+      rows = await sql`
+        SELECT id, name, tag, description, member_count, military_tier, economic_tier, overall_tier, created_at
+        FROM pw_alliances ORDER BY member_count DESC, created_at DESC LIMIT ${limit} OFFSET ${offset}`
+    } else {
+      rows = await sql`
+        SELECT id, name, tag, description, member_count, military_tier, economic_tier, overall_tier, created_at
+        FROM pw_alliances ORDER BY overall_tier DESC, created_at DESC LIMIT ${limit} OFFSET ${offset}`
+    }
+
+    return res.status(200).json({ alliances: rows, page, limit })
+  } catch (err) {
+    return allianceErrorResponse(res, err, 'alliance_browse error:')
+  }
+}
+
 // ── Router ────────────────────────────────────────────────────────────────────
 
 const innerHandler = requireUserWithModCheck(async function handler(req, res) {
@@ -4054,6 +4462,15 @@ const innerHandler = requireUserWithModCheck(async function handler(req, res) {
   if (action === 'chat_lift_moderation')   return handleChatLiftModeration(req, res)
   if (action === 'chat_list_moderations')  return handleChatListModerations(req, res)
   if (action === 'chat_set_mod_badge')     return handleChatSetModBadge(req, res)
+  if (action === 'alliance_info')               return handleAllianceInfo(req, res)
+  if (action === 'alliance_create')             return handleAllianceCreate(req, res)
+  if (action === 'alliance_disband')            return handleAllianceDisband(req, res)
+  if (action === 'alliance_leave')              return handleAllianceLeave(req, res)
+  if (action === 'alliance_kick')               return handleAllianceKick(req, res)
+  if (action === 'alliance_promote')            return handleAlliancePromote(req, res)
+  if (action === 'alliance_demote')             return handleAllianceDemote(req, res)
+  if (action === 'alliance_transfer_ownership') return handleAllianceTransferOwnership(req, res)
+  if (action === 'alliance_browse')             return handleAllianceBrowse(req, res)
   return res.status(400).json({ error: 'Unknown action' })
 })
 
