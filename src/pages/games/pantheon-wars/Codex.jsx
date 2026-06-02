@@ -50,6 +50,13 @@ const CATEGORIES = [
     description: 'Primordial beings that demand the strength of many to slay.',
   },
   {
+    id: 'alliances',
+    label: 'ALLIANCES',
+    glyph: '⚜',
+    color: '#C9A961',
+    description: 'Unions of mortals bound by oath — banners, ranks, powers, and the war chest.',
+  },
+  {
     id: 'loot',
     label: 'LOOT',
     glyph: '◆',
@@ -247,6 +254,57 @@ const LOOT_ENTRIES = [
   },
 ]
 
+const ALLIANCE_ENTRIES = [
+  {
+    id: 'what_is_an_alliance',
+    title: 'What Is An Alliance?',
+    subtitle: 'Bonds forged beyond bloodline',
+    body: `Alliances are unions of mortals who set aside the boundaries of faction and alignment to pursue shared power. Where the Pantheons divide the world by inheritance and the Compact divides it by ideology, an alliance binds by oath alone. Every member contributes — combat strength, divine income, and donated spoils — and every member benefits from the alliance's accumulated might. Up to 25 mortals may stand beneath a single banner.`,
+  },
+  {
+    id: 'founding_and_joining',
+    title: 'Founding & Joining',
+    subtitle: 'The price of leadership',
+    body: `A mortal of Level 25 or higher may found an alliance for the cost of 100,000 drachma and 100 glory — proof that they have already proven themselves in war and trade. Founding requires a name (3-30 characters) and a tag (2-4 characters), both unique across all Kishar. Joining is by invitation only, issued by a Founder or Officer. Mortals as young as Level 5 may accept an invitation. Leaving an alliance imposes a 24-hour cooldown before the mortal may bind themselves to another banner.`,
+  },
+  {
+    id: 'ranks_of_the_banner',
+    title: 'Ranks of the Banner',
+    subtitle: 'From Member to Founder',
+    body: `Every alliance has four ranks. The FOUNDER built the banner and holds ultimate authority — they may invite, kick, promote, demote, transfer ownership, and disband. OFFICERS, hand-picked by the Founder, may invite and kick Veterans and Members. VETERANS are members of 30 days standing, promoted automatically as recognition of loyalty. MEMBERS are the foundation — every new mortal begins here. If the Founder leaves without naming a successor, the oldest Officer rises to take the seat.`,
+  },
+  {
+    id: 'the_three_powers',
+    title: 'The Three Powers',
+    subtitle: 'Military, Economic, Overall',
+    body: `An alliance is measured by three powers, each rising through five tiers (I, II, III, IV, V) at logarithmic thresholds: 1,000 / 10,000 / 100,000 / 1,000,000 / 10,000,000 power points. MILITARY POWER reflects the warriors in your ranks — their stats, their combat-aligned Township levels, and the weapons donated to your treasury. ECONOMIC POWER reflects your prosperity — accumulated temple income, economy-aligned Township levels, and donated drachma and glory. OVERALL POWER is the average of the two, a single measure of an alliance's standing among its peers.`,
+  },
+  {
+    id: 'power_sources',
+    title: 'Power Sources',
+    subtitle: 'What feeds the banner',
+    body: `Every mortal who stands beneath an alliance banner contributes power. MILITARY POWER draws from each member's attack, defense, agility, energy maximum, and health maximum — plus their Warfare, Fortification, Stewardship, and Ritual Township levels — and from every donated piece of equipment, valued by rarity (common 1 × level required, uncommon 5×, rare 25×, epic 100×, legendary 500×). ECONOMIC POWER draws from each member's temple income rate, their Commerce, Divination, Exploration, and Craftsmanship Township levels, and donated currency (1 drachma = 0.1 power, 1 glory = 10 power).`,
+  },
+  {
+    id: 'tier_perks',
+    title: 'Tier Perks',
+    subtitle: 'Strength returned to the faithful',
+    body: `As your alliance rises through the tiers, every member receives passive bonuses. Each Military tier above 0 grants +3% Attack and +3% Defense to all members — a maximum of +15% at Tier V. Each Economic tier above 0 grants +3% to drachma and glory earned from quests, adventures, and combat — also +15% maximum. These bonuses stack with faction, class, alignment, and Township bonuses, multiplying the rewards of every other system in Kishar.`,
+  },
+  {
+    id: 'the_treasury',
+    title: 'The Treasury',
+    subtitle: 'A war chest that never empties',
+    body: `An alliance's treasury is permanent and additive — drachma, glory, and items donated to the alliance can never be withdrawn. This is by design. The treasury exists not as a shared wallet but as a foundation: every contribution permanently strengthens the alliance, deepening its three powers and benefiting every member who walks beneath the banner. In the days to come, the treasury will fund alliance dungeons, alliance-versus-alliance campaigns, and other endeavors yet to be unveiled.`,
+  },
+  {
+    id: 'climbing_the_tiers',
+    title: 'Climbing the Tiers',
+    subtitle: 'Strategies for ascent',
+    body: `A serious alliance pursues both powers in parallel. To climb MILITARY, recruit high-level warriors, encourage members to deepen their Warfare and Fortification Townships, and donate epic and legendary equipment — a single legendary item at level 75 grants 37,500 power. To climb ECONOMIC, recruit patient builders, encourage members to deepen their Commerce and Divination, build temples relentlessly, and donate accumulated glory (10× the value of raw drachma). The OVERALL tier is the average — neglect either power and your standing suffers.`,
+  },
+]
+
 const COMBAT_ENTRIES = [
   {
     id: 'rounds',
@@ -326,6 +384,7 @@ function getEntries(categoryId, data) {
     case 'factions':    return FACTION_ENTRIES
     case 'classes':     return CLASS_ENTRIES
     case 'alignments':  return ALIGNMENT_ENTRIES
+    case 'alliances':   return ALLIANCE_ENTRIES
     case 'loot':        return LOOT_ENTRIES
     case 'combat':      return COMBAT_ENTRIES
     case 'quests':      return QUEST_ENTRIES
