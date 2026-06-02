@@ -1918,7 +1918,10 @@ async function handlePvPAttack(req, res) {
     const attackerPowerSummary = combat.rounds.reduce((s, r) => s + (r.attacker_action?.damage || 0), 0)
     const defenderPowerSummary = combat.rounds.reduce((s, r) => s + (r.defender_action?.damage || 0), 0)
 
-    // Apply attacker HP change; defender real HP is unchanged (simulation uses virtual 100 HP)
+    // Apply attacker HP change; defender real HP is unchanged (simulation uses virtual 100 HP).
+    // Dynamic combat runs until 1 HP, so on a loss this is where the attacker's HP lands (often
+    // as low as 1) — the loss branch below leaves it untouched, so that reduced HP persists.
+    // On a win, the 30% restore below is added on top of this value.
     attStats = { ...attStats, health: combat.final_attacker_hp }
 
     let finalGlory = combat.glory_earned
