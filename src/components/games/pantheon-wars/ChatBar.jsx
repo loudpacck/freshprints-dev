@@ -720,7 +720,7 @@ function DmComposeView({ initialUsername, currentUserId, sendDm, onBack, onThrea
 
 // ── Shared chat input row ─────────────────────────────────────────────────────
 
-function ChatInput({ inputRef, value, onChange, onKeyDown, onSend, sending, error, placeholder, isMuted, showCounter }) {
+function ChatInput({ inputRef, value, onChange, onKeyDown, onSend, sending, error, placeholder, isMuted }) {
   const canSend = value.trim().length > 0 && !sending && !isMuted
   return (
     <div style={{
@@ -785,203 +785,6 @@ function ChatInput({ inputRef, value, onChange, onKeyDown, onSend, sending, erro
           {sending ? '…' : 'SEND'}
         </button>
       </div>
-      {showCounter && (
-        <div style={{
-          textAlign: 'right', fontFamily: "'IBM Plex Mono', monospace",
-          fontSize: 9, color: value.length > 500 ? 'rgba(255,100,100,0.8)' : 'rgba(255,255,255,0.28)',
-          letterSpacing: '0.05em', marginTop: -2,
-        }}>
-          {value.length}/500
-        </div>
-      )}
-    </div>
-  )
-}
-
-// ── Alliance: message row (tombstone + founder/officer delete) ──────────────────
-
-function AllianceMessageRow({ msg, onUsernameClick, isMod, currentUserId, onContextMenu, canAllianceDelete, onAllianceDelete }) {
-  const [hover, setHover] = useState(false)
-  const longPressTimer = useRef(null)
-
-  function canModerate() {
-    if (!isMod) return false
-    if (msg.is_system || msg.deleted_at) return false
-    if (!msg.sender_id || msg.sender_id === currentUserId) return false
-    if (msg.is_mod_message) return false
-    return true
-  }
-
-  function handleContextMenu(e) {
-    if (!canModerate()) return
-    e.preventDefault()
-    onContextMenu(e.clientX, e.clientY, msg)
-  }
-  function handleTouchStart(e) {
-    if (!canModerate()) return
-    const touch = e.touches[0]
-    longPressTimer.current = setTimeout(() => onContextMenu(touch.clientX, touch.clientY, msg), 500)
-  }
-  function handleTouchEnd() { clearTimeout(longPressTimer.current) }
-
-  // System message — distinct italic accent style (e.g. "X deleted a message from Y")
-  if (msg.is_system) {
-    return (
-      <div style={{
-        textAlign: 'center', fontStyle: 'italic', fontSize: 11,
-        color: GOLD_DIM, padding: '3px 12px',
-        background: 'rgba(201,169,97,0.05)',
-        borderLeft: `2px solid ${GOLD_MUT}`,
-        margin: '2px 0', fontFamily: "'DM Sans', sans-serif",
-      }}>
-        {msg.content}
-      </div>
-    )
-  }
-
-  // Tombstone — preserve dimmed original sender for context, then the placeholder.
-  if (msg.deleted_at) {
-    return (
-      <div style={{ display: 'flex', gap: 8, alignItems: 'baseline', lineHeight: 1.4 }}>
-        <span style={{
-          color: 'rgba(201,169,97,0.4)', fontFamily: "'IBM Plex Mono', monospace",
-          fontSize: 11, fontWeight: 600, letterSpacing: '0.04em', flexShrink: 0,
-        }}>
-          {msg.sender_username}
-        </span>
-        <span style={{
-          color: 'rgba(255,255,255,0.3)', fontStyle: 'italic', fontSize: 12,
-          fontFamily: "'DM Sans', sans-serif",
-        }}>
-          {msg.deleted_by_name
-            ? `<message deleted by ${msg.deleted_by_name}>`
-            : '<message deleted>'}
-        </span>
-      </div>
-    )
-  }
-
-  const showDelete = canAllianceDelete
-
-  return (
-    <div
-      style={{ display: 'flex', gap: 8, alignItems: 'flex-start', lineHeight: 1.4 }}
-      onMouseEnter={() => setHover(true)}
-      onMouseLeave={() => setHover(false)}
-      onContextMenu={handleContextMenu}
-      onTouchStart={handleTouchStart}
-      onTouchEnd={handleTouchEnd}
-      onTouchMove={handleTouchEnd}
-    >
-      <div style={{ display: 'flex', alignItems: 'center', gap: 0, flexShrink: 0 }}>
-        <button
-          onClick={() => onUsernameClick(msg.sender_id, msg.sender_username)}
-          style={{
-            background: 'none', border: 'none', padding: 0,
-            color: GOLD, fontFamily: "'IBM Plex Mono', monospace",
-            fontSize: 11, fontWeight: 600, cursor: 'pointer',
-            letterSpacing: '0.04em', textDecoration: 'none',
-          }}
-          onMouseEnter={e => { e.currentTarget.style.textDecoration = 'underline' }}
-          onMouseLeave={e => { e.currentTarget.style.textDecoration = 'none' }}
-        >
-          {msg.sender_username}
-        </button>
-        {msg.is_mod_message && msg.mod_username && (
-          <span style={{
-            marginLeft: 5, padding: '1px 5px',
-            background: 'rgba(255,215,0,0.14)',
-            border: '1px solid rgba(255,215,0,0.38)',
-            borderRadius: 3, fontSize: 8, fontWeight: 700,
-            letterSpacing: 0.5, color: MOD_GOLD,
-          }}>
-            MOD
-          </span>
-        )}
-      </div>
-      <span style={{
-        color: 'rgba(255,255,255,0.87)', fontSize: 12,
-        fontFamily: "'DM Sans', sans-serif", flex: 1, wordBreak: 'break-word',
-      }}>
-        {msg.content}
-      </span>
-      {showDelete && (
-        <button
-          onClick={() => onAllianceDelete(msg)}
-          title="Delete message"
-          aria-label="Delete message"
-          style={{
-            background: 'none', border: 'none', cursor: 'pointer', padding: '0 2px',
-            color: hover ? 'rgb(239,68,68)' : 'rgba(239,68,68,0.45)',
-            fontSize: 12, lineHeight: 1, flexShrink: 0, alignSelf: 'center',
-            transition: 'color 120ms',
-          }}
-        >
-          ✕
-        </button>
-      )}
-      <span style={{
-        color: 'rgba(255,255,255,0.28)', fontSize: 9,
-        fontFamily: "'IBM Plex Mono', monospace",
-        flexShrink: 0, alignSelf: 'flex-end', letterSpacing: '0.05em',
-      }}>
-        {formatTime(msg.created_at)}
-      </span>
-    </div>
-  )
-}
-
-// ── Alliance: scroll-aware message list ─────────────────────────────────────────
-
-function AllianceMessageList({ messages, onUsernameClick, listRef, isMod, currentUserId, onContextMenu, canAllianceDelete, onAllianceDelete }) {
-  const nearBottomRef = useRef(true)
-
-  function handleScroll() {
-    const el = listRef.current
-    if (!el) return
-    nearBottomRef.current = (el.scrollHeight - el.scrollTop - el.clientHeight) < 60
-  }
-
-  // Auto-scroll only when the user is already near the bottom (preserve read position).
-  useEffect(() => {
-    const el = listRef.current
-    if (el && nearBottomRef.current) el.scrollTop = el.scrollHeight
-  }, [messages, listRef])
-
-  if (!messages.length) {
-    return (
-      <div style={{
-        flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center',
-        color: 'rgba(255,255,255,0.25)', fontFamily: "'IBM Plex Mono', monospace",
-        fontSize: 11, letterSpacing: '0.06em', textAlign: 'center', padding: '0 16px',
-      }}>
-        Alliance chat is quiet. Be the first to speak.
-      </div>
-    )
-  }
-
-  return (
-    <div
-      ref={listRef}
-      onScroll={handleScroll}
-      style={{
-        flex: 1, overflowY: 'auto',
-        padding: '8px 12px', display: 'flex', flexDirection: 'column', gap: 4,
-        scrollbarWidth: 'thin', scrollbarColor: 'rgba(201,169,97,0.2) transparent',
-      }}
-    >
-      {messages.map(msg => (
-        <AllianceMessageRow
-          key={msg.id}
-          msg={msg}
-          onUsernameClick={onUsernameClick}
-          isMod={isMod}
-          currentUserId={currentUserId}
-          onContextMenu={onContextMenu}
-          canAllianceDelete={canAllianceDelete && !msg.is_system && !msg.deleted_at}
-          onAllianceDelete={onAllianceDelete}
-        />
-      ))}
     </div>
   )
 }
@@ -1002,8 +805,6 @@ export default function ChatBar() {
     dmView, setDmView,
     composeUsername, setComposeUsername,
     openThread, openDmWithUser, sendDm, fetchThreadsList,
-    allianceId, allianceTag, allianceRank,
-    sendAllianceMessage, deleteAllianceMessage,
   } = useChat()
 
   // General tab state
@@ -1017,68 +818,23 @@ export default function ChatBar() {
   const [modSending, setModSending] = useState(false)
   const [modError, setModError]     = useState(null)
 
-  // Alliance tab state
-  const [allianceInput, setAllianceInput]     = useState('')
-  const [allianceSending, setAllianceSending] = useState(false)
-  const [allianceError, setAllianceError]     = useState(null)
-  const [allianceMuted, setAllianceMuted]     = useState(false)
-  const [pendingDelete, setPendingDelete]     = useState(null) // alliance message awaiting confirm
-
   const [toast, setToast]             = useState(null)
   const [contextMenu, setContextMenu] = useState(null) // { x, y, message }
 
-  const inputRef         = useRef(null)
-  const modInputRef      = useRef(null)
-  const allianceInputRef = useRef(null)
-  const listRef          = useRef(null)
-  const modListRef       = useRef(null)
-  const allianceListRef  = useRef(null)
-
-  // If the player leaves/loses the alliance while the tab is active, fall back to General
-  // and drop any half-typed alliance message (Phase F edge case: kicked mid-compose).
-  useEffect(() => {
-    if (!allianceId) {
-      setAllianceInput('')
-      setAllianceError(null)
-      if (activeTab === 'alliance') setActiveTab('general')
-    }
-  }, [allianceId, activeTab, setActiveTab])
-
-  // Phase F — shell-wide toast home for membership changes pushed to this user. Fires
-  // for all six reasons whether or not the Alliance page is mounted.
-  useEffect(() => {
-    function onMembershipChanged(e) {
-      const { reason, new_rank, alliance_name } = e.detail || {}
-      const name = alliance_name || 'your alliance'
-      let text
-      switch (reason) {
-        case 'kicked':          text = `Removed from ${name}`; break
-        case 'disbanded':       text = `${alliance_name || 'Your alliance'} was disbanded`; break
-        case 'promoted':        text = 'Promoted to Officer'; break
-        case 'demoted':         text = `Demoted to ${new_rank || 'member'}`; break
-        case 'transferred_to':  text = 'You are now the Founder'; break
-        case 'transferred_from':text = 'You stepped down to Officer'; break
-        default: return
-      }
-      setToast(text)
-      setTimeout(() => setToast(null), 3400)
-    }
-    window.addEventListener('fp-alliance-membership-changed', onMembershipChanged)
-    return () => window.removeEventListener('fp-alliance-membership-changed', onMembershipChanged)
-  }, [])
+  const inputRef    = useRef(null)
+  const modInputRef = useRef(null)
+  const listRef     = useRef(null)
+  const modListRef  = useRef(null)
 
   if (!user) return null
 
-  const canDeleteAlliance = allianceRank === 'founder' || allianceRank === 'officer'
-
   const TABS = [
     { id: 'general', label: 'GENERAL' },
-    ...(allianceId ? [{ id: 'alliance', label: allianceTag ? `[${allianceTag}]` : 'ALLIANCE' }] : []),
     { id: 'private', label: 'PRIVATE' },
     ...(isMod ? [{ id: 'mod', label: 'MOD' }] : []),
   ]
 
-  const totalUnread = (unread.general || 0) + (unread.dm || 0) + (unread.mod || 0) + (unread.alliance || 0)
+  const totalUnread = (unread.general || 0) + (unread.dm || 0) + (unread.mod || 0)
 
   function showToast(msg) {
     setToast(msg)
@@ -1170,48 +926,6 @@ export default function ChatBar() {
     }
   }
 
-  // ── Alliance channel send ───────────────────────────────────────────────────
-
-  async function handleAllianceSend() {
-    const content = allianceInput.trim()
-    if (!content || allianceSending) return
-    setAllianceSending(true)
-    setAllianceError(null)
-    try {
-      const data = await sendAllianceMessage(content)
-      if (data.ok) {
-        setAllianceInput('')
-        setAllianceMuted(false)
-      } else if (data.error === 'rate_limited') {
-        setAllianceError('Slow down — too many messages.')
-      } else if (data.error === 'muted') {
-        setAllianceMuted(true)
-      } else if (data.error === 'not_in_alliance') {
-        setAllianceError('You are no longer in an alliance.')
-      } else {
-        setAllianceError(data.message || 'Failed to send message.')
-      }
-    } catch {
-      setAllianceError('Network error.')
-    } finally {
-      setAllianceSending(false)
-      allianceInputRef.current?.focus()
-    }
-  }
-
-  // Founder/officer delete (confirmed). Mods use the right-click moderation path.
-  async function handleConfirmDelete() {
-    const msg = pendingDelete
-    if (!msg) return
-    setPendingDelete(null)
-    try {
-      const data = await deleteAllianceMessage(Number(msg.id))
-      showToast(data.ok ? 'Message deleted' : (data.error || 'Delete failed'))
-    } catch {
-      showToast('Network error')
-    }
-  }
-
   // ── Moderation action ─────────────────────────────────────────────────────
 
   async function handleModAction(action, params) {
@@ -1241,10 +955,7 @@ export default function ChatBar() {
   const activeThread      = activeThreadId != null ? threadsList.find(t => t.thread_id === activeThreadId) || null : null
   const activeMessages    = activeThreadId != null ? (threadMessages[activeThreadId] || []) : []
   const dmBadge           = Math.max(totalDmUnread, unread.dm || 0)
-  const collapsedLabel    = activeTab === 'general' ? 'GENERAL CHAT'
-                          : activeTab === 'alliance' ? 'ALLIANCE CHAT'
-                          : activeTab === 'private' ? 'MESSAGES'
-                          : 'MOD CHAT'
+  const collapsedLabel    = activeTab === 'general' ? 'GENERAL CHAT' : activeTab === 'private' ? 'MESSAGES' : 'MOD CHAT'
 
   return (
     <>
@@ -1255,65 +966,6 @@ export default function ChatBar() {
           onClose={() => setContextMenu(null)}
           onAction={handleModAction}
         />
-      )}
-
-      {/* Alliance delete confirmation */}
-      {pendingDelete && (
-        <div
-          onClick={() => setPendingDelete(null)}
-          style={{
-            position: 'fixed', inset: 0, zIndex: 9998,
-            background: 'rgba(0,0,0,0.6)',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-          }}
-        >
-          <div
-            onClick={e => e.stopPropagation()}
-            style={{
-              background: 'rgba(10,7,18,0.98)',
-              border: `1px solid ${GOLD_MUT}`, borderRadius: 8,
-              padding: '18px 20px', maxWidth: 300, width: '90%',
-              boxShadow: '0 10px 40px rgba(0,0,0,0.7)',
-            }}
-          >
-            <div style={{
-              fontFamily: "'IBM Plex Mono', monospace", fontSize: 13,
-              color: GOLD, letterSpacing: '0.04em', marginBottom: 6,
-            }}>
-              Delete this message?
-            </div>
-            <div style={{
-              fontFamily: "'DM Sans', sans-serif", fontSize: 12,
-              color: 'rgba(255,255,255,0.5)', marginBottom: 16, wordBreak: 'break-word',
-            }}>
-              {pendingDelete.sender_username}: {pendingDelete.content}
-            </div>
-            <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
-              <button
-                onClick={() => setPendingDelete(null)}
-                style={{
-                  background: 'none', border: `1px solid ${GOLD_MUT}`, borderRadius: 6,
-                  padding: '6px 14px', color: GOLD_DIM,
-                  fontFamily: "'IBM Plex Mono', monospace", fontSize: 11, cursor: 'pointer',
-                  letterSpacing: '0.06em',
-                }}
-              >
-                CANCEL
-              </button>
-              <button
-                onClick={handleConfirmDelete}
-                style={{
-                  background: 'rgba(239,68,68,0.9)', border: 'none', borderRadius: 6,
-                  padding: '6px 14px', color: '#fff',
-                  fontFamily: "'IBM Plex Mono', monospace", fontSize: 11, fontWeight: 700,
-                  cursor: 'pointer', letterSpacing: '0.06em',
-                }}
-              >
-                DELETE
-              </button>
-            </div>
-          </div>
-        </div>
       )}
 
       <div style={{
@@ -1421,11 +1073,6 @@ export default function ChatBar() {
                         {unread.general}
                       </span>
                     )}
-                    {tab.id === 'alliance' && unread.alliance > 0 && (
-                      <span style={{ background: GOLD, color: '#0A0A0F', borderRadius: 6, padding: '1px 5px', fontSize: 8, fontWeight: 700, lineHeight: 1.6 }}>
-                        {unread.alliance}
-                      </span>
-                    )}
                     {tab.id === 'private' && dmBadge > 0 && (
                       <span style={{ background: GOLD, color: '#0A0A0F', borderRadius: 6, padding: '1px 5px', fontSize: 8, fontWeight: 700, lineHeight: 1.6 }}>
                         {dmBadge}
@@ -1478,34 +1125,6 @@ export default function ChatBar() {
                       error={errorMsg}
                       placeholder="Message general chat… (or /w username msg)"
                       isMuted={isMuted}
-                    />
-                  </>
-                )}
-
-                {/* ── ALLIANCE TAB ── */}
-                {activeTab === 'alliance' && allianceId && (
-                  <>
-                    <AllianceMessageList
-                      messages={messages.alliance || []}
-                      onUsernameClick={handleUsernameClick}
-                      listRef={allianceListRef}
-                      isMod={isMod}
-                      currentUserId={user.id}
-                      onContextMenu={openContextMenu}
-                      canAllianceDelete={canDeleteAlliance}
-                      onAllianceDelete={setPendingDelete}
-                    />
-                    <ChatInput
-                      inputRef={allianceInputRef}
-                      value={allianceInput}
-                      onChange={e => { setAllianceInput(e.target.value); setAllianceError(null) }}
-                      onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleAllianceSend() } }}
-                      onSend={handleAllianceSend}
-                      sending={allianceSending}
-                      error={allianceError}
-                      placeholder="Message your alliance…"
-                      isMuted={allianceMuted}
-                      showCounter
                     />
                   </>
                 )}

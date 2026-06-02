@@ -12,8 +12,8 @@ export function ChatProvider({ children }) {
 
   const [isOpen, setIsOpen]       = useState(false)
   const [activeTab, setActiveTab] = useState('general')
-  const [messages, setMessages]   = useState({ general: [], mod: [], alliance: [] })
-  const [unread, setUnread]       = useState({ general: 0, dm: 0, mod: 0, alliance: 0 })
+  const [messages, setMessages]   = useState({ general: [], mod: [] })
+  const [unread, setUnread]       = useState({ general: 0, dm: 0, mod: 0 })
 
   // Mod identity
   const [isMod, setIsMod]               = useState(false)
@@ -27,104 +27,43 @@ export function ChatProvider({ children }) {
   const [dmView, setDmView]                   = useState('list')
   const [composeUsername, setComposeUsername] = useState('')
 
-  // Alliance state — driven by chat_state (alliance_id/name/tag) + alliance_info (rank).
-  // The ALLIANCE tab is shown only when allianceId is non-null. allianceRank gates the
-  // founder/officer delete affordance (the backend independently enforces permission).
-  const [allianceId, setAllianceId]     = useState(null)
-  const [allianceName, setAllianceName] = useState(null)
-  const [allianceTag, setAllianceTag]   = useState(null)
-  const [allianceRank, setAllianceRank] = useState(null)
-  const modFetchedRef = useRef(false)
-
   // Stable refs for Pusher callbacks
   const isOpenRef         = useRef(isOpen)
   const activeTabRef      = useRef(activeTab)
   const activeThreadIdRef = useRef(activeThreadId)
   const threadsListRef    = useRef(threadsList)
-  const allianceNameRef   = useRef(allianceName)  // last-known name for membership toasts
 
   useEffect(() => { isOpenRef.current = isOpen },               [isOpen])
   useEffect(() => { activeTabRef.current = activeTab },         [activeTab])
   useEffect(() => { activeThreadIdRef.current = activeThreadId }, [activeThreadId])
   useEffect(() => { threadsListRef.current = threadsList },     [threadsList])
-  useEffect(() => { allianceNameRef.current = allianceName },   [allianceName])
 
   const totalDmUnread = threadsList.reduce((sum, t) => sum + (t.unread_count || 0), 0)
 
-  // Pull the latest mod identity + alliance membership from the backend. Called on
-  // mount and whenever alliance membership changes (via the fp-alliance-changed event).
-  // Backend action is `chat_state` (the spec's "chat_init"); it returns alliance_id/
-  // name/tag but NOT rank, so rank is fetched separately from alliance_info for the
-  // delete affordance only.
-  const refreshChatState = useCallback(() => {
-    return fetch(`${API}?action=chat_state`)
-      .then(r => r.json())
-      .then(data => {
-        if (!data.ok) return
-
-        if (data.isMod) {
-          setIsMod(true)
-          setModUsername(data.modUsername)
-          setModShowBadge(data.modShowBadge)
-          if (!modFetchedRef.current) {
-            modFetchedRef.current = true
-            fetch(`${API}?action=chat_mod_fetch`)
-              .then(r => r.json())
-              .then(d => { if (d.ok) setMessages(prev => ({ ...prev, mod: d.messages })) })
-              .catch(() => {})
-          }
-        }
-
-        const aid = data.alliance_id || null
-        setAllianceId(aid)
-        setAllianceName(data.alliance_name || null)
-        setAllianceTag(data.alliance_tag || null)
-        if (aid) {
-          fetch(`${API}?action=alliance_info`)
-            .then(r => r.json())
-            .then(d => setAllianceRank(d?.member?.rank || null))
-            .catch(() => setAllianceRank(null))
-        } else {
-          setAllianceRank(null)
-          setMessages(prev => ({ ...prev, alliance: [] }))
-          setUnread(prev => ({ ...prev, alliance: 0 }))
-        }
-      })
-      .catch(() => {})
-  }, [])
-
-  const fetchAllianceMessages = useCallback(() => {
-    return fetch(`${API}?action=chat_fetch&channel=alliance`)
-      .then(r => r.json())
-      .then(data => { if (data.ok) setMessages(prev => ({ ...prev, alliance: data.messages })) })
-      .catch(() => {})
-  }, [])
-
-  // Initial data fetch: general history + mod/alliance state
+  // Initial data fetch: general history + mod state
   useEffect(() => {
     if (!user) return
-    modFetchedRef.current = false
 
     fetch(`${API}?action=chat_fetch&channel=general`)
       .then(r => r.json())
       .then(data => { if (data.ok) setMessages(prev => ({ ...prev, general: data.messages })) })
       .catch(() => {})
 
-    refreshChatState()
-  }, [user?.id, refreshChatState])
-
-  // Load alliance history (last 100, oldest first) whenever the alliance changes.
-  useEffect(() => {
-    if (allianceId) fetchAllianceMessages()
-  }, [allianceId, fetchAllianceMessages])
-
-  // React to membership changes triggered elsewhere (Alliance page join/leave/disband).
-  useEffect(() => {
-    if (!user) return
-    const handler = () => refreshChatState()
-    window.addEventListener('fp-alliance-changed', handler)
-    return () => window.removeEventListener('fp-alliance-changed', handler)
-  }, [user?.id, refreshChatState])
+    fetch(`${API}?action=chat_state`)
+      .then(r => r.json())
+      .then(data => {
+        if (data.ok && data.isMod) {
+          setIsMod(true)
+          setModUsername(data.modUsername)
+          setModShowBadge(data.modShowBadge)
+          fetch(`${API}?action=chat_mod_fetch`)
+            .then(r => r.json())
+            .then(d => { if (d.ok) setMessages(prev => ({ ...prev, mod: d.messages })) })
+            .catch(() => {})
+        }
+      })
+      .catch(() => {})
+  }, [user?.id])
 
   // DM threads
   const fetchThreadsList = useCallback(() => {
@@ -214,16 +153,6 @@ export function ChatProvider({ children }) {
       }
     })
 
-    // Phase F — someone else changed our alliance standing. Re-sync chat membership
-    // (tabs/rank) and re-broadcast as a window event so the shell-wide ChatBar can
-    // toast and a mounted Alliance page can re-fetch. We attach the last-known alliance
-    // name (the server payload carries only ids) for friendlier kicked/disbanded copy.
-    userChannel.bind('alliance_membership_changed', (payload) => {
-      const detail = { ...payload, alliance_name: allianceNameRef.current }
-      refreshChatState()
-      window.dispatchEvent(new CustomEvent('fp-alliance-membership-changed', { detail }))
-    })
-
     if (isMod) {
       const modChannel = client.subscribe('private-mod')
       modChannel.bind('new_message', (msg) => {
@@ -240,33 +169,8 @@ export function ChatProvider({ children }) {
       })
     }
 
-    // Alliance channel — subscribed only while the player is in an alliance. When
-    // allianceId clears (leave/kick/disband), this effect re-runs and the new client
-    // omits the subscription, so the old channel is dropped on disconnect.
-    if (allianceId) {
-      const allianceChannel = client.subscribe(`private-alliance-${allianceId}`)
-      allianceChannel.bind('new_message', (msg) => {
-        setMessages(prev => ({ ...prev, alliance: [...(prev.alliance || []), msg].slice(-100) }))
-        if (!isOpenRef.current || activeTabRef.current !== 'alliance') {
-          setUnread(prev => ({ ...prev, alliance: (prev.alliance || 0) + 1 }))
-        }
-      })
-      // Tombstone (don't remove): mark the matching message deleted. The deleter's name
-      // arrives via a follow-up system new_message and backfills on the next fetch.
-      allianceChannel.bind('message_deleted', ({ id }) => {
-        setMessages(prev => ({
-          ...prev,
-          alliance: (prev.alliance || []).map(m =>
-            Number(m.id) === Number(id)
-              ? { ...m, deleted_at: m.deleted_at || new Date().toISOString() }
-              : m
-          ),
-        }))
-      })
-    }
-
     return () => { client.disconnect() }
-  }, [user?.id, isMod, allianceId])
+  }, [user?.id, isMod])
 
   // Clear unread when tab is active + open
   useEffect(() => {
@@ -300,24 +204,6 @@ export function ChatProvider({ children }) {
     const res = await fetch(`${API}?action=chat_mod_send`, {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ content }),
-    })
-    return res.json()
-  }, [])
-
-  // Alliance send/delete. Backend uses the `channel` param (not channel_type); the
-  // server scopes the message to the caller's current alliance.
-  const sendAllianceMessage = useCallback(async (content) => {
-    const res = await fetch(`${API}?action=chat_send`, {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ channel: 'alliance', content }),
-    })
-    return res.json()
-  }, [])
-
-  const deleteAllianceMessage = useCallback(async (message_id) => {
-    const res = await fetch(`${API}?action=chat_alliance_delete`, {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ message_id }),
     })
     return res.json()
   }, [])
@@ -366,8 +252,6 @@ export function ChatProvider({ children }) {
       dmView, setDmView,
       composeUsername, setComposeUsername,
       openThread, openDmWithUser, sendDm, fetchThreadsList,
-      allianceId, allianceName, allianceTag, allianceRank,
-      sendAllianceMessage, deleteAllianceMessage, fetchAllianceMessages, refreshChatState,
     }}>
       {children}
     </ChatContext.Provider>

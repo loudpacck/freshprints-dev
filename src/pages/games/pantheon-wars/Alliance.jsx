@@ -69,7 +69,6 @@ const ERROR_MSG = {
   item_equipped: 'Unequip the item before donating it.',
   item_not_found: 'Item not found.',
   not_in_alliance: 'You are not in an alliance.',
-  network: 'Connection lost, refresh to retry.',
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -82,11 +81,6 @@ function msg(json, fallback = 'Something went wrong.') {
 function formatDate(iso) {
   if (!iso) return '—'
   try { return new Date(iso).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' }) }
-  catch { return '—' }
-}
-function formatDateTime(iso) {
-  if (!iso) return '—'
-  try { return new Date(iso).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) }
   catch { return '—' }
 }
 function formatHMS(seconds) {
@@ -105,29 +99,19 @@ function tierRing(power, tier) {
   return { pct, next }
 }
 
-// Both resolve to { ok, status, json } and never throw — a dropped connection surfaces
-// as { ok: false, status: 0, json: { error: 'network' } } so callers can toast uniformly.
 async function getJson(action, query = '') {
-  try {
-    const res = await fetch(`/api/games/pantheon-wars/game?action=${action}${query}`)
-    const json = await res.json().catch(() => ({}))
-    return { ok: res.ok, status: res.status, json }
-  } catch {
-    return { ok: false, status: 0, json: { error: 'network' } }
-  }
+  const res = await fetch(`/api/games/pantheon-wars/game?action=${action}${query}`)
+  const json = await res.json().catch(() => ({}))
+  return { ok: res.ok, status: res.status, json }
 }
 async function postJson(action, body) {
-  try {
-    const res = await fetch(`/api/games/pantheon-wars/game?action=${action}`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: body ? JSON.stringify(body) : undefined,
-    })
-    const json = await res.json().catch(() => ({}))
-    return { ok: res.ok, status: res.status, json }
-  } catch {
-    return { ok: false, status: 0, json: { error: 'network' } }
-  }
+  const res = await fetch(`/api/games/pantheon-wars/game?action=${action}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: body ? JSON.stringify(body) : undefined,
+  })
+  const json = await res.json().catch(() => ({}))
+  return { ok: res.ok, status: res.status, json }
 }
 
 // ─── Shared primitives ──────────────────────────────────────────────────────────
@@ -223,22 +207,6 @@ function GoldButton({ onClick, disabled, children, danger, full, small }) {
     >
       {children}
     </motion.button>
-  )
-}
-
-// Gold-flash a numeric readout whenever its value changes (treasury roll-up). Keyed on
-// value so each change remounts and replays the initial→animate color/glow flash.
-function FlashValue({ value, color, flashColor, style }) {
-  return (
-    <motion.div
-      key={num(value)}
-      initial={{ color: flashColor, textShadow: `0 0 18px ${flashColor}` }}
-      animate={{ color, textShadow: '0 0 0px rgba(0,0,0,0)' }}
-      transition={{ duration: 1.1, ease: 'easeOut' }}
-      style={style}
-    >
-      {fmt(value)}
-    </motion.div>
   )
 }
 
@@ -402,12 +370,6 @@ function MemberActionModal({ member, myRank, onAction, onClose, busy }) {
   const canKick     = (myRank === 'founder' && member.rank !== 'founder') ||
                       (myRank === 'officer' && (member.rank === 'member' || member.rank === 'veteran'))
 
-  useEffect(() => {
-    function onKey(e) { if (e.key === 'Escape' && !busy) onClose() }
-    window.addEventListener('keydown', onKey)
-    return () => window.removeEventListener('keydown', onKey)
-  }, [onClose, busy])
-
   return createPortal(
     <motion.div
       initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.2 }}
@@ -418,7 +380,6 @@ function MemberActionModal({ member, myRank, onAction, onClose, busy }) {
       }}
     >
       <motion.div
-        role="dialog" aria-modal="true" aria-label={`Manage ${member.username}`}
         initial={{ opacity: 0, scale: 0.9, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.94 }}
         transition={{ duration: 0.32, ease: [0.16, 1, 0.3, 1] }}
         style={{
@@ -485,15 +446,7 @@ function MemberActionModal({ member, myRank, onAction, onClose, busy }) {
 
 function DisbandModal({ alliance, onConfirm, onClose, busy }) {
   const [typed, setTyped] = useState('')
-  // Exact tag match, case-insensitive (per spec).
   const matches = typed.trim().toUpperCase() === String(alliance.tag).toUpperCase()
-
-  useEffect(() => {
-    function onKey(e) { if (e.key === 'Escape' && !busy) onClose() }
-    window.addEventListener('keydown', onKey)
-    return () => window.removeEventListener('keydown', onKey)
-  }, [onClose, busy])
-
   return createPortal(
     <motion.div
       initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.2 }}
@@ -504,7 +457,6 @@ function DisbandModal({ alliance, onConfirm, onClose, busy }) {
       }}
     >
       <motion.div
-        role="dialog" aria-modal="true" aria-label="Disband alliance confirmation"
         initial={{ opacity: 0, scale: 0.9, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.94 }}
         transition={{ duration: 0.32, ease: [0.16, 1, 0.3, 1] }}
         style={{
@@ -616,7 +568,6 @@ export default function Alliance() {
   // IN_ALLIANCE
   const [invitesSent, setInvitesSent] = useState([])
   const [inventory, setInventory] = useState([])
-  const [treasuryLog, setTreasuryLog] = useState([])
 
   // donation inputs
   const [drachmaAmt, setDrachmaAmt] = useState('')
@@ -655,11 +606,6 @@ export default function Alliance() {
     if (ok) setInventory((json.inventory || []).filter(i => !i.equipped))
   }, [])
 
-  const fetchTreasuryLog = useCallback(async () => {
-    const { ok, json } = await getJson('alliance_treasury_log')
-    if (ok) setTreasuryLog(json.log || [])
-  }, [])
-
   const fetchAlliance = useCallback(async () => {
     try {
       const { ok, status, json } = await getJson('alliance_info')
@@ -670,12 +616,11 @@ export default function Alliance() {
       if (!json.alliance) {
         const cd = num(json.cooldown_remaining_seconds)
         setCooldownEnd(cd > 0 ? Date.now() + cd * 1000 : 0)
-        setInvitesSent([]); setInventory([]); setTreasuryLog([])
+        setInvitesSent([]); setInventory([])
         fetchReceivedInvites()
       } else {
         setInvitesReceived([])
         fetchInventory()
-        fetchTreasuryLog()
         const rank = json.member?.rank
         if (rank === 'founder' || rank === 'officer') fetchSentInvites()
         else setInvitesSent([])
@@ -685,21 +630,12 @@ export default function Alliance() {
     } finally {
       setLoading(false)
     }
-  }, [navigate, fetchReceivedInvites, fetchSentInvites, fetchInventory, fetchTreasuryLog])
+  }, [navigate, fetchReceivedInvites, fetchSentInvites, fetchInventory])
 
   useEffect(() => {
     if (!authLoading && !user) { navigate('/games/pantheon-wars/login', { replace: true }); return }
     if (!authLoading) fetchAlliance()
   }, [authLoading, user, navigate, fetchAlliance])
-
-  // Phase F — when someone ELSE changes our standing (kick/promote/demote/transfer/
-  // disband), ChatContext receives the Pusher event and re-broadcasts it as a window
-  // event. Re-fetch silently here; the user-facing toast lives in the shell-wide ChatBar.
-  useEffect(() => {
-    function onMembershipChanged() { fetchAlliance(); refreshContext() }
-    window.addEventListener('fp-alliance-membership-changed', onMembershipChanged)
-    return () => window.removeEventListener('fp-alliance-membership-changed', onMembershipChanged)
-  }, [fetchAlliance, refreshContext])
 
   const cooldownRemaining = cooldownEnd > 0 ? Math.max(0, Math.ceil((cooldownEnd - nowTick) / 1000)) : 0
 
@@ -719,7 +655,6 @@ export default function Alliance() {
         showToast('success', `${json.alliance?.name?.toUpperCase() || 'ALLIANCE'} FOUNDED`, `[${json.alliance?.tag}] raises its banner.`)
         setFName(''); setFTag(''); setFDesc('')
         refreshContext()
-        window.dispatchEvent(new Event('fp-alliance-changed')) // refresh chat ALLIANCE tab
         await fetchAlliance()
       } else {
         play('error')
@@ -737,7 +672,6 @@ export default function Alliance() {
         play('titan_horn')
         showToast('success', 'BANNER JOINED', `Welcome to ${json.alliance?.name}.`)
         refreshContext()
-        window.dispatchEvent(new Event('fp-alliance-changed')) // refresh chat ALLIANCE tab
         await fetchAlliance()
       } else {
         play('error')
@@ -763,11 +697,7 @@ export default function Alliance() {
     try {
       const { ok, json } = await postJson(action, { target_user_id: memberModal.user_id })
       if (ok) {
-        const sfx = action === 'alliance_kick' ? 'error'
-          : action === 'alliance_transfer_ownership' ? 'titan_horn'   // ceremonial
-          : (action === 'alliance_promote' || action === 'alliance_demote') ? 'toggle'
-          : 'success'
-        play(sfx)
+        play(action === 'alliance_kick' ? 'error' : 'success')
         showToast('success', successTitle.toUpperCase(), memberModal.username)
         setMemberModal(null)
         await fetchAlliance()
@@ -788,7 +718,6 @@ export default function Alliance() {
         showToast('success', json.disbanded ? 'BANNER FALLS' : 'YOU HAVE LEFT', json.disbanded ? 'The alliance dissolved with your departure.' : 'A 24h cooldown now applies.')
         setConfirmLeave(false)
         refreshContext()
-        window.dispatchEvent(new Event('fp-alliance-changed')) // refresh chat ALLIANCE tab
         await fetchAlliance()
       } else {
         play('error')
@@ -806,7 +735,6 @@ export default function Alliance() {
         play('error')
         showToast('success', 'ALLIANCE DISBANDED', 'The banner is struck from the hall.')
         setDisbandOpen(false)
-        window.dispatchEvent(new Event('fp-alliance-changed')) // refresh chat ALLIANCE tab
         await fetchAlliance()
       } else {
         play('error')
@@ -899,7 +827,7 @@ export default function Alliance() {
       ) : inAlliance ? (
         <InAllianceView
           data={data} stats={stats} myRank={myRank} isOfficerPlus={isOfficerPlus}
-          inventory={inventory} invitesSent={invitesSent} treasuryLog={treasuryLog}
+          inventory={inventory} invitesSent={invitesSent}
           drachmaAmt={drachmaAmt} setDrachmaAmt={setDrachmaAmt}
           gloryAmt={gloryAmt} setGloryAmt={setGloryAmt}
           donateItemId={donateItemId} setDonateItemId={setDonateItemId}
@@ -1111,7 +1039,7 @@ function NoAllianceView({ stats, invites, cooldownRemaining, fName, setFName, fT
 
 function InAllianceView(props) {
   const {
-    data, stats, myRank, isOfficerPlus, inventory, invitesSent, treasuryLog,
+    data, stats, myRank, isOfficerPlus, inventory, invitesSent,
     drachmaAmt, setDrachmaAmt, gloryAmt, setGloryAmt, donateItemId, setDonateItemId,
     inviteName, setInviteName, inviteMsg, inviting,
     showBreakdown, setShowBreakdown, confirmLeave, setConfirmLeave, busy,
@@ -1219,9 +1147,7 @@ function InAllianceView(props) {
 
       {/* ── Roster ── */}
       <motion.div variants={fadeUp} style={{ marginTop: 20 }}>
-        <SectionHeader>
-          {memberCount}/{MEMBER_CAP}{emptySlots > 0 ? ` — ${emptySlots} ${emptySlots === 1 ? 'SLOT' : 'SLOTS'} OPEN` : ' — FULL'}
-        </SectionHeader>
+        <SectionHeader>{memberCount} / {MEMBER_CAP} SLOTS FILLED</SectionHeader>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 10 }}>
           {members.map(m => {
             const isSelf = m.user_id === data.member.user_id
@@ -1252,19 +1178,6 @@ function InAllianceView(props) {
                 </div>
                 <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 8.5, color: 'rgba(240,240,248,0.25)', marginTop: 4 }}>
                   Joined {formatDate(m.joined_at)}
-                </div>
-                {/* Phase F — per-member contribution stats */}
-                <div style={{
-                  marginTop: 6, paddingTop: 6, borderTop: '1px solid rgba(255,255,255,0.06)',
-                  fontFamily: "'IBM Plex Mono', monospace", fontSize: 8.5, lineHeight: 1.6,
-                  color: 'rgba(240,240,248,0.5)',
-                }}>
-                  <div>Combat {fmt(m.combat_power)} · Twn {fmt(m.township_total)} · {fmt(m.temple_income_per_hour)}₯/hr</div>
-                  {(num(m.donation_lifetime_drachma) > 0 || num(m.donation_lifetime_glory) > 0 || num(m.donation_lifetime_items) > 0) && (
-                    <div style={{ color: 'rgba(201,169,97,0.6)', marginTop: 2 }}>
-                      Donated {fmt(m.donation_lifetime_drachma)}₯ · {fmt(m.donation_lifetime_glory)}✦ · {num(m.donation_lifetime_items)} {num(m.donation_lifetime_items) === 1 ? 'item' : 'items'}
-                    </div>
-                  )}
                 </div>
                 {actionable && (
                   <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 8, color: 'rgba(201,169,97,0.5)', marginTop: 4, letterSpacing: '0.08em' }}>
@@ -1304,8 +1217,9 @@ function InAllianceView(props) {
           <div style={{ display: 'flex', justifyContent: 'space-around', gap: 12, flexWrap: 'wrap' }}>
             <div style={{ textAlign: 'center' }}>
               <div style={{ fontSize: 18, color: '#C9A961', lineHeight: 1, marginBottom: 4 }}>₯</div>
-              <FlashValue value={a.treasury_drachma} color="#FFB347" flashColor="#FFF4D6"
-                style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 30, lineHeight: 1 }} />
+              <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 30, color: '#FFB347', lineHeight: 1 }}>
+                {fmt(a.treasury_drachma)}
+              </div>
               <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 9, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'rgba(240,240,248,0.35)' }}>
                 Drachma
               </div>
@@ -1313,8 +1227,9 @@ function InAllianceView(props) {
             <div style={{ width: 1, background: 'rgba(255,255,255,0.1)' }} />
             <div style={{ textAlign: 'center' }}>
               <div style={{ fontSize: 18, color: '#FBBF24', lineHeight: 1, marginBottom: 4 }}>✦</div>
-              <FlashValue value={a.treasury_glory} color="#FBBF24" flashColor="#FFF4D6"
-                style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 30, lineHeight: 1 }} />
+              <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 30, color: '#FBBF24', lineHeight: 1 }}>
+                {fmt(a.treasury_glory)}
+              </div>
               <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 9, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'rgba(240,240,248,0.35)' }}>
                 Glory
               </div>
@@ -1323,10 +1238,10 @@ function InAllianceView(props) {
           <p style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 11, fontStyle: 'italic', color: 'rgba(240,240,248,0.35)', textAlign: 'center', margin: '14px 0 0' }}>
             The war chest is permanent and never withdrawable.
           </p>
+          <p style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 9, color: 'rgba(240,240,248,0.22)', textAlign: 'center', margin: '6px 0 0', letterSpacing: '0.05em' }}>
+            Donation history arriving in a later phase.
+          </p>
         </Panel>
-
-        {/* Live donation log (last 50, newest first) */}
-        <TreasuryLog log={treasuryLog} />
       </motion.div>
 
       {/* ── Donation ── */}
@@ -1510,68 +1425,6 @@ function BreakdownGroup({ title, color, rows }) {
           <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, color: 'rgba(240,240,248,0.75)' }}>{value}</span>
         </div>
       ))}
-    </div>
-  )
-}
-
-// ─── Treasury donation ledger (Phase F) ──────────────────────────────────────────
-
-function TreasuryLog({ log }) {
-  if (!log || log.length === 0) {
-    return (
-      <div style={{ marginTop: 12 }}>
-        <Panel>
-          <p style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 11, color: 'rgba(240,240,248,0.4)', textAlign: 'center', margin: 0 }}>
-            No offerings yet. Be the first to feed the war chest.
-          </p>
-        </Panel>
-      </div>
-    )
-  }
-  return (
-    <div style={{ marginTop: 12 }}>
-      <p style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 9, letterSpacing: '0.12em', textTransform: 'uppercase', color: 'rgba(240,240,248,0.3)', margin: '0 0 8px' }}>
-        Donation Ledger
-      </p>
-      <div style={{
-        maxHeight: 240, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 6, paddingRight: 4,
-        scrollbarWidth: 'thin', scrollbarColor: 'rgba(201,169,97,0.2) transparent',
-      }}>
-        {log.map(entry => <TreasuryLogRow key={entry.id} entry={entry} />)}
-      </div>
-    </div>
-  )
-}
-
-function TreasuryLogRow({ entry }) {
-  const track = entry.power_track === 'military' ? 'military' : 'economic'
-  const c = CREST[track]
-  let what
-  if (entry.donation_type === 'drachma') {
-    what = <>donated <strong style={{ color: '#FFB347' }}>{fmt(entry.amount)}₯</strong></>
-  } else if (entry.donation_type === 'glory') {
-    what = <>donated <strong style={{ color: '#FBBF24' }}>{fmt(entry.amount)} glory</strong></>
-  } else {
-    const rc = RARITY_COLOR[entry.item_rarity] || '#B0B0B0'
-    const rarityLabel = entry.item_rarity
-      ? entry.item_rarity.charAt(0).toUpperCase() + entry.item_rarity.slice(1)
-      : 'Item'
-    what = (
-      <>donated <strong style={{ color: rc }}>{entry.item_name || 'an item'}</strong>{' '}
-        <span style={{ color: rc, opacity: 0.85 }}>({rarityLabel}, lvl {num(entry.item_level_required) || 1})</span>
-      </>
-    )
-  }
-  return (
-    <div style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 8, padding: '8px 10px' }}>
-      <div style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 12, color: 'rgba(240,240,248,0.8)', lineHeight: 1.45 }}>
-        <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 11, color: '#C9A961' }}>{entry.donor_username}</span>{' '}
-        {what}{' '}
-        <span style={{ color: c.main, whiteSpace: 'nowrap' }}>→ {fmt(entry.power_value)} {track} power</span>
-      </div>
-      <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 8.5, color: 'rgba(240,240,248,0.28)', marginTop: 3 }}>
-        {formatDateTime(entry.created_at)}
-      </div>
     </div>
   )
 }

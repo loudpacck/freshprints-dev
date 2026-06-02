@@ -21,7 +21,7 @@ import {
   checkAndCompleteCrafts, getCraftCycleSeconds, rollCraftRarity,
   checkChatRateLimit,
   getUserAllianceMembership, requireAllianceRank,
-  recalculateAlliancePower, computeAlliancePowerBreakdown, computeMemberContributions, getAlliancePerks,
+  recalculateAlliancePower, computeAlliancePowerBreakdown, getAlliancePerks,
   RARITY_VALUE,
 } from '../../../lib/pwHelpers.js'
 import { getPusherServer } from '../../../lib/pwPusher.js'
@@ -4200,21 +4200,6 @@ async function fetchAllianceRoster(allianceId) {
   `
 }
 
-// Phase F — per-user membership broadcast. Pushes 'alliance_membership_changed' to the
-// affected player's private channel so their UI (chat tabs + Alliance page) self-heals
-// when someone ELSE changes their standing. Best-effort: a Pusher failure must never
-// roll back the membership mutation that already committed.
-// payload: { reason: 'kicked'|'promoted'|'demoted'|'transferred_to'|'transferred_from'|'disbanded',
-//            alliance_id: <UUID|null>, new_rank: <string|null> }
-async function broadcastMembershipChange(userId, payload) {
-  try {
-    const pusher = getPusherServer()
-    await pusher.trigger(`private-user-${userId}`, 'alliance_membership_changed', payload)
-  } catch (e) {
-    console.error('alliance membership broadcast error:', e)
-  }
-}
-
 // alliance_info (GET)
 async function handleAllianceInfo(req, res) {
   if (req.method !== 'GET') return res.status(405).json({ error: 'Method not allowed' })
@@ -4244,11 +4229,7 @@ async function handleAllianceInfo(req, res) {
 
     const aRows = await sql`SELECT * FROM pw_alliances WHERE id = ${allianceId}`
     if (aRows.length === 0) return res.status(404).json({ error: 'alliance_not_found' })
-    const roster = await fetchAllianceRoster(allianceId)
-
-    // Phase F — enrich each roster row with per-member contribution stats (batched).
-    const contributions = await computeMemberContributions(sql, allianceId, roster.map(m => m.user_id))
-    const members = roster.map(m => ({ ...m, ...(contributions.get(m.user_id) || {}) }))
+    const members = await fetchAllianceRoster(allianceId)
     const me = members.find(m => m.user_id === req.userId) || member
 
     // Phase C — power_breakdown is computed on demand (cheap, only on Alliance page load).
@@ -4398,17 +4379,9 @@ async function handleAllianceDisband(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' })
   try {
     const { alliance_id } = await requireAllianceRank(sql, req.userId, ['founder'])
-    // Snapshot members BEFORE the cascade delete so we can notify each one.
-    const formerMembers = await sql`SELECT user_id FROM pw_alliance_members WHERE alliance_id = ${alliance_id}`
     // Alliance chat has no FK — purge it explicitly before the cascade delete.
     await sql`DELETE FROM pw_chat_messages WHERE channel_type = 'alliance' AND channel_id = ${alliance_id}`
     await sql`DELETE FROM pw_alliances WHERE id = ${alliance_id}`  // cascades members/invites/treasury log
-
-    // Notify every former member except the founder, who already has local feedback.
-    for (const m of formerMembers) {
-      if (m.user_id === req.userId) continue
-      await broadcastMembershipChange(m.user_id, { reason: 'disbanded', alliance_id: null, new_rank: null })
-    }
     return res.status(200).json({ ok: true, disbanded: true })
   } catch (err) {
     return allianceErrorResponse(res, err, 'alliance_disband error:')
@@ -4496,9 +4469,6 @@ async function handleAllianceKick(req, res) {
     // Phase C — removing a member lowers the combat baseline; refresh cached power/tiers.
     try { await recalculateAlliancePower(sql, member.alliance_id) } catch (e) { console.error('recalc after kick:', e) }
 
-    // Phase F — the kicked player gets notified on their private channel.
-    await broadcastMembershipChange(target_user_id, { reason: 'kicked', alliance_id: null, new_rank: null })
-
     return res.status(200).json({ ok: true, kicked: true })
   } catch (err) {
     return allianceErrorResponse(res, err, 'alliance_kick error:')
@@ -4525,7 +4495,6 @@ async function handleAlliancePromote(req, res) {
       WHERE alliance_id = ${alliance_id} AND user_id = ${target_user_id}
       RETURNING *
     `
-    await broadcastMembershipChange(target_user_id, { reason: 'promoted', alliance_id, new_rank: 'officer' })
     return res.status(200).json({ ok: true, member: updated[0] })
   } catch (err) {
     return allianceErrorResponse(res, err, 'alliance_promote error:')
@@ -4553,7 +4522,6 @@ async function handleAllianceDemote(req, res) {
       WHERE alliance_id = ${alliance_id} AND user_id = ${target_user_id}
       RETURNING *
     `
-    await broadcastMembershipChange(target_user_id, { reason: 'demoted', alliance_id, new_rank: updated[0]?.rank || 'member' })
     return res.status(200).json({ ok: true, member: updated[0] })
   } catch (err) {
     return allianceErrorResponse(res, err, 'alliance_demote error:')
@@ -4578,10 +4546,6 @@ async function handleAllianceTransferOwnership(req, res) {
     await sql`UPDATE pw_alliance_members SET rank = 'officer' WHERE alliance_id = ${alliance_id} AND user_id = ${req.userId}`
     await sql`UPDATE pw_alliance_members SET rank = 'founder' WHERE alliance_id = ${alliance_id} AND user_id = ${target_user_id}`
     await sql`UPDATE pw_alliances SET founder_id = ${target_user_id} WHERE id = ${alliance_id}`
-
-    // Phase F — notify both parties: the new founder and the stepped-down founder.
-    await broadcastMembershipChange(target_user_id, { reason: 'transferred_to',   alliance_id, new_rank: 'founder' })
-    await broadcastMembershipChange(req.userId,      { reason: 'transferred_from', alliance_id, new_rank: 'officer' })
 
     return res.status(200).json({ ok: true, new_founder: target_user_id })
   } catch (err) {
@@ -5017,31 +4981,6 @@ async function handleAllianceDonateItem(req, res) {
   }
 }
 
-// alliance_treasury_log (GET) — Phase F. Last 50 donations for the caller's alliance,
-// joined to donor username + item name. Membership-gated; read-only.
-async function handleAllianceTreasuryLog(req, res) {
-  if (req.method !== 'GET') return res.status(405).json({ error: 'Method not allowed' })
-  try {
-    const member = await getUserAllianceMembership(sql, req.userId)
-    if (!member) return res.status(400).json({ error: 'not_in_alliance' })
-
-    const log = await sql`
-      SELECT l.id, u.username AS donor_username, l.donation_type, l.amount,
-             i.name AS item_name, l.item_rarity, l.item_level_required,
-             l.power_value, l.power_track, l.created_at
-      FROM pw_alliance_treasury_log l
-      JOIN pw_users u ON u.id = l.donor_user_id
-      LEFT JOIN pw_items i ON i.id = l.item_id
-      WHERE l.alliance_id = ${member.alliance_id}
-      ORDER BY l.created_at DESC
-      LIMIT 50
-    `
-    return res.status(200).json({ log })
-  } catch (err) {
-    return allianceErrorResponse(res, err, 'alliance_treasury_log error:')
-  }
-}
-
 // ── User lookup (Phase E1) ────────────────────────────────────────────────────
 // Username → { id, username, level } resolver for the alliance invite flow, which
 // needs a UUID (invite_send takes target_user_id). Read-only, auth-gated by the
@@ -5148,7 +5087,6 @@ const innerHandler = requireUserWithModCheck(async function handler(req, res) {
   if (action === 'alliance_donate_drachma')       return handleAllianceDonateDrachma(req, res)
   if (action === 'alliance_donate_glory')         return handleAllianceDonateGlory(req, res)
   if (action === 'alliance_donate_item')          return handleAllianceDonateItem(req, res)
-  if (action === 'alliance_treasury_log')         return handleAllianceTreasuryLog(req, res)
   if (action === 'user_lookup')                   return handleUserLookup(req, res)
   return res.status(400).json({ error: 'Unknown action' })
 })
