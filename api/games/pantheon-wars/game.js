@@ -29,9 +29,6 @@ import { isProfane } from '../../../lib/profanityFilter.js'
 
 export const config = { runtime: 'nodejs' }
 
-// Validates the alliance UUID embedded in 'private-alliance-{uuid}' Pusher channel names.
-const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
-
 // ── Quests (GET) ──────────────────────────────────────────────────────────────
 
 async function handleQuests(req, res) {
