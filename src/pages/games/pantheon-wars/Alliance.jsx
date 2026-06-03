@@ -568,6 +568,7 @@ export default function Alliance() {
   // IN_ALLIANCE
   const [invitesSent, setInvitesSent] = useState([])
   const [inventory, setInventory] = useState([])
+  const [treasuryLog, setTreasuryLog] = useState([])
 
   // donation inputs
   const [drachmaAmt, setDrachmaAmt] = useState('')
@@ -606,6 +607,11 @@ export default function Alliance() {
     if (ok) setInventory((json.inventory || []).filter(i => !i.equipped))
   }, [])
 
+  const fetchTreasuryLog = useCallback(async () => {
+    const { ok, json } = await getJson('alliance_treasury_log')
+    if (ok) setTreasuryLog(json.log || [])
+  }, [])
+
   const fetchAlliance = useCallback(async () => {
     try {
       const { ok, status, json } = await getJson('alliance_info')
@@ -621,6 +627,7 @@ export default function Alliance() {
       } else {
         setInvitesReceived([])
         fetchInventory()
+        fetchTreasuryLog()
         const rank = json.member?.rank
         if (rank === 'founder' || rank === 'officer') fetchSentInvites()
         else setInvitesSent([])
@@ -630,12 +637,18 @@ export default function Alliance() {
     } finally {
       setLoading(false)
     }
-  }, [navigate, fetchReceivedInvites, fetchSentInvites, fetchInventory])
+  }, [navigate, fetchReceivedInvites, fetchSentInvites, fetchInventory, fetchTreasuryLog])
 
   useEffect(() => {
     if (!authLoading && !user) { navigate('/games/pantheon-wars/login', { replace: true }); return }
     if (!authLoading) fetchAlliance()
   }, [authLoading, user, navigate, fetchAlliance])
+
+  useEffect(() => {
+    function onAllianceChanged() { fetchAlliance() }
+    window.addEventListener('fp-alliance-changed', onAllianceChanged)
+    return () => window.removeEventListener('fp-alliance-changed', onAllianceChanged)
+  }, [fetchAlliance])
 
   const cooldownRemaining = cooldownEnd > 0 ? Math.max(0, Math.ceil((cooldownEnd - nowTick) / 1000)) : 0
 
@@ -1176,6 +1189,16 @@ function InAllianceView(props) {
                   <span>LVL {num(m.level)}</span>
                   {m.class && <span style={{ textTransform: 'capitalize' }}>{m.class}</span>}
                 </div>
+                {m.combat_power != null && (
+                  <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 8.5, color: 'rgba(240,240,248,0.35)', marginTop: 3 }}>
+                    Combat: {num(m.combat_power)} · Township: {num(m.township_total)} · {fmt(Math.round(m.temple_income_per_hour))}₯/hr
+                  </div>
+                )}
+                {m.donation_lifetime_drachma != null && (
+                  <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 8, color: 'rgba(201,169,97,0.45)', marginTop: 2 }}>
+                    Donated: {fmt(m.donation_lifetime_drachma)}₯ · {fmt(m.donation_lifetime_glory)} glory · {num(m.donation_lifetime_items)} items
+                  </div>
+                )}
                 <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 8.5, color: 'rgba(240,240,248,0.25)', marginTop: 4 }}>
                   Joined {formatDate(m.joined_at)}
                 </div>
@@ -1238,9 +1261,24 @@ function InAllianceView(props) {
           <p style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 11, fontStyle: 'italic', color: 'rgba(240,240,248,0.35)', textAlign: 'center', margin: '14px 0 0' }}>
             The war chest is permanent and never withdrawable.
           </p>
-          <p style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 9, color: 'rgba(240,240,248,0.22)', textAlign: 'center', margin: '6px 0 0', letterSpacing: '0.05em' }}>
-            Donation history arriving in a later phase.
-          </p>
+          {treasuryLog.length > 0 ? (
+            <div style={{ marginTop: 14, display: 'flex', flexDirection: 'column', gap: 4, maxHeight: 200, overflowY: 'auto' }}>
+              {treasuryLog.map(entry => (
+                <div key={entry.id} style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 9, color: 'rgba(240,240,248,0.35)', lineHeight: 1.4 }}>
+                  <span style={{ color: 'rgba(201,169,97,0.6)' }}>{entry.donor_username}</span>
+                  {' donated '}
+                  {entry.donation_type === 'item'
+                    ? <>{entry.item_name || 'item'}{entry.item_rarity ? ` (${entry.item_rarity})` : ''} → {fmt(entry.power_value)} {entry.power_track} power</>
+                    : <>{fmt(entry.amount)}{entry.donation_type === 'drachma' ? '₯' : ' glory'} → {fmt(entry.power_value)} {entry.power_track} power</>
+                  }
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 9, color: 'rgba(240,240,248,0.22)', textAlign: 'center', margin: '6px 0 0', letterSpacing: '0.05em' }}>
+              No donations yet. Be the first to contribute.
+            </p>
+          )}
         </Panel>
       </motion.div>
 

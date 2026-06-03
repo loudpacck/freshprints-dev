@@ -826,6 +826,26 @@ export default function ChatBar() {
   const listRef     = useRef(null)
   const modListRef  = useRef(null)
 
+  useEffect(() => {
+    const MEMBERSHIP_MSGS = {
+      kicked:           'You have been removed from your alliance.',
+      disbanded:        'Your alliance has been disbanded.',
+      promoted:         'You have been promoted to Officer.',
+      demoted:          'You have been demoted.',
+      transferred_to:   'You are now the Founder of your alliance.',
+      transferred_from: 'You have stepped down as Founder.',
+    }
+    function onAllianceChanged(e) {
+      const msg = MEMBERSHIP_MSGS[(e.detail || {}).reason]
+      if (msg) {
+        setToast(msg)
+        setTimeout(() => setToast(null), 2800)
+      }
+    }
+    window.addEventListener('fp-alliance-changed', onAllianceChanged)
+    return () => window.removeEventListener('fp-alliance-changed', onAllianceChanged)
+  }, [])
+
   if (!user) return null
 
   const TABS = [

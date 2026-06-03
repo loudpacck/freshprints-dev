@@ -40,15 +40,8 @@ export function ChatProvider({ children }) {
 
   const totalDmUnread = threadsList.reduce((sum, t) => sum + (t.unread_count || 0), 0)
 
-  // Initial data fetch: general history + mod state
-  useEffect(() => {
-    if (!user) return
-
-    fetch(`${API}?action=chat_fetch&channel=general`)
-      .then(r => r.json())
-      .then(data => { if (data.ok) setMessages(prev => ({ ...prev, general: data.messages })) })
-      .catch(() => {})
-
+  // Fetch (or re-fetch) chat state (mod identity, alliance tab visibility).
+  const refreshChatState = useCallback(() => {
     fetch(`${API}?action=chat_state`)
       .then(r => r.json())
       .then(data => {
@@ -63,7 +56,19 @@ export function ChatProvider({ children }) {
         }
       })
       .catch(() => {})
-  }, [user?.id])
+  }, [])
+
+  // Initial data fetch: general history + mod state
+  useEffect(() => {
+    if (!user) return
+
+    fetch(`${API}?action=chat_fetch&channel=general`)
+      .then(r => r.json())
+      .then(data => { if (data.ok) setMessages(prev => ({ ...prev, general: data.messages })) })
+      .catch(() => {})
+
+    refreshChatState()
+  }, [user?.id, refreshChatState])
 
   // DM threads
   const fetchThreadsList = useCallback(() => {
@@ -152,6 +157,10 @@ export function ChatProvider({ children }) {
         }))
       }
     })
+    userChannel.bind('alliance_membership_changed', (event) => {
+      refreshChatState()
+      window.dispatchEvent(new CustomEvent('fp-alliance-changed', { detail: event }))
+    })
 
     if (isMod) {
       const modChannel = client.subscribe('private-mod')
@@ -170,7 +179,7 @@ export function ChatProvider({ children }) {
     }
 
     return () => { client.disconnect() }
-  }, [user?.id, isMod])
+  }, [user?.id, isMod, refreshChatState])
 
   // Clear unread when tab is active + open
   useEffect(() => {
@@ -252,6 +261,7 @@ export function ChatProvider({ children }) {
       dmView, setDmView,
       composeUsername, setComposeUsername,
       openThread, openDmWithUser, sendDm, fetchThreadsList,
+      refreshChatState,
     }}>
       {children}
     </ChatContext.Provider>

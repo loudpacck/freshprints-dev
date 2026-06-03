@@ -22,6 +22,7 @@ import {
   checkChatRateLimit,
   getUserAllianceMembership, requireAllianceRank,
   recalculateAlliancePower, computeAlliancePowerBreakdown, getAlliancePerks,
+  computeMemberContributions,
   RARITY_VALUE,
 } from '../../../lib/pwHelpers.js'
 import { getPusherServer } from '../../../lib/pwPusher.js'
@@ -4236,6 +4237,10 @@ async function handleAllianceInfo(req, res) {
     // Raw military_power/economic_power + the three tiers already live on the alliance row.
     const power_breakdown = await computeAlliancePowerBreakdown(sql, allianceId)
 
+    // Phase F — enrich each member row with contribution stats (batched, not per-member).
+    const contributions = await computeMemberContributions(sql, members.map(m => m.user_id))
+    for (const m of members) Object.assign(m, contributions[m.user_id] || {})
+
     return res.status(200).json({ alliance: aRows[0], member: me, members, power_breakdown })
   } catch (err) {
     return allianceErrorResponse(res, err, 'alliance_info error:')
@@ -4379,9 +4384,23 @@ async function handleAllianceDisband(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' })
   try {
     const { alliance_id } = await requireAllianceRank(sql, req.userId, ['founder'])
+    // Snapshot member ids before cascade delete so we can notify them.
+    const memberRows = await sql`SELECT user_id FROM pw_alliance_members WHERE alliance_id = ${alliance_id}`
     // Alliance chat has no FK — purge it explicitly before the cascade delete.
     await sql`DELETE FROM pw_chat_messages WHERE channel_type = 'alliance' AND channel_id = ${alliance_id}`
     await sql`DELETE FROM pw_alliances WHERE id = ${alliance_id}`  // cascades members/invites/treasury log
+    // Notify all former members except the actor.
+    const otherIds = memberRows.map(r => r.user_id).filter(id => id !== req.userId)
+    if (otherIds.length > 0) {
+      try {
+        const pusher = getPusherServer()
+        await Promise.all(otherIds.map(uid =>
+          pusher.trigger(`private-user-${uid}`, 'alliance_membership_changed', {
+            reason: 'disbanded', alliance_id: null, new_rank: null,
+          })
+        ))
+      } catch (e) { console.error('pusher disband notify:', e) }
+    }
     return res.status(200).json({ ok: true, disbanded: true })
   } catch (err) {
     return allianceErrorResponse(res, err, 'alliance_disband error:')
@@ -4469,6 +4488,13 @@ async function handleAllianceKick(req, res) {
     // Phase C — removing a member lowers the combat baseline; refresh cached power/tiers.
     try { await recalculateAlliancePower(sql, member.alliance_id) } catch (e) { console.error('recalc after kick:', e) }
 
+    try {
+      const pusher = getPusherServer()
+      await pusher.trigger(`private-user-${target_user_id}`, 'alliance_membership_changed', {
+        reason: 'kicked', alliance_id: null, new_rank: null,
+      })
+    } catch (e) { console.error('pusher kick notify:', e) }
+
     return res.status(200).json({ ok: true, kicked: true })
   } catch (err) {
     return allianceErrorResponse(res, err, 'alliance_kick error:')
@@ -4495,6 +4521,13 @@ async function handleAlliancePromote(req, res) {
       WHERE alliance_id = ${alliance_id} AND user_id = ${target_user_id}
       RETURNING *
     `
+    try {
+      const pusher = getPusherServer()
+      await pusher.trigger(`private-user-${target_user_id}`, 'alliance_membership_changed', {
+        reason: 'promoted', alliance_id, new_rank: 'officer',
+      })
+    } catch (e) { console.error('pusher promote notify:', e) }
+
     return res.status(200).json({ ok: true, member: updated[0] })
   } catch (err) {
     return allianceErrorResponse(res, err, 'alliance_promote error:')
@@ -4522,6 +4555,13 @@ async function handleAllianceDemote(req, res) {
       WHERE alliance_id = ${alliance_id} AND user_id = ${target_user_id}
       RETURNING *
     `
+    try {
+      const pusher = getPusherServer()
+      await pusher.trigger(`private-user-${target_user_id}`, 'alliance_membership_changed', {
+        reason: 'demoted', alliance_id, new_rank: updated[0].rank,
+      })
+    } catch (e) { console.error('pusher demote notify:', e) }
+
     return res.status(200).json({ ok: true, member: updated[0] })
   } catch (err) {
     return allianceErrorResponse(res, err, 'alliance_demote error:')
@@ -4547,9 +4587,42 @@ async function handleAllianceTransferOwnership(req, res) {
     await sql`UPDATE pw_alliance_members SET rank = 'founder' WHERE alliance_id = ${alliance_id} AND user_id = ${target_user_id}`
     await sql`UPDATE pw_alliances SET founder_id = ${target_user_id} WHERE id = ${alliance_id}`
 
+    try {
+      const pusher = getPusherServer()
+      await pusher.trigger(`private-user-${target_user_id}`, 'alliance_membership_changed', {
+        reason: 'transferred_to', alliance_id, new_rank: 'founder',
+      })
+      await pusher.trigger(`private-user-${req.userId}`, 'alliance_membership_changed', {
+        reason: 'transferred_from', alliance_id, new_rank: 'officer',
+      })
+    } catch (e) { console.error('pusher transfer notify:', e) }
+
     return res.status(200).json({ ok: true, new_founder: target_user_id })
   } catch (err) {
     return allianceErrorResponse(res, err, 'alliance_transfer_ownership error:')
+  }
+}
+
+// alliance_treasury_log (GET) — last 50 entries for caller's alliance
+async function handleAllianceTreasuryLog(req, res) {
+  if (req.method !== 'GET') return res.status(405).json({ error: 'Method not allowed' })
+  try {
+    const member = await getUserAllianceMembership(sql, req.userId)
+    if (!member) return res.status(400).json({ error: 'not_in_alliance' })
+    const log = await sql`
+      SELECT l.id, u.username AS donor_username, l.donation_type, l.amount,
+             i.name AS item_name, l.item_rarity, l.item_level_required,
+             l.power_value, l.power_track, l.created_at
+      FROM pw_alliance_treasury_log l
+      JOIN pw_users u ON u.id = l.donor_user_id
+      LEFT JOIN pw_items i ON i.id = l.item_id
+      WHERE l.alliance_id = ${member.alliance_id}
+      ORDER BY l.created_at DESC
+      LIMIT 50
+    `
+    return res.status(200).json({ log })
+  } catch (err) {
+    return allianceErrorResponse(res, err, 'alliance_treasury_log error:')
   }
 }
 
@@ -5087,6 +5160,7 @@ const innerHandler = requireUserWithModCheck(async function handler(req, res) {
   if (action === 'alliance_donate_drachma')       return handleAllianceDonateDrachma(req, res)
   if (action === 'alliance_donate_glory')         return handleAllianceDonateGlory(req, res)
   if (action === 'alliance_donate_item')          return handleAllianceDonateItem(req, res)
+  if (action === 'alliance_treasury_log')         return handleAllianceTreasuryLog(req, res)
   if (action === 'user_lookup')                   return handleUserLookup(req, res)
   return res.status(400).json({ error: 'Unknown action' })
 })
