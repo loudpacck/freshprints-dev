@@ -840,7 +840,7 @@ export default function Alliance() {
       ) : inAlliance ? (
         <InAllianceView
           data={data} stats={stats} myRank={myRank} isOfficerPlus={isOfficerPlus}
-          inventory={inventory} invitesSent={invitesSent}
+          inventory={inventory} invitesSent={invitesSent} treasuryLog={treasuryLog}
           drachmaAmt={drachmaAmt} setDrachmaAmt={setDrachmaAmt}
           gloryAmt={gloryAmt} setGloryAmt={setGloryAmt}
           donateItemId={donateItemId} setDonateItemId={setDonateItemId}
@@ -1052,7 +1052,7 @@ function NoAllianceView({ stats, invites, cooldownRemaining, fName, setFName, fT
 
 function InAllianceView(props) {
   const {
-    data, stats, myRank, isOfficerPlus, inventory, invitesSent,
+    data, stats, myRank, isOfficerPlus, inventory, invitesSent, treasuryLog,
     drachmaAmt, setDrachmaAmt, gloryAmt, setGloryAmt, donateItemId, setDonateItemId,
     inviteName, setInviteName, inviteMsg, inviting,
     showBreakdown, setShowBreakdown, confirmLeave, setConfirmLeave, busy,
