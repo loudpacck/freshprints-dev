@@ -2560,6 +2560,21 @@ async function handleTitanStatus(req, res) {
       participantCount = parseInt(countRow[0].n, 10)
     }
 
+    const recentRows = await sql`
+      SELECT te.id, t.name AS titan_name, t.slug AS titan_slug, t.difficulty, t.pantheon,
+             te.result, te.fight_starts_at,
+             jsonb_array_length(te.fight_log->'rounds') AS rounds_count,
+             COUNT(tp.id) AS participant_count
+      FROM pw_titan_events te
+      JOIN pw_titans t ON t.id = te.titan_id
+      LEFT JOIN pw_titan_participants tp ON tp.event_id = te.id
+      WHERE te.status = 'resolved'
+      GROUP BY te.id, t.name, t.slug, t.difficulty, t.pantheon,
+               te.result, te.fight_starts_at, te.fight_log
+      ORDER BY te.fight_starts_at DESC
+      LIMIT 10
+    `
+
     return res.status(200).json({
       ok: true,
       current_event: currentEvent ? {
@@ -2590,6 +2605,17 @@ async function handleTitanStatus(req, res) {
         fight_log:             currentEvent.status === 'active' ? currentEvent.fight_log : null,
       } : null,
       unclaimed_reward:        unclaimedRows[0] || null,
+      recent_events:           recentRows.map(r => ({
+        id:               r.id,
+        titan_name:       r.titan_name,
+        titan_slug:       r.titan_slug,
+        difficulty:       r.difficulty,
+        pantheon:         r.pantheon,
+        result:           r.result,
+        rounds_count:     Number(r.rounds_count) || 0,
+        fight_starts_at:  r.fight_starts_at,
+        participant_count: Number(r.participant_count),
+      })),
       server_time:             new Date().toISOString(),
       pendingAdventureRewards: req.pendingAdventureRewards || null,
       pendingTownshipUpgrades: req.pendingTownshipUpgrades || null,
@@ -2812,6 +2838,7 @@ async function handleTitanClaim(req, res) {
 
     return res.status(200).json({
       ok:                true,
+      event_id:          parseInt(event_id, 10),
       result:            row.event_result,
       reward_tier:       row.reward_tier,
       contribution_rank: row.contribution_rank,
@@ -2910,6 +2937,220 @@ async function handleTitanHistory(req, res) {
   } catch (err) {
     console.error('titan_history error:', err)
     return res.status(500).json({ error: 'history_failed' })
+  }
+}
+
+// ── Titan Recap (GET) ─────────────────────────────────────────────────────────
+
+async function handleTitanRecap(req, res) {
+  if (req.method !== 'GET') return res.status(405).json({ error: 'Method not allowed' })
+
+  const rawId = parseInt(req.query.event_id, 10)
+  if (!Number.isFinite(rawId) || rawId < 1) return res.status(400).json({ error: 'invalid_event_id' })
+
+  try {
+    const eventRows = await sql`
+      SELECT te.id, te.result, te.titan_starting_hp, te.titan_final_hp,
+             te.fight_starts_at, te.fight_ends_at, te.fight_log,
+             t.name AS titan_name, t.slug AS titan_slug, t.difficulty AS titan_difficulty,
+             t.pantheon AS titan_pantheon, t.ability_name, t.ability_description
+      FROM pw_titan_events te
+      JOIN pw_titans t ON t.id = te.titan_id
+      WHERE te.id = ${rawId} AND te.status = 'resolved'
+    `
+    if (eventRows.length === 0) return res.status(404).json({ error: 'event_not_found' })
+
+    const ev = eventRows[0]
+    const fightLog = ev.fight_log || { titan: {}, rounds: [] }
+    const rounds   = fightLog.rounds || []
+
+    const participantRows = await sql`
+      SELECT tp.user_id, tp.damage_dealt, tp.hp_lost, tp.contribution_rank,
+             tp.reward_tier, tp.energy_drained,
+             u.username, u.faction, u.class AS player_class
+      FROM pw_titan_participants tp
+      JOIN pw_users u ON u.id = tp.user_id
+      WHERE tp.event_id = ${rawId} AND tp.status = 'fought'
+      ORDER BY tp.damage_dealt DESC
+    `
+
+    // final_hp: last round each user appears in player_hp_after
+    const finalHpByUser = {}
+    for (const round of rounds) {
+      for (const [uid, hp] of Object.entries(round.player_hp_after || {})) {
+        finalHpByUser[uid] = hp
+      }
+    }
+
+    const participants = participantRows.map(p => ({
+      user_id:           p.user_id,
+      username:          p.username,
+      faction:           p.faction,
+      class:             p.player_class,
+      damage_dealt:      p.damage_dealt,
+      hp_lost:           p.hp_lost,
+      final_hp:          finalHpByUser[p.user_id] ?? 1,
+      energy_drained:    p.energy_drained || 0,
+      contribution_rank: p.contribution_rank,
+      reward_tier:       p.reward_tier,
+    }))
+
+    const abilityType       = fightLog.titan?.ability_type || ''
+    const ability_highlights = {}
+
+    if (abilityType === 'ragnarok_flame') {
+      const ragRound = rounds.find(r => r.titan_attack?.type === 'ragnarok_aoe')
+      ability_highlights.ragnarok_flame = ragRound
+        ? { fired: true,  round: ragRound.round, total_aoe_damage: ragRound.titan_attack.damage }
+        : { fired: false }
+    }
+
+    if (abilityType === 'time_dilation') {
+      let totalTurnsLost = 0
+      for (const round of rounds) {
+        for (const atk of (round.attacks || [])) {
+          if (atk.attack_type === 'time_warp') totalTurnsLost++
+        }
+      }
+      ability_highlights.time_warp = { total_turns_lost: totalTurnsLost }
+    }
+
+    if (abilityType === 'death_aura') {
+      let deathAuraTotal = 0
+      for (let i = 1; i < rounds.length; i++) {
+        const prev = rounds[i - 1]
+        const curr = rounds[i]
+        for (const uid of Object.keys(curr.player_hp_after || {})) {
+          const prevHp = (prev.player_hp_after || {})[uid]
+          const currHp = curr.player_hp_after[uid]
+          if (!prevHp || prevHp <= 1) continue
+          const hpLost = Math.max(0, prevHp - currHp)
+          const titanHit = (curr.titan_attack?.target_user_id === uid && curr.titan_attack?.type === 'hit')
+            ? (curr.titan_attack.damage || 0) : 0
+          deathAuraTotal += Math.max(0, hpLost - titanHit)
+        }
+      }
+      ability_highlights.death_aura = { total_hp_drained: deathAuraTotal }
+    }
+
+    if (abilityType === 'divine_storm') {
+      const totalEnergyDrained = participantRows.reduce((s, p) => s + (p.energy_drained || 0), 0)
+      const playersFatigued    = participantRows.filter(p => (p.energy_drained || 0) > 0).length
+      ability_highlights.divine_storm = { total_energy_drained: totalEnergyDrained, players_fatigued: playersFatigued }
+    }
+
+    if (['crushing_weight', 'arcane_disrupt', 'frost_veil', 'chaos_surge'].includes(abilityType)) {
+      ability_highlights[abilityType] = {
+        active:              true,
+        ability_name:        ev.ability_name,
+        ability_description: ev.ability_description,
+      }
+    }
+
+    const rounds_count = rounds.length
+    const playerCount  = Object.keys(rounds[0]?.player_hp_after || {}).length
+    // Safety cap: either hit MAX_ROUNDS or titan not slain but victory (>50% damage path)
+    const safety_cap_reached = rounds_count >= 100 * playerCount
+      || (ev.titan_final_hp > 0 && ev.result === 'victory')
+
+    return res.status(200).json({
+      ok: true,
+      event: {
+        id:                ev.id,
+        result:            ev.result,
+        rounds_count,
+        safety_cap_reached,
+        titan_starting_hp: ev.titan_starting_hp,
+        titan_final_hp:    ev.titan_final_hp,
+        fight_starts_at:   ev.fight_starts_at,
+        fight_ends_at:     ev.fight_ends_at,
+      },
+      titan: {
+        name:                ev.titan_name,
+        slug:                ev.titan_slug,
+        difficulty:          ev.titan_difficulty,
+        pantheon:            ev.titan_pantheon,
+        ability_name:        ev.ability_name,
+        ability_description: ev.ability_description,
+      },
+      participants,
+      ability_highlights,
+      total_participants: participantRows.length,
+    })
+  } catch (err) {
+    console.error('titan_recap error:', err)
+    return res.status(500).json({ error: 'recap_failed' })
+  }
+}
+
+// ── Titan Player Log (GET) ────────────────────────────────────────────────────
+
+async function handleTitanPlayerLog(req, res) {
+  if (req.method !== 'GET') return res.status(405).json({ error: 'Method not allowed' })
+
+  const rawId = parseInt(req.query.event_id, 10)
+  const targetUserId = req.query.user_id
+
+  if (!Number.isFinite(rawId) || rawId < 1) return res.status(400).json({ error: 'invalid_event_id' })
+  if (!isValidUuid(targetUserId))            return res.status(400).json({ error: 'invalid_user_id' })
+
+  try {
+    const eventRows = await sql`
+      SELECT te.fight_log, t.name AS titan_name
+      FROM pw_titan_events te
+      JOIN pw_titans t ON t.id = te.titan_id
+      WHERE te.id = ${rawId} AND te.status = 'resolved'
+    `
+    if (eventRows.length === 0) return res.status(404).json({ error: 'event_not_found' })
+
+    const userRows = await sql`SELECT username FROM pw_users WHERE id = ${targetUserId}`
+    if (userRows.length === 0) return res.status(404).json({ error: 'user_not_found' })
+
+    const fightLog  = eventRows[0].fight_log || { rounds: [] }
+    const allRounds = fightLog.rounds || []
+
+    const userRounds = []
+    for (const round of allRounds) {
+      const hpAfter = (round.player_hp_after     || {})[targetUserId]
+      if (hpAfter === undefined) continue  // player not present in this round
+
+      const energyAfter = (round.player_energy_after || {})[targetUserId] ?? null
+      const myAtk       = (round.attacks || []).find(a => a.user_id === targetUserId)
+
+      const ta = round.titan_attack
+      let titan_action = null
+      if (ta) {
+        const targetedMe = ta.target_user_id === targetUserId || ta.target_user_id === 'all'
+        titan_action = {
+          targeted_me:     targetedMe,
+          damage_received: targetedMe ? (ta.damage ?? null) : null,
+          type:            ta.type || null,
+        }
+      }
+
+      userRounds.push({
+        round:           round.round,
+        my_attack:       myAtk ? {
+          damage_dealt: myAtk.damage_dealt,
+          attack_type:  myAtk.attack_type,
+          is_crit:      myAtk.is_crit,
+          is_fatigued:  myAtk.is_fatigued,
+        } : null,
+        titan_action,
+        my_hp_after:     hpAfter,
+        my_energy_after: energyAfter,
+      })
+    }
+
+    return res.status(200).json({
+      ok:         true,
+      rounds:     userRounds,
+      username:   userRows[0].username,
+      titan_name: eventRows[0].titan_name,
+    })
+  } catch (err) {
+    console.error('titan_player_log error:', err)
+    return res.status(500).json({ error: 'player_log_failed' })
   }
 }
 
@@ -5121,6 +5362,8 @@ const innerHandler = requireUserWithModCheck(async function handler(req, res) {
   if (action === 'titan_claim')         return handleTitanClaim(req, res)
   if (action === 'titan_admin_trigger') return handleTitanAdminTrigger(req, res)
   if (action === 'titan_history')       return handleTitanHistory(req, res)
+  if (action === 'titan_recap')         return handleTitanRecap(req, res)
+  if (action === 'titan_player_log')    return handleTitanPlayerLog(req, res)
   if (action === 'township')            return handleTownship(req, res)
   if (action === 'township_establish')  return handleTownshipEstablish(req, res)
   if (action === 'township_upgrade')    return handleTownshipUpgrade(req, res)

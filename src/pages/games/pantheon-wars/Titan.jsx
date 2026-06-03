@@ -5,6 +5,7 @@ import PWPageShell from '@/components/games/pantheon-wars/PWPageShell'
 import PWBackButton from '@/components/games/pantheon-wars/PWBackButton'
 import { usePantheonWars } from '@/contexts/PantheonWarsContext'
 import { useSound } from '@/sound/useSound'
+import TitanRecapPanel from '@/components/games/pantheon-wars/TitanRecapPanel'
 
 // ─── Color constants ──────────────────────────────────────────────────────────
 
@@ -833,7 +834,7 @@ function ClaimResultModal({ result, onClose }) {
         transition={{ duration: 0.28, ease: [0.16, 1, 0.3, 1] }}
         style={{
           width: '100%',
-          maxWidth: 400,
+          maxWidth: 560,
           background: 'var(--pw-bg-card, #1A1020)',
           border: `1px solid ${isVictory ? GOLD + '66' : 'rgba(239,68,68,0.35)'}`,
           borderRadius: 12,
@@ -938,6 +939,20 @@ function ClaimResultModal({ result, onClose }) {
           )}
         </motion.div>
 
+        {/* Recap divider + scroll hint */}
+        <div style={{
+          margin: '22px 0 10px',
+          display: 'flex', alignItems: 'center', gap: 10,
+        }}>
+          <div style={{ flex: 1, height: 1, background: 'rgba(201,169,97,0.18)' }} />
+          <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 9, color: 'rgba(201,169,97,0.55)', letterSpacing: '0.18em', whiteSpace: 'nowrap' }}>
+            BATTLE RECAP
+          </span>
+          <div style={{ flex: 1, height: 1, background: 'rgba(201,169,97,0.18)' }} />
+        </div>
+
+        {result.event_id && <TitanRecapPanel eventId={result.event_id} />}
+
         <button
           onClick={onClose}
           style={{
@@ -961,6 +976,170 @@ function ClaimResultModal({ result, onClose }) {
   )
 }
 
+// ─── Past Events Section ─────────────────────────────────────────────────────
+
+const DIFF_COLOR = { medium: '#3B82F6', hard: '#F97316', extreme: '#EF4444' }
+
+function timeAgo(iso) {
+  if (!iso) return '—'
+  const secs = Math.floor((Date.now() - new Date(iso).getTime()) / 1000)
+  if (secs < 60)   return `${secs}s ago`
+  if (secs < 3600) return `${Math.floor(secs / 60)}m ago`
+  if (secs < 86400) return `${Math.floor(secs / 3600)}h ago`
+  return `${Math.floor(secs / 86400)}d ago`
+}
+
+function RecapModal({ eventId, onClose }) {
+  useEffect(() => {
+    function onKey(e) { if (e.key === 'Escape') onClose() }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [onClose])
+
+  return (
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      onClick={e => e.target === e.currentTarget && onClose()}
+      style={{
+        position: 'fixed', inset: 0, zIndex: 200,
+        background: 'rgba(5,3,10,0.92)',
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        padding: 20,
+      }}
+    >
+      <motion.div
+        initial={{ opacity: 0, scale: 0.95 }}
+        animate={{ opacity: 1, scale: 1 }}
+        exit={{ opacity: 0, scale: 0.95 }}
+        transition={{ duration: 0.22 }}
+        style={{
+          width: '100%', maxWidth: 600,
+          background: 'var(--pw-bg-card, #1A1020)',
+          border: '1px solid rgba(201,169,97,0.3)',
+          borderRadius: 12,
+          maxHeight: '88vh',
+          display: 'flex', flexDirection: 'column',
+          overflow: 'hidden',
+        }}
+      >
+        <div style={{
+          padding: '14px 20px',
+          borderBottom: '1px solid rgba(255,255,255,0.06)',
+          display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+          flexShrink: 0,
+        }}>
+          <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, color: GOLD, letterSpacing: '0.18em' }}>
+            BATTLE RECAP
+          </span>
+          <button
+            onClick={onClose}
+            style={{ background: 'none', border: 'none', cursor: 'pointer', fontFamily: "'IBM Plex Mono', monospace", fontSize: 11, color: 'rgba(240,240,248,0.4)', padding: '2px 8px' }}
+          >
+            ✕ CLOSE
+          </button>
+        </div>
+        <div style={{ overflowY: 'auto', flex: 1, padding: '20px 20px 24px' }}>
+          <TitanRecapPanel eventId={eventId} />
+        </div>
+      </motion.div>
+    </motion.div>
+  )
+}
+
+function PastEventsSection({ events, onViewRecap }) {
+  if (!events || events.length === 0) return (
+    <div style={{ marginTop: 32 }}>
+      <div style={{
+        fontFamily: "'IBM Plex Mono', monospace", fontSize: 10,
+        color: 'rgba(240,240,248,0.3)', letterSpacing: '0.18em', marginBottom: 12,
+      }}>
+        PAST TITAN BATTLES
+      </div>
+      <div style={{
+        padding: 20, textAlign: 'center',
+        fontFamily: "'IBM Plex Mono', monospace", fontSize: 11,
+        color: 'rgba(240,240,248,0.2)', letterSpacing: '0.08em',
+      }}>
+        No completed battles yet.
+      </div>
+    </div>
+  )
+
+  return (
+    <div style={{ marginTop: 32 }}>
+      <div style={{
+        fontFamily: "'IBM Plex Mono', monospace", fontSize: 10,
+        color: 'rgba(240,240,248,0.3)', letterSpacing: '0.18em', marginBottom: 12,
+      }}>
+        PAST TITAN BATTLES
+      </div>
+
+      {events.map(ev => {
+        const isVictory  = ev.result === 'victory'
+        const diffColor  = DIFF_COLOR[ev.difficulty] || '#9CA3AF'
+        const resultColor = isVictory ? '#22C55E' : '#EF4444'
+
+        return (
+          <div
+            key={ev.id}
+            style={{
+              display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap',
+              padding: '10px 14px',
+              background: 'rgba(255,255,255,0.02)',
+              border: '1px solid rgba(255,255,255,0.05)',
+              borderRadius: 6,
+              marginBottom: 6,
+            }}
+          >
+            {/* Difficulty badge */}
+            <span style={{
+              fontFamily: "'IBM Plex Mono', monospace", fontSize: 8, color: diffColor,
+              border: `1px solid ${diffColor}55`, borderRadius: 3, padding: '1px 5px',
+              letterSpacing: '0.1em', flexShrink: 0,
+            }}>
+              {ev.difficulty.toUpperCase()}
+            </span>
+
+            {/* Titan name */}
+            <span style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 13, color: '#F0F0F8', flex: 1, minWidth: 120 }}>
+              {ev.titan_name}
+            </span>
+
+            {/* Result */}
+            <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 9, color: resultColor, letterSpacing: '0.08em', flexShrink: 0 }}>
+              {isVictory ? 'VICTORY' : 'DEFEAT'}
+            </span>
+
+            {/* Stats */}
+            <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 9, color: 'rgba(240,240,248,0.3)', flexShrink: 0 }}>
+              {ev.participant_count} warriors · {timeAgo(ev.fight_starts_at)}
+            </span>
+
+            {/* View Recap button */}
+            <button
+              onClick={() => onViewRecap(ev.id)}
+              style={{
+                fontFamily: "'IBM Plex Mono', monospace", fontSize: 9,
+                color: GOLD, background: 'none',
+                border: `1px solid ${GOLD}44`, borderRadius: 4,
+                padding: '4px 10px', cursor: 'pointer',
+                letterSpacing: '0.1em', flexShrink: 0,
+                transition: 'border-color 0.15s, color 0.15s',
+              }}
+              onMouseEnter={e => { e.currentTarget.style.borderColor = GOLD + 'AA'; e.currentTarget.style.color = GOLD_BRIGHT }}
+              onMouseLeave={e => { e.currentTarget.style.borderColor = GOLD + '44'; e.currentTarget.style.color = GOLD }}
+            >
+              VIEW RECAP →
+            </button>
+          </div>
+        )
+      })}
+    </div>
+  )
+}
+
 // ─── Main Page ────────────────────────────────────────────────────────────────
 
 const backSlot = (
@@ -975,8 +1154,9 @@ export default function Titan() {
   const [loading, setLoading]         = useState(true)
   const [joining, setJoining]         = useState(false)
   const [claiming, setClaiming]       = useState(false)
-  const [claimResult, setClaimResult] = useState(null)
-  const [error, setError]             = useState(null)
+  const [claimResult, setClaimResult]   = useState(null)
+  const [recapEventId, setRecapEventId] = useState(null)
+  const [error, setError]               = useState(null)
   const pollRef = useRef(null)
 
   const fetchStatus = useCallback(async () => {
@@ -1112,6 +1292,12 @@ export default function Titan() {
 
           {/* No current event */}
           {!event && !unclaimed && <NoEventView />}
+
+          {/* Past battles */}
+          <PastEventsSection
+            events={statusData?.recent_events}
+            onViewRecap={id => setRecapEventId(id)}
+          />
         </motion.div>
       )}
 
@@ -1119,6 +1305,13 @@ export default function Titan() {
       <AnimatePresence>
         {claimResult && (
           <ClaimResultModal result={claimResult} onClose={() => setClaimResult(null)} />
+        )}
+      </AnimatePresence>
+
+      {/* Past-event recap modal */}
+      <AnimatePresence>
+        {recapEventId && (
+          <RecapModal eventId={recapEventId} onClose={() => setRecapEventId(null)} />
         )}
       </AnimatePresence>
     </PWPageShell>
