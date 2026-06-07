@@ -3,6 +3,7 @@ import { BrowserRouter, Routes, Route, Outlet, useLocation } from 'react-router-
 import { AnimatePresence } from 'framer-motion'
 
 import PageChrome from '@/components/layout/PageChrome'
+import ScrollToTop from '@/components/layout/ScrollToTop'
 import SoundToggle from '@/components/layout/SoundToggle'
 import Terminal from '@/components/terminal/Terminal'
 import LoadingDot from '@/components/ui/LoadingDot'
@@ -236,6 +237,7 @@ function AppInner() {
   if (isGame) {
     return (
       <>
+        <ScrollToTop />
         <AutoTrackers />
         <Suspense fallback={<PageLoader />}>
           <PantheonWarsRoutes />
@@ -252,6 +254,7 @@ function AppInner() {
 
   return (
     <>
+      <ScrollToTop />
       <AutoTrackers />
       {isDigital && <PageChrome />}
       {isDigital && <SoundToggle />}
