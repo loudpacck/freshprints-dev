@@ -77,6 +77,7 @@ export default function ProjectPage() {
   }
 
   const outcomeCopy = OUTCOME_COPY[project.status] ?? 'This project is ongoing.'
+  const isExternalCta = /^https?:\/\//i.test(project.cta.href)
 
   return (
     <motion.div
@@ -208,12 +209,25 @@ export default function ProjectPage() {
                   PLAY THE WEB COMPANION →
                 </Button>
               )}
-              <Button
-                variant={project.liveUrl ? 'secondary' : 'primary'}
-                onClick={() => navigate(project.cta.href)}
-              >
-                {project.cta.label}
-              </Button>
+              {isExternalCta ? (
+                <a
+                  href={project.cta.href}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  style={{ textDecoration: 'none' }}
+                >
+                  <Button variant={project.liveUrl ? 'secondary' : 'primary'}>
+                    {project.cta.label}
+                  </Button>
+                </a>
+              ) : (
+                <Button
+                  variant={project.liveUrl ? 'secondary' : 'primary'}
+                  onClick={() => navigate(project.cta.href)}
+                >
+                  {project.cta.label}
+                </Button>
+              )}
               <Button
                 variant="secondary"
                 onClick={() => navigate('/services')}
