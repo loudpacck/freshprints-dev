@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react'
-import { getExtrasUrl } from './townshipConfig'
+import { getExtrasUrl, DEFAULT_ATMOSPHERE_CONFIGS } from './townshipConfig'
 
 const COLS    = 3
 const CELL_PX = 120
@@ -137,11 +137,12 @@ const SPRITES = [
   },
 ]
 
-function AtmosphereEffects({ assetKey, group = 'all' }) {
+function AtmosphereEffects({ assetKey, group = 'all', configs }) {
   const reducedMotion = typeof window !== 'undefined'
     ? window.matchMedia('(prefers-reduced-motion: reduce)').matches
     : false
 
+  const positionConfigs = configs || DEFAULT_ATMOSPHERE_CONFIGS
   const filtered = group === 'all' ? SPRITES : SPRITES.filter(s => s.group === group)
 
   // Refs and frame counters are only needed for birds
@@ -177,6 +178,12 @@ function AtmosphereEffects({ assetKey, group = 'all' }) {
       <style>{KEYFRAMES}</style>
       {filtered.map((cfg, i) => {
         const src = getExtrasUrl(assetKey, cfg.name)
+        const posOverride = cfg.group === 'ground'
+          ? positionConfigs.find(p => p.id === cfg.id)
+          : null
+        const style = posOverride
+          ? { ...cfg.style, left: `${posOverride.leftPct * 100}%` }
+          : cfg.style
         return (
           <div
             key={cfg.id}
@@ -189,7 +196,7 @@ function AtmosphereEffects({ assetKey, group = 'all' }) {
               backgroundRepeat: 'no-repeat',
               pointerEvents:    'none',
               userSelect:       'none',
-              ...cfg.style,
+              ...style,
             }}
           />
         )

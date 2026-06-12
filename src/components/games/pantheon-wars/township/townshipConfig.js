@@ -91,6 +91,41 @@ export const TEMPLE_CONFIG = {
   pantheon_citadel: { min: 1.2, max: 2.0,  glow: 'rgba(255,220,100,1.0)'  },
 }
 
+// ── Default ambient NPC patrol configs ──────────────────────────────────────────
+// minX/maxX are absolute scene-pixel positions (fractions × SCENE_WIDTH).
+// startX is derived from the original startRatio (posX = minX + (maxX-minX) * startRatio)
+// so the layout editor can drag an absolute start position directly.
+const RAW_NPC_CONFIGS = [
+  { id: 'npc_0', type: 'villager', minX: 0.05 * SCENE_WIDTH, maxX: 0.20 * SCENE_WIDTH, speed: 30, startRatio: 0.3, initialDir:  1, staggerMs:    0 },
+  { id: 'npc_1', type: 'animal',   minX: 0.09 * SCENE_WIDTH, maxX: 0.17 * SCENE_WIDTH, speed: 20, startRatio: 0.7, initialDir: -1, staggerMs:  900 },
+  { id: 'npc_2', type: 'villager', minX: 0.34 * SCENE_WIDTH, maxX: 0.55 * SCENE_WIDTH, speed: 30, startRatio: 0.5, initialDir:  1, staggerMs: 1600 },
+  { id: 'npc_3', type: 'animal',   minX: 0.38 * SCENE_WIDTH, maxX: 0.53 * SCENE_WIDTH, speed: 20, startRatio: 0.2, initialDir: -1, staggerMs:  400 },
+  { id: 'npc_4', type: 'villager', minX: 0.60 * SCENE_WIDTH, maxX: 0.72 * SCENE_WIDTH, speed: 30, startRatio: 0.8, initialDir:  1, staggerMs: 1200 },
+  { id: 'npc_5', type: 'animal',   minX: 0.63 * SCENE_WIDTH, maxX: 0.75 * SCENE_WIDTH, speed: 20, startRatio: 0.4, initialDir:  1, staggerMs:  700 },
+]
+
+export const DEFAULT_NPC_CONFIGS = RAW_NPC_CONFIGS.map(c => ({
+  ...c,
+  startX: c.minX + (c.maxX - c.minX) * c.startRatio,
+}))
+
+// ── Default atmosphere ground-effect positions ──────────────────────────────────
+// Sky group (birds) drift automatically and are not positionable — only ground
+// elements (fire/smoke/ashes/enviroparticles) are exposed to the layout editor.
+// ids match AtmosphereEffects.jsx SPRITES entries so overrides merge by id.
+export const DEFAULT_ATMOSPHERE_CONFIGS = [
+  { id: 'fire-a',  group: 'ground', sprite: 'fire',             leftPct: 0.25 },
+  { id: 'fire-b',  group: 'ground', sprite: 'fire',             leftPct: 0.50 },
+  { id: 'fire-c',  group: 'ground', sprite: 'fire',             leftPct: 0.72 },
+  { id: 'smoke-a', group: 'ground', sprite: 'smoke',            leftPct: 0.25 },
+  { id: 'smoke-b', group: 'ground', sprite: 'smoke',            leftPct: 0.50 },
+  { id: 'smoke-c', group: 'ground', sprite: 'smoke',            leftPct: 0.72 },
+  { id: 'ashes-a', group: 'ground', sprite: 'ashes',            leftPct: 0.30 },
+  { id: 'ashes-b', group: 'ground', sprite: 'ashes',            leftPct: 0.60 },
+  { id: 'env-a',   group: 'ground', sprite: 'enviroparticles',  leftPct: 0.38 },
+  { id: 'env-b',   group: 'ground', sprite: 'enviroparticles',  leftPct: 0.72 },
+]
+
 // ── Asset URL helpers ──────────────────────────────────────────────────────────
 
 export function getBgLayerUrl(assetKey, file) {

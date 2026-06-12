@@ -6,6 +6,7 @@ import AdminTitanPanel from '@/components/admin/AdminTitanPanel'
 import AdminModeratorPanel from '@/components/admin/AdminModeratorPanel'
 import SiteAnalytics from '@/components/admin/SiteAnalytics'
 import GameMetrics from '@/components/admin/GameMetrics'
+import TownshipLayoutEditor from '@/components/admin/TownshipLayoutEditor'
 
 // ── Moderator-only: account lookup ─────────────────────────────────────────────
 
@@ -252,6 +253,7 @@ const NAV_ITEMS = [
   { id: 'game',       label: 'GAME METRICS' },
   { id: 'titan',      label: 'TITAN' },
   { id: 'moderator',  label: 'MODERATOR' },
+  { id: 'township',   label: 'TOWNSHIP EDITOR', icon: '🏘' },
 ]
 
 function formatAgo(date) {
@@ -457,7 +459,7 @@ export default function Admin() {
                   transition: 'color 150ms, background 150ms',
                 }}
               >
-                {item.label}
+                {item.icon ? `${item.icon} ${item.label}` : item.label}
               </button>
             ))}
           </nav>
@@ -491,6 +493,7 @@ export default function Admin() {
           )}
           {activeSection === 'titan' && <AdminTitanPanel />}
           {activeSection === 'moderator' && <AdminModeratorPanel />}
+          {activeSection === 'township' && <TownshipLayoutEditor />}
         </main>
       </div>
 

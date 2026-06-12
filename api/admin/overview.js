@@ -3,8 +3,46 @@ import { requireAdmin } from '../../lib/auth.js'
 
 export const config = { runtime: 'nodejs' }
 
+// Public read — layout positions are non-sensitive cosmetic data and must be
+// readable by the Township scene for all players, not just logged-in admins.
+async function handleGetConfig(req, res) {
+  const { key } = req.query
+  if (!key) return res.status(400).json({ error: 'Missing key' })
+
+  try {
+    const rows = await sql`SELECT value FROM pw_admin_config WHERE key = ${key}`
+    return res.status(200).json({ config: rows[0]?.value ?? null })
+  } catch (err) {
+    console.error('get_config error:', err)
+    return res.status(500).json({ error: 'Failed to load config' })
+  }
+}
+
+async function handleSetConfig(req, res) {
+  const { key, value } = req.body || {}
+  if (!key || value === undefined) return res.status(400).json({ error: 'Missing key or value' })
+
+  try {
+    await sql`
+      INSERT INTO pw_admin_config (key, value, updated_at)
+      VALUES (${key}, ${JSON.stringify(value)}, NOW())
+      ON CONFLICT (key) DO UPDATE SET value = ${JSON.stringify(value)}, updated_at = NOW()
+    `
+    return res.status(200).json({ ok: true })
+  } catch (err) {
+    console.error('set_config error:', err)
+    return res.status(500).json({ error: 'Failed to save config' })
+  }
+}
+
 export default async function handler(req, res) {
+  const { action } = req.query
+
+  if (action === 'get_config') return handleGetConfig(req, res)
+
   if (!(await requireAdmin(req, res))) return
+
+  if (action === 'set_config') return handleSetConfig(req, res)
 
   try {
     const [

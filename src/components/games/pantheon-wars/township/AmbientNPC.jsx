@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react'
-import { SCENE_WIDTH, getNPCUrl } from './townshipConfig'
+import { getNPCUrl, DEFAULT_NPC_CONFIGS } from './townshipConfig'
 
 const VILLAGER_DISPLAY_H = 180
 const ANIMAL_DISPLAY_H   = 110
@@ -94,21 +94,11 @@ function makeSpriteInfo(cfg) {
   }
 }
 
-// NPC patrol configs — minX/maxX are scene fractions × SCENE_WIDTH
-const CONFIGS = [
-  { type: 'villager', minX: 0.05 * SCENE_WIDTH, maxX: 0.20 * SCENE_WIDTH, speed: 30, startRatio: 0.3, initialDir:  1, staggerMs:    0 },
-  { type: 'animal',   minX: 0.09 * SCENE_WIDTH, maxX: 0.17 * SCENE_WIDTH, speed: 20, startRatio: 0.7, initialDir: -1, staggerMs:  900 },
-  { type: 'villager', minX: 0.34 * SCENE_WIDTH, maxX: 0.55 * SCENE_WIDTH, speed: 30, startRatio: 0.5, initialDir:  1, staggerMs: 1600 },
-  { type: 'animal',   minX: 0.38 * SCENE_WIDTH, maxX: 0.53 * SCENE_WIDTH, speed: 20, startRatio: 0.2, initialDir: -1, staggerMs:  400 },
-  { type: 'villager', minX: 0.60 * SCENE_WIDTH, maxX: 0.72 * SCENE_WIDTH, speed: 30, startRatio: 0.8, initialDir:  1, staggerMs: 1200 },
-  { type: 'animal',   minX: 0.63 * SCENE_WIDTH, maxX: 0.75 * SCENE_WIDTH, speed: 20, startRatio: 0.4, initialDir:  1, staggerMs:  700 },
-]
-
 function makePauseMs() {
   return 2000 + Math.random() * 2000
 }
 
-export default function AmbientNPC({ assetKey }) {
+export default function AmbientNPC({ assetKey, configs }) {
   const reducedMotion = typeof window !== 'undefined'
     ? window.matchMedia('(prefers-reduced-motion: reduce)').matches
     : false
@@ -117,12 +107,15 @@ export default function AmbientNPC({ assetKey }) {
   const keyframes  = makeNPCKeyframes(cfg)
   const spriteInfo = makeSpriteInfo(cfg)
 
+  // NPC patrol configs — minX/maxX/startX are absolute scene-pixel positions
+  const CONFIGS = configs || DEFAULT_NPC_CONFIGS
+
   const stateRef = useRef(
     CONFIGS.map(c => ({
       containerEl: null,
       idleEl:      null,
       walkEl:      null,
-      posX:        c.minX + (c.maxX - c.minX) * c.startRatio,
+      posX:        c.startX,
       dir:         c.initialDir,
       isWalking:   false,
       pauseUntil:  Date.now() + c.staggerMs,

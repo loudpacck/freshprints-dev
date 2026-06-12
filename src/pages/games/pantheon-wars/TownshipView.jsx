@@ -252,6 +252,15 @@ export default function TownshipView() {
   const [templeWarning,    setTempleWarning]     = useState(false)
   const [showWelcome,      setShowWelcome]       = useState(false)
   const [loadKey,          setLoadKey]           = useState(0)
+  const [layoutConfig,     setLayoutConfig]      = useState(null)
+
+  // Admin-configured layout overrides — separate fetch, silent fallback to defaults
+  useEffect(() => {
+    fetch('/api/admin/overview?action=get_config&key=township_layout')
+      .then(r => r.json())
+      .then(({ config }) => { if (config) setLayoutConfig(config) })
+      .catch(() => {})
+  }, [])
 
   const assetKey = FACTION_MAP[user?.faction] || 'greek'
 
@@ -362,6 +371,9 @@ export default function TownshipView() {
             templeData={templeData}
             onBuildingClick={handleBuildingClick}
             isModalOpen={!!selectedBuilding}
+            plotOverrides={layoutConfig?.plots}
+            npcOverrides={layoutConfig?.npcs}
+            atmosphereOverrides={layoutConfig?.atmosphere}
           />
           {showWelcome && (
             <WelcomeOverlay

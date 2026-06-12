@@ -5,6 +5,7 @@ import AmbientNPC        from './AmbientNPC'
 import AtmosphereEffects from './AtmosphereEffects'
 import {
   SCENE_WIDTH, FACTION_MAP, BG_LAYERS, PLOTS,
+  DEFAULT_NPC_CONFIGS, DEFAULT_ATMOSPHERE_CONFIGS,
   getBgLayerUrl, getTooltipInfo,
 } from './townshipConfig'
 
@@ -25,9 +26,34 @@ const SCENE_KEYFRAMES = `
 const hasFinePointer = () =>
   typeof window !== 'undefined' && window.matchMedia('(pointer: fine)').matches
 
-export default function TownshipScene({ faction, townships, templeData, onBuildingClick }) {
+export default function TownshipScene({
+  faction, townships, templeData, onBuildingClick,
+  plotOverrides, npcOverrides, atmosphereOverrides,
+}) {
   const assetKey = FACTION_MAP[faction] || 'greek'
   const bgLayers = BG_LAYERS[assetKey] || BG_LAYERS.greek
+
+  // Merge optional admin-configured layout overrides (by id) with defaults
+  const effectivePlots = plotOverrides?.length
+    ? PLOTS.map(p => {
+        const o = plotOverrides.find(o => o.id === p.id)
+        return o ? { ...p, x: o.x ?? p.x, bottomPct: o.bottomPct ?? p.bottomPct } : p
+      })
+    : PLOTS
+
+  const effectiveNpcConfigs = npcOverrides?.length
+    ? DEFAULT_NPC_CONFIGS.map(c => {
+        const o = npcOverrides.find(o => o.id === c.id)
+        return o ? { ...c, minX: o.minX ?? c.minX, maxX: o.maxX ?? c.maxX, startX: o.startX ?? c.startX } : c
+      })
+    : undefined
+
+  const effectiveAtmosphereConfigs = atmosphereOverrides?.length
+    ? DEFAULT_ATMOSPHERE_CONFIGS.map(c => {
+        const o = atmosphereOverrides.find(o => o.id === c.id)
+        return o ? { ...c, leftPct: o.leftPct ?? c.leftPct } : c
+      })
+    : undefined
 
   const containerRef = useRef(null)
   const worldRef     = useRef(null)
@@ -54,7 +80,7 @@ export default function TownshipScene({ faction, townships, templeData, onBuildi
   }, [])
 
   // Player position ref — shared with PlayerCharacter which writes its position here
-  const townhallPlot = PLOTS.find(p => p.id === 'townhall')
+  const townhallPlot = effectivePlots.find(p => p.id === 'townhall')
   const charXRef     = useRef((townhallPlot?.x ?? 0.48) * SCENE_WIDTH)
 
   // Camera offset in viewport pixels (lerped toward target)
@@ -180,7 +206,7 @@ export default function TownshipScene({ faction, townships, templeData, onBuildi
   }
 
   // Tooltip data
-  const hoveredPlot = hoverInfo ? PLOTS.find(p => p.id === hoverInfo.plotId) : null
+  const hoveredPlot = hoverInfo ? effectivePlots.find(p => p.id === hoverInfo.plotId) : null
   const tooltipData = hoveredPlot
     ? getTooltipInfo(hoveredPlot, assetKey, townships, templeData)
     : null
@@ -229,7 +255,7 @@ export default function TownshipScene({ faction, townships, templeData, onBuildi
       ))}
 
       {/* Sky effects — viewport-relative, drift independently across the sky */}
-      <AtmosphereEffects assetKey={assetKey} group="sky" />
+      <AtmosphereEffects assetKey={assetKey} group="sky" configs={effectiveAtmosphereConfigs} />
 
       {/* World container — camera offset + scale applied via rAF (not React state) */}
       <div
@@ -246,11 +272,11 @@ export default function TownshipScene({ faction, townships, templeData, onBuildi
         }}
       >
         {/* Ground effects inside world so they scroll with camera and z-sort with buildings/NPCs */}
-        <AtmosphereEffects assetKey={assetKey} group="ground" />
+        <AtmosphereEffects assetKey={assetKey} group="ground" configs={effectiveAtmosphereConfigs} />
 
-        <AmbientNPC assetKey={assetKey} />
+        <AmbientNPC assetKey={assetKey} configs={effectiveNpcConfigs} />
 
-        {PLOTS.map((plot, i) => (
+        {effectivePlots.map((plot, i) => (
           <BuildingSprite
             key={plot.id}
             plot={plot}
