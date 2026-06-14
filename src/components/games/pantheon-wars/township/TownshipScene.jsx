@@ -37,7 +37,13 @@ export default function TownshipScene({
   const effectivePlots = plotOverrides?.length
     ? PLOTS.map(p => {
         const o = plotOverrides.find(o => o.id === p.id)
-        return o ? { ...p, x: o.x ?? p.x, bottomPct: o.bottomPct ?? p.bottomPct } : p
+        if (!o) return p
+        return {
+          ...p,
+          x: o.x ?? p.x,
+          bottomPct: o.bottomPct ?? p.bottomPct,
+          footOffsetPx: o.footOffsetPx ? { ...p.footOffsetPx, ...o.footOffsetPx } : p.footOffsetPx,
+        }
       })
     : PLOTS
 

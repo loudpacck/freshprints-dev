@@ -131,17 +131,21 @@ export default function AmbientNPC({ assetKey, configs }) {
   const rafRef      = useRef(null)
   const lastTimeRef = useRef(null)
 
+  // Reduced-motion: re-apply static position/offset whenever configs change
+  // (handles late-arriving admin overrides, since the rAF loop below never starts)
   useEffect(() => {
-    if (reducedMotion) {
-      stateRef.current.forEach(s => {
-        if (s.containerEl) {
-          const flip = s.dir < 0 ? -1 : 1
-          s.containerEl.style.left      = s.posX + 'px'
-          s.containerEl.style.transform = `translateX(-50%) translateY(${s.footOffsetPx}px) scaleX(${flip})`
-        }
-      })
-      return
-    }
+    if (!reducedMotion) return
+    stateRef.current.forEach(s => {
+      if (s.containerEl) {
+        const flip = s.dir < 0 ? -1 : 1
+        s.containerEl.style.left      = s.posX + 'px'
+        s.containerEl.style.transform = `translateX(-50%) translateY(${s.footOffsetPx}px) scaleX(${flip})`
+      }
+    })
+  }, [configs, assetKey, reducedMotion])
+
+  useEffect(() => {
+    if (reducedMotion) return
 
     function tick(timestamp) {
       if (!lastTimeRef.current) lastTimeRef.current = timestamp

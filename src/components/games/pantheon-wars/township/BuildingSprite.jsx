@@ -90,6 +90,7 @@ export default function BuildingSprite({
 
   const heightPct = getBuildingBaseHeight(plot, townships) * templeScale
   const ariaLabel = getBuildingAriaLabel(plot, assetKey, townships, templeData)
+  const footOffsetPx = plot.footOffsetPx?.[assetKey] ?? 0
 
   function handleMouseEnter() {
     if (!onHoverStart) return
@@ -132,7 +133,7 @@ export default function BuildingSprite({
       style={{
         position: 'absolute',
         left: `${plot.x * 100}%`,
-        bottom: `${plot.bottomPct * 100}%`,
+        bottom: `calc(${plot.bottomPct * 100}% - ${footOffsetPx}px)`,
         height: `${heightPct}%`,
         width: 'auto',
         transform: 'translateX(-50%)',

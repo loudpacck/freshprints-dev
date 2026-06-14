@@ -11,6 +11,7 @@ async function handleGetConfig(req, res) {
 
   try {
     const rows = await sql`SELECT value FROM pw_admin_config WHERE key = ${key}`
+    res.setHeader('Cache-Control', 'no-store')
     return res.status(200).json({ config: rows[0]?.value ?? null })
   } catch (err) {
     console.error('get_config error:', err)
