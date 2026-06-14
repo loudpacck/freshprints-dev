@@ -91,17 +91,30 @@ export const TEMPLE_CONFIG = {
   pantheon_citadel: { min: 1.2, max: 2.0,  glow: 'rgba(255,220,100,1.0)'  },
 }
 
+// ── Default "foot offset" — pushes sprites down so feet land on the ground line ──
+// Sprite sheets carry transparent padding below the feet/hooves that varies by
+// faction and NPC type. footOffsetPx is a translateY (native px) applied on top
+// of the existing bottom:0% anchor.
+export const DEFAULT_PLAYER_FOOT_OFFSETS = {
+  greek: 42,
+  norse: 28,
+  mesop: 18,
+}
+
+const VILLAGER_FOOT_OFFSETS = { greek: 22, norse: 18, mesop: 14 }
+const ANIMAL_FOOT_OFFSETS   = { greek: 5,  norse: 35, mesop: 5  }
+
 // ── Default ambient NPC patrol configs ──────────────────────────────────────────
 // minX/maxX are absolute scene-pixel positions (fractions × SCENE_WIDTH).
 // startX is derived from the original startRatio (posX = minX + (maxX-minX) * startRatio)
 // so the layout editor can drag an absolute start position directly.
 const RAW_NPC_CONFIGS = [
-  { id: 'npc_0', type: 'villager', minX: 0.05 * SCENE_WIDTH, maxX: 0.20 * SCENE_WIDTH, speed: 30, startRatio: 0.3, initialDir:  1, staggerMs:    0 },
-  { id: 'npc_1', type: 'animal',   minX: 0.09 * SCENE_WIDTH, maxX: 0.17 * SCENE_WIDTH, speed: 20, startRatio: 0.7, initialDir: -1, staggerMs:  900 },
-  { id: 'npc_2', type: 'villager', minX: 0.34 * SCENE_WIDTH, maxX: 0.55 * SCENE_WIDTH, speed: 30, startRatio: 0.5, initialDir:  1, staggerMs: 1600 },
-  { id: 'npc_3', type: 'animal',   minX: 0.38 * SCENE_WIDTH, maxX: 0.53 * SCENE_WIDTH, speed: 20, startRatio: 0.2, initialDir: -1, staggerMs:  400 },
-  { id: 'npc_4', type: 'villager', minX: 0.60 * SCENE_WIDTH, maxX: 0.72 * SCENE_WIDTH, speed: 30, startRatio: 0.8, initialDir:  1, staggerMs: 1200 },
-  { id: 'npc_5', type: 'animal',   minX: 0.63 * SCENE_WIDTH, maxX: 0.75 * SCENE_WIDTH, speed: 20, startRatio: 0.4, initialDir:  1, staggerMs:  700 },
+  { id: 'npc_0', type: 'villager', minX: 0.05 * SCENE_WIDTH, maxX: 0.20 * SCENE_WIDTH, speed: 30, startRatio: 0.3, initialDir:  1, staggerMs:    0, footOffsetPx: VILLAGER_FOOT_OFFSETS },
+  { id: 'npc_1', type: 'animal',   minX: 0.09 * SCENE_WIDTH, maxX: 0.17 * SCENE_WIDTH, speed: 20, startRatio: 0.7, initialDir: -1, staggerMs:  900, footOffsetPx: ANIMAL_FOOT_OFFSETS   },
+  { id: 'npc_2', type: 'villager', minX: 0.34 * SCENE_WIDTH, maxX: 0.55 * SCENE_WIDTH, speed: 30, startRatio: 0.5, initialDir:  1, staggerMs: 1600, footOffsetPx: VILLAGER_FOOT_OFFSETS },
+  { id: 'npc_3', type: 'animal',   minX: 0.38 * SCENE_WIDTH, maxX: 0.53 * SCENE_WIDTH, speed: 20, startRatio: 0.2, initialDir: -1, staggerMs:  400, footOffsetPx: ANIMAL_FOOT_OFFSETS   },
+  { id: 'npc_4', type: 'villager', minX: 0.60 * SCENE_WIDTH, maxX: 0.72 * SCENE_WIDTH, speed: 30, startRatio: 0.8, initialDir:  1, staggerMs: 1200, footOffsetPx: VILLAGER_FOOT_OFFSETS },
+  { id: 'npc_5', type: 'animal',   minX: 0.63 * SCENE_WIDTH, maxX: 0.75 * SCENE_WIDTH, speed: 20, startRatio: 0.4, initialDir:  1, staggerMs:  700, footOffsetPx: ANIMAL_FOOT_OFFSETS   },
 ]
 
 export const DEFAULT_NPC_CONFIGS = RAW_NPC_CONFIGS.map(c => ({

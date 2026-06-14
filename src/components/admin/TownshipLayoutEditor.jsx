@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from 'react'
 import {
   SCENE_WIDTH, BG_LAYERS,
-  DEFAULT_NPC_CONFIGS, DEFAULT_ATMOSPHERE_CONFIGS,
+  DEFAULT_NPC_CONFIGS, DEFAULT_ATMOSPHERE_CONFIGS, DEFAULT_PLAYER_FOOT_OFFSETS,
   PLOTS, getBgLayerUrl, getBuildingUrl, getTempleUrl,
 } from '@/components/games/pantheon-wars/township/townshipConfig'
 
@@ -43,10 +43,13 @@ function clonePlots() {
   return PLOTS.map(p => ({ id: p.id, x: p.x, bottomPct: p.bottomPct, templeType: p.templeType }))
 }
 function cloneNpcs() {
-  return DEFAULT_NPC_CONFIGS.map(c => ({ id: c.id, type: c.type, minX: c.minX, maxX: c.maxX, startX: c.startX }))
+  return DEFAULT_NPC_CONFIGS.map(c => ({ id: c.id, type: c.type, minX: c.minX, maxX: c.maxX, startX: c.startX, footOffsetPx: { ...c.footOffsetPx } }))
 }
 function cloneAtmosphere() {
   return DEFAULT_ATMOSPHERE_CONFIGS.map(c => ({ id: c.id, sprite: c.sprite, leftPct: c.leftPct }))
+}
+function clonePlayer() {
+  return { footOffsetPx: { ...DEFAULT_PLAYER_FOOT_OFFSETS } }
 }
 
 function mergeById(defaults, overrides) {
@@ -55,6 +58,22 @@ function mergeById(defaults, overrides) {
     const o = overrides.find(o => o.id === d.id)
     return o ? { ...d, ...o } : d
   })
+}
+function mergeNpcs(defaults, overrides) {
+  if (!overrides?.length) return defaults
+  return defaults.map(d => {
+    const o = overrides.find(o => o.id === d.id)
+    if (!o) return d
+    return {
+      ...d,
+      ...o,
+      footOffsetPx: o.footOffsetPx ? { ...d.footOffsetPx, ...o.footOffsetPx } : d.footOffsetPx,
+    }
+  })
+}
+function mergePlayer(defaults, override) {
+  if (!override) return defaults
+  return { footOffsetPx: { ...defaults.footOffsetPx, ...(override.footOffsetPx || {}) } }
 }
 
 // ── Shared styles ───────────────────────────────────────────────────────────────
@@ -98,6 +117,7 @@ export default function TownshipLayoutEditor() {
   const [plots, setPlots]           = useState(clonePlots)
   const [npcs, setNpcs]             = useState(cloneNpcs)
   const [atmosphere, setAtmosphere] = useState(cloneAtmosphere)
+  const [player, setPlayer]         = useState(clonePlayer)
   const [dirty, setDirty]           = useState(false)
   const [saving, setSaving]         = useState(false)
   const [saveMsg, setSaveMsg]       = useState('')
@@ -125,8 +145,9 @@ export default function TownshipLayoutEditor() {
       .then(({ config }) => {
         if (!config) return
         if (config.plots?.length)      setPlots(mergeById(clonePlots(), config.plots))
-        if (config.npcs?.length)       setNpcs(mergeById(cloneNpcs(), config.npcs))
+        if (config.npcs?.length)       setNpcs(mergeNpcs(cloneNpcs(), config.npcs))
         if (config.atmosphere?.length) setAtmosphere(mergeById(cloneAtmosphere(), config.atmosphere))
+        if (config.player)             setPlayer(mergePlayer(clonePlayer(), config.player))
       })
       .catch(() => {})
   }, [])
@@ -158,15 +179,30 @@ export default function TownshipLayoutEditor() {
         setNpcs(prev => prev.map(n => {
           if (n.id !== selected.id) return n
           let { minX, maxX, startX } = n
+          let footOffsetPx = n.footOffsetPx
           if (e.key === 'ArrowLeft')  { minX -= stepPx; maxX -= stepPx; startX -= stepPx }
           if (e.key === 'ArrowRight') { minX += stepPx; maxX += stepPx; startX += stepPx }
+          if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
+            const cur  = footOffsetPx?.[faction] ?? 0
+            const next = clamp(cur + (e.key === 'ArrowUp' ? 1 : -1), -50, 100)
+            footOffsetPx = { ...footOffsetPx, [faction]: next }
+          }
           return {
             ...n,
             minX: clamp(minX, 0, SCENE_WIDTH),
             maxX: clamp(maxX, 0, SCENE_WIDTH),
             startX: clamp(startX, 0, SCENE_WIDTH),
+            footOffsetPx,
           }
         }))
+      } else if (selected.type === 'player') {
+        if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
+          setPlayer(prev => {
+            const cur  = prev.footOffsetPx[faction] ?? 0
+            const next = clamp(cur + (e.key === 'ArrowUp' ? 1 : -1), -50, 100)
+            return { footOffsetPx: { ...prev.footOffsetPx, [faction]: next } }
+          })
+        }
       } else if (selected.type === 'atmosphere') {
         setAtmosphere(prev => prev.map(a => {
           if (a.id !== selected.id) return a
@@ -180,7 +216,7 @@ export default function TownshipLayoutEditor() {
     }
     window.addEventListener('keydown', handleKey)
     return () => window.removeEventListener('keydown', handleKey)
-  }, [selected])
+  }, [selected, faction])
 
   // ── Drag handlers (Pointer Events) ──────────────────────────────────────────
 
@@ -306,14 +342,27 @@ export default function TownshipLayoutEditor() {
     setAtmosphere(prev => prev.map(a => a.id === id ? { ...a, [field]: clamp(value, 0, 1) } : a))
     setDirty(true)
   }
+  function updateNpcFootOffset(id, value) {
+    if (Number.isNaN(value)) return
+    setNpcs(prev => prev.map(n => n.id === id
+      ? { ...n, footOffsetPx: { ...n.footOffsetPx, [faction]: clamp(value, -50, 100) } }
+      : n))
+    setDirty(true)
+  }
+  function updatePlayerFootOffset(value) {
+    if (Number.isNaN(value)) return
+    setPlayer(prev => ({ footOffsetPx: { ...prev.footOffsetPx, [faction]: clamp(value, -50, 100) } }))
+    setDirty(true)
+  }
 
   // ── Toolbar actions ──────────────────────────────────────────────────────────
 
   function buildPayload() {
     return {
       plots: plots.map(p => ({ id: p.id, x: p.x, bottomPct: p.bottomPct })),
-      npcs: npcs.map(n => ({ id: n.id, minX: n.minX, maxX: n.maxX, startX: n.startX })),
+      npcs: npcs.map(n => ({ id: n.id, minX: n.minX, maxX: n.maxX, startX: n.startX, footOffsetPx: n.footOffsetPx })),
       atmosphere: atmosphere.map(a => ({ id: a.id, leftPct: a.leftPct })),
+      player: { footOffsetPx: player.footOffsetPx },
     }
   }
 
@@ -341,6 +390,7 @@ export default function TownshipLayoutEditor() {
     setPlots(clonePlots())
     setNpcs(cloneNpcs())
     setAtmosphere(cloneAtmosphere())
+    setPlayer(clonePlayer())
     setSelected(null)
     setDirty(true)
   }
@@ -357,12 +407,15 @@ export default function TownshipLayoutEditor() {
   const selectedPlot = selected?.type === 'plot' ? plots.find(p => p.id === selected.id) : null
   const selectedNpc = selected?.type === 'npc' ? npcs.find(n => n.id === selected.id) : null
   const selectedAtmosphere = selected?.type === 'atmosphere' ? atmosphere.find(a => a.id === selected.id) : null
+  const isPlayerSelected = selected?.type === 'player'
 
   let coordsLabel = null
   if (selectedPlot) coordsLabel = `${selectedPlot.id}  x=${selectedPlot.x.toFixed(3)}  bottomPct=${selectedPlot.bottomPct.toFixed(3)}`
-  else if (selectedNpc) coordsLabel = `${selectedNpc.id}  min=${selectedNpc.minX.toFixed(0)}  max=${selectedNpc.maxX.toFixed(0)}  start=${selectedNpc.startX.toFixed(0)}`
+  else if (selectedNpc) coordsLabel = `${selectedNpc.id}  min=${selectedNpc.minX.toFixed(0)}  max=${selectedNpc.maxX.toFixed(0)}  start=${selectedNpc.startX.toFixed(0)}  footOffsetPx[${faction}]=${(selectedNpc.footOffsetPx?.[faction] ?? 0).toFixed(0)}`
   else if (selectedAtmosphere) coordsLabel = `${selectedAtmosphere.id}  leftPct=${selectedAtmosphere.leftPct.toFixed(3)}`
+  else if (isPlayerSelected) coordsLabel = `player  faction=${faction}  footOffsetPx=${(player.footOffsetPx[faction] ?? 0).toFixed(0)}`
 
+  const townhallPlot = plots.find(p => p.id === 'townhall')
   const bgLayers = BG_LAYERS[faction] || BG_LAYERS.greek
 
   return (
@@ -632,6 +685,53 @@ export default function TownshipLayoutEditor() {
                 )
               })}
 
+              {/* Player marker — tracks the townhall plot's x position */}
+              {townhallPlot && (
+                <div
+                  title="player"
+                  onPointerDown={e => { e.stopPropagation(); setSelected({ type: 'player', id: 'player' }) }}
+                  onClick={e => { e.stopPropagation(); setSelected({ type: 'player', id: 'player' }) }}
+                  style={{
+                    position: 'absolute',
+                    left: `${townhallPlot.x * 100}%`,
+                    bottom: 0,
+                    transform: `translateX(-50%) translateY(${player.footOffsetPx[faction] ?? 0}px)`,
+                    width: 70,
+                    height: 70,
+                    borderRadius: 8,
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    fontSize: 36,
+                    lineHeight: 1,
+                    gap: 2,
+                    background: 'rgba(191,255,0,0.18)',
+                    border: isPlayerSelected ? '4px solid #00C8FF' : '3px solid #BFFF00',
+                    cursor: 'pointer',
+                    userSelect: 'none',
+                    zIndex: 22,
+                  }}
+                >
+                  <span>🧍</span>
+                  <span style={{ fontSize: 10, fontFamily: 'monospace', color: '#BFFF00', fontWeight: 'bold', letterSpacing: 1 }}>
+                    PLAYER
+                  </span>
+                </div>
+              )}
+
+              {/* Ground line reference */}
+              <div style={{ position: 'absolute', left: 0, right: 0, bottom: 0, zIndex: 999, pointerEvents: 'none' }}>
+                <div style={{ borderTop: '2px dashed rgba(0,255,100,0.65)' }} />
+                <span style={{
+                  position: 'absolute', left: 8, bottom: 4,
+                  fontSize: 24, fontFamily: 'monospace', letterSpacing: 2,
+                  color: 'rgba(0,255,100,0.85)',
+                }}>
+                  GROUND LINE
+                </span>
+              </div>
+
               {/* Grid overlay */}
               {showGrid && (
                 <div style={{ position: 'absolute', inset: 0, zIndex: 1000, pointerEvents: 'none' }}>
@@ -737,12 +837,41 @@ export default function TownshipLayoutEditor() {
                     style={numberInputStyle}
                   />
                 </div>
-                <div>
+                <div style={{ marginBottom: 'var(--space-3)' }}>
                   <label style={{ ...labelStyle, display: 'block', marginBottom: 'var(--space-2)' }}>Start X (px)</label>
                   <input
                     type="number" step="1" min="0" max={SCENE_WIDTH}
                     value={selectedNpc.startX}
                     onChange={e => updateNpcField(selectedNpc.id, 'startX', parseFloat(e.target.value))}
+                    style={numberInputStyle}
+                  />
+                </div>
+                <div>
+                  <label style={{ ...labelStyle, display: 'block', marginBottom: 'var(--space-2)' }}>Foot Offset — {faction.toUpperCase()} (px)</label>
+                  <input
+                    type="number" step="1" min="-50" max="100"
+                    value={selectedNpc.footOffsetPx?.[faction] ?? 0}
+                    onChange={e => updateNpcFootOffset(selectedNpc.id, parseFloat(e.target.value))}
+                    style={numberInputStyle}
+                  />
+                </div>
+              </>
+            )}
+
+            {isPlayerSelected && (
+              <>
+                <div style={{ marginBottom: 'var(--space-3)' }}>
+                  <label style={{ ...labelStyle, display: 'block', marginBottom: 'var(--space-2)' }}>Faction</label>
+                  <p style={{ fontFamily: 'var(--font-mono)', fontSize: 'var(--text-xs)', color: 'var(--color-text-primary)', margin: 0, textTransform: 'uppercase' }}>
+                    {faction}
+                  </p>
+                </div>
+                <div>
+                  <label style={{ ...labelStyle, display: 'block', marginBottom: 'var(--space-2)' }}>Foot Offset (px)</label>
+                  <input
+                    type="number" step="1" min="-50" max="100"
+                    value={player.footOffsetPx[faction] ?? 0}
+                    onChange={e => updatePlayerFootOffset(parseFloat(e.target.value))}
                     style={numberInputStyle}
                   />
                 </div>
@@ -762,7 +891,11 @@ export default function TownshipLayoutEditor() {
             )}
 
             <p style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--color-text-muted)', marginTop: 'var(--space-4)', lineHeight: 1.6 }}>
-              Drag to move, or use arrow keys to nudge by 0.001.
+              {isPlayerSelected
+                ? 'Use ↑/↓ arrow keys to nudge Foot Offset by 1px.'
+                : selectedNpc
+                  ? 'Drag to move. ←/→ nudges position, ↑/↓ nudges Foot Offset by 1px.'
+                  : 'Drag to move, or use arrow keys to nudge by 0.001.'}
             </p>
           </div>
         )}

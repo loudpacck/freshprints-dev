@@ -374,6 +374,7 @@ export default function TownshipView() {
             plotOverrides={layoutConfig?.plots}
             npcOverrides={layoutConfig?.npcs}
             atmosphereOverrides={layoutConfig?.atmosphere}
+            playerFootOffsetOverride={layoutConfig?.player?.footOffsetPx?.[assetKey]}
           />
           {showWelcome && (
             <WelcomeOverlay

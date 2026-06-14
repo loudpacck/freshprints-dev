@@ -28,7 +28,7 @@ const hasFinePointer = () =>
 
 export default function TownshipScene({
   faction, townships, templeData, onBuildingClick,
-  plotOverrides, npcOverrides, atmosphereOverrides,
+  plotOverrides, npcOverrides, atmosphereOverrides, playerFootOffsetOverride,
 }) {
   const assetKey = FACTION_MAP[faction] || 'greek'
   const bgLayers = BG_LAYERS[assetKey] || BG_LAYERS.greek
@@ -44,7 +44,14 @@ export default function TownshipScene({
   const effectiveNpcConfigs = npcOverrides?.length
     ? DEFAULT_NPC_CONFIGS.map(c => {
         const o = npcOverrides.find(o => o.id === c.id)
-        return o ? { ...c, minX: o.minX ?? c.minX, maxX: o.maxX ?? c.maxX, startX: o.startX ?? c.startX } : c
+        if (!o) return c
+        return {
+          ...c,
+          minX: o.minX ?? c.minX,
+          maxX: o.maxX ?? c.maxX,
+          startX: o.startX ?? c.startX,
+          footOffsetPx: o.footOffsetPx ? { ...c.footOffsetPx, ...o.footOffsetPx } : c.footOffsetPx,
+        }
       })
     : undefined
 
@@ -299,6 +306,7 @@ export default function TownshipScene({
             targetX={charTargetX}
             targetSeq={charMoveSeq}
             charXRef={charXRef}
+            footOffsetPx={playerFootOffsetOverride}
           />
         )}
 

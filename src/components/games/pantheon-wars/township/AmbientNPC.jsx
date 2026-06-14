@@ -119,8 +119,14 @@ export default function AmbientNPC({ assetKey, configs }) {
       dir:         c.initialDir,
       isWalking:   false,
       pauseUntil:  Date.now() + c.staggerMs,
+      footOffsetPx: c.footOffsetPx?.[assetKey] ?? 0,
     }))
   )
+
+  // Refresh per-frame from latest configs so late-arriving admin overrides apply
+  stateRef.current.forEach((s, i) => {
+    s.footOffsetPx = CONFIGS[i]?.footOffsetPx?.[assetKey] ?? 0
+  })
 
   const rafRef      = useRef(null)
   const lastTimeRef = useRef(null)
@@ -128,7 +134,11 @@ export default function AmbientNPC({ assetKey, configs }) {
   useEffect(() => {
     if (reducedMotion) {
       stateRef.current.forEach(s => {
-        if (s.containerEl) s.containerEl.style.left = s.posX + 'px'
+        if (s.containerEl) {
+          const flip = s.dir < 0 ? -1 : 1
+          s.containerEl.style.left      = s.posX + 'px'
+          s.containerEl.style.transform = `translateX(-50%) translateY(${s.footOffsetPx}px) scaleX(${flip})`
+        }
       })
       return
     }
@@ -172,7 +182,7 @@ export default function AmbientNPC({ assetKey, configs }) {
 
         const flip = s.dir < 0 ? -1 : 1
         s.containerEl.style.left      = s.posX + 'px'
-        s.containerEl.style.transform = `translateX(-50%) scaleX(${flip})`
+        s.containerEl.style.transform = `translateX(-50%) translateY(${s.footOffsetPx}px) scaleX(${flip})`
       })
 
       rafRef.current = requestAnimationFrame(tick)
@@ -200,7 +210,7 @@ export default function AmbientNPC({ assetKey, configs }) {
               position:        'absolute',
               left:            s.posX + 'px',
               bottom:          GROUND_BOTTOM,
-              transform:       'translateX(-50%)',
+              transform:       `translateX(-50%) translateY(${s.footOffsetPx}px)`,
               transformOrigin: 'bottom center',
               pointerEvents:   'none',
               userSelect:      'none',

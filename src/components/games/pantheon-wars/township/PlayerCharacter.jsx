@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react'
-import { SCENE_WIDTH, FACTION_FOLDER } from './townshipConfig'
+import { SCENE_WIDTH, FACTION_FOLDER, DEFAULT_PLAYER_FOOT_OFFSETS } from './townshipConfig'
 
 const DISPLAY_H = 240
 const GROUND_BOTTOM = '0%'
@@ -27,10 +27,14 @@ function makeKeyframes(idleFrames, walkFrames) {
 }
 
 // charXRef is owned by TownshipScene; PlayerCharacter writes its position into it
-export default function PlayerCharacter({ plot, assetKey, targetX, targetSeq, charXRef }) {
+export default function PlayerCharacter({ plot, assetKey, targetX, targetSeq, charXRef, footOffsetPx }) {
   const folder = FACTION_FOLDER[assetKey]
   const cfg    = CHAR_CONFIG[assetKey] || CHAR_CONFIG.greek
   const { idle, walk } = cfg
+
+  // Resolved per-frame via ref so late-arriving admin overrides (async fetch) still apply
+  const offsetYRef = useRef(0)
+  offsetYRef.current = footOffsetPx ?? DEFAULT_PLAYER_FOOT_OFFSETS[assetKey] ?? 0
 
   const idleSrc = `/pantheon_wars_assets/sprites/player_characters/${folder}/char_${assetKey}_idle.png`
   const walkSrc = `/pantheon_wars_assets/sprites/player_characters/${folder}/char_${assetKey}_walk.png`
@@ -77,7 +81,7 @@ export default function PlayerCharacter({ plot, assetKey, targetX, targetSeq, ch
       if (el) {
         const flip = facingLeftRef.current ? -1 : 1
         el.style.left      = charXRef.current + 'px'
-        el.style.transform = `translateX(-50%) scaleX(${flip})`
+        el.style.transform = `translateX(-50%) translateY(${offsetYRef.current}px) scaleX(${flip})`
       }
 
       rafRef.current = requestAnimationFrame(tick)
@@ -101,7 +105,7 @@ export default function PlayerCharacter({ plot, assetKey, targetX, targetSeq, ch
         position:        'absolute',
         left:            charXRef.current + 'px',
         bottom:          GROUND_BOTTOM,
-        transform:       'translateX(-50%)',
+        transform:       `translateX(-50%) translateY(${offsetYRef.current}px)`,
         transformOrigin: 'bottom center',
         pointerEvents:   'none',
         userSelect:      'none',
