@@ -28,7 +28,11 @@ const SPRITE_CONFIG = {
     },
     animal: {
       idle: { frames: 4, srcW: 429, srcH: 334 },
-      walk: { frames: 2, srcW: 887, srcH: 887 },
+      // Walk sheet is 1774x887 (4 frames of ~444x887 each), but the ox only
+      // occupies the middle ~38% of that tall canvas vs ~98% in the idle
+      // sheet. displayH/bottomOffsetPx compensate so the walking ox matches
+      // idle's on-screen size and keeps its feet on the ground line.
+      walk: { frames: 4, srcW: 444, srcH: 887, displayH: 334, bottomOffsetPx: -114 },
     },
   },
   norse: {
@@ -38,7 +42,7 @@ const SPRITE_CONFIG = {
       walk: { frames: 8,  srcW: 150, srcH: 150 },
     },
     animal: {
-      idle: { frames: 2, srcW: 887, srcH: 887 },
+      idle: { frames: 4, srcW: 444, srcH: 887 },
       walk: { frames: 4, srcW: 426, srcH: 885 },
     },
   },
@@ -48,48 +52,61 @@ function getDisplayW(srcW, srcH, displayH) {
   return Math.round(displayH * srcW / srcH)
 }
 
+// Resolves a per-state sprite config ({ srcW, srcH, frames, displayH?, bottomOffsetPx? })
+// into render dimensions. displayH/bottomOffsetPx default to the type's shared
+// display height / no offset, but can be overridden per-state for sheets whose
+// idle and walk canvases have very different content-to-canvas ratios.
+function resolveState(stateCfg, defaultH) {
+  const h = stateCfg.displayH ?? defaultH
+  return {
+    w: getDisplayW(stateCfg.srcW, stateCfg.srcH, h),
+    h,
+    bottomOffset: stateCfg.bottomOffsetPx ?? 0,
+  }
+}
+
 function makeNPCKeyframes(cfg) {
-  const animalH  = cfg.animalDisplayH ?? ANIMAL_DISPLAY_H
-  const v_idle_w = getDisplayW(cfg.villager.idle.srcW, cfg.villager.idle.srcH, VILLAGER_DISPLAY_H)
-  const v_walk_w = getDisplayW(cfg.villager.walk.srcW, cfg.villager.walk.srcH, VILLAGER_DISPLAY_H)
-  const a_idle_w = getDisplayW(cfg.animal.idle.srcW, cfg.animal.idle.srcH, animalH)
-  const a_walk_w = getDisplayW(cfg.animal.walk.srcW, cfg.animal.walk.srcH, animalH)
+  const animalH = cfg.animalDisplayH ?? ANIMAL_DISPLAY_H
+  const vIdle   = resolveState(cfg.villager.idle, VILLAGER_DISPLAY_H)
+  const vWalk   = resolveState(cfg.villager.walk, VILLAGER_DISPLAY_H)
+  const aIdle   = resolveState(cfg.animal.idle, animalH)
+  const aWalk   = resolveState(cfg.animal.walk, animalH)
 
   return `
     @keyframes npc-villager-idle {
       from { background-position-x: 0 }
-      to   { background-position-x: ${-(cfg.villager.idle.frames * v_idle_w)}px }
+      to   { background-position-x: ${-(cfg.villager.idle.frames * vIdle.w)}px }
     }
     @keyframes npc-villager-walk {
       from { background-position-x: 0 }
-      to   { background-position-x: ${-(cfg.villager.walk.frames * v_walk_w)}px }
+      to   { background-position-x: ${-(cfg.villager.walk.frames * vWalk.w)}px }
     }
     @keyframes npc-animal-idle {
       from { background-position-x: 0 }
-      to   { background-position-x: ${-(cfg.animal.idle.frames * a_idle_w)}px }
+      to   { background-position-x: ${-(cfg.animal.idle.frames * aIdle.w)}px }
     }
     @keyframes npc-animal-walk {
       from { background-position-x: 0 }
-      to   { background-position-x: ${-(cfg.animal.walk.frames * a_walk_w)}px }
+      to   { background-position-x: ${-(cfg.animal.walk.frames * aWalk.w)}px }
     }
   `
 }
 
 function makeSpriteInfo(cfg) {
-  const animalH  = cfg.animalDisplayH ?? ANIMAL_DISPLAY_H
-  const v_idle_w = getDisplayW(cfg.villager.idle.srcW, cfg.villager.idle.srcH, VILLAGER_DISPLAY_H)
-  const v_walk_w = getDisplayW(cfg.villager.walk.srcW, cfg.villager.walk.srcH, VILLAGER_DISPLAY_H)
-  const a_idle_w = getDisplayW(cfg.animal.idle.srcW, cfg.animal.idle.srcH, animalH)
-  const a_walk_w = getDisplayW(cfg.animal.walk.srcW, cfg.animal.walk.srcH, animalH)
+  const animalH = cfg.animalDisplayH ?? ANIMAL_DISPLAY_H
+  const vIdle   = resolveState(cfg.villager.idle, VILLAGER_DISPLAY_H)
+  const vWalk   = resolveState(cfg.villager.walk, VILLAGER_DISPLAY_H)
+  const aIdle   = resolveState(cfg.animal.idle, animalH)
+  const aWalk   = resolveState(cfg.animal.walk, animalH)
 
   return {
     villager: {
-      idle: { frames: cfg.villager.idle.frames, w: v_idle_w, h: VILLAGER_DISPLAY_H, anim: 'npc-villager-idle', dur: '1.1s' },
-      walk: { frames: cfg.villager.walk.frames, w: v_walk_w, h: VILLAGER_DISPLAY_H, anim: 'npc-villager-walk', dur: '0.8s' },
+      idle: { frames: cfg.villager.idle.frames, w: vIdle.w, h: vIdle.h, bottomOffset: vIdle.bottomOffset, anim: 'npc-villager-idle', dur: '1.1s' },
+      walk: { frames: cfg.villager.walk.frames, w: vWalk.w, h: vWalk.h, bottomOffset: vWalk.bottomOffset, anim: 'npc-villager-walk', dur: '0.8s' },
     },
     animal: {
-      idle: { frames: cfg.animal.idle.frames, w: a_idle_w, h: animalH, anim: 'npc-animal-idle', dur: '0.8s' },
-      walk: { frames: cfg.animal.walk.frames, w: a_walk_w, h: animalH, anim: 'npc-animal-walk', dur: '0.7s' },
+      idle: { frames: cfg.animal.idle.frames, w: aIdle.w, h: aIdle.h, bottomOffset: aIdle.bottomOffset, anim: 'npc-animal-idle', dur: '0.8s' },
+      walk: { frames: cfg.animal.walk.frames, w: aWalk.w, h: aWalk.h, bottomOffset: aWalk.bottomOffset, anim: 'npc-animal-walk', dur: '0.7s' },
     },
   }
 }
@@ -241,7 +258,7 @@ export default function AmbientNPC({ assetKey, configs }) {
                 height:             walkInfo.h,
                 display:            'none',
                 position:           'absolute',
-                bottom:             0,
+                bottom:             walkInfo.bottomOffset,
                 left:               '50%',
                 transform:          'translateX(-50%)',
                 backgroundImage:    `url("${walkSrc}")`,
