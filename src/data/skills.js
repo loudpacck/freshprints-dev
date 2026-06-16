@@ -76,18 +76,114 @@ export const skillTiers = {
   ],
 
   specializations: [
-    { id: 'reverse-engineering',     parentId: 'fdm',        label: 'Reverse Engineering' },
-    { id: 'functional-prototyping',  parentId: 'fdm',        label: 'Functional Prototyping' },
-    { id: 'production-parts',        parentId: 'fdm',        label: 'Production-Ready Parts' },
-    { id: 'parametric-modeling',     parentId: 'fusion360',  label: 'Parametric Modeling' },
-    { id: 'assembly-design',         parentId: 'siemens-nx', label: 'Assembly Design' },
-    { id: 'rest-apis',               parentId: 'fastapi',    label: 'REST API Design' },
-    { id: 'realtime-systems',        parentId: 'websockets', label: 'Realtime Systems' },
-    { id: 'state-management',        parentId: 'react',      label: 'State Management' },
-    { id: 'multiplayer-netcode',     parentId: 'unreal',     label: 'Multiplayer Netcode' },
-    { id: 'matchmaking',             parentId: 'roblox',     label: 'Matchmaking Systems' },
-    { id: 'classification',          parentId: 'scikit',     label: 'Classification Models' },
-    { id: 'computer-vision',         parentId: 'opencv',     label: 'Computer Vision' },
+    // ── Mechanical ──
+    { id: 'reverse-engineering', parentId: 'fdm', label: 'Reverse Engineering',
+      projectLinks: ['fresh-prints-prototypes'],
+      projectUsage: { 'fresh-prints-prototypes': 'Rebuilds clean CAD from scanned or measured legacy parts for reproduction and improvement.' } },
+    { id: 'functional-prototyping', parentId: 'fdm', label: 'Functional Prototyping',
+      projectLinks: ['fresh-prints-prototypes'],
+      projectUsage: { 'fresh-prints-prototypes': 'Prints test-fit and load-bearing prototypes to validate designs before manufacturing.' } },
+    { id: 'production-parts', parentId: 'fdm', label: 'Production-Ready Parts',
+      projectLinks: ['fresh-prints-prototypes'],
+      projectUsage: { 'fresh-prints-prototypes': 'Produces end-use components in production-grade filament for small-batch runs.' } },
+    { id: 'parametric-modeling', parentId: 'fusion360', label: 'Parametric Modeling',
+      projectLinks: ['fresh-prints-prototypes'],
+      projectUsage: { 'fresh-prints-prototypes': 'Builds fully parametric models so dimensions flex cleanly across client revisions.' } },
+    { id: 'assembly-design', parentId: 'siemens-nx', label: 'Assembly Design',
+      projectLinks: ['fresh-prints-prototypes'],
+      projectUsage: { 'fresh-prints-prototypes': 'Models multi-part assemblies with mating constraints for production tooling and fixtures.' } },
+    { id: 'tolerance-analysis', parentId: 'gdt', label: 'Tolerance Analysis',
+      projectLinks: ['fresh-prints-prototypes'],
+      projectUsage: { 'fresh-prints-prototypes': 'Specifies datums and tolerances so parts assemble correctly across manufacturing variation.' } },
+    { id: 'dfm-review', parentId: 'dfm', label: 'Manufacturability Review',
+      projectLinks: ['fresh-prints-prototypes'],
+      projectUsage: { 'fresh-prints-prototypes': 'Reviews geometry for moldability and printability to cut cost and failure rate before production.' } },
+    { id: 'mesh-reconstruction', parentId: 'scanning', label: 'Mesh Reconstruction',
+      projectLinks: ['fresh-prints-prototypes'],
+      projectUsage: { 'fresh-prints-prototypes': 'Converts 3D-scan point clouds into clean, editable surfaces ready for CAD.' } },
+
+    // ── Software ──
+    { id: 'data-processing', parentId: 'python', label: 'Data Processing',
+      projectLinks: ['predictinator-5000', 'plutus', 'architect'],
+      projectUsage: {
+        'predictinator-5000': 'Cleans and feature-engineers raw game data into the model-ready datasets the engine trains on.',
+        'plutus': 'Powers the backtesting harness that replays historical market data against trading strategies.',
+        'architect': 'Pre-processes scanned drawings into normalized inputs before they reach the validation models.' } },
+    { id: 'rest-apis', parentId: 'fastapi', label: 'REST API Design',
+      projectLinks: ['predictinator-5000', 'plutus', 'architect'],
+      projectUsage: {
+        'predictinator-5000': 'Serves prediction and model-scoring endpoints the React dashboard polls for live forecasts.',
+        'plutus': 'Exposes the trade-execution and portfolio endpoints bridging the strategy engine and the UI.',
+        'architect': 'Provides the upload-and-validate API that returns drawing-compliance results to the client.' } },
+    { id: 'state-management', parentId: 'react', label: 'State Management',
+      projectLinks: ['predictinator-5000', 'plutus'],
+      projectUsage: {
+        'predictinator-5000': 'Manages the live prediction feed and filter state so league views update without full reloads.',
+        'plutus': 'Coordinates real-time portfolio, order, and simulation state across the trading dashboard.' } },
+    { id: 'build-tooling', parentId: 'vite', label: 'Build Tooling',
+      projectLinks: ['predictinator-5000', 'plutus'],
+      projectUsage: {
+        'predictinator-5000': 'Drives the fast dev server and optimized production bundle for the analytics dashboard.',
+        'plutus': 'Handles HMR and code-splitting so the data-heavy trading UI stays responsive in development.' } },
+    { id: 'schema-design', parentId: 'postgresql', label: 'Schema Design',
+      projectLinks: ['predictinator-5000', 'plutus'],
+      projectUsage: {
+        'predictinator-5000': 'Stores historical games, model outputs, and accuracy tracking across all four leagues.',
+        'plutus': 'Persists trade history, strategy configs, and simulation runs for later analysis.' } },
+    { id: 'realtime-systems', parentId: 'websockets', label: 'Realtime Systems',
+      projectLinks: ['plutus'],
+      projectUsage: { 'plutus': 'Streams live price ticks and order-fill events to the dashboard with sub-second latency.' } },
+
+    // ── Game Dev ──
+    { id: 'matchmaking', parentId: 'roblox', label: 'Matchmaking Systems',
+      projectLinks: ['hot-potato'],
+      projectUsage: { 'hot-potato': 'Places players into rounds and balances live lobbies for the 2,000+ monthly active players.' } },
+    { id: 'gameplay-scripting', parentId: 'luau', label: 'Gameplay Scripting',
+      projectLinks: ['hot-potato'],
+      projectUsage: { 'hot-potato': 'Implements the round timer, hot-potato pass mechanic, and elimination logic server-side.' } },
+    { id: 'multiplayer-netcode', parentId: 'unreal', label: 'Multiplayer Netcode',
+      projectLinks: ['pantheon'],
+      projectUsage: { 'pantheon': 'Replicates player movement and combat state across clients in the UE5 build.' } },
+    { id: 'gameplay-systems', parentId: 'unreal', label: 'Gameplay Systems',
+      projectLinks: ['pantheon', 'jogger'],
+      projectUsage: {
+        'pantheon': 'Builds the core combat, ability, and progression loops in UE5.',
+        'jogger': 'Drives the endless-runner spawn, scoring, and difficulty-ramp systems.' } },
+    { id: 'visual-scripting', parentId: 'blueprint', label: 'Visual Scripting',
+      projectLinks: ['pantheon', 'jogger'],
+      projectUsage: {
+        'pantheon': 'Prototypes UI flows and ability logic visually before porting hot paths to C++.',
+        'jogger': 'Wires up input, scoring, and game-over flow without leaving the editor.' } },
+    { id: 'engine-programming', parentId: 'cpp', label: 'Engine Programming',
+      projectLinks: ['pantheon'],
+      projectUsage: { 'pantheon': 'Implements performance-critical combat and networking systems beneath the Blueprint layer.' } },
+
+    // ── AI ──
+    { id: 'classification', parentId: 'scikit', label: 'Classification Models',
+      projectLinks: ['predictinator-5000'],
+      projectUsage: { 'predictinator-5000': 'Trains the win/loss classifiers that produce per-game probabilities across four leagues.' } },
+    { id: 'model-training', parentId: 'pytorch', label: 'Model Training',
+      projectLinks: ['architect'],
+      projectUsage: { 'architect': 'Trains the neural models that detect and classify features in engineering drawings.' } },
+    { id: 'computer-vision', parentId: 'opencv', label: 'Computer Vision',
+      projectLinks: ['architect'],
+      projectUsage: { 'architect': 'Extracts dimensions, symbols, and geometry from drawing images for downstream validation.' } },
+    { id: 'pipeline-orchestration', parentId: 'ml-pipelines', label: 'Pipeline Orchestration',
+      projectLinks: ['predictinator-5000'],
+      projectUsage: { 'predictinator-5000': 'Automates the ingest → train → evaluate → deploy cycle that keeps models current weekly.' } },
+    { id: 'prompt-engineering', parentId: 'llm-workflows', label: 'Prompt Engineering',
+      projectLinks: [],
+      projectUsage: {} },
+
+    // ── Content ──
+    { id: 'channel-production', parentId: 'youtube', label: 'Channel Production',
+      projectLinks: [], projectUsage: {} },
+    { id: 'post-production', parentId: 'video-editing', label: 'Post-Production',
+      projectLinks: [], projectUsage: {} },
+    { id: 'thumbnail-craft', parentId: 'thumbnail-design', label: 'Thumbnail Craft',
+      projectLinks: [], projectUsage: {} },
+    { id: 'devlog-production', parentId: 'devlogs', label: 'Devlog Production',
+      projectLinks: [], projectUsage: {} },
   ],
 }
 
@@ -101,4 +197,13 @@ export function getSpecializationsForTool(toolId) {
 
 export function getDiscipline(id) {
   return skillTiers.disciplines.find(d => d.id === id)
+}
+
+export function getSpecialization(id) {
+  return skillTiers.specializations.find(s => s.id === id)
+}
+
+export function getProjectsForSpec(specId) {
+  const spec = skillTiers.specializations.find(s => s.id === specId)
+  return spec ? spec.projectLinks : []
 }
