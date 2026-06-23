@@ -69,6 +69,7 @@ const ERROR_MSG = {
   item_equipped: 'Unequip the item before donating it.',
   item_not_found: 'Item not found.',
   not_in_alliance: 'You are not in an alliance.',
+  invalid_inventory_ids: 'Select at least one item to donate.',
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -501,6 +502,57 @@ function DisbandModal({ alliance, onConfirm, onClose, busy }) {
   )
 }
 
+function BulkDonateModal({ count, power, busy, onConfirm, onClose }) {
+  return createPortal(
+    <motion.div
+      initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.2 }}
+      onClick={e => e.target === e.currentTarget && onClose()}
+      style={{
+        position: 'fixed', inset: 0, zIndex: 100, background: 'rgba(4,2,10,0.85)', backdropFilter: 'blur(8px)',
+        display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16,
+      }}
+    >
+      <motion.div
+        initial={{ opacity: 0, scale: 0.9, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.94 }}
+        transition={{ duration: 0.32, ease: [0.16, 1, 0.3, 1] }}
+        style={{
+          width: '100%', maxWidth: 360,
+          background: 'linear-gradient(180deg, #1A140E, #0A0710)',
+          border: '1px solid rgba(201,169,97,0.5)', borderRadius: 12, padding: '24px 22px',
+          boxShadow: '0 8px 40px rgba(0,0,0,0.8)',
+        }}
+      >
+        <div style={{ fontFamily: "'Cinzel', serif", fontSize: 17, color: '#C9A961', letterSpacing: '0.08em', marginBottom: 10, textAlign: 'center' }}>
+          CONFIRM OFFERING
+        </div>
+        <p style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 14, color: 'rgba(240,240,248,0.7)', lineHeight: 1.55, margin: '0 0 20px', textAlign: 'center' }}>
+          Donate <strong style={{ color: '#EDE3CC' }}>{count}</strong> item{count !== 1 ? 's' : ''} for{' '}
+          <strong style={{ color: '#C9A961' }}>{fmt(power)} military power</strong>?
+        </p>
+        <div style={{ display: 'flex', gap: 8 }}>
+          <button onClick={onClose} disabled={busy} style={{
+            flex: 1, fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, letterSpacing: '0.1em',
+            color: 'rgba(240,240,248,0.6)', background: 'rgba(255,255,255,0.04)',
+            border: '1px solid rgba(255,255,255,0.1)', borderRadius: 6, padding: '11px', cursor: 'pointer',
+          }}>
+            CANCEL
+          </button>
+          <button onClick={onConfirm} disabled={busy} style={{
+            flex: 1, fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, letterSpacing: '0.1em',
+            color: busy ? 'rgba(201,169,97,0.4)' : '#0F0A0D',
+            background: busy ? 'transparent' : 'linear-gradient(135deg, #C9A961, #A8854C)',
+            border: `1px solid ${busy ? 'rgba(201,169,97,0.25)' : 'transparent'}`,
+            borderRadius: 6, padding: '11px', cursor: busy ? 'not-allowed' : 'pointer', fontWeight: 700,
+          }}>
+            {busy ? 'DONATING…' : 'DONATE'}
+          </button>
+        </div>
+      </motion.div>
+    </motion.div>,
+    document.body
+  )
+}
+
 // ─── Banner / invite cards ─────────────────────────────────────────────────────
 
 function AllianceBannerCard({ inv, children }) {
@@ -573,7 +625,8 @@ export default function Alliance() {
   // donation inputs
   const [drachmaAmt, setDrachmaAmt] = useState('')
   const [gloryAmt, setGloryAmt] = useState('')
-  const [donateItemId, setDonateItemId] = useState('')
+  const [selectedItemIds, setSelectedItemIds] = useState(() => new Set())
+  const [bulkDonateModal, setBulkDonateModal] = useState(false)
 
   // invite send
   const [inviteName, setInviteName] = useState('')
@@ -763,16 +816,10 @@ export default function Alliance() {
       const amount = parseInt(drachmaAmt, 10)
       if (!Number.isInteger(amount) || amount <= 0) { showToast('error', 'INVALID', 'Enter a valid drachma amount.'); return }
       action = 'alliance_donate_drachma'; body = { amount }; label = `${fmt(amount)} ₯`
-    } else if (kind === 'glory') {
+    } else {
       const amount = parseInt(gloryAmt, 10)
       if (!Number.isInteger(amount) || amount <= 0) { showToast('error', 'INVALID', 'Enter a valid glory amount.'); return }
       action = 'alliance_donate_glory'; body = { amount }; label = `${fmt(amount)} ✦`
-    } else {
-      const inventory_id = Number(donateItemId)
-      if (!inventory_id) { showToast('error', 'INVALID', 'Select an item to donate.'); return }
-      action = 'alliance_donate_item'; body = { inventory_id }
-      const it = inventory.find(i => i.inventory_id === inventory_id)
-      label = it ? it.name : 'item'
     }
     setBusy(true)
     try {
@@ -780,7 +827,38 @@ export default function Alliance() {
       if (ok) {
         play('purchase')
         showToast('success', 'OFFERING ACCEPTED', `${label} added to the war chest`)
-        setDrachmaAmt(''); setGloryAmt(''); setDonateItemId('')
+        setDrachmaAmt(''); setGloryAmt('')
+        refreshContext()
+        await fetchAlliance()
+      } else {
+        play('error')
+        showToast('error', 'DONATION FAILED', msg(json))
+      }
+    } finally { setBusy(false) }
+  }
+
+  function handleToggleDonateItem(inventory_id) {
+    setSelectedItemIds(prev => {
+      const next = new Set(prev)
+      if (next.has(inventory_id)) next.delete(inventory_id)
+      else next.add(inventory_id)
+      return next
+    })
+  }
+
+  async function handleBulkDonate() {
+    if (busy) return
+    const inventory_ids = inventory.filter(i => selectedItemIds.has(i.inventory_id)).map(i => i.inventory_id)
+    if (inventory_ids.length === 0) { showToast('error', 'INVALID', 'Select at least one item to donate.'); return }
+    setBulkDonateModal(false)
+    setBusy(true)
+    try {
+      const { ok, json } = await postJson('alliance_donate_items_bulk', { inventory_ids })
+      if (ok) {
+        play('purchase')
+        const skippedNote = json.items_skipped > 0 ? ` (${json.items_skipped} skipped)` : ''
+        showToast('success', 'OFFERING ACCEPTED', `${json.items_donated} item${json.items_donated !== 1 ? 's' : ''} → ${fmt(json.total_power_added)} military power${skippedNote}`)
+        setSelectedItemIds(new Set())
         refreshContext()
         await fetchAlliance()
       } else {
@@ -843,7 +921,8 @@ export default function Alliance() {
           inventory={inventory} invitesSent={invitesSent} treasuryLog={treasuryLog}
           drachmaAmt={drachmaAmt} setDrachmaAmt={setDrachmaAmt}
           gloryAmt={gloryAmt} setGloryAmt={setGloryAmt}
-          donateItemId={donateItemId} setDonateItemId={setDonateItemId}
+          selectedItemIds={selectedItemIds} onToggleDonateItem={handleToggleDonateItem}
+          bulkDonateModal={bulkDonateModal} setBulkDonateModal={setBulkDonateModal}
           inviteName={inviteName} setInviteName={setInviteName}
           inviteMsg={inviteMsg} inviting={inviting}
           showBreakdown={showBreakdown} setShowBreakdown={setShowBreakdown}
@@ -851,6 +930,7 @@ export default function Alliance() {
           busy={busy}
           onMemberClick={setMemberModal}
           onDonate={handleDonate}
+          onBulkDonate={handleBulkDonate}
           onInvite={handleInvite}
           onCancelInvite={handleCancelInvite}
           onLeave={handleLeave}
@@ -1053,10 +1133,11 @@ function NoAllianceView({ stats, invites, cooldownRemaining, fName, setFName, fT
 function InAllianceView(props) {
   const {
     data, stats, myRank, isOfficerPlus, inventory, invitesSent, treasuryLog,
-    drachmaAmt, setDrachmaAmt, gloryAmt, setGloryAmt, donateItemId, setDonateItemId,
+    drachmaAmt, setDrachmaAmt, gloryAmt, setGloryAmt,
+    selectedItemIds, onToggleDonateItem, bulkDonateModal, setBulkDonateModal,
     inviteName, setInviteName, inviteMsg, inviting,
     showBreakdown, setShowBreakdown, confirmLeave, setConfirmLeave, busy,
-    onMemberClick, onDonate, onInvite, onCancelInvite, onLeave, onDisbandOpen,
+    onMemberClick, onDonate, onBulkDonate, onInvite, onCancelInvite, onLeave, onDisbandOpen,
   } = props
 
   const a = data.alliance
@@ -1082,8 +1163,9 @@ function InAllianceView(props) {
   const playerGlory = num(stats?.glory)
   const drachmaPreview = parseInt(drachmaAmt, 10) > 0 ? Math.floor(parseInt(drachmaAmt, 10) * 0.1) : 0
   const gloryPreview = parseInt(gloryAmt, 10) > 0 ? parseInt(gloryAmt, 10) * 10 : 0
-  const selectedItem = inventory.find(i => i.inventory_id === Number(donateItemId))
-  const itemPreview = selectedItem ? (RARITY_VALUE[selectedItem.rarity] || 0) * (num(selectedItem.level_required) || 1) : 0
+  const itemPower = i => (RARITY_VALUE[i.rarity] || 0) * (num(i.level_required) || 1)
+  const selectedItems = inventory.filter(i => selectedItemIds.has(i.inventory_id))
+  const selectedPowerTotal = selectedItems.reduce((sum, i) => sum + itemPower(i), 0)
 
   return (
     <motion.div variants={stagger} initial="hidden" animate="visible">
@@ -1310,42 +1392,80 @@ function InAllianceView(props) {
             </div>
             <PowerPreview value={gloryPreview} track="economic" />
           </Panel>
-          {/* Item */}
+          {/* Item — bulk checkbox list */}
           <Panel>
-            <DonateHeader title="Donate Item" balance={`${inventory.length} unequipped`} track="military" />
+            <DonateHeader title="Donate Items" balance={`${inventory.length} unequipped`} track="military" />
             {inventory.length === 0 ? (
               <p style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 11, color: 'rgba(240,240,248,0.4)', margin: '4px 0 0' }}>
                 No unequipped items to offer.
               </p>
             ) : (
               <>
-                <div style={{ display: 'flex', gap: 8, alignItems: 'flex-end' }}>
-                  <div style={{ flex: 1 }}>
-                    <select value={donateItemId} onChange={e => setDonateItemId(e.target.value)} style={donateInputStyle} disabled={busy}>
-                      <option value="">Select an item…</option>
-                      {inventory.map(i => {
-                        const pw = (RARITY_VALUE[i.rarity] || 0) * (num(i.level_required) || 1)
-                        return (
-                          <option key={i.inventory_id} value={i.inventory_id}>
-                            {i.name} ({i.rarity}, lvl {num(i.level_required) || 1}) → {pw} pwr
-                          </option>
-                        )
-                      })}
-                    </select>
-                  </div>
-                  <GoldButton onClick={() => onDonate('item')} disabled={busy || !donateItemId}>Donate</GoldButton>
+                <div style={{
+                  maxHeight: 220, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 6,
+                  marginBottom: 10, paddingRight: 4,
+                }}>
+                  {inventory.map(i => {
+                    const pw = itemPower(i)
+                    const checked = selectedItemIds.has(i.inventory_id)
+                    return (
+                      <label
+                        key={i.inventory_id}
+                        style={{
+                          display: 'flex', alignItems: 'center', gap: 9,
+                          background: checked ? 'rgba(201,169,97,0.08)' : 'rgba(255,255,255,0.02)',
+                          border: `1px solid ${checked ? 'rgba(201,169,97,0.35)' : 'rgba(255,255,255,0.07)'}`,
+                          borderRadius: 6, padding: '7px 10px', cursor: busy ? 'default' : 'pointer',
+                        }}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={checked}
+                          onChange={() => onToggleDonateItem(i.inventory_id)}
+                          disabled={busy}
+                          style={{ width: 14, height: 14, cursor: 'pointer', accentColor: '#C9A961', flexShrink: 0 }}
+                        />
+                        <span style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 12, color: '#EDE3CC', flex: 1, minWidth: 0 }}>
+                          {i.name}
+                        </span>
+                        <span style={{
+                          fontFamily: "'IBM Plex Mono', monospace", fontSize: 9, letterSpacing: '0.06em',
+                          textTransform: 'uppercase', color: RARITY_COLOR[i.rarity] || '#B0B0B0', flexShrink: 0,
+                        }}>
+                          {i.rarity}
+                        </span>
+                        <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, color: 'rgba(240,240,248,0.4)', flexShrink: 0 }}>
+                          lvl {num(i.level_required) || 1}
+                        </span>
+                        <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, color: '#C0473C', flexShrink: 0 }}>
+                          → {fmt(pw)} pwr
+                        </span>
+                      </label>
+                    )
+                  })}
                 </div>
-                {selectedItem && (
-                  <div style={{ marginTop: 6, fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, color: RARITY_COLOR[selectedItem.rarity] || '#B0B0B0' }}>
-                    {selectedItem.name}
-                  </div>
-                )}
-                <PowerPreview value={itemPreview} track="military" />
+                <GoldButton onClick={() => setBulkDonateModal(true)} disabled={busy || selectedItems.length === 0}>
+                  Donate Selected ({selectedItems.length})
+                </GoldButton>
+                <PowerPreview value={selectedPowerTotal} track="military" />
               </>
             )}
           </Panel>
         </div>
       </motion.div>
+
+      {/* Bulk item donation confirmation */}
+      <AnimatePresence>
+        {bulkDonateModal && (
+          <BulkDonateModal
+            count={selectedItems.length}
+            power={selectedPowerTotal}
+            busy={busy}
+            onConfirm={onBulkDonate}
+            onClose={() => setBulkDonateModal(false)}
+          />
+        )}
+      </AnimatePresence>
 
       {/* ── Management (founder/officer) ── */}
       {isOfficerPlus && (

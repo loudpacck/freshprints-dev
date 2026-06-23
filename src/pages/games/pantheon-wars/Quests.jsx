@@ -14,6 +14,7 @@ const TIER_META = [
   { tier: 3, label: 'DIVINE CONFLICT',     range: 'Level 25–49' },
   { tier: 4, label: 'MYTHIC CAMPAIGNS',    range: 'Level 50–74' },
   { tier: 5, label: 'ENDGAME / ASCENSION', range: 'Level 75–100' },
+  { tier: 6, label: 'MYTHIC ASCENSION',    range: 'Level 80+'   },
 ]
 
 const TIER_COLOR = {
@@ -22,6 +23,7 @@ const TIER_COLOR = {
   3: '#A78BFA',
   4: '#F97316',
   5: '#EF4444',
+  6: '#FBBF24',
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────

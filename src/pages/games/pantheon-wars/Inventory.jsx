@@ -335,7 +335,7 @@ function EquipSlot({ slot, item }) {
   )
 }
 
-function ItemCard({ item, onEquip, onUnequip, onSell, onConsume, busy, energyUsesToday, equippedBySlot, isMobile, expandedItemId, onToggleExpand }) {
+function ItemCard({ item, onEquip, onUnequip, onSell, onConsume, busy, energyUsesToday, equippedBySlot, isMobile, expandedItemId, onToggleExpand, selected, onToggleSelect }) {
   const wrapperRef = useRef(null)
   const [hovered,  setHovered]  = useState(false)
   const [panelPos, setPanelPos] = useState({ top: 0, left: 0 })
@@ -397,6 +397,25 @@ function ItemCard({ item, onEquip, onUnequip, onSell, onConsume, busy, energyUse
           cursor: isMobile && showCompare ? 'pointer' : 'default',
         }}
       >
+        {/* Bulk-select checkbox — sellable (unequipped) items only */}
+        {!item.equipped && (
+          <input
+            type="checkbox"
+            checked={!!selected}
+            onChange={() => onToggleSelect(item.inventory_id)}
+            onClick={e => e.stopPropagation()}
+            style={{
+              flexShrink: 0,
+              width: 16,
+              height: 16,
+              marginTop: 10,
+              cursor: 'pointer',
+              accentColor: '#C9A961',
+            }}
+            aria-label={`Select ${item.name} for bulk sell`}
+          />
+        )}
+
         {/* Left: slot glyph */}
         <div style={{
           flexShrink: 0,
@@ -711,6 +730,101 @@ function SellModal({ item, onConfirm, onCancel }) {
   )
 }
 
+function BulkSellModal({ count, total, onConfirm, onCancel }) {
+  return (
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      style={{
+        position: 'fixed', inset: 0, zIndex: 60,
+        background: 'rgba(0,0,0,0.7)',
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        padding: 20,
+      }}
+      onClick={onCancel}
+    >
+      <motion.div
+        initial={{ opacity: 0, y: 16, scale: 0.96 }}
+        animate={{ opacity: 1, y: 0, scale: 1 }}
+        exit={{ opacity: 0, y: 8, scale: 0.97 }}
+        onClick={e => e.stopPropagation()}
+        style={{
+          background: '#0C0C14',
+          border: '1px solid rgba(255,255,255,0.12)',
+          borderRadius: 14,
+          padding: '28px 24px',
+          maxWidth: 360,
+          width: '100%',
+        }}
+      >
+        <p style={{
+          fontFamily: "'IBM Plex Mono', monospace",
+          fontSize: 9,
+          letterSpacing: '0.14em',
+          textTransform: 'uppercase',
+          color: 'rgba(240,240,248,0.3)',
+          marginBottom: 10,
+        }}>// CONFIRM BULK SALE</p>
+        <p style={{
+          fontFamily: "'DM Sans', sans-serif",
+          fontSize: 15,
+          color: '#F0F0F8',
+          marginBottom: 6,
+        }}>
+          Sell <strong>{count}</strong> item{count !== 1 ? 's' : ''}?
+        </p>
+        <p style={{
+          fontFamily: "'IBM Plex Mono', monospace",
+          fontSize: 13,
+          color: '#C9A961',
+          marginBottom: 24,
+        }}>
+          +{fmt(total)} ₯
+        </p>
+        <div style={{ display: 'flex', gap: 10 }}>
+          <button
+            onClick={onConfirm}
+            style={{
+              flex: 1,
+              padding: '11px',
+              background: 'rgba(201,169,97,0.1)',
+              border: '1px solid rgba(201,169,97,0.4)',
+              borderRadius: 8,
+              fontFamily: "'IBM Plex Mono', monospace",
+              fontSize: 11,
+              letterSpacing: '0.1em',
+              textTransform: 'uppercase',
+              color: '#C9A961',
+              cursor: 'pointer',
+            }}
+          >
+            SELL ALL
+          </button>
+          <button
+            onClick={onCancel}
+            style={{
+              flex: 1,
+              padding: '11px',
+              background: 'transparent',
+              border: '1px solid rgba(255,255,255,0.1)',
+              borderRadius: 8,
+              fontFamily: "'IBM Plex Mono', monospace",
+              fontSize: 11,
+              letterSpacing: '0.1em',
+              textTransform: 'uppercase',
+              color: 'rgba(240,240,248,0.38)',
+              cursor: 'pointer',
+            }}
+          >
+            CANCEL
+          </button>
+        </div>
+      </motion.div>
+    </motion.div>
+  )
+}
+
 function Toast({ message, color, sound, onDone }) {
   const { play } = useSound()
   useEffect(() => {
@@ -768,6 +882,8 @@ export default function Inventory() {
   const [sellModal,        setSellModal]        = useState(null)
   const [energyUsesToday,  setEnergyUsesToday]  = useState(0)
   const [expandedItemId,   setExpandedItemId]   = useState(null)
+  const [selectedIds,      setSelectedIds]      = useState(() => new Set())
+  const [bulkSellModal,    setBulkSellModal]    = useState(false)
 
   useEffect(() => {
     if (!authLoading && !user) navigate('/games/pantheon-wars/login', { replace: true })
@@ -846,6 +962,49 @@ export default function Inventory() {
       setToast({ message: `Sold for ${fmt(data.sell_price)}₯`, color: '#C9A961' })
       play('sell_item')
       refreshContext()
+      setSelectedIds(prev => { if (!prev.has(inventory_id)) return prev; const next = new Set(prev); next.delete(inventory_id); return next })
+    } finally { setBusy(false) }
+  }
+
+  function handleToggleSelect(inventory_id) {
+    setSelectedIds(prev => {
+      const next = new Set(prev)
+      if (next.has(inventory_id)) next.delete(inventory_id)
+      else next.add(inventory_id)
+      return next
+    })
+  }
+
+  function handleSelectAllToggle(sellableInView) {
+    const allSelected = sellableInView.length > 0 && sellableInView.every(i => selectedIds.has(i.inventory_id))
+    setSelectedIds(prev => {
+      const next = new Set(prev)
+      sellableInView.forEach(i => allSelected ? next.delete(i.inventory_id) : next.add(i.inventory_id))
+      return next
+    })
+  }
+
+  async function handleBulkSellConfirm() {
+    setBulkSellModal(false)
+    const ids = inventory.filter(i => selectedIds.has(i.inventory_id) && !i.equipped).map(i => i.inventory_id)
+    if (ids.length === 0) return
+    setBusy(true)
+    try {
+      const res  = await fetch('/api/games/pantheon-wars/game?action=sell_bulk', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ inventory_ids: ids }),
+      })
+      const data = await res.json()
+      if (!res.ok) { setToast({ message: data.error || 'Bulk sell failed', color: '#F87171', sound: 'toast_notification' }); return }
+      const soldSet = new Set(ids)
+      setInventory(prev => prev.filter(i => !soldSet.has(i.inventory_id)))
+      setSelectedIds(prev => { const next = new Set(prev); ids.forEach(id => next.delete(id)); return next })
+      if (stats) setStats(prev => ({ ...prev, drachma: data.new_drachma }))
+      const skippedNote = data.items_skipped > 0 ? ` (${data.items_skipped} skipped)` : ''
+      setToast({ message: `Sold ${data.items_sold} items for ${fmt(data.drachma_gained)}₯${skippedNote}`, color: '#C9A961' })
+      play('sell_item')
+      refreshContext()
     } finally { setBusy(false) }
   }
 
@@ -908,6 +1067,11 @@ export default function Inventory() {
     : filter === 'CONSUMABLE'
       ? consumableItems
       : inventory.filter(i => i.slot === filter.toLowerCase())
+
+  const sellableInView = filtered.filter(i => !i.equipped)
+  const allSelectedInView = sellableInView.length > 0 && sellableInView.every(i => selectedIds.has(i.inventory_id))
+  const selectedItems = inventory.filter(i => selectedIds.has(i.inventory_id) && !i.equipped)
+  const selectedTotal = selectedItems.reduce((sum, i) => sum + (i.sell_price || 0), 0)
 
   return (
     <>
@@ -1045,6 +1209,67 @@ export default function Inventory() {
                 ))}
               </motion.div>
 
+              {/* Bulk-sell bar */}
+              {sellableInView.length > 0 && (
+                <motion.div
+                  variants={fadeUp}
+                  style={{
+                    display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap',
+                    marginBottom: 14,
+                    background: 'rgba(255,255,255,0.025)',
+                    border: '1px solid rgba(255,255,255,0.07)',
+                    borderRadius: 10, padding: '10px 14px',
+                  }}
+                >
+                  <label style={{
+                    display: 'flex', alignItems: 'center', gap: 7,
+                    fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, letterSpacing: '0.08em',
+                    textTransform: 'uppercase', color: 'rgba(240,240,248,0.5)', cursor: 'pointer',
+                  }}>
+                    <input
+                      type="checkbox"
+                      checked={allSelectedInView}
+                      onChange={() => handleSelectAllToggle(sellableInView)}
+                      style={{ width: 14, height: 14, cursor: 'pointer', accentColor: '#C9A961' }}
+                    />
+                    SELECT ALL
+                  </label>
+                  <div style={{ flex: 1 }} />
+                  {selectedItems.length > 0 && (
+                    <button
+                      onClick={() => setBulkSellModal(true)}
+                      disabled={busy}
+                      style={{
+                        fontFamily: "'IBM Plex Mono', monospace",
+                        fontSize: 10.5, letterSpacing: '0.08em', textTransform: 'uppercase',
+                        color: '#C9A961',
+                        background: 'rgba(201,169,97,0.1)',
+                        border: '1px solid rgba(201,169,97,0.4)',
+                        borderRadius: 7,
+                        padding: '8px 14px',
+                        cursor: busy ? 'default' : 'pointer',
+                        opacity: busy ? 0.5 : 1,
+                        whiteSpace: 'nowrap',
+                      }}
+                    >
+                      SELL SELECTED ({selectedItems.length}) — {fmt(selectedTotal)}₯
+                    </button>
+                  )}
+                </motion.div>
+              )}
+
+              {/* Bulk-sell confirmation modal */}
+              <AnimatePresence>
+                {bulkSellModal && (
+                  <BulkSellModal
+                    count={selectedItems.length}
+                    total={selectedTotal}
+                    onConfirm={handleBulkSellConfirm}
+                    onCancel={() => setBulkSellModal(false)}
+                  />
+                )}
+              </AnimatePresence>
+
               {/* Item list */}
               <AnimatePresence mode="popLayout">
                 {filtered.length === 0 ? (
@@ -1085,6 +1310,8 @@ export default function Inventory() {
                         isMobile={isMobile}
                         expandedItemId={expandedItemId}
                         onToggleExpand={handleToggleExpand}
+                        selected={selectedIds.has(item.inventory_id)}
+                        onToggleSelect={handleToggleSelect}
                       />
                     ))}
                   </motion.div>

@@ -556,6 +556,66 @@ async function handleSell(req, res) {
   }
 }
 
+// ── Bulk Sell (POST) ───────────────────────────────────────────────────────────
+// body { inventory_ids: number[] }. Atomic single-CTE: deletes every owned,
+// unequipped row whose id is in the list and credits the summed sell_price in
+// one statement. Ids that don't belong to the caller, are equipped, or don't
+// exist are silently skipped (partial success) rather than failing the batch.
+
+async function handleSellBulk(req, res) {
+  if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' })
+
+  const { inventory_ids } = req.body ?? {}
+  if (!Array.isArray(inventory_ids) || inventory_ids.length === 0) {
+    return res.status(400).json({ error: 'inventory_ids must be a non-empty array' })
+  }
+  const ids = inventory_ids.map(Number).filter(n => Number.isInteger(n) && n > 0)
+  if (ids.length === 0) return res.status(400).json({ error: 'inventory_ids must be a non-empty array of integers' })
+
+  try {
+    const result = await sql`
+      WITH sold AS (
+        DELETE FROM pw_inventory
+        USING pw_items
+        WHERE pw_inventory.item_id = pw_items.id
+          AND pw_inventory.id = ANY(${ids})
+          AND pw_inventory.user_id = ${req.userId}
+          AND pw_inventory.equipped = false
+        RETURNING pw_items.sell_price
+      ),
+      totals AS (
+        SELECT COUNT(*) AS items_sold, COALESCE(SUM(sell_price), 0) AS drachma_gained FROM sold
+      ),
+      updated AS (
+        UPDATE pw_player_stats
+        SET drachma = drachma + (SELECT drachma_gained FROM totals),
+            drachma_lifetime = drachma_lifetime + (SELECT drachma_gained FROM totals)
+        WHERE user_id = ${req.userId}
+        RETURNING drachma
+      )
+      SELECT totals.items_sold, totals.drachma_gained, updated.drachma AS new_drachma
+      FROM totals, updated
+    `
+    const row = result[0] ?? { items_sold: 0, drachma_gained: 0, new_drachma: null }
+    const itemsSold = Number(row.items_sold) || 0
+    const skipped = ids.length - itemsSold
+
+    return res.status(200).json({
+      ok: true,
+      items_sold:     itemsSold,
+      items_skipped:  skipped,
+      drachma_gained: Number(row.drachma_gained) || 0,
+      new_drachma:    row.new_drachma,
+      pendingAdventureRewards: req.pendingAdventureRewards || null,
+      pendingTownshipUpgrades: req.pendingTownshipUpgrades || null,
+      pendingCraftCycles: req.pendingCraftCycles || null,
+    })
+  } catch (err) {
+    console.error('Sell bulk error:', err)
+    return res.status(500).json({ error: 'Failed to sell items' })
+  }
+}
+
 // ── Daily counter reset helper ────────────────────────────────────────────────
 
 async function resetDailyCountersIfNeeded(statsObj, userId) {
@@ -5295,6 +5355,76 @@ async function handleAllianceDonateItem(req, res) {
   }
 }
 
+// ── Alliance bulk item donation ───────────────────────────────────────────────
+// alliance_donate_items_bulk (POST) — body { inventory_ids: number[] }.
+// Atomic single multi-CTE statement: deletes every owned, unequipped row in
+// the list, computes power_value per item (RARITY_VALUE[rarity] * level_required,
+// matching handleAllianceDonateItem), logs one treasury row per item, then a
+// single recalculateAlliancePower call (not per item). Ids that are invalid,
+// equipped, or not owned are silently skipped — partial success, not a failure.
+async function handleAllianceDonateItemsBulk(req, res) {
+  if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' })
+
+  const { inventory_ids } = req.body ?? {}
+  if (!Array.isArray(inventory_ids) || inventory_ids.length === 0) {
+    return res.status(400).json({ error: 'invalid_inventory_ids' })
+  }
+  const ids = inventory_ids.map(Number).filter(n => Number.isInteger(n) && n > 0)
+  if (ids.length === 0) return res.status(400).json({ error: 'invalid_inventory_ids' })
+
+  try {
+    const member = await getUserAllianceMembership(sql, req.userId)
+    if (!member) return res.status(400).json({ error: 'not_in_alliance' })
+    const allianceId = member.alliance_id
+
+    const result = await sql`
+      WITH removed AS (
+        DELETE FROM pw_inventory
+        USING pw_items
+        WHERE pw_inventory.item_id = pw_items.id
+          AND pw_inventory.id = ANY(${ids})
+          AND pw_inventory.user_id = ${req.userId}
+          AND pw_inventory.equipped = false
+        RETURNING pw_items.id AS item_id, pw_items.rarity, COALESCE(pw_items.level_required, 1) AS level_required
+      ),
+      scored AS (
+        SELECT item_id, rarity, level_required,
+          (CASE rarity
+             WHEN 'common'    THEN 1
+             WHEN 'uncommon'  THEN 5
+             WHEN 'rare'      THEN 25
+             WHEN 'epic'      THEN 100
+             WHEN 'legendary' THEN 500
+             ELSE 0
+           END) * level_required AS power_value
+        FROM removed
+      ),
+      logged AS (
+        INSERT INTO pw_alliance_treasury_log
+          (alliance_id, donor_user_id, donation_type, item_id, item_rarity, item_level_required, power_value, power_track)
+        SELECT ${allianceId}, ${req.userId}, 'item', item_id, rarity, level_required, power_value, 'military'
+        FROM scored
+        RETURNING power_value
+      )
+      SELECT COUNT(*) AS items_donated, COALESCE(SUM(power_value), 0) AS total_power_added FROM logged
+    `
+    const row = result[0] ?? { items_donated: 0, total_power_added: 0 }
+    const itemsDonated = Number(row.items_donated) || 0
+    const skipped = ids.length - itemsDonated
+
+    const power = await recalculateAlliancePower(sql, allianceId)
+    return res.status(200).json({
+      ok: true,
+      items_donated:      itemsDonated,
+      items_skipped:       skipped,
+      total_power_added:  Number(row.total_power_added) || 0,
+      power,
+    })
+  } catch (err) {
+    return allianceErrorResponse(res, err, 'alliance_donate_items_bulk error:')
+  }
+}
+
 // ── User lookup (Phase E1) ────────────────────────────────────────────────────
 // Username → { id, username, level } resolver for the alliance invite flow, which
 // needs a UUID (invite_send takes target_user_id). Read-only, auth-gated by the
@@ -5340,6 +5470,7 @@ const innerHandler = requireUserWithModCheck(async function handler(req, res) {
   if (action === 'equip')              return handleEquip(req, res)
   if (action === 'unequip')            return handleUnequip(req, res)
   if (action === 'sell')               return handleSell(req, res)
+  if (action === 'sell_bulk')          return handleSellBulk(req, res)
   if (action === 'consume')            return handleConsume(req, res)
   if (action === 'shop')               return handleShop(req, res)
   if (action === 'buy')                return handleBuy(req, res)
@@ -5403,6 +5534,7 @@ const innerHandler = requireUserWithModCheck(async function handler(req, res) {
   if (action === 'alliance_donate_drachma')       return handleAllianceDonateDrachma(req, res)
   if (action === 'alliance_donate_glory')         return handleAllianceDonateGlory(req, res)
   if (action === 'alliance_donate_item')          return handleAllianceDonateItem(req, res)
+  if (action === 'alliance_donate_items_bulk')    return handleAllianceDonateItemsBulk(req, res)
   if (action === 'alliance_treasury_log')         return handleAllianceTreasuryLog(req, res)
   if (action === 'user_lookup')                   return handleUserLookup(req, res)
   return res.status(400).json({ error: 'Unknown action' })
