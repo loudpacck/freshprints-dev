@@ -5483,6 +5483,716 @@ async function handleDungeonList(req, res) {
   }
 }
 
+// ── Alliance Dungeons (Phase D2: party / queue) ─────────────────────────────────
+//
+// Formation: auto-queue (no leader, system fills) OR manual named groups (leader).
+// One non-terminal run per player enforced by the D1 partial unique index
+// idx_pw_dungeon_party_one_active (status IN ('queued','committed')). On fill the
+// run is committed atomically (treasury + keys + status all-or-nothing) and starts
+// 30s later; processExpiredDungeonRuns flips starting→active. NO combat in D2.
+
+const DUNGEON_LOCK_KEY = 847392
+
+// Inline lazy state machine (mirrors processExpiredTitanEvents, own advisory lock).
+// D2 scope ONLY: starting → active once starts_at passes. Combat/resolution is D3/D4.
+async function processExpiredDungeonRuns(sql) {
+  // Cheap pre-check: bail immediately when there's nothing to do (idle cost ~0).
+  const checkRows = await sql`
+    SELECT COUNT(*) AS work_count
+    FROM pw_dungeon_runs
+    WHERE status = 'starting' AND starts_at <= NOW()
+  `
+  if (Number(checkRows[0]?.work_count || 0) === 0) return false
+
+  const lockRows = await sql`SELECT pg_try_advisory_lock(${DUNGEON_LOCK_KEY}) AS acquired`
+  if (!lockRows[0]?.acquired) return false
+
+  try {
+    // D2: just unlock the gate. Party rows are already 'committed'. No sim yet — the
+    // 'active' run sits until D3 wires simulateDungeonRun + resolution (sets ends_at).
+    await sql`
+      UPDATE pw_dungeon_runs
+      SET status = 'active'
+      WHERE status = 'starting' AND starts_at <= NOW()
+    `
+  } finally {
+    try { await sql`SELECT pg_advisory_unlock(${DUNGEON_LOCK_KEY})` } catch {}
+  }
+  return true
+}
+
+// Shared validation for every join path: level gate, raid→alliance gate, and the
+// one-run-per-player pre-check (clean error before the 23505 backstop fires).
+// Returns { error } on failure, or { allianceId } (null when not a raid) on success.
+async function validateDungeonJoin(userId, dungeon) {
+  const statRows = await sql`SELECT level FROM pw_player_stats WHERE user_id = ${userId}`
+  const level = Number(statRows[0]?.level || 0)
+  if (level < Number(dungeon.level_required || 1)) {
+    return { error: 'level_too_low' }
+  }
+
+  let allianceId = null
+  if (dungeon.alliance_required) {
+    const member = await getUserAllianceMembership(sql, userId)
+    if (!member) return { error: 'alliance_required' }
+    allianceId = member.alliance_id
+  }
+
+  const existing = await sql`
+    SELECT id FROM pw_dungeon_party
+    WHERE user_id = ${userId} AND status IN ('queued','committed')
+  `
+  if (existing.length > 0) return { error: 'already_in_run' }
+
+  return { allianceId }
+}
+
+// Atomic single-statement join: lock the run row, recount under the lock, and insert
+// the party row only if the run is still forming AND has an open slot. Serializes
+// concurrent joiners so two cannot both claim the last slot. Throws 23505 if the
+// player already holds an active membership (caller maps to 'already_in_run').
+async function atomicJoinRun(runId, userId, requiredFormation) {
+  const rows = await sql`
+    WITH locked AS (
+      SELECT r.id, r.formation_type, d.bracket
+      FROM pw_dungeon_runs r
+      JOIN pw_dungeons d ON d.id = r.dungeon_id
+      WHERE r.id = ${runId}
+        AND r.status = 'forming'
+        AND r.formation_type = ${requiredFormation}
+      FOR UPDATE OF r
+    ),
+    cnt AS (
+      SELECT COUNT(*)::int AS n
+      FROM pw_dungeon_party
+      WHERE run_id = ${runId} AND status IN ('queued','committed')
+    ),
+    ins AS (
+      INSERT INTO pw_dungeon_party (run_id, user_id, slot_index, status)
+      SELECT ${runId}, ${userId}, (SELECT n FROM cnt), 'queued'
+      WHERE EXISTS (SELECT 1 FROM locked)
+        AND (SELECT n FROM cnt) < (SELECT bracket FROM locked)
+      RETURNING id, slot_index
+    )
+    SELECT
+      (SELECT id FROM ins)          AS inserted_id,
+      (SELECT slot_index FROM ins)  AS slot_index,
+      (SELECT n FROM cnt)           AS prev_n,
+      (SELECT bracket FROM locked)  AS bracket,
+      EXISTS (SELECT 1 FROM locked) AS run_ok
+  `
+  return rows[0] || { run_ok: false }
+}
+
+// Atomic commit (Part 2). One all-or-nothing CTE: claim the forming run (FOR UPDATE
+// + status CAS), recount to confirm it's exactly full, verify+deduct raid treasury,
+// verify+consume keys (one from lowest-slot holder for 2/5-man Hard; one per member
+// for the raid), flip the run to 'starting' (+30s), and commit every party row.
+// Every mutation is gated on the same `gate` predicate, so a failure mutates nothing.
+// Returns { committed:true } or { committed:false, error }.
+async function commitDungeonRun(sql, runId) {
+  const rows = await sql`
+    WITH run AS (
+      SELECT r.id, r.alliance_id, d.bracket, d.difficulty,
+             d.treasury_cost, d.key_item_id
+      FROM pw_dungeon_runs r
+      JOIN pw_dungeons d ON d.id = r.dungeon_id
+      WHERE r.id = ${runId} AND r.status = 'forming'
+      FOR UPDATE OF r
+    ),
+    party AS (
+      SELECT user_id, slot_index
+      FROM pw_dungeon_party
+      WHERE run_id = ${runId} AND status = 'queued'
+    ),
+    -- one candidate key inventory row per member (lowest id), only if the dungeon
+    -- requires a key (key_item_id NOT NULL for Hard/Raid).
+    member_keys AS (
+      SELECT DISTINCT ON (p.user_id) p.user_id, p.slot_index, inv.id AS inv_id
+      FROM party p
+      JOIN pw_inventory inv
+        ON inv.user_id = p.user_id
+       AND inv.item_id = (SELECT key_item_id FROM run)
+      WHERE (SELECT key_item_id FROM run) IS NOT NULL
+      ORDER BY p.user_id, inv.id ASC
+    ),
+    -- the exact inventory rows to delete: all members' keys for a raid (bracket 10),
+    -- or one key from the lowest-slot holder for a 2/5-man Hard.
+    key_rows AS (
+      SELECT inv_id FROM member_keys WHERE (SELECT bracket FROM run) = 10
+      UNION ALL
+      SELECT inv_id FROM (
+        SELECT inv_id FROM member_keys
+        WHERE (SELECT bracket FROM run) IN (2, 5)
+          AND (SELECT difficulty FROM run) = 'hard'
+        ORDER BY slot_index ASC
+        LIMIT 1
+      ) low
+    ),
+    full_ok AS (
+      SELECT (SELECT COUNT(*) FROM party) = (SELECT bracket FROM run) AS ok
+    ),
+    treasury_ok AS (
+      SELECT CASE
+        WHEN (SELECT treasury_cost FROM run) <= 0 THEN TRUE
+        ELSE COALESCE(
+          (SELECT treasury_drachma FROM pw_alliances WHERE id = (SELECT alliance_id FROM run))
+            >= (SELECT treasury_cost FROM run), FALSE)
+      END AS ok
+    ),
+    key_ok AS (
+      SELECT CASE
+        WHEN (SELECT key_item_id FROM run) IS NULL THEN TRUE
+        WHEN (SELECT bracket FROM run) = 10
+          THEN (SELECT COUNT(*) FROM member_keys) = (SELECT COUNT(*) FROM party)
+        ELSE (SELECT COUNT(*) FROM member_keys) >= 1
+      END AS ok
+    ),
+    gate AS (
+      SELECT ((SELECT ok FROM full_ok)
+          AND (SELECT ok FROM treasury_ok)
+          AND (SELECT ok FROM key_ok)) AS ok
+    ),
+    started AS (
+      UPDATE pw_dungeon_runs
+      SET status = 'starting', starts_at = NOW() + INTERVAL '30 seconds'
+      WHERE id = ${runId} AND status = 'forming' AND (SELECT ok FROM gate)
+      RETURNING id, starts_at
+    ),
+    treasury_debit AS (
+      UPDATE pw_alliances
+      SET treasury_drachma = treasury_drachma - (SELECT treasury_cost FROM run)
+      WHERE id = (SELECT alliance_id FROM run)
+        AND (SELECT treasury_cost FROM run) > 0
+        AND EXISTS (SELECT 1 FROM started)
+      RETURNING treasury_drachma
+    ),
+    keys_deleted AS (
+      DELETE FROM pw_inventory
+      WHERE id IN (SELECT inv_id FROM key_rows)
+        AND EXISTS (SELECT 1 FROM started)
+      RETURNING id
+    ),
+    party_committed AS (
+      UPDATE pw_dungeon_party
+      SET status = 'committed'
+      WHERE run_id = ${runId} AND status = 'queued' AND EXISTS (SELECT 1 FROM started)
+      RETURNING id
+    )
+    SELECT
+      (SELECT id FROM run)          AS run_exists,
+      (SELECT bracket FROM run)     AS bracket,
+      (SELECT ok FROM full_ok)      AS full_ok,
+      (SELECT ok FROM treasury_ok)  AS treasury_ok,
+      (SELECT ok FROM key_ok)       AS key_ok,
+      EXISTS (SELECT 1 FROM started) AS started
+  `
+  const r = rows[0]
+  if (!r || r.run_exists == null) return { committed: false, error: 'not_forming' }
+  if (r.started) return { committed: true }
+  if (!r.full_ok)     return { committed: false, error: 'not_full' }
+  if (!r.treasury_ok) return { committed: false, error: 'insufficient_treasury' }
+  if (!r.key_ok) {
+    return { committed: false, error: Number(r.bracket) === 10 ? 'missing_raid_keys' : 'no_key_in_party' }
+  }
+  // Gate passed but the CAS didn't fire — a concurrent committer won under the lock.
+  return { committed: false, error: 'not_forming' }
+}
+
+// Assemble the full run payload (party w/ usernames+levels+slots, dungeon info,
+// countdown, leader or live votekick tallies). Reused by join handlers + my_run.
+async function buildRunPayload(runId, viewerId) {
+  const runRows = await sql`
+    SELECT
+      r.id, r.formation_type, r.group_name, r.leader_user_id, r.alliance_id,
+      r.status, r.starts_at, r.created_at,
+      d.id AS dungeon_id, d.slug, d.name, d.bracket, d.difficulty,
+      d.level_required, d.alliance_required, d.treasury_cost, d.encounter_count,
+      (d.key_item_id IS NOT NULL) AS key_required
+    FROM pw_dungeon_runs r
+    JOIN pw_dungeons d ON d.id = r.dungeon_id
+    WHERE r.id = ${runId}
+  `
+  if (runRows.length === 0) return null
+  const run = runRows[0]
+
+  const partyRows = await sql`
+    SELECT p.user_id, p.slot_index, p.status, u.username, ps.level
+    FROM pw_dungeon_party p
+    JOIN pw_users u ON u.id = p.user_id
+    LEFT JOIN pw_player_stats ps ON ps.user_id = p.user_id
+    WHERE p.run_id = ${runId} AND p.status IN ('queued','committed')
+    ORDER BY p.slot_index ASC, p.joined_at ASC
+  `
+
+  let votekicks = null
+  if (run.formation_type === 'auto') {
+    const partySize = partyRows.length
+    const tallyRows = await sql`
+      SELECT target_user_id, COUNT(DISTINCT voter_user_id)::int AS votes
+      FROM pw_dungeon_votekicks
+      WHERE run_id = ${runId}
+      GROUP BY target_user_id
+    `
+    votekicks = tallyRows.map(t => ({
+      target_user_id: t.target_user_id,
+      votes: Number(t.votes),
+      needed: Math.max(0, partySize - 1),
+    }))
+  }
+
+  const startsInSeconds = run.starts_at
+    ? Math.max(0, Math.round((new Date(run.starts_at).getTime() - Date.now()) / 1000))
+    : null
+
+  return {
+    run_id: run.id,
+    formation_type: run.formation_type,
+    group_name: run.group_name,
+    leader_user_id: run.leader_user_id,
+    alliance_id: run.alliance_id,
+    status: run.status,
+    starts_at: run.starts_at,
+    starts_in_seconds: startsInSeconds,
+    dungeon: {
+      id: run.dungeon_id,
+      slug: run.slug,
+      name: run.name,
+      bracket: run.bracket,
+      difficulty: run.difficulty,
+      level_required: run.level_required,
+      alliance_required: run.alliance_required,
+      treasury_cost: run.treasury_cost,
+      key_required: run.key_required,
+      encounter_count: run.encounter_count,
+    },
+    party: partyRows.map(p => ({
+      user_id: p.user_id,
+      username: p.username,
+      level: p.level == null ? null : Number(p.level),
+      slot_index: Number(p.slot_index),
+      status: p.status,
+      is_leader: run.formation_type === 'manual' && p.user_id === run.leader_user_id,
+    })),
+    votekicks,
+    viewer_user_id: viewerId,
+  }
+}
+
+// (a) dungeon_queue_join (POST, auto) — { dungeon_id }
+async function handleDungeonQueueJoin(req, res) {
+  if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' })
+  const dungeonId = Number(req.body?.dungeon_id)
+  if (!Number.isInteger(dungeonId) || dungeonId <= 0) return res.status(400).json({ error: 'invalid_dungeon_id' })
+
+  try {
+    const dRows = await sql`SELECT * FROM pw_dungeons WHERE id = ${dungeonId}`
+    if (dRows.length === 0) return res.status(404).json({ error: 'dungeon_not_found' })
+    const dungeon = dRows[0]
+
+    const gate = await validateDungeonJoin(req.userId, dungeon)
+    if (gate.error) return res.status(400).json({ error: gate.error })
+    const allianceId = gate.allianceId
+
+    let runId = null
+    let prevN = 0
+    let bracket = Number(dungeon.bracket)
+
+    // Up to a few attempts: find an open auto run for this dungeon (same alliance for
+    // raids, for treasury coherence) and atomically take a slot; on a fill race, retry.
+    for (let attempt = 0; attempt < 4 && runId == null; attempt++) {
+      const candidates = await sql`
+        SELECT r.id
+        FROM pw_dungeon_runs r
+        WHERE r.dungeon_id = ${dungeonId}
+          AND r.formation_type = 'auto'
+          AND r.status = 'forming'
+          AND (${dungeon.alliance_required} = FALSE OR r.alliance_id = ${allianceId})
+          AND (
+            SELECT COUNT(*) FROM pw_dungeon_party p
+            WHERE p.run_id = r.id AND p.status IN ('queued','committed')
+          ) < ${bracket}
+        ORDER BY r.created_at ASC
+        LIMIT 1
+      `
+
+      if (candidates.length > 0) {
+        const joined = await atomicJoinRun(candidates[0].id, req.userId, 'auto')
+        if (joined.inserted_id != null) {
+          runId = candidates[0].id
+          prevN = Number(joined.prev_n)
+          bracket = Number(joined.bracket)
+        }
+        // else: raced full / no longer forming — loop and look again.
+        continue
+      }
+
+      // No open run — create one and seat the caller at slot 0 in a single statement
+      // (rolls back the run insert if the party insert hits the one-run-per-player index).
+      const created = await sql`
+        WITH newrun AS (
+          INSERT INTO pw_dungeon_runs (dungeon_id, formation_type, alliance_id, status)
+          VALUES (${dungeonId}, 'auto', ${dungeon.alliance_required ? allianceId : null}, 'forming')
+          RETURNING id
+        ),
+        ins AS (
+          INSERT INTO pw_dungeon_party (run_id, user_id, slot_index, status)
+          SELECT id, ${req.userId}, 0, 'queued' FROM newrun
+          RETURNING run_id
+        )
+        SELECT (SELECT id FROM newrun) AS run_id
+      `
+      runId = created[0].run_id
+      prevN = 0
+    }
+
+    if (runId == null) return res.status(409).json({ error: 'queue_busy' })
+
+    // If our seat filled the party, commit atomically (treasury + keys + status).
+    if (prevN + 1 >= bracket) {
+      const commit = await commitDungeonRun(sql, runId)
+      if (!commit.committed && commit.error !== 'not_forming') {
+        const payload = await buildRunPayload(runId, req.userId)
+        return res.status(400).json({ error: commit.error, run: payload })
+      }
+    }
+
+    const payload = await buildRunPayload(runId, req.userId)
+    return res.status(200).json({ ok: true, run: payload })
+  } catch (err) {
+    if (err?.code === '23505') return res.status(400).json({ error: 'already_in_run' })
+    console.error('dungeon_queue_join error:', err)
+    return res.status(500).json({ error: 'server_error' })
+  }
+}
+
+// (b) dungeon_group_create (POST, manual) — { dungeon_id, group_name }
+async function handleDungeonGroupCreate(req, res) {
+  if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' })
+  const dungeonId = Number(req.body?.dungeon_id)
+  if (!Number.isInteger(dungeonId) || dungeonId <= 0) return res.status(400).json({ error: 'invalid_dungeon_id' })
+
+  const groupName = String(req.body?.group_name ?? '').trim()
+  if (groupName.length < 3 || groupName.length > 30) return res.status(400).json({ error: 'invalid_group_name' })
+  if (isProfane(groupName)) return res.status(400).json({ error: 'profane_group_name' })
+
+  try {
+    const dRows = await sql`SELECT * FROM pw_dungeons WHERE id = ${dungeonId}`
+    if (dRows.length === 0) return res.status(404).json({ error: 'dungeon_not_found' })
+    const dungeon = dRows[0]
+
+    const gate = await validateDungeonJoin(req.userId, dungeon)
+    if (gate.error) return res.status(400).json({ error: gate.error })
+    const allianceId = gate.allianceId
+
+    // Create the run + seat the leader at slot 0 atomically (single statement rolls
+    // back the run if the party insert violates the one-run-per-player index).
+    const created = await sql`
+      WITH newrun AS (
+        INSERT INTO pw_dungeon_runs
+          (dungeon_id, formation_type, group_name, leader_user_id, alliance_id, status)
+        VALUES
+          (${dungeonId}, 'manual', ${groupName}, ${req.userId},
+           ${dungeon.alliance_required ? allianceId : null}, 'forming')
+        RETURNING id
+      ),
+      ins AS (
+        INSERT INTO pw_dungeon_party (run_id, user_id, slot_index, status)
+        SELECT id, ${req.userId}, 0, 'queued' FROM newrun
+        RETURNING run_id
+      )
+      SELECT (SELECT id FROM newrun) AS run_id
+    `
+    const runId = created[0].run_id
+    const payload = await buildRunPayload(runId, req.userId)
+    return res.status(200).json({ ok: true, run: payload })
+  } catch (err) {
+    if (err?.code === '23505') return res.status(400).json({ error: 'already_in_run' })
+    console.error('dungeon_group_create error:', err)
+    return res.status(500).json({ error: 'server_error' })
+  }
+}
+
+// (c) dungeon_group_browse (GET) — optional ?dungeon_id
+async function handleDungeonGroupBrowse(req, res) {
+  if (req.method !== 'GET') return res.status(405).json({ error: 'Method not allowed' })
+  const rawId = req.query?.dungeon_id
+  const dungeonId = rawId == null || rawId === '' ? null : Number(rawId)
+  if (dungeonId != null && (!Number.isInteger(dungeonId) || dungeonId <= 0)) {
+    return res.status(400).json({ error: 'invalid_dungeon_id' })
+  }
+
+  try {
+    const rows = await sql`
+      SELECT
+        r.id AS run_id, r.group_name, r.leader_user_id,
+        u.username AS leader_username,
+        d.id AS dungeon_id, d.slug, d.name, d.bracket, d.difficulty, d.level_required,
+        (SELECT COUNT(*) FROM pw_dungeon_party p
+          WHERE p.run_id = r.id AND p.status IN ('queued','committed'))::int AS members,
+        d.bracket AS max_members
+      FROM pw_dungeon_runs r
+      JOIN pw_dungeons d ON d.id = r.dungeon_id
+      LEFT JOIN pw_users u ON u.id = r.leader_user_id
+      WHERE r.formation_type = 'manual'
+        AND r.status = 'forming'
+        AND (${dungeonId}::int IS NULL OR r.dungeon_id = ${dungeonId})
+        AND (SELECT COUNT(*) FROM pw_dungeon_party p
+              WHERE p.run_id = r.id AND p.status IN ('queued','committed')) < d.bracket
+      ORDER BY r.created_at ASC
+      LIMIT 100
+    `
+    return res.status(200).json({
+      groups: rows.map(g => ({
+        run_id: g.run_id,
+        group_name: g.group_name,
+        leader_user_id: g.leader_user_id,
+        leader_username: g.leader_username,
+        dungeon: {
+          id: g.dungeon_id, slug: g.slug, name: g.name,
+          bracket: g.bracket, difficulty: g.difficulty, level_required: g.level_required,
+        },
+        members: Number(g.members),
+        max_members: Number(g.max_members),
+      })),
+    })
+  } catch (err) {
+    console.error('dungeon_group_browse error:', err)
+    return res.status(500).json({ error: 'server_error' })
+  }
+}
+
+// (d) dungeon_group_join (POST, manual) — { run_id }
+async function handleDungeonGroupJoin(req, res) {
+  if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' })
+  const runId = Number(req.body?.run_id)
+  if (!Number.isInteger(runId) || runId <= 0) return res.status(400).json({ error: 'invalid_run_id' })
+
+  try {
+    const runRows = await sql`
+      SELECT r.id, r.formation_type, r.status, d.*
+      FROM pw_dungeon_runs r
+      JOIN pw_dungeons d ON d.id = r.dungeon_id
+      WHERE r.id = ${runId}
+    `
+    if (runRows.length === 0) return res.status(404).json({ error: 'run_not_found' })
+    const run = runRows[0]
+    if (run.formation_type !== 'manual') return res.status(400).json({ error: 'not_a_manual_group' })
+    if (run.status !== 'forming')        return res.status(400).json({ error: 'run_not_forming' })
+
+    const gate = await validateDungeonJoin(req.userId, run)
+    if (gate.error) return res.status(400).json({ error: gate.error })
+
+    const joined = await atomicJoinRun(runId, req.userId, 'manual')
+    if (!joined.run_ok)          return res.status(400).json({ error: 'run_not_forming' })
+    if (joined.inserted_id == null) return res.status(400).json({ error: 'group_full' })
+
+    const bracket = Number(joined.bracket)
+    const prevN = Number(joined.prev_n)
+    if (prevN + 1 >= bracket) {
+      const commit = await commitDungeonRun(sql, runId)
+      if (!commit.committed && commit.error !== 'not_forming') {
+        const payload = await buildRunPayload(runId, req.userId)
+        return res.status(400).json({ error: commit.error, run: payload })
+      }
+    }
+
+    const payload = await buildRunPayload(runId, req.userId)
+    return res.status(200).json({ ok: true, run: payload })
+  } catch (err) {
+    if (err?.code === '23505') return res.status(400).json({ error: 'already_in_run' })
+    console.error('dungeon_group_join error:', err)
+    return res.status(500).json({ error: 'server_error' })
+  }
+}
+
+// (e) dungeon_leave (POST) — { run_id }; only while status='forming'
+async function handleDungeonLeave(req, res) {
+  if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' })
+  const runId = Number(req.body?.run_id)
+  if (!Number.isInteger(runId) || runId <= 0) return res.status(400).json({ error: 'invalid_run_id' })
+
+  try {
+    const runRows = await sql`
+      SELECT id, status, formation_type, leader_user_id
+      FROM pw_dungeon_runs WHERE id = ${runId}
+    `
+    if (runRows.length === 0) return res.status(404).json({ error: 'run_not_found' })
+    const run = runRows[0]
+    if (run.status !== 'forming') return res.status(400).json({ error: 'run_already_started' })
+
+    const removed = await sql`
+      DELETE FROM pw_dungeon_party
+      WHERE run_id = ${runId} AND user_id = ${req.userId} AND status = 'queued'
+      RETURNING id
+    `
+    if (removed.length === 0) return res.status(400).json({ error: 'not_in_run' })
+
+    // Clear any votekick rows the leaver was involved in (as voter or target).
+    await sql`
+      DELETE FROM pw_dungeon_votekicks
+      WHERE run_id = ${runId}
+        AND (voter_user_id = ${req.userId} OR target_user_id = ${req.userId})
+    `
+
+    const remaining = await sql`
+      SELECT user_id FROM pw_dungeon_party
+      WHERE run_id = ${runId} AND status = 'queued'
+      ORDER BY joined_at ASC, slot_index ASC
+    `
+    if (remaining.length === 0) {
+      await sql`DELETE FROM pw_dungeon_runs WHERE id = ${runId}`
+    } else if (run.formation_type === 'manual' && run.leader_user_id === req.userId) {
+      // Promote the oldest remaining member to leader.
+      await sql`
+        UPDATE pw_dungeon_runs SET leader_user_id = ${remaining[0].user_id}
+        WHERE id = ${runId}
+      `
+    }
+
+    return res.status(200).json({ ok: true })
+  } catch (err) {
+    console.error('dungeon_leave error:', err)
+    return res.status(500).json({ error: 'server_error' })
+  }
+}
+
+// (f) dungeon_votekick (POST, auto only) — { run_id, target_user_id }
+async function handleDungeonVotekick(req, res) {
+  if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' })
+  const runId = Number(req.body?.run_id)
+  if (!Number.isInteger(runId) || runId <= 0) return res.status(400).json({ error: 'invalid_run_id' })
+  const targetUserId = req.body?.target_user_id
+  if (!isValidUuid(targetUserId)) return res.status(400).json({ error: 'invalid_user_id' })
+  if (targetUserId === req.userId) return res.status(400).json({ error: 'cannot_vote_self' })
+
+  try {
+    const runRows = await sql`
+      SELECT r.id, r.formation_type, r.status, d.bracket
+      FROM pw_dungeon_runs r
+      JOIN pw_dungeons d ON d.id = r.dungeon_id
+      WHERE r.id = ${runId}
+    `
+    if (runRows.length === 0) return res.status(404).json({ error: 'run_not_found' })
+    const run = runRows[0]
+    if (run.formation_type !== 'auto') return res.status(400).json({ error: 'votekick_auto_only' })
+    if (run.status !== 'forming')      return res.status(400).json({ error: 'run_already_started' })
+    if (Number(run.bracket) <= 2)      return res.status(400).json({ error: 'no_votekick_2man' })
+
+    // Both voter and target must be active party members.
+    const members = await sql`
+      SELECT user_id FROM pw_dungeon_party
+      WHERE run_id = ${runId} AND status IN ('queued','committed')
+    `
+    const memberIds = new Set(members.map(m => m.user_id))
+    if (!memberIds.has(req.userId))   return res.status(400).json({ error: 'not_in_run' })
+    if (!memberIds.has(targetUserId)) return res.status(400).json({ error: 'target_not_in_run' })
+
+    try {
+      await sql`
+        INSERT INTO pw_dungeon_votekicks (run_id, voter_user_id, target_user_id)
+        VALUES (${runId}, ${req.userId}, ${targetUserId})
+      `
+    } catch (e) {
+      if (e?.code !== '23505') throw e
+      // already voted for this target — idempotent, fall through to the tally.
+    }
+
+    const tallyRows = await sql`
+      SELECT COUNT(DISTINCT voter_user_id)::int AS votes
+      FROM pw_dungeon_votekicks
+      WHERE run_id = ${runId} AND target_user_id = ${targetUserId}
+    `
+    const votes = Number(tallyRows[0]?.votes || 0)
+    const needed = memberIds.size - 1   // unanimous among everyone except the target
+
+    let kicked = false
+    if (votes >= needed) {
+      const removed = await sql`
+        DELETE FROM pw_dungeon_party
+        WHERE run_id = ${runId} AND user_id = ${targetUserId} AND status = 'queued'
+        RETURNING id
+      `
+      if (removed.length > 0) {
+        kicked = true
+        await sql`
+          DELETE FROM pw_dungeon_votekicks
+          WHERE run_id = ${runId}
+            AND (voter_user_id = ${targetUserId} OR target_user_id = ${targetUserId})
+        `
+      }
+    }
+
+    return res.status(200).json({ ok: true, votes, needed, kicked })
+  } catch (err) {
+    console.error('dungeon_votekick error:', err)
+    return res.status(500).json({ error: 'server_error' })
+  }
+}
+
+// (g) dungeon_group_kick (POST, manual leader only) — { run_id, target_user_id }
+async function handleDungeonGroupKick(req, res) {
+  if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' })
+  const runId = Number(req.body?.run_id)
+  if (!Number.isInteger(runId) || runId <= 0) return res.status(400).json({ error: 'invalid_run_id' })
+  const targetUserId = req.body?.target_user_id
+  if (!isValidUuid(targetUserId)) return res.status(400).json({ error: 'invalid_user_id' })
+
+  try {
+    const runRows = await sql`
+      SELECT id, formation_type, status, leader_user_id
+      FROM pw_dungeon_runs WHERE id = ${runId}
+    `
+    if (runRows.length === 0) return res.status(404).json({ error: 'run_not_found' })
+    const run = runRows[0]
+    if (run.formation_type !== 'manual') return res.status(400).json({ error: 'not_a_manual_group' })
+    if (run.status !== 'forming')        return res.status(400).json({ error: 'run_already_started' })
+    if (run.leader_user_id !== req.userId) return res.status(403).json({ error: 'not_leader' })
+    if (targetUserId === run.leader_user_id) return res.status(400).json({ error: 'cannot_kick_leader' })
+
+    const removed = await sql`
+      DELETE FROM pw_dungeon_party
+      WHERE run_id = ${runId} AND user_id = ${targetUserId} AND status = 'queued'
+      RETURNING id
+    `
+    if (removed.length === 0) return res.status(400).json({ error: 'target_not_in_run' })
+
+    await sql`
+      DELETE FROM pw_dungeon_votekicks
+      WHERE run_id = ${runId}
+        AND (voter_user_id = ${targetUserId} OR target_user_id = ${targetUserId})
+    `
+
+    return res.status(200).json({ ok: true })
+  } catch (err) {
+    console.error('dungeon_group_kick error:', err)
+    return res.status(500).json({ error: 'server_error' })
+  }
+}
+
+// (h) dungeon_my_run (GET) — the caller's active run (forming/starting/active) or null.
+async function handleDungeonMyRun(req, res) {
+  if (req.method !== 'GET') return res.status(405).json({ error: 'Method not allowed' })
+  try {
+    const rows = await sql`
+      SELECT r.id
+      FROM pw_dungeon_party p
+      JOIN pw_dungeon_runs r ON r.id = p.run_id
+      WHERE p.user_id = ${req.userId}
+        AND p.status IN ('queued','committed')
+        AND r.status IN ('forming','starting','active')
+      ORDER BY p.joined_at DESC
+      LIMIT 1
+    `
+    if (rows.length === 0) return res.status(200).json({ run: null })
+    const payload = await buildRunPayload(rows[0].id, req.userId)
+    return res.status(200).json({ run: payload })
+  } catch (err) {
+    console.error('dungeon_my_run error:', err)
+    return res.status(500).json({ error: 'server_error' })
+  }
+}
+
 // ── Router ────────────────────────────────────────────────────────────────────
 
 const innerHandler = requireUserWithModCheck(async function handler(req, res) {
@@ -5496,6 +6206,7 @@ const innerHandler = requireUserWithModCheck(async function handler(req, res) {
   try { req.pendingTownshipUpgrades = await checkAndCompleteUpgrades(sql, req.userId) } catch {}
   try { req.pendingCraftCycles = await checkAndCompleteCrafts(sql, req.userId) } catch {}
   try { await processExpiredTitanEvents(sql) } catch (err) { console.error('inline titan processing error:', err) }
+  try { await processExpiredDungeonRuns(sql) } catch (err) { console.error('inline dungeon processing error:', err) }
   try { await checkAndInsertTempleIncomeReward(sql, req.userId) } catch {}
 
   if (action === 'quests')             return handleQuests(req, res)
@@ -5572,6 +6283,14 @@ const innerHandler = requireUserWithModCheck(async function handler(req, res) {
   if (action === 'alliance_treasury_log')         return handleAllianceTreasuryLog(req, res)
   if (action === 'user_lookup')                   return handleUserLookup(req, res)
   if (action === 'dungeon_list')                  return handleDungeonList(req, res)
+  if (action === 'dungeon_queue_join')            return handleDungeonQueueJoin(req, res)
+  if (action === 'dungeon_group_create')          return handleDungeonGroupCreate(req, res)
+  if (action === 'dungeon_group_browse')          return handleDungeonGroupBrowse(req, res)
+  if (action === 'dungeon_group_join')            return handleDungeonGroupJoin(req, res)
+  if (action === 'dungeon_leave')                 return handleDungeonLeave(req, res)
+  if (action === 'dungeon_votekick')              return handleDungeonVotekick(req, res)
+  if (action === 'dungeon_group_kick')            return handleDungeonGroupKick(req, res)
+  if (action === 'dungeon_my_run')                return handleDungeonMyRun(req, res)
   return res.status(400).json({ error: 'Unknown action' })
 })
 
