@@ -62,6 +62,7 @@ const PantheonComingSoon  = lazy(() => import('@/pages/games/pantheon-wars/Comin
 const PantheonCodex        = lazy(() => import('@/pages/games/pantheon-wars/Codex'))
 const PantheonTownshipView = lazy(() => import('@/pages/games/pantheon-wars/TownshipView'))
 const PantheonAlliance      = lazy(() => import('@/pages/games/pantheon-wars/Alliance'))
+const PantheonDungeons      = lazy(() => import('@/pages/games/pantheon-wars/Dungeons'))
 
 class TownshipErrorBoundary extends Component {
   constructor(props) { super(props); this.state = { error: null } }
@@ -219,6 +220,7 @@ function PantheonWarsRoutes() {
         <Route path="/games/pantheon-wars/reset-password"  element={<PantheonResetPw />} />
         <Route path="/games/pantheon-wars/codex"    element={<PantheonCodex />} />
         <Route path="/games/pantheon-wars/alliance" element={<PantheonAlliance />} />
+        <Route path="/games/pantheon-wars/dungeons" element={<PantheonDungeons />} />
         <Route path="/games/pantheon-wars/store"    element={<PantheonComingSoon title="STORE" message="Premium offerings will be available here in the future." />} />
       </Route>
     </Routes>

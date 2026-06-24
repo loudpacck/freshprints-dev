@@ -5458,6 +5458,31 @@ async function handleUserLookup(req, res) {
   }
 }
 
+// ── Alliance Dungeons (Phase D1: read-only catalog) ─────────────────────────────
+
+async function handleDungeonList(req, res) {
+  if (req.method !== 'GET') return res.status(405).json({ error: 'Method not allowed' })
+
+  try {
+    const rows = await sql`
+      SELECT
+        d.id, d.slug, d.name, d.description, d.lore,
+        d.bracket, d.difficulty, d.level_required,
+        d.alliance_required, d.treasury_cost, d.key_item_id,
+        d.encounter_count, d.sort_order,
+        (d.key_item_id IS NOT NULL) AS key_required,
+        k.name AS key_item_name
+      FROM pw_dungeons d
+      LEFT JOIN pw_items k ON k.id = d.key_item_id
+      ORDER BY d.bracket ASC, d.difficulty ASC, d.sort_order ASC
+    `
+    return res.status(200).json({ dungeons: rows })
+  } catch (err) {
+    console.error('dungeon_list error:', err)
+    return res.status(500).json({ error: 'server_error' })
+  }
+}
+
 // ── Router ────────────────────────────────────────────────────────────────────
 
 const innerHandler = requireUserWithModCheck(async function handler(req, res) {
@@ -5546,6 +5571,7 @@ const innerHandler = requireUserWithModCheck(async function handler(req, res) {
   if (action === 'alliance_donate_items_bulk')    return handleAllianceDonateItemsBulk(req, res)
   if (action === 'alliance_treasury_log')         return handleAllianceTreasuryLog(req, res)
   if (action === 'user_lookup')                   return handleUserLookup(req, res)
+  if (action === 'dungeon_list')                  return handleDungeonList(req, res)
   return res.status(400).json({ error: 'Unknown action' })
 })
 
