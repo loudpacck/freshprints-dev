@@ -18,6 +18,7 @@ import {
   getTownshipBonusValue, getTownshipUpgradeCost, getTownshipUpgradeSeconds,
   rollTitanLootRarity,
   processExpiredTitanEvents,
+  fetchEquipBonusesBatch, simulateDungeonRun,
   checkAndCompleteCrafts, getCraftCycleSeconds, rollCraftRarity,
   checkChatRateLimit,
   getUserAllianceMembership, requireAllianceRank,
@@ -5494,31 +5495,243 @@ async function handleDungeonList(req, res) {
 const DUNGEON_LOCK_KEY = 847392
 
 // Inline lazy state machine (mirrors processExpiredTitanEvents, own advisory lock).
-// D2 scope ONLY: starting → active once starts_at passes. Combat/resolution is D3/D4.
+//   STEP 1: starting + starts_at<=NOW() → active (the 30s pre-combat window from D2).
+//   STEP 2: active runs → run simulateDungeonRun → resolved (D3 combat). Active runs are
+//           snapshotted BEFORE the STEP 1 flip, so a run gets one watchable 'active' request
+//           and resolves on the next — no same-pass starting→active→resolved cascade.
+// Combat damage is REAL (like Titan): final HP persists to pw_player_stats. NO loot / keys /
+// rewards here — rewards_distributed stays false for D4.
 async function processExpiredDungeonRuns(sql) {
   // Cheap pre-check: bail immediately when there's nothing to do (idle cost ~0).
   const checkRows = await sql`
-    SELECT COUNT(*) AS work_count
-    FROM pw_dungeon_runs
-    WHERE status = 'starting' AND starts_at <= NOW()
+    SELECT
+      (SELECT COUNT(*) FROM pw_dungeon_runs WHERE status = 'starting' AND starts_at <= NOW()) AS to_start,
+      (SELECT COUNT(*) FROM pw_dungeon_runs WHERE status = 'active') AS to_resolve
   `
-  if (Number(checkRows[0]?.work_count || 0) === 0) return false
+  const toStart = Number(checkRows[0]?.to_start || 0)
+  const toResolve = Number(checkRows[0]?.to_resolve || 0)
+  if (toStart === 0 && toResolve === 0) return false
 
   const lockRows = await sql`SELECT pg_try_advisory_lock(${DUNGEON_LOCK_KEY}) AS acquired`
   if (!lockRows[0]?.acquired) return false
 
   try {
-    // D2: just unlock the gate. Party rows are already 'committed'. No sim yet — the
-    // 'active' run sits until D3 wires simulateDungeonRun + resolution (sets ends_at).
+    // Snapshot runs that were already 'active' (from a prior request's flip) BEFORE flipping
+    // this request's 'starting' runs, so freshly-activated runs get a watchable window.
+    const activeRuns = await sql`
+      SELECT id, dungeon_id FROM pw_dungeon_runs WHERE status = 'active' ORDER BY id ASC
+    `
+
+    // STEP 1: starting → active.
     await sql`
       UPDATE pw_dungeon_runs
       SET status = 'active'
       WHERE status = 'starting' AND starts_at <= NOW()
     `
+
+    // STEP 2: resolve the snapshotted active runs.
+    for (const run of activeRuns) {
+      await resolveDungeonRun(run.id, run.dungeon_id)
+    }
   } finally {
     try { await sql`SELECT pg_advisory_unlock(${DUNGEON_LOCK_KEY})` } catch {}
   }
   return true
+}
+
+// Resolve a single active dungeon run: load committed party (regen-before-fight, equip
+// bonuses, potion loadout + daily allowances), run the multi-encounter sim, persist the
+// log + per-member results + real final HP. Mirrors processExpiredTitanEvents' resolution.
+async function resolveDungeonRun(runId, dungeonId) {
+  const partyRows = await sql`
+    SELECT p.user_id, p.health_loadout_item_id, p.health_loadout_qty,
+           p.energy_loadout_item_id, p.energy_loadout_qty,
+           u.username, u.faction, u.class,
+           ps.level, ps.attack, ps.defense, ps.agility,
+           ps.health, ps.health_max, ps.energy, ps.energy_max,
+           ps.energy_regen_base, ps.health_regen_base, ps.last_updated,
+           ps.drachma, ps.drachma_lifetime,
+           ps.health_potion_uses_today, ps.energy_potion_uses_today, ps.energy_potion_reset_day
+    FROM pw_dungeon_party p
+    JOIN pw_users u ON u.id = p.user_id
+    JOIN pw_player_stats ps ON ps.user_id = p.user_id
+    WHERE p.run_id = ${runId} AND p.status = 'committed'
+    ORDER BY p.slot_index ASC
+  `
+
+  if (partyRows.length === 0) {
+    // Degenerate (no committed members) — close the run out cleanly, no clears.
+    await sql`
+      UPDATE pw_dungeon_runs
+      SET status = 'resolved', result = 'wipe', wiped_at_encounter = NULL,
+          encounters_cleared = 0, ends_at = NOW(), rewards_distributed = FALSE
+      WHERE id = ${runId}
+    `
+    return
+  }
+
+  const dungeonRows = await sql`SELECT id, slug, name FROM pw_dungeons WHERE id = ${dungeonId}`
+  const dungeon = dungeonRows[0] || { slug: null, name: null }
+  const encounters = await sql`
+    SELECT id, encounter_index, encounter_type, name, enemy_count,
+           base_hp_multiplier, base_attack, base_defense,
+           ability_name, ability_type, ability_value
+    FROM pw_dungeon_encounters
+    WHERE dungeon_id = ${dungeonId}
+    ORDER BY encounter_index ASC
+  `
+
+  const userIds = partyRows.map(p => p.user_id)
+  const equipMap = await fetchEquipBonusesBatch(sql, userIds)
+
+  // Resolve the committed potion loadout items → consumable_effect / value.
+  const potionItemIds = [...new Set(
+    partyRows.flatMap(p => [p.health_loadout_item_id, p.energy_loadout_item_id]).filter(Boolean)
+  )]
+  const potionItems = {}
+  if (potionItemIds.length) {
+    const itemRows = await sql`
+      SELECT id, consumable_effect, consumable_value FROM pw_items WHERE id = ANY(${potionItemIds}::int[])
+    `
+    for (const it of itemRows) potionItems[it.id] = it
+  }
+
+  // loadout item ids per user — for the resolution-time inventory consume (see flag below).
+  const loadoutByUser = {}
+
+  const party = []
+  for (const p of partyRows) {
+    // Regen-before-fight (mirror the Titan fix): offline queuers fight at correct current
+    // HP/energy, and the base is reset so passive regen doesn't later erase combat damage.
+    const townships = await getPlayerTownships(sql, p.user_id)
+    const townshipBonuses = aggregateTownshipBonuses(townships)
+    const alliancePerks = await getAlliancePerks(sql, p.user_id)
+    const temples = await sql`
+      SELECT pt.upgrade_level, t.income_per_hour
+      FROM pw_player_temples pt
+      JOIN pw_temples t ON t.type = pt.temple_type
+      WHERE pt.user_id = ${p.user_id}
+    `
+    const regen = regenPlayer(p, temples, p.class, p.faction, townshipBonuses)
+    await sql`
+      UPDATE pw_player_stats SET
+        energy            = ${regen.energy},
+        health            = ${regen.health},
+        drachma           = ${regen.drachma},
+        drachma_lifetime  = ${regen.drachma_lifetime},
+        energy_regen_base = ${regen.energy_regen_base},
+        health_regen_base = ${regen.health_regen_base},
+        last_updated      = ${regen.last_updated}
+      WHERE user_id = ${p.user_id}
+    `
+
+    // Roll the daily potion counters over first so today's remaining room is accurate and the
+    // resolution-time increment lands on a same-day baseline.
+    let counters = {
+      energy_potion_reset_day:  p.energy_potion_reset_day,
+      energy_potion_uses_today: p.energy_potion_uses_today,
+      health_potion_uses_today: p.health_potion_uses_today,
+    }
+    counters = await resetDailyCountersIfNeeded(counters, p.user_id)
+
+    const hItem = p.health_loadout_item_id ? potionItems[p.health_loadout_item_id] : null
+    const eItem = p.energy_loadout_item_id ? potionItems[p.energy_loadout_item_id] : null
+    loadoutByUser[p.user_id] = {
+      healthItemId: p.health_loadout_item_id || null,
+      energyItemId: p.energy_loadout_item_id || null,
+    }
+
+    party.push({
+      user_id: p.user_id,
+      username: p.username,
+      level: p.level,
+      faction: p.faction,
+      class: p.class,
+      alliance_attack_bonus_pct: alliancePerks?.attack_bonus_pct || 0,
+      stats: {
+        attack:  p.attack  + Math.floor(townshipBonuses.flat_attack  || 0),
+        defense: p.defense + Math.floor(townshipBonuses.flat_defense || 0),
+        agility: p.agility || 0,
+        energy_max: p.energy_max,
+        level: p.level,
+      },
+      equipBonuses: equipMap[p.user_id],
+      health_max: p.health_max,
+      energy_max: p.energy_max,
+      current_hp: regen.health,
+      current_energy: regen.energy,
+      potion_health: hItem ? { item_id: p.health_loadout_item_id, effect: hItem.consumable_effect, value: Number(hItem.consumable_value) } : null,
+      potion_energy: eItem ? { item_id: p.energy_loadout_item_id, effect: eItem.consumable_effect, value: Number(eItem.consumable_value) } : null,
+      health_qty: Number(p.health_loadout_qty || 0),
+      energy_qty: Number(p.energy_loadout_qty || 0),
+      daily_health_room: Math.max(0, 10 - Number(counters.health_potion_uses_today || 0)),
+      daily_energy_room: Math.max(0, 10 - Number(counters.energy_potion_uses_today || 0)),
+    })
+  }
+
+  const runResult = simulateDungeonRun(dungeon, encounters, party)
+
+  await sql`
+    UPDATE pw_dungeon_runs SET
+      status              = 'resolved',
+      result              = ${runResult.result},
+      wiped_at_encounter  = ${runResult.wiped_at_encounter},
+      encounters_cleared  = ${runResult.encounters_cleared},
+      fight_log           = ${JSON.stringify(runResult.fight_log)}::jsonb,
+      ends_at             = NOW(),
+      rewards_distributed = FALSE
+    WHERE id = ${runId}
+  `
+
+  for (const pr of runResult.party) {
+    await sql`
+      UPDATE pw_dungeon_party SET
+        status              = 'fought',
+        damage_dealt        = ${pr.damage_dealt},
+        final_hp            = ${pr.final_hp},
+        potions_used_health = ${pr.potions_used.health},
+        potions_used_energy = ${pr.potions_used.energy}
+      WHERE run_id = ${runId} AND user_id = ${pr.user_id}
+    `
+    // Dungeon damage is real: persist final HP + reset health_regen_base so passive regen
+    // accrues from now (without it a stale base would over-credit and erase the damage).
+    // Auto-used potions count against the daily limits.
+    await sql`
+      UPDATE pw_player_stats SET
+        health                   = ${pr.final_hp},
+        energy                   = ${pr.energy_remaining},
+        health_regen_base        = NOW(),
+        health_potion_uses_today = health_potion_uses_today + ${pr.potions_used.health},
+        energy_potion_uses_today = energy_potion_uses_today + ${pr.potions_used.energy}
+      WHERE user_id = ${pr.user_id}
+    `
+
+    // POTION INVENTORY RESERVATION — FLAG for D5: D2 commit does NOT reserve loadout potions
+    // from pw_inventory (it only debits treasury + keys). The pw_dungeon_party loadout qty is
+    // authoritative for the sim, so D3 consumes the auto-used potions from inventory HERE at
+    // resolution. When D5 adds equip-time reservation (deducting at loadout-set), this block
+    // MUST be removed to avoid double-deduction. (Currently a no-op: no handler populates the
+    // loadout columns yet, so potions_used is always 0.)
+    const lo = loadoutByUser[pr.user_id]
+    if (lo?.healthItemId && pr.potions_used.health > 0) {
+      await sql`
+        DELETE FROM pw_inventory WHERE id IN (
+          SELECT id FROM pw_inventory
+          WHERE user_id = ${pr.user_id} AND item_id = ${lo.healthItemId}
+          ORDER BY id ASC LIMIT ${pr.potions_used.health}
+        )
+      `
+    }
+    if (lo?.energyItemId && pr.potions_used.energy > 0) {
+      await sql`
+        DELETE FROM pw_inventory WHERE id IN (
+          SELECT id FROM pw_inventory
+          WHERE user_id = ${pr.user_id} AND item_id = ${lo.energyItemId}
+          ORDER BY id ASC LIMIT ${pr.potions_used.energy}
+        )
+      `
+    }
+  }
 }
 
 // Shared validation for every join path: level gate, raid→alliance gate, and the
