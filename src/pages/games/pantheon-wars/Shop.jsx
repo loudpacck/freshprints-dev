@@ -28,12 +28,14 @@ const SLOT_GLYPH = {
 const FACTION_COLOR = { olympians: '#E8D080', aesir: '#8AB8D4', annunaki: '#C25E3C' }
 
 const STAT_DEFS = [
-  { key: 'attack_bonus',  label: 'ATK',   color: '#F97316', pct: false },
-  { key: 'defense_bonus', label: 'DEF',   color: '#22C55E', pct: false },
-  { key: 'agility_bonus', label: 'AGI',   color: '#A78BFA', pct: false },
-  { key: 'crit_chance',   label: 'CRIT',  color: '#F5D88B', pct: true  },
-  { key: 'block_chance',  label: 'BLOCK', color: '#8AB8D4', pct: true  },
-  { key: 'dodge_chance',  label: 'DODGE', color: '#4FD1C5', pct: true  },
+  { key: 'attack_bonus',  label: 'ATK',          color: '#F97316', pct: false },
+  { key: 'defense_bonus', label: 'DEF',          color: '#22C55E', pct: false },
+  { key: 'agility_bonus', label: 'AGI',          color: '#A78BFA', pct: false },
+  { key: 'crit_chance',   label: 'CRIT',         color: '#F5D88B', pct: true  },
+  { key: 'block_chance',  label: 'BLOCK',        color: '#8AB8D4', pct: true  },
+  { key: 'dodge_chance',  label: 'DODGE',        color: '#4FD1C5', pct: true  },
+  { key: 'lifesteal',     label: 'LIFESTEAL',    color: '#FF6B6B', pct: true  },
+  { key: 'energy_on_hit', label: 'ENERGY ON HIT',color: '#38BDF8', pct: true  },
 ]
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -452,6 +454,8 @@ function ShopItem({ item, player, currency, onBuy, buying, dailyLimitReached, eq
                 {item.crit_chance   > 0 && <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, color: '#F5D88B' }}>+{item.crit_chance}% CRIT</span>}
                 {item.block_chance  > 0 && <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, color: '#8AB8D4' }}>+{item.block_chance}% BLOCK</span>}
                 {item.dodge_chance  > 0 && <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, color: '#4FD1C5' }}>+{item.dodge_chance}% DODGE</span>}
+                {item.lifesteal     > 0 && <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, color: '#FF6B6B' }}>+{item.lifesteal}% LIFESTEAL</span>}
+                {item.energy_on_hit > 0 && <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, color: '#38BDF8' }}>+{item.energy_on_hit}% ENERGY</span>}
               </>
             )}
             <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, color: 'rgba(240,240,248,0.25)' }}>

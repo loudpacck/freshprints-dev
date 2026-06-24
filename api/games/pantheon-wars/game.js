@@ -367,6 +367,8 @@ async function handleInventory(req, res) {
         i.crit_chance,
         i.block_chance,
         i.dodge_chance,
+        i.lifesteal,
+        i.energy_on_hit,
         i.rarity,
         i.level_required,
         i.faction_exclusive,
@@ -446,8 +448,11 @@ async function handleEquip(req, res) {
     const inventory = await sql`
       SELECT inv.id AS inventory_id, inv.equipped, inv.acquired_at,
              i.id AS item_id, i.name, i.description, i.slot,
-             i.attack_bonus, i.defense_bonus, i.rarity,
-             i.level_required, i.faction_exclusive, i.sell_price
+             i.attack_bonus, i.defense_bonus, i.agility_bonus,
+             i.crit_chance, i.block_chance, i.dodge_chance,
+             i.lifesteal, i.energy_on_hit, i.rarity,
+             i.level_required, i.faction_exclusive, i.sell_price,
+             i.consumable_effect, i.consumable_value
       FROM pw_inventory inv
       JOIN pw_items i ON i.id = inv.item_id
       WHERE inv.user_id = ${req.userId}
@@ -490,8 +495,11 @@ async function handleUnequip(req, res) {
     const inventory = await sql`
       SELECT inv.id AS inventory_id, inv.equipped, inv.acquired_at,
              i.id AS item_id, i.name, i.description, i.slot,
-             i.attack_bonus, i.defense_bonus, i.rarity,
-             i.level_required, i.faction_exclusive, i.sell_price
+             i.attack_bonus, i.defense_bonus, i.agility_bonus,
+             i.crit_chance, i.block_chance, i.dodge_chance,
+             i.lifesteal, i.energy_on_hit, i.rarity,
+             i.level_required, i.faction_exclusive, i.sell_price,
+             i.consumable_effect, i.consumable_value
       FROM pw_inventory inv
       JOIN pw_items i ON i.id = inv.item_id
       WHERE inv.user_id = ${req.userId}
@@ -881,7 +889,7 @@ async function handleShop(req, res) {
     // Drachma always_available: all consumables with a buy_price, level-gated
     const always_available = await sql`
       SELECT id, name, description, slot, attack_bonus, defense_bonus, agility_bonus,
-             crit_chance, block_chance, dodge_chance,
+             crit_chance, block_chance, dodge_chance, lifesteal, energy_on_hit,
              rarity, level_required, faction_exclusive, buy_price, sell_price, glory_price,
              consumable_effect, consumable_value
       FROM pw_items
@@ -904,6 +912,7 @@ async function handleShop(req, res) {
       SELECT inv.id, i.name, i.slot, i.rarity,
              i.attack_bonus, i.defense_bonus, i.agility_bonus,
              i.crit_chance, i.block_chance, i.dodge_chance,
+             i.lifesteal, i.energy_on_hit,
              i.level_required, i.faction_exclusive
       FROM pw_inventory inv
       JOIN pw_items i ON i.id = inv.item_id

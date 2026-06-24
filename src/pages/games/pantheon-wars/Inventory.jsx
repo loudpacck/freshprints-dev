@@ -38,22 +38,29 @@ const SLOT_TYPE_COLOR = {
 }
 
 const BONUS_CHIPS = [
-  { key: 'attack_bonus',   label: 'ATK',    color: '#F97316' },
-  { key: 'defense_bonus',  label: 'DEF',    color: '#22C55E' },
-  { key: 'agility_bonus',  label: 'AGI',    color: '#A78BFA' },
-  { key: 'crit_chance',    label: 'CRIT%',  color: '#F5D88B' },
-  { key: 'block_chance',   label: 'BLOCK%', color: '#8AB8D4' },
-  { key: 'dodge_chance',   label: 'DODGE%', color: '#4FD1C5' },
+  { key: 'attack_bonus',   label: 'ATK',       color: '#F97316' },
+  { key: 'defense_bonus',  label: 'DEF',       color: '#22C55E' },
+  { key: 'agility_bonus',  label: 'AGI',       color: '#A78BFA' },
+  { key: 'crit_chance',    label: 'CRIT%',     color: '#F5D88B' },
+  { key: 'block_chance',   label: 'BLOCK%',    color: '#8AB8D4' },
+  { key: 'dodge_chance',   label: 'DODGE%',    color: '#4FD1C5' },
+  { key: 'lifesteal',      label: 'LIFESTEAL%',color: '#FF6B6B' },
+  { key: 'energy_on_hit',  label: 'ENERGY%',   color: '#38BDF8' },
 ]
 
 const STAT_DEFS = [
-  { key: 'attack_bonus',  label: 'ATK',   color: '#F97316', pct: false },
-  { key: 'defense_bonus', label: 'DEF',   color: '#22C55E', pct: false },
-  { key: 'agility_bonus', label: 'AGI',   color: '#A78BFA', pct: false },
-  { key: 'crit_chance',   label: 'CRIT',  color: '#F5D88B', pct: true  },
-  { key: 'block_chance',  label: 'BLOCK', color: '#8AB8D4', pct: true  },
-  { key: 'dodge_chance',  label: 'DODGE', color: '#4FD1C5', pct: true  },
+  { key: 'attack_bonus',  label: 'ATK',          color: '#F97316', pct: false },
+  { key: 'defense_bonus', label: 'DEF',          color: '#22C55E', pct: false },
+  { key: 'agility_bonus', label: 'AGI',          color: '#A78BFA', pct: false },
+  { key: 'crit_chance',   label: 'CRIT',         color: '#F5D88B', pct: true  },
+  { key: 'block_chance',  label: 'BLOCK',        color: '#8AB8D4', pct: true  },
+  { key: 'dodge_chance',  label: 'DODGE',        color: '#4FD1C5', pct: true  },
+  { key: 'lifesteal',     label: 'LIFESTEAL',    color: '#FF6B6B', pct: true  },
+  { key: 'energy_on_hit', label: 'ENERGY ON HIT',color: '#38BDF8', pct: true  },
 ]
+
+// Gear-only stats are hard-capped at 20% total across all equipped items.
+const GEAR_STAT_CAP = 20
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -203,8 +210,45 @@ function DiffRow({ invItem, equippedItem, visibleStats }) {
   )
 }
 
-function ComparisonPanelContent({ invItem, equippedItem }) {
+// Warns when equipping this item would push a gear-only stat (lifesteal/energy_on_hit)
+// past the 20% cap. Equipping is still allowed — this only surfaces the wasted overflow.
+// Projected total = current equipped total − whatever this slot holds now + this item.
+function CapWarnings({ invItem, equippedItem, gearTotals }) {
+  if (!gearTotals) return null
+  const defs = [
+    { key: 'lifesteal',     label: 'Lifesteal' },
+    { key: 'energy_on_hit', label: 'Energy on Hit' },
+  ]
+  const warns = []
+  for (const d of defs) {
+    const itemVal = invItem[d.key] || 0
+    if (itemVal <= 0) continue
+    const current   = gearTotals[d.key] || 0
+    const projected = current - (equippedItem?.[d.key] || 0) + itemVal
+    if (projected > GEAR_STAT_CAP) {
+      warns.push({ label: d.label, current, projected, wasted: projected - GEAR_STAT_CAP })
+    }
+  }
+  if (warns.length === 0) return null
+  return (
+    <div style={{ marginTop: 10, display: 'flex', flexDirection: 'column', gap: 5 }}>
+      {warns.map(w => (
+        <div key={w.label} style={{
+          fontFamily: "'IBM Plex Mono', monospace", fontSize: 9, lineHeight: 1.4,
+          color: '#F5B041',
+          background: 'rgba(245,176,65,0.08)', border: '1px solid rgba(245,176,65,0.25)',
+          borderRadius: 4, padding: '5px 7px',
+        }}>
+          {w.label}: {w.current}% → {w.projected}% (capped at {GEAR_STAT_CAP}%, {w.wasted}% wasted)
+        </div>
+      ))}
+    </div>
+  )
+}
+
+function ComparisonPanelContent({ invItem, equippedItem, gearTotals }) {
   const visibleStats = getVisibleStats(invItem, equippedItem)
+  // lifesteal/energy_on_hit are in STAT_DEFS, so any cap-relevant item has visibleStats.
   if (visibleStats.length === 0) return null
 
   return (
@@ -240,11 +284,12 @@ function ComparisonPanelContent({ invItem, equippedItem }) {
         />
       </div>
       <DiffRow invItem={invItem} equippedItem={equippedItem} visibleStats={visibleStats} />
+      <CapWarnings invItem={invItem} equippedItem={equippedItem} gearTotals={gearTotals} />
     </>
   )
 }
 
-function ComparisonPanel({ invItem, equippedItem, pos }) {
+function ComparisonPanel({ invItem, equippedItem, pos, gearTotals }) {
   return (
     <div style={{
       position: 'fixed',
@@ -256,12 +301,12 @@ function ComparisonPanel({ invItem, equippedItem, pos }) {
       boxShadow: '0 8px 32px rgba(0,0,0,0.8), 0 0 0 1px rgba(201,169,97,0.06)',
       pointerEvents: 'none',
     }}>
-      <ComparisonPanelContent invItem={invItem} equippedItem={equippedItem} />
+      <ComparisonPanelContent invItem={invItem} equippedItem={equippedItem} gearTotals={gearTotals} />
     </div>
   )
 }
 
-function MobileComparison({ invItem, equippedItem }) {
+function MobileComparison({ invItem, equippedItem, gearTotals }) {
   return (
     <div style={{
       marginTop: 8,
@@ -335,7 +380,7 @@ function EquipSlot({ slot, item }) {
   )
 }
 
-function ItemCard({ item, onEquip, onUnequip, onSell, onConsume, busy, energyUsesToday, equippedBySlot, isMobile, expandedItemId, onToggleExpand, selected, onToggleSelect }) {
+function ItemCard({ item, onEquip, onUnequip, onSell, onConsume, busy, energyUsesToday, equippedBySlot, gearTotals, isMobile, expandedItemId, onToggleExpand, selected, onToggleSelect }) {
   const wrapperRef = useRef(null)
   const [hovered,  setHovered]  = useState(false)
   const [panelPos, setPanelPos] = useState({ top: 0, left: 0 })
@@ -585,7 +630,7 @@ function ItemCard({ item, onEquip, onUnequip, onSell, onConsume, busy, energyUse
 
       {/* Desktop: floating comparison panel */}
       {hovered && !isMobile && showCompare && (
-        <ComparisonPanel invItem={item} equippedItem={equippedItem} pos={panelPos} />
+        <ComparisonPanel invItem={item} equippedItem={equippedItem} pos={panelPos} gearTotals={gearTotals} />
       )}
 
       {/* Mobile: inline animated comparison below the card */}
@@ -600,7 +645,7 @@ function ItemCard({ item, onEquip, onUnequip, onSell, onConsume, busy, energyUse
               transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
               style={{ overflow: 'hidden' }}
             >
-              <MobileComparison invItem={item} equippedItem={equippedItem} />
+              <MobileComparison invItem={item} equippedItem={equippedItem} gearTotals={gearTotals} />
             </motion.div>
           )}
         </AnimatePresence>
@@ -1059,6 +1104,14 @@ export default function Inventory() {
     if (item.equipped) equippedBySlot[item.slot] = item
   }
 
+  // Current equipped gear-only stat totals (raw, unclamped) — drives the equip-time
+  // cap warning. Computed from the inventory array so it stays correct after equip/unequip.
+  const equippedGear = inventory.filter(i => i.equipped)
+  const gearTotals = {
+    lifesteal:     equippedGear.reduce((s, i) => s + (i.lifesteal     || 0), 0),
+    energy_on_hit: equippedGear.reduce((s, i) => s + (i.energy_on_hit || 0), 0),
+  }
+
   // Filter list (ALL excludes consumables — they show in their own section)
   const equipmentItems  = inventory.filter(i => i.slot !== 'consumable')
   const consumableItems = inventory.filter(i => i.slot === 'consumable')
@@ -1132,7 +1185,7 @@ export default function Inventory() {
             <motion.div initial="hidden" animate="visible" variants={{ hidden: {}, visible: { transition: { staggerChildren: 0.06 } } }}>
 
               {/* Equipment bonuses summary */}
-              {BONUS_CHIPS.some(b => (bonuses[b.key.replace('_bonus', '')] || bonuses[b.key] || 0) > 0) && (
+              {[bonuses.attack, bonuses.defense, bonuses.agility, bonuses.crit, bonuses.block, bonuses.dodge, bonuses.lifesteal, bonuses.energy_on_hit].some(v => (v || 0) > 0) && (
                 <motion.div
                   variants={fadeUp}
                   className="pw-bonus-row"
@@ -1157,14 +1210,24 @@ export default function Inventory() {
                     {bonuses.agility > 0 && (
                       <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 12, color: '#A78BFA' }}>+{bonuses.agility} AGI</span>
                     )}
-                    {bonuses.crit_chance > 0 && (
-                      <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 12, color: '#F5D88B' }}>+{bonuses.crit_chance}% CRIT</span>
+                    {bonuses.crit > 0 && (
+                      <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 12, color: '#F5D88B' }}>+{bonuses.crit}% CRIT</span>
                     )}
-                    {bonuses.block_chance > 0 && (
-                      <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 12, color: '#8AB8D4' }}>+{bonuses.block_chance}% BLOCK</span>
+                    {bonuses.block > 0 && (
+                      <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 12, color: '#8AB8D4' }}>+{bonuses.block}% BLOCK</span>
                     )}
-                    {bonuses.dodge_chance > 0 && (
-                      <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 12, color: '#4FD1C5' }}>+{bonuses.dodge_chance}% DODGE</span>
+                    {bonuses.dodge > 0 && (
+                      <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 12, color: '#4FD1C5' }}>+{bonuses.dodge}% DODGE</span>
+                    )}
+                    {bonuses.lifesteal > 0 && (
+                      <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 12, color: '#FF6B6B' }}>
+                        +{bonuses.lifesteal}% LIFESTEAL{(bonuses.lifesteal_raw ?? bonuses.lifesteal) > GEAR_STAT_CAP ? ' (capped)' : ''}
+                      </span>
+                    )}
+                    {bonuses.energy_on_hit > 0 && (
+                      <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 12, color: '#38BDF8' }}>
+                        +{bonuses.energy_on_hit}% ENERGY{(bonuses.energy_on_hit_raw ?? bonuses.energy_on_hit) > GEAR_STAT_CAP ? ' (capped)' : ''}
+                      </span>
                     )}
                   </div>
                 </motion.div>
@@ -1307,6 +1370,7 @@ export default function Inventory() {
                         busy={busy}
                         energyUsesToday={energyUsesToday}
                         equippedBySlot={equippedBySlot}
+                        gearTotals={gearTotals}
                         isMobile={isMobile}
                         expandedItemId={expandedItemId}
                         onToggleExpand={handleToggleExpand}
