@@ -5564,7 +5564,10 @@ async function processExpiredDungeonRuns(sql) {
 // rolls loot/keys/drachma and grants them, CAS-guarded on rewards_distributed).
 async function distributeResolvedDungeonRun(run) {
   const party = await sql`
-    SELECT user_id, damage_dealt, final_hp
+    SELECT user_id, damage_dealt, final_hp,
+           health_loadout_item_id, health_loadout_qty,
+           energy_loadout_item_id, energy_loadout_qty,
+           potions_used_health, potions_used_energy
     FROM pw_dungeon_party
     WHERE run_id = ${run.id} AND status = 'fought'
     ORDER BY slot_index ASC
