@@ -5956,13 +5956,29 @@ async function buildRunPayload(runId, viewerId) {
   const run = runRows[0]
 
   const partyRows = await sql`
-    SELECT p.user_id, p.slot_index, p.status, u.username, ps.level
+    SELECT
+      p.user_id, p.slot_index, p.status, u.username, ps.level,
+      p.health_loadout_item_id, p.health_loadout_qty,
+      p.energy_loadout_item_id, p.energy_loadout_qty,
+      hi.name AS health_item_name, ei.name AS energy_item_name
     FROM pw_dungeon_party p
     JOIN pw_users u ON u.id = p.user_id
     LEFT JOIN pw_player_stats ps ON ps.user_id = p.user_id
+    LEFT JOIN pw_items hi ON hi.id = p.health_loadout_item_id
+    LEFT JOIN pw_items ei ON ei.id = p.energy_loadout_item_id
     WHERE p.run_id = ${runId} AND p.status IN ('queued','committed')
     ORDER BY p.slot_index ASC, p.joined_at ASC
   `
+
+  const viewerRow = partyRows.find(p => p.user_id === viewerId)
+  const viewerLoadout = {
+    health_item_id: viewerRow?.health_loadout_item_id ?? null,
+    health_qty: viewerRow?.health_loadout_qty ?? 0,
+    health_item_name: viewerRow?.health_item_name ?? null,
+    energy_item_id: viewerRow?.energy_loadout_item_id ?? null,
+    energy_qty: viewerRow?.energy_loadout_qty ?? 0,
+    energy_item_name: viewerRow?.energy_item_name ?? null,
+  }
 
   let votekicks = null
   if (run.formation_type === 'auto') {
@@ -6015,6 +6031,7 @@ async function buildRunPayload(runId, viewerId) {
     })),
     votekicks,
     viewer_user_id: viewerId,
+    viewer_loadout: viewerLoadout,
   }
 }
 
