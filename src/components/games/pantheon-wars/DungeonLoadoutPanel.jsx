@@ -61,7 +61,7 @@ function LoadoutSlot({ label, color, items, selectedId, qty, onSelect, onQty }) 
         >
           <option value="">— none —</option>
           {items.map(i => (
-            <option key={i.item_id} value={i.item_id}>{i.name} ×{i.count}</option>
+            <option key={i.item_id} value={i.item_id}>{i.label ?? `${i.name} ×${i.count}`}</option>
           ))}
         </select>
         <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
@@ -100,7 +100,7 @@ export default function DungeonLoadoutPanel({ run, navigate, onRefetch, onToast 
     setHealthQty(run.viewer_loadout?.health_qty ?? 0)
     setEnergyItemId(run.viewer_loadout?.energy_item_id ?? null)
     setEnergyQty(run.viewer_loadout?.energy_qty ?? 0)
-  }, [run.viewer_loadout])
+  }, [run.viewer_loadout?.health_item_id, run.viewer_loadout?.health_qty, run.viewer_loadout?.energy_item_id, run.viewer_loadout?.energy_qty])
 
   const fetchInventory = useCallback(async () => {
     try {
@@ -118,6 +118,29 @@ export default function DungeonLoadoutPanel({ run, navigate, onRefetch, onToast 
   const consumables   = groupConsumables(inventory)
   const healthItems   = consumables.filter(c => HEALTH_EFFECTS.has(c.effect))
   const energyItems   = consumables.filter(c => c.effect === 'restore_energy_pct')
+
+  // Merge reserved potions from viewer_loadout so the saved selection always
+  // has a matching option even after reserve-at-save removes them from inventory.
+  const vl = run.viewer_loadout
+  const mergedHealthItems = [...healthItems]
+  if (vl?.health_item_id && !mergedHealthItems.find(i => String(i.item_id) === String(vl.health_item_id))) {
+    mergedHealthItems.push({
+      item_id: vl.health_item_id,
+      name: vl.health_item_name ?? 'Health Potion',
+      count: vl.health_qty,
+      label: `${vl.health_item_name ?? 'Health Potion'} ×${vl.health_qty} (reserved)`,
+    })
+  }
+  const mergedEnergyItems = [...energyItems]
+  if (vl?.energy_item_id && !mergedEnergyItems.find(i => String(i.item_id) === String(vl.energy_item_id))) {
+    mergedEnergyItems.push({
+      item_id: vl.energy_item_id,
+      name: vl.energy_item_name ?? 'Energy Potion',
+      count: vl.energy_qty,
+      label: `${vl.energy_item_name ?? 'Energy Potion'} ×${vl.energy_qty} (reserved)`,
+    })
+  }
+
   const filledSlots   = run.party?.length ?? 0
   const nearFull      = filledSlots >= bracket - 1
   const hasLoadout    = (healthItemId && healthQty > 0) || (energyItemId && energyQty > 0)
@@ -222,7 +245,7 @@ export default function DungeonLoadoutPanel({ run, navigate, onRefetch, onToast 
           <LoadoutSlot
             label="Health Potion"
             color="#22C55E"
-            items={healthItems}
+            items={mergedHealthItems}
             selectedId={healthItemId}
             qty={healthQty}
             onSelect={setHealthItemId}
@@ -231,7 +254,7 @@ export default function DungeonLoadoutPanel({ run, navigate, onRefetch, onToast 
           <LoadoutSlot
             label="Energy Potion"
             color="#38BDF8"
-            items={energyItems}
+            items={mergedEnergyItems}
             selectedId={energyItemId}
             qty={energyQty}
             onSelect={setEnergyItemId}
