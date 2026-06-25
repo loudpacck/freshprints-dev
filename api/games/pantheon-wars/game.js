@@ -5472,9 +5472,12 @@ async function handleDungeonList(req, res) {
         d.alliance_required, d.treasury_cost, d.key_item_id,
         d.encounter_count, d.sort_order,
         (d.key_item_id IS NOT NULL) AS key_required,
-        k.name AS key_item_name
+        k.name AS key_item_name,
+        d.drops_key_item_id,
+        dk.name AS drops_key_item_name
       FROM pw_dungeons d
-      LEFT JOIN pw_items k ON k.id = d.key_item_id
+      LEFT JOIN pw_items k  ON k.id  = d.key_item_id
+      LEFT JOIN pw_items dk ON dk.id = d.drops_key_item_id
       ORDER BY d.bracket ASC, d.difficulty ASC, d.sort_order ASC
     `
     return res.status(200).json({ dungeons: rows })
@@ -5650,9 +5653,6 @@ async function resolveDungeonRun(runId, dungeonId) {
     for (const it of itemRows) potionItems[it.id] = it
   }
 
-  // loadout item ids per user — for the resolution-time inventory consume (see flag below).
-  const loadoutByUser = {}
-
   const party = []
   for (const p of partyRows) {
     // Regen-before-fight (mirror the Titan fix): offline queuers fight at correct current
@@ -5690,10 +5690,6 @@ async function resolveDungeonRun(runId, dungeonId) {
 
     const hItem = p.health_loadout_item_id ? potionItems[p.health_loadout_item_id] : null
     const eItem = p.energy_loadout_item_id ? potionItems[p.energy_loadout_item_id] : null
-    loadoutByUser[p.user_id] = {
-      healthItemId: p.health_loadout_item_id || null,
-      energyItemId: p.energy_loadout_item_id || null,
-    }
 
     party.push({
       user_id: p.user_id,
@@ -5760,31 +5756,7 @@ async function resolveDungeonRun(runId, dungeonId) {
       WHERE user_id = ${pr.user_id}
     `
 
-    // POTION INVENTORY RESERVATION — FLAG for D5: D2 commit does NOT reserve loadout potions
-    // from pw_inventory (it only debits treasury + keys). The pw_dungeon_party loadout qty is
-    // authoritative for the sim, so D3 consumes the auto-used potions from inventory HERE at
-    // resolution. When D5 adds equip-time reservation (deducting at loadout-set), this block
-    // MUST be removed to avoid double-deduction. (Currently a no-op: no handler populates the
-    // loadout columns yet, so potions_used is always 0.)
-    const lo = loadoutByUser[pr.user_id]
-    if (lo?.healthItemId && pr.potions_used.health > 0) {
-      await sql`
-        DELETE FROM pw_inventory WHERE id IN (
-          SELECT id FROM pw_inventory
-          WHERE user_id = ${pr.user_id} AND item_id = ${lo.healthItemId}
-          ORDER BY id ASC LIMIT ${pr.potions_used.health}
-        )
-      `
-    }
-    if (lo?.energyItemId && pr.potions_used.energy > 0) {
-      await sql`
-        DELETE FROM pw_inventory WHERE id IN (
-          SELECT id FROM pw_inventory
-          WHERE user_id = ${pr.user_id} AND item_id = ${lo.energyItemId}
-          ORDER BY id ASC LIMIT ${pr.potions_used.energy}
-        )
-      `
-    }
+    // Potions reserved at set-time (dungeon_set_loadout) — inventory already debited; no DELETE needed here.
   }
 }
 
@@ -6291,9 +6263,26 @@ async function handleDungeonLeave(req, res) {
     const removed = await sql`
       DELETE FROM pw_dungeon_party
       WHERE run_id = ${runId} AND user_id = ${req.userId} AND status = 'queued'
-      RETURNING id
+      RETURNING id, health_loadout_item_id, health_loadout_qty, energy_loadout_item_id, energy_loadout_qty
     `
     if (removed.length === 0) return res.status(400).json({ error: 'not_in_run' })
+
+    // Return any potions that were reserved at set-time.
+    const leaverRow = removed[0]
+    if (leaverRow.health_loadout_item_id && Number(leaverRow.health_loadout_qty) > 0) {
+      await sql`
+        INSERT INTO pw_inventory (user_id, item_id)
+        SELECT ${req.userId}, ${leaverRow.health_loadout_item_id}
+        FROM generate_series(1, ${Number(leaverRow.health_loadout_qty)})
+      `
+    }
+    if (leaverRow.energy_loadout_item_id && Number(leaverRow.energy_loadout_qty) > 0) {
+      await sql`
+        INSERT INTO pw_inventory (user_id, item_id)
+        SELECT ${req.userId}, ${leaverRow.energy_loadout_item_id}
+        FROM generate_series(1, ${Number(leaverRow.energy_loadout_qty)})
+      `
+    }
 
     // Clear any votekick rows the leaver was involved in (as voter or target).
     await sql`
@@ -6378,10 +6367,25 @@ async function handleDungeonVotekick(req, res) {
       const removed = await sql`
         DELETE FROM pw_dungeon_party
         WHERE run_id = ${runId} AND user_id = ${targetUserId} AND status = 'queued'
-        RETURNING id
+        RETURNING id, health_loadout_item_id, health_loadout_qty, energy_loadout_item_id, energy_loadout_qty
       `
       if (removed.length > 0) {
         kicked = true
+        const kickedRow = removed[0]
+        if (kickedRow.health_loadout_item_id && Number(kickedRow.health_loadout_qty) > 0) {
+          await sql`
+            INSERT INTO pw_inventory (user_id, item_id)
+            SELECT ${targetUserId}, ${kickedRow.health_loadout_item_id}
+            FROM generate_series(1, ${Number(kickedRow.health_loadout_qty)})
+          `
+        }
+        if (kickedRow.energy_loadout_item_id && Number(kickedRow.energy_loadout_qty) > 0) {
+          await sql`
+            INSERT INTO pw_inventory (user_id, item_id)
+            SELECT ${targetUserId}, ${kickedRow.energy_loadout_item_id}
+            FROM generate_series(1, ${Number(kickedRow.energy_loadout_qty)})
+          `
+        }
         await sql`
           DELETE FROM pw_dungeon_votekicks
           WHERE run_id = ${runId}
@@ -6420,9 +6424,25 @@ async function handleDungeonGroupKick(req, res) {
     const removed = await sql`
       DELETE FROM pw_dungeon_party
       WHERE run_id = ${runId} AND user_id = ${targetUserId} AND status = 'queued'
-      RETURNING id
+      RETURNING id, health_loadout_item_id, health_loadout_qty, energy_loadout_item_id, energy_loadout_qty
     `
     if (removed.length === 0) return res.status(400).json({ error: 'target_not_in_run' })
+
+    const kickedRow = removed[0]
+    if (kickedRow.health_loadout_item_id && Number(kickedRow.health_loadout_qty) > 0) {
+      await sql`
+        INSERT INTO pw_inventory (user_id, item_id)
+        SELECT ${targetUserId}, ${kickedRow.health_loadout_item_id}
+        FROM generate_series(1, ${Number(kickedRow.health_loadout_qty)})
+      `
+    }
+    if (kickedRow.energy_loadout_item_id && Number(kickedRow.energy_loadout_qty) > 0) {
+      await sql`
+        INSERT INTO pw_inventory (user_id, item_id)
+        SELECT ${targetUserId}, ${kickedRow.energy_loadout_item_id}
+        FROM generate_series(1, ${Number(kickedRow.energy_loadout_qty)})
+      `
+    }
 
     await sql`
       DELETE FROM pw_dungeon_votekicks
@@ -6437,7 +6457,215 @@ async function handleDungeonGroupKick(req, res) {
   }
 }
 
-// (h) dungeon_my_run (GET) — the caller's active run (forming/starting/active) or null.
+// (h) dungeon_set_loadout (POST) — { run_id, health_item_id, health_qty, energy_item_id, energy_qty }
+// Reserves potions at set-time: deducts from pw_inventory immediately; returns the old reservation first.
+// Locked to status 'forming' or 'starting' — combat (active/fought) freezes the loadout.
+async function handleDungeonSetLoadout(req, res) {
+  if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' })
+  const runId = Number(req.body?.run_id)
+  if (!Number.isInteger(runId) || runId <= 0) return res.status(400).json({ error: 'invalid_run_id' })
+
+  const rawHealthId  = req.body?.health_item_id
+  const rawEnergyId  = req.body?.energy_item_id
+  const healthItemId = rawHealthId  != null ? Number(rawHealthId)  : null
+  const energyItemId = rawEnergyId  != null ? Number(rawEnergyId)  : null
+  const healthQty    = Number(req.body?.health_qty ?? 0)
+  const energyQty    = Number(req.body?.energy_qty ?? 0)
+
+  if (!Number.isInteger(healthQty) || healthQty < 0 || healthQty > 10)
+    return res.status(400).json({ error: 'invalid_loadout' })
+  if (!Number.isInteger(energyQty) || energyQty < 0 || energyQty > 10)
+    return res.status(400).json({ error: 'invalid_loadout' })
+  if (healthItemId !== null && (!Number.isInteger(healthItemId) || healthItemId <= 0))
+    return res.status(400).json({ error: 'invalid_loadout' })
+  if (energyItemId !== null && (!Number.isInteger(energyItemId) || energyItemId <= 0))
+    return res.status(400).json({ error: 'invalid_loadout' })
+  // item and qty must be set together
+  if ((healthItemId === null) !== (healthQty === 0))
+    return res.status(400).json({ error: 'invalid_loadout' })
+  if ((energyItemId === null) !== (energyQty === 0))
+    return res.status(400).json({ error: 'invalid_loadout' })
+
+  try {
+    const runRows = await sql`SELECT id, status FROM pw_dungeon_runs WHERE id = ${runId}`
+    if (runRows.length === 0) return res.status(404).json({ error: 'run_not_found' })
+    const run = runRows[0]
+    if (run.status !== 'forming' && run.status !== 'starting')
+      return res.status(400).json({ error: 'run_already_started' })
+
+    const partyRows = await sql`
+      SELECT health_loadout_item_id, health_loadout_qty,
+             energy_loadout_item_id, energy_loadout_qty
+      FROM pw_dungeon_party
+      WHERE run_id = ${runId} AND user_id = ${req.userId} AND status IN ('queued','committed')
+    `
+    if (partyRows.length === 0) return res.status(400).json({ error: 'not_in_run' })
+    const cur = partyRows[0]
+    const oldHealthItemId = cur.health_loadout_item_id
+    const oldHealthQty    = Number(cur.health_loadout_qty || 0)
+    const oldEnergyItemId = cur.energy_loadout_item_id
+    const oldEnergyQty    = Number(cur.energy_loadout_qty || 0)
+
+    // Validate health item type and inventory availability.
+    if (healthItemId !== null) {
+      const hItemRows = await sql`
+        SELECT consumable_effect FROM pw_items
+        WHERE id = ${healthItemId} AND slot = 'consumable'
+      `
+      if (hItemRows.length === 0) return res.status(400).json({ error: 'wrong_item_type' })
+      const effect = hItemRows[0].consumable_effect
+      if (!['restore_health_pct', 'restore_health', 'restore_full'].includes(effect))
+        return res.status(400).json({ error: 'wrong_item_type' })
+      const invRows = await sql`
+        SELECT COUNT(*)::int AS cnt FROM pw_inventory
+        WHERE user_id = ${req.userId} AND item_id = ${healthItemId}
+      `
+      // Account for the old reservation that will be returned before deduction.
+      let available = Number(invRows[0].cnt)
+      if (String(healthItemId) === String(oldHealthItemId)) available += oldHealthQty
+      if (available < healthQty) return res.status(400).json({ error: 'insufficient_potions' })
+    }
+
+    // Validate energy item type and inventory availability.
+    if (energyItemId !== null) {
+      const eItemRows = await sql`
+        SELECT consumable_effect FROM pw_items
+        WHERE id = ${energyItemId} AND slot = 'consumable'
+      `
+      if (eItemRows.length === 0) return res.status(400).json({ error: 'wrong_item_type' })
+      if (eItemRows[0].consumable_effect !== 'restore_energy_pct')
+        return res.status(400).json({ error: 'wrong_item_type' })
+      const invRows = await sql`
+        SELECT COUNT(*)::int AS cnt FROM pw_inventory
+        WHERE user_id = ${req.userId} AND item_id = ${energyItemId}
+      `
+      let available = Number(invRows[0].cnt)
+      if (String(energyItemId) === String(oldEnergyItemId)) available += oldEnergyQty
+      if (available < energyQty) return res.status(400).json({ error: 'insufficient_potions' })
+    }
+
+    // Return previously reserved potions to inventory.
+    if (oldHealthItemId && oldHealthQty > 0) {
+      await sql`
+        INSERT INTO pw_inventory (user_id, item_id)
+        SELECT ${req.userId}, ${oldHealthItemId}
+        FROM generate_series(1, ${oldHealthQty})
+      `
+    }
+    if (oldEnergyItemId && oldEnergyQty > 0) {
+      await sql`
+        INSERT INTO pw_inventory (user_id, item_id)
+        SELECT ${req.userId}, ${oldEnergyItemId}
+        FROM generate_series(1, ${oldEnergyQty})
+      `
+    }
+
+    // Deduct new potions from inventory.
+    if (healthItemId !== null && healthQty > 0) {
+      await sql`
+        DELETE FROM pw_inventory WHERE id IN (
+          SELECT id FROM pw_inventory
+          WHERE user_id = ${req.userId} AND item_id = ${healthItemId}
+          ORDER BY id ASC LIMIT ${healthQty}
+        )
+      `
+    }
+    if (energyItemId !== null && energyQty > 0) {
+      await sql`
+        DELETE FROM pw_inventory WHERE id IN (
+          SELECT id FROM pw_inventory
+          WHERE user_id = ${req.userId} AND item_id = ${energyItemId}
+          ORDER BY id ASC LIMIT ${energyQty}
+        )
+      `
+    }
+
+    // Persist new loadout on the party row.
+    await sql`
+      UPDATE pw_dungeon_party SET
+        health_loadout_item_id = ${healthItemId},
+        health_loadout_qty     = ${healthQty},
+        energy_loadout_item_id = ${energyItemId},
+        energy_loadout_qty     = ${energyQty}
+      WHERE run_id = ${runId} AND user_id = ${req.userId}
+    `
+
+    return res.status(200).json({
+      ok: true,
+      loadout: { health_item_id: healthItemId, health_qty: healthQty, energy_item_id: energyItemId, energy_qty: energyQty },
+    })
+  } catch (err) {
+    console.error('dungeon_set_loadout error:', err)
+    return res.status(500).json({ error: 'server_error' })
+  }
+}
+
+// (i) dungeon_my_result (GET) — the caller's most recent fought run result + pending reward.
+// Returns { result: null } for players who have never completed a dungeon.
+async function handleDungeonMyResult(req, res) {
+  if (req.method !== 'GET') return res.status(405).json({ error: 'Method not allowed' })
+  try {
+    const partyRows = await sql`
+      SELECT p.run_id, p.final_hp, p.damage_dealt, p.potions_used_health, p.potions_used_energy
+      FROM pw_dungeon_party p
+      WHERE p.user_id = ${req.userId} AND p.status = 'fought'
+      ORDER BY p.joined_at DESC
+      LIMIT 1
+    `
+    if (partyRows.length === 0) return res.status(200).json({ result: null })
+
+    const p = partyRows[0]
+    const runId = p.run_id
+
+    const runRows = await sql`
+      SELECT r.id, r.result, r.wiped_at_encounter, r.encounters_cleared,
+             d.name AS dungeon_name, d.slug AS dungeon_slug,
+             d.bracket AS dungeon_bracket, d.difficulty AS dungeon_difficulty,
+             d.encounter_count
+      FROM pw_dungeon_runs r
+      JOIN pw_dungeons d ON d.id = r.dungeon_id
+      WHERE r.id = ${runId}
+    `
+    if (runRows.length === 0) return res.status(200).json({ result: null })
+    const run = runRows[0]
+
+    const rewardRows = await sql`
+      SELECT reward_payload, acknowledged_at
+      FROM pw_pending_rewards
+      WHERE user_id = ${req.userId} AND reward_type = 'dungeon' AND source_id = ${runId}
+      ORDER BY id DESC
+      LIMIT 1
+    `
+    const reward = rewardRows.length > 0
+      ? { payload: rewardRows[0].reward_payload, acknowledged: rewardRows[0].acknowledged_at != null }
+      : null
+
+    return res.status(200).json({
+      result: {
+        run_id: runId,
+        dungeon: {
+          name: run.dungeon_name,
+          slug: run.dungeon_slug,
+          bracket: Number(run.dungeon_bracket),
+          difficulty: run.dungeon_difficulty,
+        },
+        outcome: run.result === 'victory' ? 'victory' : 'wipe',
+        encounters_cleared: Number(run.encounters_cleared || 0),
+        encounter_count: Number(run.encounter_count || 0),
+        final_hp: Number(p.final_hp || 0),
+        damage_dealt: Number(p.damage_dealt || 0),
+        potions_used_health: Number(p.potions_used_health || 0),
+        potions_used_energy: Number(p.potions_used_energy || 0),
+        reward,
+      },
+    })
+  } catch (err) {
+    console.error('dungeon_my_result error:', err)
+    return res.status(500).json({ error: 'server_error' })
+  }
+}
+
+// (j) dungeon_my_run (GET) — the caller's active run (forming/starting/active) or null.
 async function handleDungeonMyRun(req, res) {
   if (req.method !== 'GET') return res.status(405).json({ error: 'Method not allowed' })
   try {
@@ -6557,7 +6785,9 @@ const innerHandler = requireUserWithModCheck(async function handler(req, res) {
   if (action === 'dungeon_leave')                 return handleDungeonLeave(req, res)
   if (action === 'dungeon_votekick')              return handleDungeonVotekick(req, res)
   if (action === 'dungeon_group_kick')            return handleDungeonGroupKick(req, res)
+  if (action === 'dungeon_set_loadout')           return handleDungeonSetLoadout(req, res)
   if (action === 'dungeon_my_run')                return handleDungeonMyRun(req, res)
+  if (action === 'dungeon_my_result')             return handleDungeonMyResult(req, res)
   return res.status(400).json({ error: 'Unknown action' })
 })
 
