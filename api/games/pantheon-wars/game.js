@@ -6459,7 +6459,9 @@ async function handleDungeonGroupKick(req, res) {
 
 // (h) dungeon_set_loadout (POST) — { run_id, health_item_id, health_qty, energy_item_id, energy_qty }
 // Reserves potions at set-time: deducts from pw_inventory immediately; returns the old reservation first.
-// Locked to status 'forming' or 'starting' — combat (active/fought) freezes the loadout.
+// Locked to status 'forming' only — loadout finalises at commit (starting). Exit handlers only
+// return reserved potions for 'forming' exits, so allowing set_loadout during 'starting' would
+// create an unrecoverable potion deduction. Combat (active/fought) also rejects, as before.
 async function handleDungeonSetLoadout(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' })
   const runId = Number(req.body?.run_id)
@@ -6490,7 +6492,7 @@ async function handleDungeonSetLoadout(req, res) {
     const runRows = await sql`SELECT id, status FROM pw_dungeon_runs WHERE id = ${runId}`
     if (runRows.length === 0) return res.status(404).json({ error: 'run_not_found' })
     const run = runRows[0]
-    if (run.status !== 'forming' && run.status !== 'starting')
+    if (run.status !== 'forming')
       return res.status(400).json({ error: 'run_already_started' })
 
     const partyRows = await sql`
