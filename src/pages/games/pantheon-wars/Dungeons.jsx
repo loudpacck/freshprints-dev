@@ -776,7 +776,9 @@ export default function Dungeons() {
       const res = await fetch('/api/games/pantheon-wars/game?action=dungeon_my_run')
       if (res.status === 401) { navigate('/games/pantheon-wars/login', { replace: true }); return }
       const data = await res.json()
-      setRun(data.run ?? null)
+      const runValue = data.run ?? null
+      setRun(runValue)
+      return runValue
     } catch {} finally {
       setRunLoading(false)
     }
@@ -817,9 +819,21 @@ export default function Dungeons() {
       .catch(() => setBrowseInventory([]))
   }, [isOnBrowse])
 
-  // Initial fetch
+  // Initial fetch + mount check for off-screen resolved run
   useEffect(() => {
-    fetchMyRun()
+    fetchMyRun().then(runValue => {
+      // Only check when there's no live run — transition path handles the on-screen case
+      if (runValue === null) {
+        fetch('/api/games/pantheon-wars/game?action=dungeon_my_result')
+          .then(r => r.ok ? r.json() : null)
+          .then(data => {
+            if (data?.result?.reward && !data.result.reward.acknowledged) {
+              setResult(data.result)
+            }
+          })
+          .catch(() => {})
+      }
+    })
     fetch('/api/games/pantheon-wars/game?action=dungeon_list')
       .then(r => r.ok ? r.json() : null)
       .then(data => { if (data) setDungeons(data.dungeons || []) })
@@ -828,6 +842,17 @@ export default function Dungeons() {
   }, [fetchMyRun])
 
   function showToast(message, color = GOLD) { setToast({ message, color }) }
+
+  function handleResultClose() {
+    const rewardId = result?.reward?.reward_id
+    setResult(null)
+    if (rewardId) {
+      fetch('/api/games/pantheon-wars/game?action=acknowledge_reward', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ reward_id: rewardId }),
+      }).catch(() => {}) // best-effort
+    }
+  }
 
   async function applyPendingLoadout(runId) {
     const { healthItemId, healthQty, energyItemId, energyQty } = pendingLoadout
@@ -1037,7 +1062,7 @@ export default function Dungeons() {
 
       {/* Result modal */}
       <AnimatePresence>
-        {result && <ResultModal result={result} onClose={() => setResult(null)} />}
+        {result && <ResultModal result={result} onClose={handleResultClose} />}
       </AnimatePresence>
 
       {/* Create Group modal */}

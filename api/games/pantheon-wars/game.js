@@ -6652,14 +6652,14 @@ async function handleDungeonMyResult(req, res) {
     const run = runRows[0]
 
     const rewardRows = await sql`
-      SELECT reward_payload, acknowledged_at
+      SELECT id, reward_payload, acknowledged_at
       FROM pw_pending_rewards
       WHERE user_id = ${req.userId} AND reward_type = 'dungeon' AND source_id = ${runId}
       ORDER BY id DESC
       LIMIT 1
     `
     const reward = rewardRows.length > 0
-      ? { payload: rewardRows[0].reward_payload, acknowledged: rewardRows[0].acknowledged_at != null }
+      ? { reward_id: rewardRows[0].id, payload: rewardRows[0].reward_payload, acknowledged: rewardRows[0].acknowledged_at != null }
       : null
 
     return res.status(200).json({
