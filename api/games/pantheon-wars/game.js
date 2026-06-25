@@ -18,7 +18,7 @@ import {
   getTownshipBonusValue, getTownshipUpgradeCost, getTownshipUpgradeSeconds,
   rollTitanLootRarity,
   processExpiredTitanEvents,
-  fetchEquipBonusesBatch, simulateDungeonRun,
+  fetchEquipBonusesBatch, simulateDungeonRun, distributeDungeonRewards,
   checkAndCompleteCrafts, getCraftCycleSeconds, rollCraftRarity,
   checkChatRateLimit,
   getUserAllianceMembership, requireAllianceRank,
@@ -5506,11 +5506,13 @@ async function processExpiredDungeonRuns(sql) {
   const checkRows = await sql`
     SELECT
       (SELECT COUNT(*) FROM pw_dungeon_runs WHERE status = 'starting' AND starts_at <= NOW()) AS to_start,
-      (SELECT COUNT(*) FROM pw_dungeon_runs WHERE status = 'active') AS to_resolve
+      (SELECT COUNT(*) FROM pw_dungeon_runs WHERE status = 'active') AS to_resolve,
+      (SELECT COUNT(*) FROM pw_dungeon_runs WHERE status = 'resolved' AND rewards_distributed = FALSE) AS to_distribute
   `
   const toStart = Number(checkRows[0]?.to_start || 0)
   const toResolve = Number(checkRows[0]?.to_resolve || 0)
-  if (toStart === 0 && toResolve === 0) return false
+  const toDistribute = Number(checkRows[0]?.to_distribute || 0)
+  if (toStart === 0 && toResolve === 0 && toDistribute === 0) return false
 
   const lockRows = await sql`SELECT pg_try_advisory_lock(${DUNGEON_LOCK_KEY}) AS acquired`
   if (!lockRows[0]?.acquired) return false
@@ -5529,14 +5531,66 @@ async function processExpiredDungeonRuns(sql) {
       WHERE status = 'starting' AND starts_at <= NOW()
     `
 
-    // STEP 2: resolve the snapshotted active runs.
+    // STEP 2: resolve the snapshotted active runs (D3 combat → status='resolved',
+    // rewards_distributed=FALSE).
     for (const run of activeRuns) {
       await resolveDungeonRun(run.id, run.dungeon_id)
+    }
+
+    // STEP 3 (D4): distribute rewards for every resolved + undistributed run — both the
+    // ones STEP 2 just resolved AND any left undistributed by a previously-interrupted pass.
+    // distributeResolvedDungeonRun → distributeDungeonRewards is CAS-guarded, so a run can
+    // never double-distribute even if it's revisited across passes.
+    const undistributed = await sql`
+      SELECT id, dungeon_id, result, wiped_at_encounter, encounters_cleared
+      FROM pw_dungeon_runs
+      WHERE status = 'resolved' AND rewards_distributed = FALSE
+      ORDER BY id ASC
+    `
+    for (const run of undistributed) {
+      await distributeResolvedDungeonRun(run)
     }
   } finally {
     try { await sql`SELECT pg_advisory_unlock(${DUNGEON_LOCK_KEY})` } catch {}
   }
   return true
+}
+
+// D4 loader: gather a resolved run's party (fought members), dungeon (incl. drops_key_item_id),
+// ordered encounters, and boss-loot rows, then hand off to distributeDungeonRewards (which
+// rolls loot/keys/drachma and grants them, CAS-guarded on rewards_distributed).
+async function distributeResolvedDungeonRun(run) {
+  const party = await sql`
+    SELECT user_id, damage_dealt, final_hp
+    FROM pw_dungeon_party
+    WHERE run_id = ${run.id} AND status = 'fought'
+    ORDER BY slot_index ASC
+  `
+
+  const dungeonRows = await sql`
+    SELECT id, name, drops_key_item_id FROM pw_dungeons WHERE id = ${run.dungeon_id}
+  `
+  const dungeon = dungeonRows[0] || { id: run.dungeon_id, name: null, drops_key_item_id: null }
+
+  const encounters = await sql`
+    SELECT id, encounter_index, encounter_type, name,
+           drachma_min, drachma_max, common_gear_chance
+    FROM pw_dungeon_encounters
+    WHERE dungeon_id = ${run.dungeon_id}
+    ORDER BY encounter_index ASC
+  `
+
+  const encounterIds = encounters.map(e => e.id)
+  let bossLoot = []
+  if (encounterIds.length) {
+    bossLoot = await sql`
+      SELECT id, encounter_id, item_id, drop_weight, is_contested, individual_chance
+      FROM pw_dungeon_boss_loot
+      WHERE encounter_id = ANY(${encounterIds}::int[])
+    `
+  }
+
+  await distributeDungeonRewards(sql, run, party, dungeon, encounters, bossLoot)
 }
 
 // Resolve a single active dungeon run: load committed party (regen-before-fight, equip
