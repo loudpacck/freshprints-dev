@@ -6,6 +6,7 @@ import PWBackButton from '@/components/games/pantheon-wars/PWBackButton'
 import PWPageShell from '@/components/games/pantheon-wars/PWPageShell'
 import DungeonLoadoutPanel from '@/components/games/pantheon-wars/DungeonLoadoutPanel'
 import { useSound } from '@/sound/useSound'
+import { groupConsumables, HEALTH_EFFECTS } from '@/components/games/pantheon-wars/loadoutUtils'
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -491,11 +492,114 @@ function ResultModal({ result, onClose }) {
   )
 }
 
-// ─── Browse View ──────────────────────────────────────────────────────────────
+// ─── Browse Loadout Picker ────────────────────────────────────────────────────
 
-function BrowseView({ dungeons, dungeonsLoading, playerLevel, onAutoQueue, onCreateGroup, onBrowseGroups, busy }) {
+const QTY_BTN_BROWSE = {
+  background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.12)',
+  borderRadius: 4, color: '#F0F0F8', cursor: 'pointer',
+  width: 24, height: 24, fontFamily: "'IBM Plex Mono', monospace", fontSize: 14,
+  lineHeight: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0,
+}
+
+function PickerSlot({ label, color, items, selectedId, qty, onSelect, onQty }) {
+  const selected = items.find(i => String(i.item_id) === String(selectedId))
+  const maxAvail = selected?.count ?? 0
   return (
     <div>
+      <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 9, color: 'rgba(240,240,248,0.3)', letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: 4 }}>
+        {label}
+      </div>
+      <div style={{ display: 'flex', gap: 7, alignItems: 'center', flexWrap: 'wrap' }}>
+        <select
+          value={selectedId ?? ''}
+          onChange={e => { onSelect(e.target.value ? Number(e.target.value) : null); onQty(0) }}
+          style={{
+            flex: 1, minWidth: 130,
+            background: 'rgba(20,16,28,0.8)', color: '#F0F0F8',
+            border: '1px solid rgba(255,255,255,0.14)',
+            borderRadius: 5, padding: '6px 9px',
+            fontFamily: "'IBM Plex Mono', monospace", fontSize: 11,
+          }}
+        >
+          <option value="">— none —</option>
+          {items.map(i => (
+            <option key={i.item_id} value={i.item_id}>{i.name} ×{i.count}</option>
+          ))}
+        </select>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+          <button
+            style={{ ...QTY_BTN_BROWSE, opacity: qty <= 0 ? 0.3 : 1, cursor: qty <= 0 ? 'not-allowed' : 'pointer' }}
+            onClick={() => onQty(Math.max(0, qty - 1))}
+            disabled={qty <= 0}
+          >−</button>
+          <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 14, color, width: 20, textAlign: 'center' }}>{qty}</span>
+          <button
+            style={{ ...QTY_BTN_BROWSE, opacity: (qty >= maxAvail || qty >= 10 || !selectedId) ? 0.3 : 1, cursor: (qty >= maxAvail || qty >= 10 || !selectedId) ? 'not-allowed' : 'pointer' }}
+            onClick={() => onQty(Math.min(10, maxAvail, qty + 1))}
+            disabled={qty >= maxAvail || qty >= 10 || !selectedId}
+          >+</button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function BrowseLoadoutPicker({ inventory, pendingLoadout, onUpdate }) {
+  const consumables = groupConsumables(inventory)
+  const healthItems = consumables.filter(c => HEALTH_EFFECTS.has(c.effect))
+  const energyItems = consumables.filter(c => c.effect === 'restore_energy_pct')
+  const { healthItemId, healthQty, energyItemId, energyQty } = pendingLoadout
+
+  if (inventory === null) return (
+    <div style={{ border: '1px solid rgba(216,178,74,0.14)', borderRadius: 6, padding: '12px 14px', marginBottom: 18, fontFamily: "'IBM Plex Mono', monospace", fontSize: 11, color: 'rgba(240,240,248,0.3)' }}>
+      Loading inventory…
+    </div>
+  )
+
+  if (healthItems.length === 0 && energyItems.length === 0) return null
+
+  return (
+    <div style={{ border: '1px solid rgba(216,178,74,0.18)', background: 'rgba(20,16,28,0.5)', borderRadius: 6, padding: '14px 16px', marginBottom: 18 }}>
+      <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 9, letterSpacing: '0.14em', textTransform: 'uppercase', color: GOLD_DIM, marginBottom: 10 }}>
+        POTION LOADOUT — NEXT RUN
+      </div>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 10 }}>
+        {healthItems.length > 0 && (
+          <PickerSlot
+            label="Health Potion"
+            color="#22C55E"
+            items={healthItems}
+            selectedId={healthItemId}
+            qty={healthQty}
+            onSelect={id => onUpdate({ ...pendingLoadout, healthItemId: id, healthQty: 0 })}
+            onQty={qty => onUpdate({ ...pendingLoadout, healthQty: qty })}
+          />
+        )}
+        {energyItems.length > 0 && (
+          <PickerSlot
+            label="Energy Potion"
+            color="#38BDF8"
+            items={energyItems}
+            selectedId={energyItemId}
+            qty={energyQty}
+            onSelect={id => onUpdate({ ...pendingLoadout, energyItemId: id, energyQty: 0 })}
+            onQty={qty => onUpdate({ ...pendingLoadout, energyQty: qty })}
+          />
+        )}
+      </div>
+      <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, color: 'rgba(240,240,248,0.25)', letterSpacing: '0.04em' }}>
+        Potions are reserved when your run begins.
+      </div>
+    </div>
+  )
+}
+
+// ─── Browse View ──────────────────────────────────────────────────────────────
+
+function BrowseView({ dungeons, dungeonsLoading, playerLevel, onAutoQueue, onCreateGroup, onBrowseGroups, busy, browseInventory, pendingLoadout, setPendingLoadout }) {
+  return (
+    <div>
+      <BrowseLoadoutPicker inventory={browseInventory} pendingLoadout={pendingLoadout} onUpdate={setPendingLoadout} />
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 18, flexWrap: 'wrap', gap: 10 }}>
         <p style={{ margin: 0, fontSize: 12, lineHeight: 1.6, color: '#B8B0A0', maxWidth: 580 }}>
           Form a party and descend into instanced multi-encounter dungeons. Auto-queue fills your slot instantly; Create Group lets you hand-pick your crew.
@@ -655,6 +759,8 @@ export default function Dungeons() {
   const [result,         setResult]         = useState(null)
   const [toast,          setToast]          = useState(null)
   const [actionBusy,     setActionBusy]     = useState(false)
+  const [pendingLoadout, setPendingLoadout]  = useState({ healthItemId: null, healthQty: 0, energyItemId: null, energyQty: 0 })
+  const [browseInventory, setBrowseInventory] = useState(null)
 
   const pollRef      = useRef(null)
   const prevStatusRef = useRef(null)
@@ -701,6 +807,16 @@ export default function Dungeons() {
     if (!runLoading) prevStatusRef.current = runStatus
   }, [runStatus, runLoading])
 
+  // Fetch consumables for the browse-screen pre-equip picker; reset on run entry
+  const isOnBrowse = !runLoading && run === null
+  useEffect(() => {
+    if (!isOnBrowse) { setBrowseInventory(null); return }
+    fetch('/api/games/pantheon-wars/game?action=inventory')
+      .then(r => r.ok ? r.json() : null)
+      .then(data => { if (data) setBrowseInventory(data.inventory || []) })
+      .catch(() => setBrowseInventory([]))
+  }, [isOnBrowse])
+
   // Initial fetch
   useEffect(() => {
     fetchMyRun()
@@ -712,6 +828,27 @@ export default function Dungeons() {
   }, [fetchMyRun])
 
   function showToast(message, color = GOLD) { setToast({ message, color }) }
+
+  async function applyPendingLoadout(runId) {
+    const { healthItemId, healthQty, energyItemId, energyQty } = pendingLoadout
+    if (!(healthItemId && healthQty > 0) && !(energyItemId && energyQty > 0)) return
+    try {
+      const res = await fetch('/api/games/pantheon-wars/game?action=dungeon_set_loadout', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ run_id: runId, health_item_id: healthItemId, health_qty: healthQty, energy_item_id: energyItemId, energy_qty: energyQty }),
+      })
+      const data = await res.json()
+      if (!res.ok) {
+        const msgMap = {
+          insufficient_potions: "Not enough potions for loadout — set it in the lobby.",
+          run_already_started: 'Run started before loadout could be set.',
+        }
+        showToast(msgMap[data.error] || data.message || 'Loadout not applied — set it in the lobby.', '#F59E0B')
+      }
+    } catch {
+      showToast('Loadout not applied — set it in the lobby.', '#F59E0B')
+    }
+  }
 
   // ── Action handlers ──────────────────────────────────────────────────────────
 
@@ -727,6 +864,7 @@ export default function Dungeons() {
       if (res.ok && data.run) {
         setRun(data.run)
         showToast('Joined queue!', '#22C55E')
+        applyPendingLoadout(data.run.run_id).then(fetchMyRun)
       } else {
         const msg = data.error === 'already_in_run' ? 'Already in a run.' : data.error === 'level_too_low' ? 'Level too low.' : data.message || data.error || 'Failed to join.'
         showToast(msg, '#F87171')
@@ -752,6 +890,7 @@ export default function Dungeons() {
         setRun(data.run)
         setShowCreateGroup(null)
         showToast('Group created!', '#22C55E')
+        applyPendingLoadout(data.run.run_id).then(fetchMyRun)
       } else {
         showToast(data.message || data.error || 'Failed to create group.', '#F87171')
       }
@@ -775,6 +914,7 @@ export default function Dungeons() {
         setRun(data.run)
         setShowGroupBrowse(false)
         showToast('Joined group!', '#22C55E')
+        applyPendingLoadout(data.run.run_id).then(fetchMyRun)
       } else {
         showToast(data.message || data.error || 'Failed to join group.', '#F87171')
       }
@@ -875,6 +1015,9 @@ export default function Dungeons() {
           onCreateGroup={d => setShowCreateGroup(d)}
           onBrowseGroups={handleBrowseGroups}
           busy={actionBusy}
+          browseInventory={browseInventory}
+          pendingLoadout={pendingLoadout}
+          setPendingLoadout={setPendingLoadout}
         />
       ) : run.status === 'active' ? (
         <InProgressView run={run} />
