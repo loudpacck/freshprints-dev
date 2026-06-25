@@ -107,7 +107,7 @@ export default function DungeonLoadoutPanel({ run, navigate, onRefetch, onToast 
       const res = await fetch('/api/games/pantheon-wars/game?action=inventory')
       if (res.status === 401) { navigate('/games/pantheon-wars/login', { replace: true }); return }
       const data = await res.json()
-      setInventory(data.items || [])
+      setInventory(data.inventory || [])
     } catch {}
   }, [navigate])
 
