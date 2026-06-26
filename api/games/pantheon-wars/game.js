@@ -6710,6 +6710,179 @@ async function handleDungeonMyRun(req, res) {
   }
 }
 
+// (k) dungeon_recap (GET) — all-party, encounter-organised summary for a resolved run.
+// Does NOT embed rounds[] (fetched on demand via dungeon_player_log).
+async function handleDungeonRecap(req, res) {
+  if (req.method !== 'GET') return res.status(405).json({ error: 'Method not allowed' })
+
+  const runId = parseInt(req.query.run_id, 10)
+  if (!Number.isFinite(runId) || runId < 1) return res.status(400).json({ error: 'invalid_run_id' })
+
+  try {
+    // Participant-only scope — must have a pw_dungeon_party row for this run.
+    const memberCheck = await sql`
+      SELECT id FROM pw_dungeon_party WHERE run_id = ${runId} AND user_id = ${req.userId}
+    `
+    if (memberCheck.length === 0) return res.status(403).json({ error: 'forbidden' })
+
+    const runRows = await sql`
+      SELECT r.id, r.result, r.wiped_at_encounter, r.encounters_cleared, r.fight_log,
+             d.name AS dungeon_name, d.slug AS dungeon_slug,
+             d.bracket AS dungeon_bracket, d.difficulty AS dungeon_difficulty,
+             d.encounter_count
+      FROM pw_dungeon_runs r
+      JOIN pw_dungeons d ON d.id = r.dungeon_id
+      WHERE r.id = ${runId} AND r.status = 'resolved'
+    `
+    if (runRows.length === 0) return res.status(404).json({ error: 'run_not_found' })
+    const run = runRows[0]
+
+    const partyRows = await sql`
+      SELECT p.user_id, u.username, u.class, u.faction,
+             ps.level,
+             p.final_hp, p.damage_dealt, p.potions_used_health, p.potions_used_energy
+      FROM pw_dungeon_party p
+      JOIN pw_users u ON u.id = p.user_id
+      JOIN pw_player_stats ps ON ps.user_id = p.user_id
+      WHERE p.run_id = ${runId} AND p.status = 'fought'
+      ORDER BY p.damage_dealt DESC
+    `
+
+    const fightLog = run.fight_log || {}
+    const encounters = (fightLog.encounters || []).map((enc, i) => ({
+      encounter_index: enc.encounter_index ?? i,
+      encounter_type: enc.encounter_type,
+      name: enc.name,
+      enemy_count: enc.enemy_count,
+      sub_fights: (enc.sub_fights || []).map(sf => ({
+        sub_fight: sf.sub_fight,
+        enemy: sf.enemy,
+        result: sf.result,
+        rounds_count: sf.rounds_count,
+        participant_results: sf.participant_results,
+        // rounds[] intentionally excluded — fetched per-player via dungeon_player_log
+      })),
+      members: enc.members,
+    }))
+
+    return res.status(200).json({
+      recap: {
+        run_id: runId,
+        dungeon: {
+          name: run.dungeon_name,
+          slug: run.dungeon_slug,
+          bracket: Number(run.dungeon_bracket),
+          difficulty: run.dungeon_difficulty,
+        },
+        outcome: run.result === 'victory' ? 'victory' : 'wipe',
+        encounters_cleared: Number(run.encounters_cleared || 0),
+        encounter_count: Number(run.encounter_count || 0),
+        wiped_at_encounter: run.wiped_at_encounter != null ? Number(run.wiped_at_encounter) : null,
+        party: partyRows.map(p => ({
+          user_id: p.user_id,
+          username: p.username,
+          level: Number(p.level || 1),
+          faction: p.faction,
+          class: p.class,
+          final_hp: Number(p.final_hp || 0),
+          damage_dealt: Number(p.damage_dealt || 0),
+          potions_used_health: Number(p.potions_used_health || 0),
+          potions_used_energy: Number(p.potions_used_energy || 0),
+        })),
+        encounters,
+      },
+    })
+  } catch (err) {
+    console.error('dungeon_recap error:', err)
+    return res.status(500).json({ error: 'recap_failed' })
+  }
+}
+
+// (l) dungeon_player_log (GET) — per-round detail for one player in one sub-fight.
+// Requires: ?run_id=<int>&user_id=<uuid>&encounter_index=<int>&sub_fight=<int>
+// Any participant may read any party member's log for that run.
+async function handleDungeonPlayerLog(req, res) {
+  if (req.method !== 'GET') return res.status(405).json({ error: 'Method not allowed' })
+
+  const runId = parseInt(req.query.run_id, 10)
+  const targetUserId = req.query.user_id
+  const encounterIndex = parseInt(req.query.encounter_index, 10)
+  const subFight = parseInt(req.query.sub_fight, 10)
+
+  if (!Number.isFinite(runId) || runId < 1) return res.status(400).json({ error: 'invalid_run_id' })
+  if (!isValidUuid(targetUserId))           return res.status(400).json({ error: 'invalid_user_id' })
+  if (!Number.isFinite(encounterIndex) || encounterIndex < 0) return res.status(400).json({ error: 'invalid_encounter_index' })
+  if (!Number.isFinite(subFight) || subFight < 1)             return res.status(400).json({ error: 'invalid_sub_fight' })
+
+  try {
+    // Participant-only scope.
+    const memberCheck = await sql`
+      SELECT id FROM pw_dungeon_party WHERE run_id = ${runId} AND user_id = ${req.userId}
+    `
+    if (memberCheck.length === 0) return res.status(403).json({ error: 'forbidden' })
+
+    const runRows = await sql`
+      SELECT fight_log FROM pw_dungeon_runs WHERE id = ${runId} AND status = 'resolved'
+    `
+    if (runRows.length === 0) return res.status(404).json({ error: 'run_not_found' })
+
+    const fightLog = runRows[0].fight_log || {}
+    const enc = (fightLog.encounters || [])[encounterIndex]
+    if (!enc) return res.status(200).json({ rounds: [] })
+
+    const sf = (enc.sub_fights || []).find(s => s.sub_fight === subFight)
+    if (!sf) return res.status(200).json({ rounds: [] })
+
+    const allRounds = sf.rounds || []
+    if (allRounds.length === 0) return res.status(200).json({ rounds: [] })
+
+    const userRows = await sql`SELECT username FROM pw_users WHERE id = ${targetUserId}`
+
+    const userRounds = []
+    for (const round of allRounds) {
+      const hpAfter = (round.player_hp_after || {})[targetUserId]
+      if (hpAfter === undefined) continue
+
+      const energyAfter = (round.player_energy_after || {})[targetUserId] ?? null
+      const myAtk = (round.attacks || []).find(a => a.user_id === targetUserId)
+
+      const ta = round.titan_attack
+      let titan_action = null
+      if (ta) {
+        const targetedMe = ta.target_user_id === targetUserId || ta.target_user_id === 'all'
+        titan_action = {
+          targeted_me:     targetedMe,
+          damage_received: targetedMe ? (ta.damage ?? null) : null,
+          type:            ta.type || null,
+        }
+      }
+
+      userRounds.push({
+        round:           round.round,
+        my_attack:       myAtk ? {
+          damage_dealt: myAtk.damage_dealt,
+          attack_type:  myAtk.attack_type,
+          is_crit:      myAtk.is_crit,
+          is_blocked:   myAtk.is_blocked || false,
+          is_dodged:    myAtk.is_dodged || false,
+          is_fatigued:  myAtk.is_fatigued,
+        } : null,
+        titan_action,
+        my_hp_after:     hpAfter,
+        my_energy_after: energyAfter,
+      })
+    }
+
+    return res.status(200).json({
+      rounds:   userRounds,
+      username: userRows[0]?.username || null,
+    })
+  } catch (err) {
+    console.error('dungeon_player_log error:', err)
+    return res.status(500).json({ error: 'player_log_failed' })
+  }
+}
+
 // ── Router ────────────────────────────────────────────────────────────────────
 
 const innerHandler = requireUserWithModCheck(async function handler(req, res) {
@@ -6810,6 +6983,8 @@ const innerHandler = requireUserWithModCheck(async function handler(req, res) {
   if (action === 'dungeon_set_loadout')           return handleDungeonSetLoadout(req, res)
   if (action === 'dungeon_my_run')                return handleDungeonMyRun(req, res)
   if (action === 'dungeon_my_result')             return handleDungeonMyResult(req, res)
+  if (action === 'dungeon_recap')                 return handleDungeonRecap(req, res)
+  if (action === 'dungeon_player_log')            return handleDungeonPlayerLog(req, res)
   return res.status(400).json({ error: 'Unknown action' })
 })
 
