@@ -3487,6 +3487,12 @@ async function handleCodex(req, res) {
       FROM pw_township_upgrades
       ORDER BY display_order
     `
+    const dungeons = await sql`
+      SELECT id, slug, name, description, lore, bracket, difficulty,
+             level_required, alliance_required, encounter_count
+      FROM pw_dungeons
+      ORDER BY sort_order
+    `
     return res.status(200).json({
       ok: true,
       titans: titans.map(t => ({
@@ -3502,6 +3508,12 @@ async function handleCodex(req, res) {
         initial_cost:    Number(p.initial_cost),
         level_required:  Number(p.level_required),
         display_order:   Number(p.display_order),
+      })),
+      dungeons: dungeons.map(d => ({
+        ...d,
+        bracket:         Number(d.bracket),
+        level_required:  Number(d.level_required),
+        encounter_count: Number(d.encounter_count),
       })),
     })
   } catch (err) {

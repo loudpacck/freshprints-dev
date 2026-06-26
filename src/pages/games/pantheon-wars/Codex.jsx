@@ -84,6 +84,13 @@ const CATEGORIES = [
     color: '#06B6D4',
     description: 'Longer journeys into the wilds, yielding greater rewards for those with patience.',
   },
+  {
+    id: 'dungeons',
+    label: 'DUNGEONS',
+    glyph: '🗝',
+    color: '#F97316',
+    description: 'Alliance dungeons — instanced challenges for 2, 5, or 10 mortals, from easy crypts to expert raids.',
+  },
 ]
 
 // ─── Static entries ───────────────────────────────────────────────────────────
@@ -414,6 +421,17 @@ function getEntries(categoryId, data) {
       base_defense:        t.base_defense,
       loot_rarity_floor:   t.loot_rarity_floor,
     })) || null
+    case 'dungeons': return data?.dungeons?.map(d => ({
+      id: d.slug,
+      title: d.name,
+      subtitle: `${d.bracket}-man · ${d.difficulty}`,
+      body: d.lore || d.description,
+      bracket:          d.bracket,
+      difficulty:       d.difficulty,
+      level_required:   d.level_required,
+      encounter_count:  d.encounter_count,
+      alliance_required: d.alliance_required,
+    })) || null
     default: return []
   }
 }
@@ -608,6 +626,28 @@ function MechanicsSection({ entry, categoryId, catColor }) {
     )
   }
 
+  if (categoryId === 'dungeons') {
+    const diffColor = { easy: '#22C55E', medium: '#FBBF24', hard: '#F97316', expert: '#DC2626' }[entry.difficulty] || catColor
+    return (
+      <>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginTop: 18 }}>
+          {[
+            { label: 'BRACKET',    value: `${entry.bracket}-man` },
+            { label: 'DIFFICULTY', value: (entry.difficulty || '').toUpperCase(), color: diffColor },
+            { label: 'MIN LEVEL',  value: `Level ${entry.level_required}` },
+            { label: 'ENCOUNTERS', value: entry.encounter_count },
+            { label: 'ALLIANCE',   value: entry.alliance_required ? 'Required' : 'Open' },
+          ].map(({ label, value, color }) => (
+            <div key={label} style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 6, padding: '10px 12px' }}>
+              <div style={{ fontFamily: 'var(--pw-font-mono)', fontSize: 8, letterSpacing: '0.16em', color: 'rgba(168,155,126,0.5)', marginBottom: 4 }}>{label}</div>
+              <div style={{ fontFamily: 'var(--pw-font-display)', fontSize: 15, color: color || catColor, letterSpacing: '0.04em' }}>{value}</div>
+            </div>
+          ))}
+        </div>
+      </>
+    )
+  }
+
   if (categoryId === 'quests' || categoryId === 'adventures') {
     if (!entry.tips?.length) return null
     return (
@@ -781,7 +821,7 @@ export default function Codex() {
 
   const cat     = getCategoryById(selectedCategory)
   const entries = selectedCategory ? getEntries(selectedCategory, data) : []
-  const isApiCategory = selectedCategory === 'titans' || selectedCategory === 'professions'
+  const isApiCategory = selectedCategory === 'titans' || selectedCategory === 'professions' || selectedCategory === 'dungeons'
   const entriesLoading = isApiCategory && loading
 
   return (
