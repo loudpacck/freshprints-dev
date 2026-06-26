@@ -5,6 +5,7 @@ import { usePantheonWars } from '@/contexts/PantheonWarsContext'
 import PWBackButton from '@/components/games/pantheon-wars/PWBackButton'
 import PWPageShell from '@/components/games/pantheon-wars/PWPageShell'
 import DungeonLoadoutPanel from '@/components/games/pantheon-wars/DungeonLoadoutPanel'
+import DungeonRecapPanel from '@/components/games/pantheon-wars/DungeonRecapPanel'
 import { useSound } from '@/sound/useSound'
 import { groupConsumables, HEALTH_EFFECTS } from '@/components/games/pantheon-wars/loadoutUtils'
 
@@ -12,7 +13,6 @@ import { groupConsumables, HEALTH_EFFECTS } from '@/components/games/pantheon-wa
 
 const BRACKET_LABEL = { 2: '2-Man', 5: '5-Man', 10: '10-Man Raid' }
 const DIFFICULTY_COLOR = { easy: '#6FCF6F', medium: '#E8C84B', hard: '#E0793C', expert: '#C2484B' }
-const RARITY_COLOR = { common: '#9CA3AF', uncommon: '#22C55E', rare: '#3B82F6', epic: '#A855F7', legendary: '#F59E0B' }
 const GOLD = '#D8B24A'
 const GOLD_DIM = 'rgba(216,178,74,0.6)'
 
@@ -375,120 +375,6 @@ function PartySlotList({ run, viewerUserId, onVotekick, onGroupKick }) {
         ))}
       </div>
     </div>
-  )
-}
-
-// ─── Result Modal ─────────────────────────────────────────────────────────────
-
-function ResultModal({ result, onClose }) {
-  const isVictory = result.outcome === 'victory'
-  const diffColor = DIFFICULTY_COLOR[result.dungeon?.difficulty] || '#A8A89C'
-  const reward    = result.reward?.payload
-
-  useEffect(() => {
-    function onKey(e) { if (e.key === 'Escape') onClose() }
-    window.addEventListener('keydown', onKey)
-    return () => window.removeEventListener('keydown', onKey)
-  }, [onClose])
-
-  return (
-    <motion.div
-      initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-      style={{ position: 'fixed', inset: 0, zIndex: 200, background: 'rgba(5,3,10,0.88)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}
-      onClick={e => e.target === e.currentTarget && onClose()}
-    >
-      <motion.div
-        initial={{ opacity: 0, scale: 0.94 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.94 }}
-        transition={{ duration: 0.28, ease: [0.16, 1, 0.3, 1] }}
-        style={{
-          width: '100%', maxWidth: 480,
-          background: 'var(--pw-bg-card, #1A1020)',
-          border: `1px solid ${isVictory ? 'rgba(216,178,74,0.5)' : 'rgba(239,68,68,0.35)'}`,
-          borderRadius: 12, padding: '28px 24px',
-          maxHeight: '90vh', overflowY: 'auto',
-        }}
-      >
-        <div style={{ textAlign: 'center', marginBottom: 20 }}>
-          <div style={{ fontSize: 32, marginBottom: 8 }}>{isVictory ? '⚔' : '☽'}</div>
-          <div style={{ fontFamily: "'Cinzel', serif", fontSize: 24, letterSpacing: '0.1em', color: isVictory ? '#EDE3CC' : '#F87171', marginBottom: 4 }}>
-            {isVictory ? 'VICTORY' : 'WIPE'}
-          </div>
-          <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, color: diffColor, letterSpacing: '0.14em' }}>
-            {result.dungeon?.name} · {BRACKET_LABEL[result.dungeon?.bracket] || `${result.dungeon?.bracket}-Man`} · {result.dungeon?.difficulty}
-          </div>
-        </div>
-
-        {/* Encounter progress */}
-        <div style={{ padding: '10px 14px', background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 6, marginBottom: 12 }}>
-          <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 9, color: 'rgba(240,240,248,0.35)', letterSpacing: '0.12em', textTransform: 'uppercase', marginBottom: 4 }}>
-            ENCOUNTERS CLEARED
-          </div>
-          <div style={{ display: 'flex', alignItems: 'baseline', gap: 6 }}>
-            <span style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 30, color: isVictory ? '#22C55E' : '#F97316', letterSpacing: '0.06em' }}>
-              {result.encounters_cleared}
-            </span>
-            <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 13, color: 'rgba(240,240,248,0.3)' }}>
-              / {result.encounter_count}
-            </span>
-          </div>
-        </div>
-
-        {/* Viewer combat stats */}
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 14 }}>
-          {[
-            { label: 'FINAL HP',       value: fmtNum(result.final_hp),           color: '#22C55E' },
-            { label: 'DAMAGE DEALT',   value: fmtNum(result.damage_dealt),        color: '#F97316' },
-            { label: 'HEALTH POTIONS', value: result.potions_used_health,         color: '#F0F0F8' },
-            { label: 'ENERGY POTIONS', value: result.potions_used_energy,         color: '#38BDF8' },
-          ].map(({ label, value, color }) => (
-            <div key={label} style={{ padding: '10px 12px', background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: 6 }}>
-              <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 8, color: 'rgba(240,240,248,0.3)', letterSpacing: '0.12em', textTransform: 'uppercase', marginBottom: 4 }}>{label}</div>
-              <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 22, color, letterSpacing: '0.06em' }}>{value}</div>
-            </div>
-          ))}
-        </div>
-
-        {/* Rewards */}
-        {reward && (reward.drachma > 0 || reward.items?.length > 0 || reward.key_item_id) && (
-          <div style={{ padding: '12px 14px', background: 'rgba(216,178,74,0.06)', border: '1px solid rgba(216,178,74,0.25)', borderRadius: 6, marginBottom: 14 }}>
-            <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 9, color: GOLD, letterSpacing: '0.14em', textTransform: 'uppercase', marginBottom: 8 }}>★ REWARDS</div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
-              {reward.drachma > 0 && (
-                <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 12, color: GOLD }}>₯ +{fmtNum(reward.drachma)} Drachma</div>
-              )}
-              {(reward.items || []).map((item, i) => (
-                <div key={i} style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 12, color: '#F0E6D2', display: 'flex', alignItems: 'center', gap: 8 }}>
-                  <span>{item.name || 'Item'}</span>
-                  {item.rarity && (
-                    <span style={{ fontSize: 9, color: RARITY_COLOR[item.rarity] || '#9CA3AF', letterSpacing: '0.08em' }}>
-                      {item.rarity.toUpperCase()}
-                    </span>
-                  )}
-                  {item.id === reward.contested_item_id && (
-                    <span style={{ fontSize: 9, color: '#F59E0B', letterSpacing: '0.08em' }}>★ CONTESTED WIN</span>
-                  )}
-                </div>
-              ))}
-              {reward.key_item_id && (
-                <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 12, color: GOLD }}>🗝 Key received</div>
-              )}
-            </div>
-          </div>
-        )}
-
-        <button
-          onClick={onClose}
-          style={{
-            width: '100%', padding: '12px',
-            fontFamily: "'Cinzel', serif", fontSize: 13, letterSpacing: '0.1em',
-            color: 'rgba(240,240,248,0.6)', background: 'none',
-            border: '1px solid rgba(240,240,248,0.12)', borderRadius: 6, cursor: 'pointer',
-          }}
-        >
-          CONTINUE
-        </button>
-      </motion.div>
-    </motion.div>
   )
 }
 
@@ -1060,9 +946,15 @@ export default function Dungeons() {
         />
       )}
 
-      {/* Result modal */}
+      {/* Run recap — replaces simple ResultModal; acknowledge_reward fires on close via handleResultClose */}
       <AnimatePresence>
-        {result && <ResultModal result={result} onClose={handleResultClose} />}
+        {result && (
+          <DungeonRecapPanel
+            runId={result.run_id}
+            result={result}
+            onClose={handleResultClose}
+          />
+        )}
       </AnimatePresence>
 
       {/* Create Group modal */}
