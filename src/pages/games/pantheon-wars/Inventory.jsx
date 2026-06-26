@@ -5,6 +5,7 @@ import { usePantheonWars } from '@/contexts/PantheonWarsContext'
 import PWBackButton from '@/components/games/pantheon-wars/PWBackButton'
 import PWPageShell from '@/components/games/pantheon-wars/PWPageShell'
 import { useSound } from '@/sound/useSound'
+import { groupConsumables } from '@/components/games/pantheon-wars/loadoutUtils'
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -654,6 +655,143 @@ function ItemCard({ item, onEquip, onUnequip, onSell, onConsume, busy, energyUse
   )
 }
 
+function ConsumableStackCard({ stack, onUse, onSellOne, onSellAll, busy, energyUsesToday }) {
+  const rarityColor = RARITY_COLOR[stack.rarity] ?? '#F0F0F8'
+  const rgb = hexRgb(rarityColor)
+  const energyLimited = stack.consumable_effect === 'restore_energy_pct' && energyUsesToday >= 10
+
+  return (
+    <motion.div
+      layout
+      initial={{ opacity: 0, y: 6 }}
+      animate={{ opacity: 1, y: 0 }}
+      style={{
+        background: 'rgba(255,255,255,0.025)',
+        border: '1px solid rgba(255,255,255,0.07)',
+        borderRadius: 10,
+        padding: '14px 16px',
+        display: 'flex',
+        gap: 14,
+        alignItems: 'flex-start',
+      }}
+    >
+      {/* Left: slot glyph */}
+      <div style={{
+        flexShrink: 0,
+        width: 36,
+        height: 36,
+        borderRadius: 8,
+        background: 'rgba(255,255,255,0.05)',
+        border: `1px solid rgba(${rgb}, 0.15)`,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        fontSize: 16,
+      }}>
+        {SLOT_GLYPH.consumable}
+      </div>
+
+      {/* Center: item info */}
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 7, flexWrap: 'wrap', marginBottom: 3 }}>
+          <span style={{
+            fontFamily: "'Bebas Neue', sans-serif",
+            fontSize: 18,
+            letterSpacing: '0.05em',
+            color: '#F0F0F8',
+            lineHeight: 1,
+          }}>
+            {stack.name}
+          </span>
+          <span style={{
+            fontFamily: "'IBM Plex Mono', monospace",
+            fontSize: 11,
+            letterSpacing: '0.06em',
+            color: '#22D3EE',
+            background: 'rgba(34,211,238,0.12)',
+            border: '1px solid rgba(34,211,238,0.28)',
+            borderRadius: 4,
+            padding: '2px 7px',
+            fontWeight: 600,
+          }}>
+            ×{stack.count}
+          </span>
+          <span style={{
+            fontFamily: "'IBM Plex Mono', monospace",
+            fontSize: 8,
+            letterSpacing: '0.1em',
+            textTransform: 'uppercase',
+            color: rarityColor,
+            background: `rgba(${rgb}, 0.12)`,
+            border: `1px solid rgba(${rgb}, 0.3)`,
+            borderRadius: 3,
+            padding: '2px 6px',
+          }}>
+            {stack.rarity}
+          </span>
+        </div>
+
+        {stack.description && (
+          <p style={{
+            fontFamily: "'DM Sans', sans-serif",
+            fontSize: 12,
+            color: 'rgba(240,240,248,0.42)',
+            margin: '0 0 7px',
+            lineHeight: 1.45,
+          }}>
+            {stack.description}
+          </p>
+        )}
+
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px 12px', alignItems: 'center' }}>
+          <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, color: '#22D3EE' }}>
+            {getEffectLabel(stack.consumable_effect, stack.consumable_value)}
+          </span>
+          <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, color: 'rgba(240,240,248,0.25)' }}>
+            Sell: {fmt(stack.sell_price)}₯ each
+          </span>
+        </div>
+      </div>
+
+      {/* Right: actions */}
+      <div style={{ flexShrink: 0, display: 'flex', flexDirection: 'column', gap: 6 }}>
+        <ActionBtn
+          label={energyLimited ? 'LIMIT' : 'USE'}
+          color={energyLimited ? 'rgba(240,240,248,0.18)' : '#22D3EE'}
+          onClick={() => !energyLimited && onUse(stack.inventory_ids[0])}
+          disabled={busy || energyLimited}
+        />
+        {stack.consumable_effect === 'restore_energy_pct' && (
+          <span style={{
+            fontFamily: "'IBM Plex Mono', monospace",
+            fontSize: 8,
+            color: energyLimited ? '#F87171' : 'rgba(240,240,248,0.28)',
+            textAlign: 'right',
+            lineHeight: 1.3,
+            whiteSpace: 'nowrap',
+          }}>
+            {energyUsesToday}/10 today
+          </span>
+        )}
+        <ActionBtn
+          label="SELL"
+          color="rgba(240,240,248,0.35)"
+          onClick={() => onSellOne(stack.inventory_ids[0], stack.name, stack.sell_price)}
+          disabled={busy}
+        />
+        {stack.count > 1 && (
+          <ActionBtn
+            label={`ALL ×${stack.count}`}
+            color="rgba(201,169,97,0.7)"
+            onClick={() => onSellAll(stack)}
+            disabled={busy}
+          />
+        )}
+      </div>
+    </motion.div>
+  )
+}
+
 function ActionBtn({ label, color, onClick, disabled, title }) {
   return (
     <button
@@ -929,6 +1067,7 @@ export default function Inventory() {
   const [expandedItemId,   setExpandedItemId]   = useState(null)
   const [selectedIds,      setSelectedIds]      = useState(() => new Set())
   const [bulkSellModal,    setBulkSellModal]    = useState(false)
+  const [stackSellModal,   setStackSellModal]   = useState(null)
 
   useEffect(() => {
     if (!authLoading && !user) navigate('/games/pantheon-wars/login', { replace: true })
@@ -1053,6 +1192,28 @@ export default function Inventory() {
     } finally { setBusy(false) }
   }
 
+  async function handleStackSellAllConfirm() {
+    const { stack } = stackSellModal
+    setStackSellModal(null)
+    const ids = stack.inventory_ids
+    setBusy(true)
+    try {
+      const res  = await fetch('/api/games/pantheon-wars/game?action=sell_bulk', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ inventory_ids: ids }),
+      })
+      const data = await res.json()
+      if (!res.ok) { setToast({ message: data.error || 'Bulk sell failed', color: '#F87171' }); return }
+      const soldSet = new Set(ids)
+      setInventory(prev => prev.filter(i => !soldSet.has(i.inventory_id)))
+      if (stats) setStats(prev => ({ ...prev, drachma: data.new_drachma }))
+      setToast({ message: `Sold ${data.items_sold}× ${stack.name} for ${fmt(data.drachma_gained)}₯`, color: '#C9A961' })
+      play('sell_item')
+      refreshContext()
+    } finally { setBusy(false) }
+  }
+
   async function handleConsume(inventory_id) {
     setBusy(true)
     try {
@@ -1121,7 +1282,11 @@ export default function Inventory() {
       ? consumableItems
       : inventory.filter(i => i.slot === filter.toLowerCase())
 
-  const sellableInView = filtered.filter(i => !i.equipped)
+  // Consumables grouped by item_id for stacked display
+  const consumableStacks = groupConsumables(consumableItems)
+
+  // Exclude consumables from the bulk-sell bar — stacks have their own sell actions
+  const sellableInView = filtered.filter(i => !i.equipped && i.slot !== 'consumable')
   const allSelectedInView = sellableInView.length > 0 && sellableInView.every(i => selectedIds.has(i.inventory_id))
   const selectedItems = inventory.filter(i => selectedIds.has(i.inventory_id) && !i.equipped)
   const selectedTotal = selectedItems.reduce((sum, i) => sum + (i.sell_price || 0), 0)
@@ -1142,6 +1307,18 @@ export default function Inventory() {
             item={sellModal}
             onConfirm={handleSellConfirm}
             onCancel={() => setSellModal(null)}
+          />
+        )}
+      </AnimatePresence>
+
+      {/* Sell-all-stack confirmation modal */}
+      <AnimatePresence>
+        {stackSellModal && (
+          <BulkSellModal
+            count={stackSellModal.stack.count}
+            total={stackSellModal.stack.count * stackSellModal.stack.sell_price}
+            onConfirm={handleStackSellAllConfirm}
+            onCancel={() => setStackSellModal(null)}
           />
         )}
       </AnimatePresence>
@@ -1335,7 +1512,7 @@ export default function Inventory() {
 
               {/* Item list */}
               <AnimatePresence mode="popLayout">
-                {filtered.length === 0 ? (
+                {(filter === 'CONSUMABLE' ? consumableStacks.length === 0 : filtered.length === 0) ? (
                   <motion.p
                     key="empty"
                     initial={{ opacity: 0 }}
@@ -1351,6 +1528,26 @@ export default function Inventory() {
                   >
                     // No items in this slot. Complete quests to earn loot.
                   </motion.p>
+                ) : filter === 'CONSUMABLE' ? (
+                  <motion.div
+                    key="consumable-stacks"
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    style={{ display: 'flex', flexDirection: 'column', gap: 10 }}
+                  >
+                    {consumableStacks.map(stack => (
+                      <ConsumableStackCard
+                        key={stack.item_id}
+                        stack={stack}
+                        onUse={handleConsume}
+                        onSellOne={handleSellClick}
+                        onSellAll={stack => setStackSellModal({ stack })}
+                        busy={busy}
+                        energyUsesToday={energyUsesToday}
+                      />
+                    ))}
+                  </motion.div>
                 ) : (
                   <motion.div
                     key="list"
