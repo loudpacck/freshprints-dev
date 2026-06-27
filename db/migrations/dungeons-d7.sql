@@ -5,6 +5,27 @@
 -- ═════════════════════════════════════════════════════════════════════════════
 
 -- ── PART 0: Remove smoke-test dungeon (cascades to encounters + boss loot) ───
+-- pw_dungeon_runs.dungeon_id has no ON DELETE CASCADE, so we must remove
+-- run history manually before the dungeon row can be deleted.
+-- pw_dungeon_party and pw_dungeon_votekicks both CASCADE from pw_dungeon_runs,
+-- but we delete them explicitly first so the order is unambiguous.
+
+DELETE FROM pw_dungeon_party
+WHERE run_id IN (
+  SELECT r.id FROM pw_dungeon_runs r
+  JOIN pw_dungeons d ON d.id = r.dungeon_id
+  WHERE d.slug = 'smoke-test-crypt');
+
+DELETE FROM pw_dungeon_votekicks
+WHERE run_id IN (
+  SELECT r.id FROM pw_dungeon_runs r
+  JOIN pw_dungeons d ON d.id = r.dungeon_id
+  WHERE d.slug = 'smoke-test-crypt');
+
+DELETE FROM pw_dungeon_runs
+WHERE dungeon_id IN (
+  SELECT id FROM pw_dungeons WHERE slug = 'smoke-test-crypt');
+
 DELETE FROM pw_dungeons WHERE slug = 'smoke-test-crypt';
 
 -- ── PART 1: INSERT 13 dungeons ────────────────────────────────────────────────
