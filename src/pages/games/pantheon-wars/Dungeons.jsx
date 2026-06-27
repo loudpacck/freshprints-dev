@@ -439,13 +439,13 @@ function PickerSlot({ label, color, items, selectedId, qty, onSelect, onQty }) {
   const maxAvail = selected?.count ?? 0
   return (
     <div>
-      <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 9, color: 'rgba(240,240,248,0.3)', letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: 4 }}>
+      <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 11, color: 'rgba(240,240,248,0.3)', letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: 4 }}>
         {label}
       </div>
       <div style={{ display: 'flex', gap: 7, alignItems: 'center', flexWrap: 'wrap' }}>
         <select
           value={selectedId ?? ''}
-          onChange={e => { onSelect(e.target.value ? Number(e.target.value) : null); onQty(0) }}
+          onChange={e => onSelect(e.target.value ? Number(e.target.value) : null)}
           style={{
             flex: 1, minWidth: 130,
             background: 'rgba(20,16,28,0.8)', color: '#F0F0F8',
@@ -493,7 +493,7 @@ function BrowseLoadoutPicker({ inventory, pendingLoadout, onUpdate }) {
 
   return (
     <div style={{ border: '1px solid rgba(216,178,74,0.18)', background: 'rgba(20,16,28,0.5)', borderRadius: 6, padding: '14px 16px', marginBottom: 18 }}>
-      <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 9, letterSpacing: '0.14em', textTransform: 'uppercase', color: GOLD_DIM, marginBottom: 10 }}>
+      <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 12, letterSpacing: '0.14em', textTransform: 'uppercase', color: GOLD_DIM, marginBottom: 10 }}>
         POTION LOADOUT — NEXT RUN
       </div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 10 }}>
@@ -504,8 +504,8 @@ function BrowseLoadoutPicker({ inventory, pendingLoadout, onUpdate }) {
             items={healthItems}
             selectedId={healthItemId}
             qty={healthQty}
-            onSelect={id => onUpdate({ ...pendingLoadout, healthItemId: id, healthQty: 0 })}
-            onQty={qty => onUpdate({ ...pendingLoadout, healthQty: qty })}
+            onSelect={id => onUpdate(p => ({ ...p, healthItemId: id, healthQty: 0 }))}
+            onQty={qty => onUpdate(p => ({ ...p, healthQty: qty }))}
           />
         )}
         {energyItems.length > 0 && (
@@ -515,12 +515,12 @@ function BrowseLoadoutPicker({ inventory, pendingLoadout, onUpdate }) {
             items={energyItems}
             selectedId={energyItemId}
             qty={energyQty}
-            onSelect={id => onUpdate({ ...pendingLoadout, energyItemId: id, energyQty: 0 })}
-            onQty={qty => onUpdate({ ...pendingLoadout, energyQty: qty })}
+            onSelect={id => onUpdate(p => ({ ...p, energyItemId: id, energyQty: 0 }))}
+            onQty={qty => onUpdate(p => ({ ...p, energyQty: qty }))}
           />
         )}
       </div>
-      <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, color: 'rgba(240,240,248,0.25)', letterSpacing: '0.04em' }}>
+      <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 12, color: 'rgba(240,240,248,0.25)', letterSpacing: '0.04em' }}>
         Potions are reserved when your run begins.
       </div>
     </div>
