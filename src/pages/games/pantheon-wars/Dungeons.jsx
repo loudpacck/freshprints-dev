@@ -88,9 +88,40 @@ function actionBtnStyle(disabled, color) {
   }
 }
 
+function MetaChip({ icon, label }) {
+  return (
+    <span style={{
+      display: 'inline-flex', alignItems: 'center', gap: 5,
+      fontSize: 12, color: '#9EC6DC',
+      background: 'rgba(158,198,220,0.07)',
+      border: '1px solid rgba(158,198,220,0.22)',
+      borderRadius: 4, padding: '3px 8px',
+      fontFamily: "'IBM Plex Mono', monospace", letterSpacing: '0.02em',
+    }}>
+      <span style={{ opacity: 0.6 }}>{icon}</span>{label}
+    </span>
+  )
+}
+
+function GatingBadge({ icon, label, color, bg, border }) {
+  return (
+    <span style={{
+      display: 'inline-flex', alignItems: 'center', gap: 5,
+      fontSize: 12, fontWeight: 700, color,
+      background: bg,
+      border: `1.5px solid ${border}`,
+      borderRadius: 4, padding: '4px 10px',
+      fontFamily: "'IBM Plex Mono', monospace", letterSpacing: '0.03em',
+    }}>
+      {icon} {label}
+    </span>
+  )
+}
+
 function DungeonCard({ dungeon, playerLevel, onAutoQueue, onCreateGroup, busy }) {
   const diffColor = DIFFICULTY_COLOR[dungeon.difficulty] || '#A8A89C'
   const locked = Number(playerLevel) < Number(dungeon.level_required)
+  const hasGating = dungeon.key_required || dungeon.alliance_required || dungeon.drops_key_item_name
 
   return (
     <motion.div
@@ -101,15 +132,16 @@ function DungeonCard({ dungeon, playerLevel, onAutoQueue, onCreateGroup, busy })
         border: '1px solid rgba(216,178,74,0.25)',
         background: 'rgba(20,16,28,0.55)',
         borderRadius: 6, padding: '16px 18px',
-        display: 'flex', flexDirection: 'column', gap: 8,
+        display: 'flex', flexDirection: 'column', gap: 10,
       }}
     >
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8 }}>
         <span style={{ fontWeight: 700, fontSize: 15, color: '#F0E6D2' }}>{dungeon.name}</span>
         <span style={{
-          fontSize: 10, letterSpacing: 0.5, textTransform: 'uppercase',
-          color: diffColor, border: `1px solid ${diffColor}`, borderRadius: 3,
-          padding: '2px 6px', whiteSpace: 'nowrap',
+          fontSize: 11, letterSpacing: 0.8, textTransform: 'uppercase',
+          fontFamily: "'IBM Plex Mono', monospace", fontWeight: 700,
+          color: diffColor, border: `1.5px solid ${diffColor}`, borderRadius: 3,
+          padding: '3px 8px', whiteSpace: 'nowrap',
         }}>
           {dungeon.difficulty}
         </span>
@@ -119,30 +151,45 @@ function DungeonCard({ dungeon, playerLevel, onAutoQueue, onCreateGroup, busy })
         <p style={{ margin: 0, fontSize: 12, lineHeight: 1.5, color: '#B8B0A0' }}>{dungeon.description}</p>
       )}
 
-      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12, fontSize: 11, color: '#9A9286' }}>
-        <span>◈ {BRACKET_LABEL[dungeon.bracket] || `${dungeon.bracket}-Man`}</span>
-        <span>⬆ Lvl {dungeon.level_required}</span>
-        <span>{dungeon.encounter_count} encounters</span>
-        {dungeon.treasury_cost > 0 && <span>₯ {dungeon.treasury_cost} treasury</span>}
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+        <MetaChip icon="◈" label={BRACKET_LABEL[dungeon.bracket] || `${dungeon.bracket}-Man`} />
+        <MetaChip icon="⬆" label={`Lvl ${dungeon.level_required}`} />
+        <MetaChip icon="⚔" label={`${dungeon.encounter_count} encounters`} />
+        {dungeon.treasury_cost > 0 && <MetaChip icon="₯" label={`${dungeon.treasury_cost} treasury`} />}
       </div>
 
-      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-        {dungeon.key_required && (
-          <span style={{ fontSize: 10, color: GOLD, border: '1px solid rgba(216,178,74,0.4)', borderRadius: 3, padding: '2px 7px' }}>
-            🗝 Key: {dungeon.key_item_name}
-          </span>
-        )}
-        {dungeon.drops_key_item_name && (
-          <span style={{ fontSize: 10, color: '#A78BFA', border: '1px solid rgba(167,139,250,0.4)', borderRadius: 3, padding: '2px 7px' }}>
-            ↓ Drops {dungeon.drops_key_item_name}
-          </span>
-        )}
-        {dungeon.alliance_required && (
-          <span style={{ fontSize: 10, color: '#FFFFFF', border: '1px solid rgba(255,255,255,0.25)', borderRadius: 3, padding: '2px 7px' }}>
-            ⚜ Alliance required
-          </span>
-        )}
-      </div>
+      {hasGating && (
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+          {dungeon.key_required && (
+            <GatingBadge
+              icon="🔑"
+              label={`Requires ${dungeon.key_item_name}`}
+              color="#E8C84B"
+              bg="rgba(216,178,74,0.13)"
+              border="rgba(216,178,74,0.6)"
+            />
+          )}
+          {dungeon.alliance_required && (
+            <GatingBadge
+              icon="⚜"
+              label="Alliance Required"
+              color="#F0F0F8"
+              bg="rgba(255,255,255,0.06)"
+              border="rgba(255,255,255,0.28)"
+            />
+          )}
+          {dungeon.drops_key_item_name && (
+            <span style={{
+              display: 'inline-flex', alignItems: 'center', gap: 4,
+              fontSize: 11, color: '#A78BFA',
+              border: '1px solid rgba(167,139,250,0.35)', borderRadius: 3,
+              padding: '3px 8px', fontFamily: "'IBM Plex Mono', monospace",
+            }}>
+              ↓ Drops {dungeon.drops_key_item_name}
+            </span>
+          )}
+        </div>
+      )}
 
       {locked && (
         <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 11, color: '#F87171' }}>
