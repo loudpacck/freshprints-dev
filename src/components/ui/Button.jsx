@@ -36,6 +36,7 @@ export default function Button({
   type = 'button',
   style: styleProp,
   silent = false,
+  glow = false,
 }) {
   const { play } = useSound()
 
@@ -74,8 +75,13 @@ export default function Button({
       onMouseEnter={handleMouseEnter}
       onClick={handleClick}
       disabled={disabled}
-      whileHover={disabled ? {} : { scale: 1.02, filter: 'brightness(1.1)' }}
-      whileTap={disabled ? {} : { scale: 0.97 }}
+      whileHover={disabled ? {} : {
+        scale: 1.02,
+        filter: 'brightness(1.1)',
+        // Digital neon glow — cyan halo pulled from the accent token
+        ...(glow && { boxShadow: '0 0 0 1px var(--color-accent-primary), 0 0 22px rgba(0, 200, 255, 0.4)' }),
+      }}
+      whileTap={disabled ? {} : { scale: glow ? 0.95 : 0.97 }}
       transition={{ duration: 0.15 }}
     >
       {icon && <span style={{ display: 'flex', alignItems: 'center' }}>{icon}</span>}

@@ -1,35 +1,15 @@
 import { motion } from 'framer-motion'
 import { useNavigate } from 'react-router-dom'
 import useReducedMotion from '@/hooks/useReducedMotion'
-import { useTheme } from '@/themes/useTheme'
-import { getTheme } from '@/themes/registry'
 import Reveal from '@/components/standard/StandardReveal'
-import StandardButton from '@/components/standard/StandardButton'
 import StandardSectionHeader from '@/components/standard/StandardSectionHeader'
 import HireHeroStandard from '@/components/hire/HireHeroStandard'
+import HireThemeTiles from '@/components/hire/HireThemeTiles'
+import HireActionButton from '@/components/hire/HireActionButton'
 import { bottomCtas } from '@/data/hirePageData'
 import { useHirePageStats } from '@/hooks/useHirePageStats'
 
-// Same accent/bg identity used by the UIPicker mini-previews, kept consistent here.
-const THEME_TILES = [
-  { id: 'standard', accent: '#1E3C64', bg: '#FFFFFF' },
-  { id: 'digital',  accent: '#00C8FF', bg: '#0A0A0F' },
-  { id: 'retro',    accent: '#000080', bg: '#C0C0C0' },
-  { id: 'funky',    accent: '#BFFF00', bg: '#12041F' },
-  { id: 'pantheon', accent: '#C9A961', bg: '#0A0710' },
-]
-
 function ProjectRow({ project, index }) {
-  const navigate = useNavigate()
-
-  function handleAction() {
-    if (project.isExternal) {
-      window.open(project.buttonUrl, '_blank', 'noopener,noreferrer')
-    } else {
-      navigate(project.buttonUrl)
-    }
-  }
-
   return (
     <Reveal delay={index * 0.06}>
       <div
@@ -159,9 +139,9 @@ function ProjectRow({ project, index }) {
           )}
 
           <div style={{ marginTop: 'auto', paddingTop: 'var(--space-2)' }}>
-            <StandardButton onClick={handleAction} size="md">
+            <HireActionButton url={project.buttonUrl} isExternal={project.isExternal} size="md">
               {project.buttonLabel}
-            </StandardButton>
+            </HireActionButton>
           </div>
         </div>
       </div>
@@ -171,8 +151,6 @@ function ProjectRow({ project, index }) {
 
 export default function StandardHire() {
   const reduced = useReducedMotion()
-  const navigate = useNavigate()
-  const { setTheme } = useTheme()
   const { hireProjects } = useHirePageStats()
 
   return (
@@ -201,75 +179,7 @@ export default function StandardHire() {
       <section className="s-section" style={{ background: 'var(--bg-elevated)' }}>
         <div className="s-container">
           <StandardSectionHeader eyebrow="// LIVE PREVIEW" heading="See It In Any Interface" subtitle="Click a tile to swap the UI right here, in place." />
-          <div style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))',
-            gap: 'var(--space-4)',
-          }}>
-            {THEME_TILES.map(tile => {
-              const manifest = getTheme(tile.id)
-              const comingSoon = manifest.comingSoon === true
-              return (
-                <button
-                  key={tile.id}
-                  onClick={comingSoon ? undefined : () => setTheme(tile.id)}
-                  disabled={comingSoon}
-                  style={{
-                    textAlign: 'left',
-                    padding: 'var(--space-4)',
-                    background: 'var(--bg-card)',
-                    border: '1px solid var(--border-subtle)',
-                    borderRadius: 'var(--radius-lg)',
-                    cursor: comingSoon ? 'not-allowed' : 'pointer',
-                    opacity: comingSoon ? 0.55 : 1,
-                    display: 'flex',
-                    flexDirection: 'column',
-                    gap: 'var(--space-2)',
-                    transition: 'border-color 150ms ease, transform 150ms ease',
-                  }}
-                  onMouseEnter={e => { if (!comingSoon) e.currentTarget.style.borderColor = 'var(--border-accent)' }}
-                  onMouseLeave={e => { if (!comingSoon) e.currentTarget.style.borderColor = 'var(--border-subtle)' }}
-                >
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                    <span aria-hidden="true" style={{
-                      width: 14, height: 14, borderRadius: '50%',
-                      background: tile.bg, border: `2px solid ${tile.accent}`, flexShrink: 0,
-                    }} />
-                    {comingSoon && (
-                      <span style={{
-                        fontFamily: 'var(--font-mono)',
-                        fontSize: '0.6rem',
-                        textTransform: 'uppercase',
-                        letterSpacing: '0.08em',
-                        color: tile.accent,
-                        border: `1px solid ${tile.accent}66`,
-                        borderRadius: 3,
-                        padding: '1px 5px',
-                      }}>
-                        Soon
-                      </span>
-                    )}
-                  </div>
-                  <div style={{
-                    fontFamily: 'var(--font-body)',
-                    fontWeight: 'var(--weight-semibold)',
-                    fontSize: 'var(--text-base)',
-                    color: 'var(--text-primary)',
-                  }}>
-                    {manifest.label}
-                  </div>
-                  <div style={{
-                    fontFamily: 'var(--font-body)',
-                    fontSize: 'var(--text-xs)',
-                    color: 'var(--text-tertiary)',
-                    lineHeight: 'var(--leading-normal)',
-                  }}>
-                    {manifest.description}
-                  </div>
-                </button>
-              )
-            })}
-          </div>
+          <HireThemeTiles />
         </div>
       </section>
 
@@ -277,12 +187,13 @@ export default function StandardHire() {
       <section className="s-section" style={{ background: 'var(--bg-base)' }}>
         <div className="s-container">
           <div className="hire-cta-row">
-            <StandardButton variant="secondary" size="lg" onClick={() => navigate(bottomCtas.otherStuff.url)}>
+            <HireActionButton url={bottomCtas.otherStuff.url} variant="secondary" size="lg">
               {bottomCtas.otherStuff.label}
-            </StandardButton>
-            <StandardButton
+            </HireActionButton>
+            <HireActionButton
+              url={bottomCtas.letsWork.url}
+              variant="primary"
               size="lg"
-              onClick={() => navigate(bottomCtas.letsWork.url)}
               style={{
                 fontSize: 'var(--text-lg)',
                 padding: 'var(--space-5) var(--space-10)',
@@ -290,7 +201,7 @@ export default function StandardHire() {
               }}
             >
               {bottomCtas.letsWork.label} →
-            </StandardButton>
+            </HireActionButton>
           </div>
         </div>
       </section>

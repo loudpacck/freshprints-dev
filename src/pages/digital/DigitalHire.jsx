@@ -1,29 +1,11 @@
 import { motion } from 'framer-motion'
-import { useNavigate } from 'react-router-dom'
-import Button from '@/components/ui/Button'
-import { useTheme } from '@/themes/useTheme'
-import { getTheme } from '@/themes/registry'
 import { bottomCtas } from '@/data/hirePageData'
 import { useHirePageStats } from '@/hooks/useHirePageStats'
 import HireHeroDigital from '@/components/hire/HireHeroDigital'
-
-const THEME_TILES = [
-  { id: 'standard', accent: '#1E3C64', bg: '#FFFFFF' },
-  { id: 'digital',  accent: '#00C8FF', bg: '#0A0A0F' },
-  { id: 'retro',    accent: '#000080', bg: '#C0C0C0' },
-  { id: 'funky',    accent: '#BFFF00', bg: '#12041F' },
-  { id: 'pantheon', accent: '#C9A961', bg: '#0A0710' },
-]
+import HireThemeTiles from '@/components/hire/HireThemeTiles'
+import HireActionButton from '@/components/hire/HireActionButton'
 
 function ProjectRow({ project }) {
-  const navigate = useNavigate()
-
-  const actionButton = (
-    <Button variant="primary" onClick={() => !project.isExternal && navigate(project.buttonUrl)}>
-      {project.buttonLabel}
-    </Button>
-  )
-
   return (
     <div
       className="dh-row"
@@ -144,11 +126,9 @@ function ProjectRow({ project }) {
         )}
 
         <div style={{ marginTop: 'auto', paddingTop: 'var(--space-2)' }}>
-          {project.isExternal ? (
-            <a href={project.buttonUrl} target="_blank" rel="noopener noreferrer" style={{ textDecoration: 'none' }}>
-              {actionButton}
-            </a>
-          ) : actionButton}
+          <HireActionButton url={project.buttonUrl} isExternal={project.isExternal} variant="primary">
+            {project.buttonLabel}
+          </HireActionButton>
         </div>
       </div>
     </div>
@@ -156,8 +136,6 @@ function ProjectRow({ project }) {
 }
 
 export default function DigitalHire() {
-  const navigate = useNavigate()
-  const { setTheme } = useTheme()
   const { hireProjects } = useHirePageStats()
 
   return (
@@ -203,91 +181,22 @@ export default function DigitalHire() {
           }}>
             // SEE IT IN ANY INTERFACE
           </div>
-          <div style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))',
-            gap: 'var(--space-4)',
-          }}>
-            {THEME_TILES.map(tile => {
-              const manifest = getTheme(tile.id)
-              const comingSoon = manifest.comingSoon === true
-              return (
-                <button
-                  key={tile.id}
-                  onClick={comingSoon ? undefined : () => setTheme(tile.id)}
-                  disabled={comingSoon}
-                  style={{
-                    textAlign: 'left',
-                    padding: 'var(--space-4)',
-                    background: 'var(--color-bg-surface)',
-                    border: '1px solid var(--color-border-subtle)',
-                    borderRadius: 'var(--radius-sm)',
-                    cursor: comingSoon ? 'not-allowed' : 'pointer',
-                    opacity: comingSoon ? 0.55 : 1,
-                    display: 'flex',
-                    flexDirection: 'column',
-                    gap: 'var(--space-2)',
-                    transition: 'border-color 150ms ease',
-                  }}
-                  onMouseEnter={e => { if (!comingSoon) e.currentTarget.style.borderColor = 'var(--color-border-default)' }}
-                  onMouseLeave={e => { if (!comingSoon) e.currentTarget.style.borderColor = 'var(--color-border-subtle)' }}
-                >
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                    <span aria-hidden="true" style={{
-                      width: 14, height: 14, borderRadius: '50%',
-                      background: tile.bg, border: `2px solid ${tile.accent}`, flexShrink: 0,
-                    }} />
-                    {comingSoon && (
-                      <span style={{
-                        fontFamily: 'var(--font-mono)',
-                        fontSize: '0.6rem',
-                        textTransform: 'uppercase',
-                        letterSpacing: '0.08em',
-                        color: tile.accent,
-                        border: `1px solid ${tile.accent}66`,
-                        borderRadius: 3,
-                        padding: '1px 5px',
-                      }}>
-                        SOON
-                      </span>
-                    )}
-                  </div>
-                  <div style={{
-                    fontFamily: 'var(--font-mono)',
-                    fontSize: 'var(--text-sm)',
-                    color: 'var(--color-text-primary)',
-                    textTransform: 'uppercase',
-                    letterSpacing: 'var(--tracking-wide)',
-                  }}>
-                    {manifest.label}
-                  </div>
-                  <div style={{
-                    fontFamily: 'var(--font-body)',
-                    fontSize: 'var(--text-xs)',
-                    color: 'var(--color-text-muted)',
-                    lineHeight: 'var(--leading-normal)',
-                  }}>
-                    {manifest.description}
-                  </div>
-                </button>
-              )
-            })}
-          </div>
+          <HireThemeTiles />
         </section>
 
         {/* Bottom CTAs */}
         <div style={{ display: 'flex', gap: 'var(--space-4)', justifyContent: 'center', flexWrap: 'wrap' }}>
-          <Button variant="secondary" size="lg" onClick={() => navigate(bottomCtas.otherStuff.url)}>
+          <HireActionButton url={bottomCtas.otherStuff.url} variant="secondary" size="lg">
             {bottomCtas.otherStuff.label}
-          </Button>
-          <Button
+          </HireActionButton>
+          <HireActionButton
+            url={bottomCtas.letsWork.url}
             variant="primary"
             size="lg"
-            onClick={() => navigate(bottomCtas.letsWork.url)}
             style={{ boxShadow: 'var(--shadow-lg)', fontSize: 'var(--text-base)', padding: 'var(--space-5) var(--space-10)' }}
           >
             {bottomCtas.letsWork.label} →
-          </Button>
+          </HireActionButton>
         </div>
 
       </div>

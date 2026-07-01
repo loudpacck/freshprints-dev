@@ -14,8 +14,8 @@ function formatCompactCurrency(n) {
 // Default active set is "confident". The toggle on the page flips to "funny".
 export const heroCopy = {
   confident: {
-    headline: 'Most portfolios list skills. This one ships them.',
-    subhead: 'Four shipped products, real users, and a persistent multiplayer game built solo. Pick one below and see for yourself.',
+    headline: "Let's make your vision real.",
+    subhead: 'Software, games, hardware, AI — I take an idea and ship it as a working product. Browse a few I built below, then let\'s build yours.',
   },
   funny: {
     headline: 'I built a multiplayer MMO instead of updating my résumé.',
@@ -87,7 +87,7 @@ export function buildHireProjects(stats = pantheonWarsStats) {
     ],
     stats: [],
     buttonLabel: 'Check it out',
-    buttonUrl: 'https://www.lexisnails.com/build-a-set',
+    buttonUrl: 'https://www.lexisnails.com/',
     isExternal: true,
     thumbnail: '/thumbnails/lexisnails/lexis nails tb 1.png',
   },
