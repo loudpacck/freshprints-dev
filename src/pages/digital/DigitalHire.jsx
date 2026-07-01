@@ -1,11 +1,11 @@
-import { useState } from 'react'
 import { motion } from 'framer-motion'
 import { useNavigate } from 'react-router-dom'
 import Button from '@/components/ui/Button'
 import { useTheme } from '@/themes/useTheme'
 import { getTheme } from '@/themes/registry'
-import { heroCopy, bottomCtas } from '@/data/hirePageData'
+import { bottomCtas } from '@/data/hirePageData'
 import { useHirePageStats } from '@/hooks/useHirePageStats'
+import HireHeroDigital from '@/components/hire/HireHeroDigital'
 
 const THEME_TILES = [
   { id: 'standard', accent: '#1E3C64', bg: '#FFFFFF' },
@@ -158,8 +158,6 @@ function ProjectRow({ project }) {
 export default function DigitalHire() {
   const navigate = useNavigate()
   const { setTheme } = useTheme()
-  const [copyMode, setCopyMode] = useState('confident')
-  const copy = heroCopy[copyMode]
   const { hireProjects } = useHirePageStats()
 
   return (
@@ -169,80 +167,13 @@ export default function DigitalHire() {
       exit={{ opacity: 0 }}
       transition={{ duration: 0.3 }}
     >
-      <div className="page-container">
+      {/* Cinematic hero (Phase 1 overhaul) */}
+      <HireHeroDigital />
 
-        {/* Hero */}
-        <header style={{ marginBottom: 'var(--space-16)' }}>
-          <div style={{
-            fontFamily: 'var(--font-mono)',
-            fontSize: 'var(--text-xs)',
-            color: 'var(--color-text-accent)',
-            textTransform: 'uppercase',
-            letterSpacing: 'var(--tracking-widest)',
-            marginBottom: 'var(--space-4)',
-          }}>
-            // HIRE ME
-          </div>
-          <h1 style={{
-            fontFamily: 'var(--font-display)',
-            fontSize: 'var(--text-5xl)',
-            color: 'var(--color-text-primary)',
-            lineHeight: 'var(--leading-tight)',
-            letterSpacing: 'var(--tracking-tight)',
-            marginBottom: 'var(--space-4)',
-            maxWidth: 820,
-          }}>
-            {copy.headline}
-          </h1>
-          <p style={{
-            fontFamily: 'var(--font-body)',
-            fontSize: 'var(--text-lg)',
-            color: 'var(--color-text-secondary)',
-            lineHeight: 'var(--leading-normal)',
-            maxWidth: 600,
-            marginBottom: 'var(--space-6)',
-          }}>
-            {copy.subhead}
-          </p>
-
-          <div style={{
-            display: 'inline-flex',
-            gap: 'var(--space-1)',
-            padding: 'var(--space-1)',
-            background: 'var(--color-bg-surface)',
-            border: '1px solid var(--color-border-subtle)',
-            borderRadius: 'var(--radius-sm)',
-          }}>
-            {[{ id: 'confident', label: 'CONFIDENT' }, { id: 'funny', label: 'FUNNY' }].map(opt => {
-              const active = copyMode === opt.id
-              return (
-                <button
-                  key={opt.id}
-                  onClick={() => setCopyMode(opt.id)}
-                  style={{
-                    fontFamily: 'var(--font-mono)',
-                    fontSize: 'var(--text-xs)',
-                    fontWeight: 'var(--weight-medium)',
-                    textTransform: 'uppercase',
-                    letterSpacing: 'var(--tracking-wider)',
-                    padding: 'var(--space-2) var(--space-5)',
-                    borderRadius: 'var(--radius-sm)',
-                    border: 'none',
-                    background: active ? 'var(--color-accent-primary)' : 'transparent',
-                    color: active ? 'var(--color-bg-base)' : 'var(--color-text-secondary)',
-                    cursor: 'pointer',
-                    transition: 'all 150ms ease',
-                  }}
-                >
-                  {opt.label}
-                </button>
-              )
-            })}
-          </div>
-        </header>
+      <div className="page-container" style={{ position: 'relative', zIndex: 1, background: 'var(--color-bg-base)' }}>
 
         {/* Project rows */}
-        <section style={{ marginBottom: 'var(--space-20)' }}>
+        <section style={{ marginBottom: 'var(--space-20)', paddingTop: 'var(--space-16)' }}>
           <div style={{
             fontFamily: 'var(--font-mono)',
             fontSize: 'var(--text-xs)',
