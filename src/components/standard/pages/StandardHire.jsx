@@ -1,4 +1,3 @@
-import { useState } from 'react'
 import { motion } from 'framer-motion'
 import { useNavigate } from 'react-router-dom'
 import useReducedMotion from '@/hooks/useReducedMotion'
@@ -7,7 +6,8 @@ import { getTheme } from '@/themes/registry'
 import Reveal from '@/components/standard/StandardReveal'
 import StandardButton from '@/components/standard/StandardButton'
 import StandardSectionHeader from '@/components/standard/StandardSectionHeader'
-import { heroCopy, bottomCtas } from '@/data/hirePageData'
+import HireHeroStandard from '@/components/hire/HireHeroStandard'
+import { bottomCtas } from '@/data/hirePageData'
 import { useHirePageStats } from '@/hooks/useHirePageStats'
 
 // Same accent/bg identity used by the UIPicker mini-previews, kept consistent here.
@@ -173,8 +173,6 @@ export default function StandardHire() {
   const reduced = useReducedMotion()
   const navigate = useNavigate()
   const { setTheme } = useTheme()
-  const [copyMode, setCopyMode] = useState('confident')
-  const copy = heroCopy[copyMode]
   const { hireProjects } = useHirePageStats()
 
   return (
@@ -184,84 +182,8 @@ export default function StandardHire() {
       exit={{ opacity: 0 }}
       transition={{ duration: 0.4 }}
     >
-      {/* Hero */}
-      <section style={{
-        paddingTop: 'var(--space-16)',
-        paddingBottom: 'var(--space-10)',
-        background: 'var(--gradient-hero)',
-      }}>
-        <div className="s-container">
-          <Reveal>
-            <div style={{
-              fontFamily: 'var(--font-mono)',
-              fontSize: 'var(--text-xs)',
-              color: 'var(--accent)',
-              textTransform: 'uppercase',
-              letterSpacing: 'var(--tracking-wider)',
-              marginBottom: 'var(--space-3)',
-            }}>
-              // HIRE ME
-            </div>
-            <h1 style={{
-              fontFamily: 'var(--font-body)',
-              fontWeight: 'var(--weight-bold)',
-              fontSize: 'var(--text-6xl)',
-              color: 'var(--text-primary)',
-              letterSpacing: 'var(--tracking-tight)',
-              lineHeight: 'var(--leading-tight)',
-              marginBottom: 'var(--space-4)',
-              maxWidth: 760,
-            }}>
-              {copy.headline}
-            </h1>
-            <p style={{
-              fontFamily: 'var(--font-body)',
-              fontSize: 'var(--text-xl)',
-              color: 'var(--text-secondary)',
-              maxWidth: 620,
-              lineHeight: 'var(--leading-normal)',
-              marginBottom: 'var(--space-6)',
-            }}>
-              {copy.subhead}
-            </p>
-
-            {/* Copy toggle */}
-            <div style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: 'var(--space-1)',
-              padding: 'var(--space-1)',
-              background: 'var(--bg-card)',
-              border: '1px solid var(--border-subtle)',
-              borderRadius: 'var(--radius-xl)',
-            }}>
-              {[{ id: 'confident', label: 'Confident' }, { id: 'funny', label: 'Funny' }].map(opt => {
-                const active = copyMode === opt.id
-                return (
-                  <button
-                    key={opt.id}
-                    onClick={() => setCopyMode(opt.id)}
-                    style={{
-                      fontFamily: 'var(--font-body)',
-                      fontSize: 'var(--text-sm)',
-                      fontWeight: 'var(--weight-medium)',
-                      padding: 'var(--space-2) var(--space-5)',
-                      borderRadius: 'var(--radius-lg)',
-                      border: 'none',
-                      background: active ? 'var(--accent)' : 'transparent',
-                      color: active ? 'var(--accent-text)' : 'var(--text-secondary)',
-                      cursor: 'pointer',
-                      transition: 'all 150ms ease',
-                    }}
-                  >
-                    {opt.label}
-                  </button>
-                )
-              })}
-            </div>
-          </Reveal>
-        </div>
-      </section>
+      {/* Cinematic hero (Phase 1 overhaul) — branches Standard / Retro / Funky by themeId */}
+      <HireHeroStandard />
 
       {/* Project rows */}
       <section className="s-section" style={{ background: 'var(--bg-base)' }}>
