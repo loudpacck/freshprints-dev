@@ -28,6 +28,7 @@ const RetroLanding    = lazy(() => import('@/pages/RetroLanding'))
 const FunkyLanding    = lazy(() => import('@/pages/FunkyLanding'))
 const Hub             = lazy(() => import('@/pages/Hub'))
 const About           = lazy(() => import('@/pages/About'))
+const Hire            = lazy(() => import('@/pages/Hire'))
 const Portfolio       = lazy(() => import('@/pages/Portfolio'))
 const ProjectPage     = lazy(() => import('@/pages/ProjectPage'))
 const Skills          = lazy(() => import('@/pages/Skills'))
@@ -174,6 +175,7 @@ function AnimatedRoutes() {
 
         {/* Inner pages — PageLayout adds StandardLayout when themeId === 'standard' */}
         <Route path="/about"              element={<PageLayout><About /></PageLayout>} />
+        <Route path="/hire"               element={<PageLayout><Hire /></PageLayout>} />
         <Route path="/portfolio"          element={<PageLayout><Portfolio /></PageLayout>} />
         <Route path="/portfolio/:slug"    element={<PageLayout><ProjectPage /></PageLayout>} />
         <Route path="/skills"             element={<PageLayout><Skills /></PageLayout>} />

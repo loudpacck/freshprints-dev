@@ -7,6 +7,7 @@ import AdminModeratorPanel from '@/components/admin/AdminModeratorPanel'
 import SiteAnalytics from '@/components/admin/SiteAnalytics'
 import GameMetrics from '@/components/admin/GameMetrics'
 import TownshipLayoutEditor from '@/components/admin/TownshipLayoutEditor'
+import HirePageStats from '@/components/admin/HirePageStats'
 
 // ── Moderator-only: account lookup ─────────────────────────────────────────────
 
@@ -251,6 +252,7 @@ const NAV_ITEMS = [
   { id: 'overview',   label: 'OVERVIEW' },
   { id: 'analytics',  label: 'SITE ANALYTICS' },
   { id: 'game',       label: 'GAME METRICS' },
+  { id: 'hireStats',  label: 'HIRE STATS' },
   { id: 'titan',      label: 'TITAN' },
   { id: 'moderator',  label: 'MODERATOR' },
   { id: 'township',   label: 'TOWNSHIP EDITOR', icon: '🏘' },
@@ -491,6 +493,7 @@ export default function Admin() {
               <GameMetrics refreshKey={refreshKey} onLastUpdated={handleLastUpdated} />
             </>
           )}
+          {activeSection === 'hireStats' && <HirePageStats />}
           {activeSection === 'titan' && <AdminTitanPanel />}
           {activeSection === 'moderator' && <AdminModeratorPanel />}
           {activeSection === 'township' && <TownshipLayoutEditor />}

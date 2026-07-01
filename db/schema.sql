@@ -60,6 +60,17 @@ CREATE TABLE IF NOT EXISTS admin_sessions (
 
 CREATE INDEX IF NOT EXISTS idx_admin_sessions_expires ON admin_sessions(expires_at);
 
+-- Hire page stats: editable numbers shown on /hire (single row, id = 1)
+CREATE TABLE IF NOT EXISTS hire_page_stats (
+  id INTEGER PRIMARY KEY DEFAULT 1 CHECK (id = 1),
+  game_page_views INTEGER NOT NULL DEFAULT 0,
+  quests_completed INTEGER NOT NULL DEFAULT 0,
+  pvp_fights INTEGER NOT NULL DEFAULT 0,
+  drachma_economy BIGINT NOT NULL DEFAULT 0,
+  active_players INTEGER NOT NULL DEFAULT 0,
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
 -- Pantheon Wars: User accounts (game players)
 CREATE TABLE pw_users (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
