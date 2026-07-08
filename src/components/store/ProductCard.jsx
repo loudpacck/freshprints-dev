@@ -140,12 +140,12 @@ export default function ProductCard({ product, size = 'default', onClick }) {
           style={{
             fontFamily: 'var(--font-mono)',
             fontSize: 'var(--text-xs)',
-            color: 'var(--color-text-muted)',
+            color: product.comingSoon ? 'var(--color-accent-secondary)' : 'var(--color-text-muted)',
             textTransform: 'uppercase',
             letterSpacing: 'var(--tracking-wider)',
           }}
         >
-          VIEW →
+          {product.comingSoon ? 'COMING SOON' : 'VIEW →'}
         </span>
       </div>
     </Card>

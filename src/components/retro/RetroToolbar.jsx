@@ -6,6 +6,7 @@ import { useSound } from '@/sound/useSound'
 const NAV_ITEMS = [
   { label: 'Work',     href: '/portfolio' },
   { label: 'Services', href: '/services' },
+  { label: 'Hire Me',  href: '/hire' },
   { label: 'About',    href: '/about' },
   { label: 'Contact',  href: '/contact' },
   null, // separator

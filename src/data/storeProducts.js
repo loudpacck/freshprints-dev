@@ -15,7 +15,8 @@ export const products = [
       'Quick-start guide',
       'Free updates for 1 year',
     ],
-    purchaseUrl: 'https://gumroad.com/l/placeholder',
+    purchaseUrl: 'https://gumroad.com/l/placeholder', // placeholder — UI must gate on comingSoon
+    comingSoon: true,
     image: '/store/cad-pack.jpg',
     featured: true,
     status: 'AVAILABLE',
@@ -35,7 +36,8 @@ export const products = [
       'Recommended materials per part',
       'Orientation guide with screenshots',
     ],
-    purchaseUrl: 'https://gumroad.com/l/placeholder',
+    purchaseUrl: 'https://gumroad.com/l/placeholder', // placeholder — UI must gate on comingSoon
+    comingSoon: true,
     image: '/store/stl-pack.jpg',
     featured: false,
     status: 'AVAILABLE',
@@ -57,7 +59,8 @@ export const products = [
       'Deployment guide (Vercel + Railway)',
       'Free updates for 1 year',
     ],
-    purchaseUrl: 'https://gumroad.com/l/placeholder',
+    purchaseUrl: 'https://gumroad.com/l/placeholder', // placeholder — UI must gate on comingSoon
+    comingSoon: true,
     image: '/store/fastapi-starter.jpg',
     featured: true,
     status: 'AVAILABLE',
@@ -78,7 +81,8 @@ export const products = [
       'Architecture documentation',
       'Discord support channel',
     ],
-    purchaseUrl: 'https://gumroad.com/l/placeholder',
+    purchaseUrl: 'https://gumroad.com/l/placeholder', // placeholder — UI must gate on comingSoon
+    comingSoon: true,
     image: '/store/roblox-framework.jpg',
     featured: false,
     status: 'AVAILABLE',
@@ -99,7 +103,8 @@ export const products = [
       'Manufacturing notes template',
       'Setup guide',
     ],
-    purchaseUrl: 'https://gumroad.com/l/placeholder',
+    purchaseUrl: 'https://gumroad.com/l/placeholder', // placeholder — UI must gate on comingSoon
+    comingSoon: true,
     image: '/store/notion-template.jpg',
     featured: false,
     status: 'AVAILABLE',
@@ -120,7 +125,8 @@ export const products = [
       'Early access to new leagues',
       'Cancel anytime',
     ],
-    purchaseUrl: 'https://gumroad.com/l/placeholder',
+    purchaseUrl: 'https://gumroad.com/l/placeholder', // placeholder — UI must gate on comingSoon
+    comingSoon: true,
     image: '/store/predictinator-pro.jpg',
     featured: true,
     status: 'AVAILABLE',

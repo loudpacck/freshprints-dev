@@ -2,6 +2,7 @@ import { Link } from 'react-router-dom'
 import { socialLinks } from '@/data/socialLinks'
 
 const SITE_LINKS = [
+  { to: '/hire',   label: 'Hire Me' },
   { to: '/lab',    label: 'Lab' },
   { to: '/store',  label: 'Store' },
   { to: '/media',  label: 'Media' },

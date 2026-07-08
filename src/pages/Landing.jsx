@@ -94,6 +94,27 @@ export default function Landing() {
             </Button>
           </div>
         </motion.div>
+
+        <motion.button
+          {...fadeUp(1.05, reduced)}
+          onClick={() => navigate('/hire')}
+          style={{
+            background: 'none',
+            border: 'none',
+            padding: 'var(--space-1)',
+            cursor: 'pointer',
+            fontFamily: 'var(--font-mono)',
+            fontSize: 'var(--text-xs)',
+            color: 'var(--color-text-muted)',
+            textTransform: 'uppercase',
+            letterSpacing: 'var(--tracking-widest)',
+            transition: 'color var(--duration-base)',
+          }}
+          onMouseEnter={e => { e.currentTarget.style.color = 'var(--color-text-accent)' }}
+          onMouseLeave={e => { e.currentTarget.style.color = 'var(--color-text-muted)' }}
+        >
+          // LOOKING TO HIRE? →
+        </motion.button>
       </div>
 
       {/* Bottom-left version */}

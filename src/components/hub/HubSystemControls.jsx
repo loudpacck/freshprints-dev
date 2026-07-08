@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useSound } from '@/sound/useSound'
 import UIPicker from './UIPicker'
@@ -44,6 +45,16 @@ function LockIcon() {
   )
 }
 
+function BriefcaseIcon() {
+  return (
+    <svg width="13" height="13" viewBox="0 0 20 20" fill="none" aria-hidden="true">
+      <rect x="2" y="6" width="16" height="11" rx="1.5" stroke="currentColor" strokeWidth="1.5"/>
+      <path d="M7 6V4.5A1.5 1.5 0 018.5 3h3A1.5 1.5 0 0113 4.5V6" stroke="currentColor" strokeWidth="1.5"/>
+      <path d="M2 10.5h16" stroke="currentColor" strokeWidth="1.5"/>
+    </svg>
+  )
+}
+
 function ShieldIcon() {
   return (
     <svg width="13" height="13" viewBox="0 0 20 20" fill="none" aria-hidden="true">
@@ -73,6 +84,7 @@ const btnStyle = {
 }
 
 export default function HubSystemControls({ reduced }) {
+  const navigate = useNavigate()
   const { isMuted, toggleMute, play } = useSound()
   const [pickerOpen, setPickerOpen] = useState(false)
   const [adminOpen, setAdminOpen]   = useState(false)
@@ -99,6 +111,17 @@ export default function HubSystemControls({ reduced }) {
           zIndex: 'var(--z-sticky)',
         }}
       >
+        <motion.button
+          onClick={() => { play('select'); navigate('/hire') }}
+          className="hub-control-btn"
+          style={btnStyle}
+          whileHover={{ color: 'var(--color-accent-secondary)', borderColor: 'var(--color-accent-secondary)' }}
+          aria-label="Hire me"
+        >
+          <BriefcaseIcon />
+          HIRE
+        </motion.button>
+
         <motion.button
           onClick={() => { play('modalOpen'); setModOpen(true) }}
           className="hub-control-btn"

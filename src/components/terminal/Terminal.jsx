@@ -3,13 +3,14 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { useNavigate } from 'react-router-dom'
 import { useSound } from '@/sound/useSound'
 
-const ROUTES = ['portfolio', 'skills', 'services', 'lab', 'store', 'media', 'about', 'contact']
+const ROUTES = ['portfolio', 'skills', 'services', 'hire', 'lab', 'store', 'media', 'about', 'contact']
 
 const HELP_LINES = [
   '  help             list commands',
   '  ls               list top-level routes',
   '  ls projects      list portfolio projects',
   '  cd [route]       navigate to route',
+  '  hire             open the hire page',
   '  whoami           display user info',
   '  clear            clear output',
   '  exit             close terminal',
@@ -80,6 +81,9 @@ export default function Terminal({ isOpen, onClose }) {
       } else {
         lines = [`  cd: no such route: ${args[0]}`]
       }
+    } else if (cmd === 'hire') {
+      lines = ['  opening /hire...']
+      shouldNavigate = '/hire'
     } else if (cmd === 'whoami') {
       lines = [
         '  Kyle DeBord',

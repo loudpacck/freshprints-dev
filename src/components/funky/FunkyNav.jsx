@@ -14,6 +14,7 @@ const NAV_LINKS = [
   { to: '/store',     label: 'Store' },
   { to: '/media',     label: 'Media' },
   { to: '/contact',   label: 'Contact' },
+  { to: '/hire',      label: 'Hire' },
 ]
 
 function MenuIcon() {

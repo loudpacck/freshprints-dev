@@ -71,6 +71,7 @@ export default function ProductDetailModal({ product, onClose }) {
   }, [onClose, play])
 
   function handleBuy() {
+    if (product.comingSoon) return
     if (isExternal) {
       window.open(product.purchaseUrl, '_blank', 'noopener noreferrer')
     } else {
@@ -162,7 +163,11 @@ export default function ProductDetailModal({ product, onClose }) {
             >
               {typeStyle.label}
             </span>
-            <Badge status={product.status === 'AVAILABLE' ? 'STABLE' : 'CONCEPT'} label={product.status} />
+            {product.comingSoon ? (
+              <Badge status="IN_DEVELOPMENT" label="COMING SOON" />
+            ) : (
+              <Badge status={product.status === 'AVAILABLE' ? 'STABLE' : 'CONCEPT'} label={product.status} />
+            )}
           </div>
 
           {/* Name */}
@@ -269,9 +274,15 @@ export default function ProductDetailModal({ product, onClose }) {
               {product.priceDisplay}
             </span>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-2)' }}>
-              <Button variant="primary" onClick={handleBuy}>
-                BUY NOW
-              </Button>
+              {product.comingSoon ? (
+                <Button variant="secondary" disabled>
+                  COMING SOON
+                </Button>
+              ) : (
+                <Button variant="primary" onClick={handleBuy}>
+                  BUY NOW
+                </Button>
+              )}
               <span
                 style={{
                   fontFamily: 'var(--font-mono)',
@@ -282,7 +293,9 @@ export default function ProductDetailModal({ product, onClose }) {
                   textAlign: 'center',
                 }}
               >
-                {DELIVERY_LABELS[product.type] ?? '// DELIVERED VIA GUMROAD'}
+                {product.comingSoon
+                  ? '// NOT YET AVAILABLE'
+                  : (DELIVERY_LABELS[product.type] ?? '// DELIVERED VIA GUMROAD')}
               </span>
             </div>
           </div>

@@ -9,6 +9,7 @@ const NAV_LINKS = [
   { to: '/services',  label: 'Services' },
   { to: '/about',     label: 'About' },
   { to: '/contact',   label: 'Contact' },
+  { to: '/hire',      label: 'Hire Me' },
 ]
 
 function SunIcon() {

@@ -29,6 +29,7 @@ function ProductModal({ product, onClose }) {
   const isExternal = !product.purchaseUrl.startsWith('/')
 
   function handleBuy() {
+    if (product.comingSoon) return
     if (isExternal) {
       window.open(product.purchaseUrl, '_blank', 'noopener noreferrer')
     } else {
@@ -218,9 +219,27 @@ function ProductModal({ product, onClose }) {
             }}>
               {product.priceDisplay}
             </span>
-            <StandardButton size="lg" onClick={handleBuy}>
-              Buy Now
-            </StandardButton>
+            {product.comingSoon ? (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-2)' }}>
+                <StandardButton size="lg" variant="secondary" disabled>
+                  Coming Soon
+                </StandardButton>
+                <span style={{
+                  fontFamily: 'var(--font-mono)',
+                  fontSize: 'var(--text-xs)',
+                  color: 'var(--text-tertiary)',
+                  textTransform: 'uppercase',
+                  letterSpacing: 'var(--tracking-wide)',
+                  textAlign: 'center',
+                }}>
+                  Not yet available
+                </span>
+              </div>
+            ) : (
+              <StandardButton size="lg" onClick={handleBuy}>
+                Buy Now
+              </StandardButton>
+            )}
           </div>
         </motion.div>
       </motion.div>
@@ -329,9 +348,9 @@ function ProductCard({ product, onOpen }) {
             fontFamily: 'var(--font-body)',
             fontSize: 'var(--text-sm)',
             fontWeight: 'var(--weight-medium)',
-            color: 'var(--accent)',
+            color: product.comingSoon ? 'var(--text-tertiary)' : 'var(--accent)',
           }}>
-            View →
+            {product.comingSoon ? 'Coming soon' : 'View →'}
           </span>
         </div>
       </div>
