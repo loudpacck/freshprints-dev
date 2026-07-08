@@ -24,6 +24,7 @@ export default function ProjectHero({ project }) {
         <img
           src={heroImage}
           alt={project.name}
+          decoding="async"
           onError={() => setImgFailed(true)}
           style={{
             position: 'absolute',

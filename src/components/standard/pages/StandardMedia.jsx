@@ -128,6 +128,8 @@ function VideoThumbnail({ video, onPlay }) {
         <img
           src={imgSrc}
           alt={video.title}
+          loading="lazy"
+          decoding="async"
           onError={handleError}
           style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
         />
@@ -520,6 +522,8 @@ export default function StandardMedia() {
                   <img
                     src={getThumbnailUrl(featuredVideo.id)}
                     alt={featuredVideo.title}
+                    loading="lazy"
+                    decoding="async"
                     style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
                     onError={e => { e.target.src = getThumbnailFallbackUrl(featuredVideo.id) }}
                   />

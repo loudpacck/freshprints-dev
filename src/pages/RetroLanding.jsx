@@ -71,6 +71,8 @@ function ProjectCard({ project, onClick }) {
             <img
               src={project.thumbnail}
               alt={project.name}
+              loading="lazy"
+              decoding="async"
               style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
               onError={e => { e.currentTarget.style.display = 'none' }}
             />
@@ -183,6 +185,8 @@ export default function RetroLanding() {
               <img
                 src="/images/profile_picture/prof pic 1.jpg"
                 alt="Kyle DeBord"
+                loading="lazy"
+                decoding="async"
                 style={{ width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'center top', display: 'block' }}
               />
             </div>

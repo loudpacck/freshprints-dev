@@ -9,7 +9,7 @@ export const experiments = [
     category: 'ai',
     component: 'PredictinatorWidget',
     accentColor: '#00C8FF',
-    thumbnail: '/thumbnails/predictinator/predictinator thumbnail.png',
+    thumbnail: '/thumbnails/predictinator/predictinator thumbnail.webp',
   },
   {
     slug: 'plutus',
@@ -21,7 +21,7 @@ export const experiments = [
     category: 'software',
     component: 'PlutusSimulator',
     accentColor: '#22C55E',
-    thumbnail: '/thumbnails/plutus/plutus.png',
+    thumbnail: '/thumbnails/plutus/plutus.webp',
   },
   {
     slug: 'architect',
@@ -33,7 +33,7 @@ export const experiments = [
     category: 'ai',
     component: 'ArchitectDemo',
     accentColor: '#8B5CF6',
-    thumbnail: '/thumbnails/architect/archie tb.png',
+    thumbnail: '/thumbnails/architect/archie tb.webp',
   },
   {
     slug: 'cad-viewer',
@@ -57,7 +57,7 @@ export const experiments = [
     category: 'games',
     component: null,
     accentColor: '#FF3B3B',
-    thumbnail: '/thumbnails/beatbeaters/beatbeaters.jpeg',
+    thumbnail: '/thumbnails/beatbeaters/beatbeaters.webp',
   },
   {
     slug: 'pantheon-wars',
@@ -71,7 +71,7 @@ export const experiments = [
     accentColor: '#FFB347',
     external: true,
     externalUrl: '/games/pantheon-wars',
-    thumbnail: '/thumbnails/pantheon_wars/pantheon_wars.png',
+    thumbnail: '/thumbnails/pantheon_wars/pantheon_wars.webp',
   },
 ]
 

@@ -34,6 +34,7 @@ function Lightbox({ images, startIndex, onClose }) {
         <img
           src={images[current]}
           alt={`Visual ${current + 1}`}
+          decoding="async"
           style={{ maxWidth: '90vw', maxHeight: '85vh', objectFit: 'contain', borderRadius: 'var(--radius-md)' }}
         />
         {images.length > 1 && (
@@ -123,6 +124,8 @@ export default function VisualGallery({ images }) {
             key={i}
             src={src}
             alt={`Visual ${i + 1}`}
+            loading="lazy"
+            decoding="async"
             onClick={() => setLightboxIndex(i)}
             style={{
               width: '100%',

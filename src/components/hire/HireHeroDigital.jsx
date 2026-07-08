@@ -1,7 +1,7 @@
 import { useRef } from 'react'
 import { motion } from 'framer-motion'
 import useReducedMotion from '@/hooks/useReducedMotion'
-import ParticleField from '@/components/effects/ParticleField'
+import DeferredParticleField from '@/components/effects/DeferredParticleField'
 import { useHireTone } from '@/components/hire/HireToneContext'
 import { heroCopy } from '@/data/hirePageData'
 import { useHirePageStats } from '@/hooks/useHirePageStats'
@@ -42,8 +42,8 @@ export default function HireHeroDigital() {
         overflow: 'hidden',
       }}
     >
-      {/* Neon particle field (fixed, mouse-reactive, self-manages reduced motion) */}
-      <ParticleField />
+      {/* Neon particle field (fixed, mouse-reactive, deferred past first paint) */}
+      <DeferredParticleField />
 
       {/* One-shot scanline sweep on load */}
       {!reduced && <div className="hhd-scanline" aria-hidden="true" />}

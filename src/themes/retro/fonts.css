@@ -1,3 +1,4 @@
-/* Retro UI fonts — Press Start 2P (display) + VT323 (mono) */
-/* Tahoma / MS Sans Serif are system fonts, no import needed */
-@import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&family=VT323:wght@400&display=swap');
+/* Retro UI fonts — Press Start 2P (display) + VT323 (mono).
+   Tahoma / MS Sans Serif are system fonts, no import needed.
+   Loaded once via the consolidated Google Fonts <link> in index.html (Phase B font dedup).
+   This file is intentionally a stub — do not re-add an @import here. */

@@ -5,7 +5,7 @@ import { useTheme } from '@/themes/useTheme'
 import FeaturedStrip from '@/components/portfolio/FeaturedStrip'
 import FilterBar from '@/components/portfolio/FilterBar'
 import ProjectGrid from '@/components/portfolio/ProjectGrid'
-import ParticleField from '@/components/effects/ParticleField'
+import DeferredParticleField from '@/components/effects/DeferredParticleField'
 
 export default function Portfolio() {
   const [activeFilter, setActiveFilter] = useState('all')
@@ -26,7 +26,7 @@ export default function Portfolio() {
     >
       {themeId === 'digital' && (
         <div style={{ position: 'fixed', inset: 0, zIndex: 0, pointerEvents: 'none' }}>
-          <ParticleField />
+          <DeferredParticleField />
         </div>
       )}
 

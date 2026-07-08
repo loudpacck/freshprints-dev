@@ -114,6 +114,7 @@ function ProductModal({ product, onClose }) {
               <img
                 src={product.image}
                 alt={product.name}
+                decoding="async"
                 onError={() => setImgFailed(true)}
                 style={{ width: '100%', height: '100%', objectFit: 'cover' }}
               />
@@ -279,6 +280,8 @@ function ProductCard({ product, onOpen }) {
           <motion.img
             src={product.image}
             alt={product.name}
+            loading="lazy"
+            decoding="async"
             onError={() => setImgFailed(true)}
             style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
             whileHover={reduced ? {} : { scale: 1.02 }}

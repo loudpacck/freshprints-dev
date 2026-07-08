@@ -38,6 +38,8 @@ function Thumbnail({ video, onClick }) {
         <img
           src={src}
           alt={video.title}
+          loading="lazy"
+          decoding="async"
           onError={handleError}
           style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', transition: 'transform 0.3s ease' }}
         />

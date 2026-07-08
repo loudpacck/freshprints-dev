@@ -74,6 +74,8 @@ function ProjectCard({ project }) {
           <motion.img
             src={project.thumbnail}
             alt={project.name}
+            loading="lazy"
+            decoding="async"
             onError={() => setImgFailed(true)}
             style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
             whileHover={reduced ? {} : { scale: 1.02 }}

@@ -1,9 +1,8 @@
-import { useState, useEffect, useRef, useCallback, useMemo } from 'react'
+import { useState, useEffect, useRef, useCallback, lazy, Suspense } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useNavigate } from 'react-router-dom'
-import { Canvas, useFrame, useThree } from '@react-three/fiber'
-import * as THREE from 'three'
 import useReducedMotion from '@/hooks/useReducedMotion'
+import useDeferredMount from '@/hooks/useDeferredMount'
 import Badge from '@/components/ui/Badge'
 import { siteStatus } from '@/data/siteStatus'
 import { useSound } from '@/sound/useSound'
@@ -73,38 +72,9 @@ function Icon({ type }) {
   }
 }
 
-// ─── Three.js background ──────────────────────────────────────────────────────
+// ─── Three.js background (lazy — keeps the three.js chunk off the Hub's critical path) ──
 
-function CameraInit() {
-  const { camera } = useThree()
-  useEffect(() => { camera.lookAt(0, 0, 0) }, [camera])
-  return null
-}
-
-function WireframeGrid({ reduced }) {
-  const meshRef = useRef()
-
-  const geometry = useMemo(() => {
-    const geo = new THREE.PlaneGeometry(44, 44, 28, 28)
-    const pos = geo.attributes.position.array
-    for (let i = 0; i < pos.length / 3; i++) {
-      pos[i * 3 + 2] = Math.sin(pos[i * 3] * 0.38) * Math.cos(pos[i * 3 + 1] * 0.38) * 0.7
-    }
-    geo.computeVertexNormals()
-    return geo
-  }, [])
-
-  useFrame((_, delta) => {
-    if (!meshRef.current || reduced) return
-    meshRef.current.rotation.z += (delta * Math.PI * 2) / 60
-  })
-
-  return (
-    <mesh ref={meshRef} geometry={geometry} rotation={[-Math.PI / 2.3, 0, 0]} position={[0, -5, 0]}>
-      <meshBasicMaterial color={0x00C8FF} wireframe transparent opacity={0.09} />
-    </mesh>
-  )
-}
+const HubBackground = lazy(() => import('@/components/hub/HubBackground'))
 
 // ─── Single hex node ──────────────────────────────────────────────────────────
 
@@ -388,6 +358,7 @@ function MobileRadial({ onNavigate }) {
 export default function Hub() {
   const navigate = useNavigate()
   const reduced = useReducedMotion()
+  const bgReady = useDeferredMount()
 
   const [hoveredId, setHoveredId] = useState(null)
   const [focusedId, setFocusedId] = useState(null)
@@ -451,16 +422,12 @@ export default function Hub() {
       transition={{ duration: 0.3 }}
       style={{ position: 'relative', minHeight: '100vh', overflow: 'hidden', background: 'var(--color-bg-base)' }}
     >
-      {/* ── Three.js background ── */}
-      <Canvas
-        style={{ position: 'fixed', inset: 0, zIndex: 0 }}
-        camera={{ position: [0, 8, 14], fov: 50 }}
-        frameloop={reduced ? 'demand' : 'always'}
-        gl={{ antialias: false, alpha: true }}
-      >
-        <CameraInit />
-        <WireframeGrid reduced={reduced} />
-      </Canvas>
+      {/* ── Three.js background — deferred past first paint, skipped under reduced motion ── */}
+      {!reduced && bgReady && (
+        <Suspense fallback={null}>
+          <HubBackground reduced={reduced} />
+        </Suspense>
+      )}
 
       {/* ── SVG filter defs (shared by all hex nodes) ── */}
       <svg width="0" height="0" style={{ position: 'absolute', pointerEvents: 'none' }}>

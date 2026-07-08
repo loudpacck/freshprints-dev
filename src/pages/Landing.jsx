@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import useReducedMotion from '@/hooks/useReducedMotion'
 import { useTheme } from '@/themes/useTheme'
 import Button from '@/components/ui/Button'
-import ParticleField from '@/components/effects/ParticleField'
+import DeferredParticleField from '@/components/effects/DeferredParticleField'
 
 function fadeUp(delay, reduced) {
   if (reduced) return {}
@@ -32,7 +32,7 @@ export default function Landing() {
       transition={{ duration: 0.3 }}
       style={{ position: 'relative', minHeight: '100vh', overflow: 'hidden' }}
     >
-      <ParticleField />
+      <DeferredParticleField />
 
       {/* Centered content */}
       <div

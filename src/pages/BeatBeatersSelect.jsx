@@ -193,7 +193,6 @@ export default function BeatBeatersSelect() {
                 <div
                   key={song.id}
                   style={{
-                    borderLeft: expanded ? `4px solid ${song.accentColor}` : `3px solid ${song.accentColor}`,
                     border: `1px solid ${expanded ? BB_BORDER_A : BB_BORDER}`,
                     borderLeft: expanded ? `4px solid ${song.accentColor}` : `3px solid ${song.accentColor}`,
                     background: expanded ? hexA(song.accentColor, 0.07) : BB_PANEL_BG,

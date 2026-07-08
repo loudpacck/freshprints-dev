@@ -80,6 +80,8 @@ export default function ProjectCard({ project, size = 'default' }) {
               <motion.img
                 src={project.thumbnail}
                 alt={project.name}
+                loading="lazy"
+                decoding="async"
                 onError={() => setImgFailed(true)}
                 style={{
                   width: '100%',

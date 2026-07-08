@@ -1,3 +1,4 @@
-/* Funky UI fonts — Unbounded (display) + Outfit (body) + Space Mono (mono) */
-/* Distinct from Digital (Bebas/IBM Plex/DM Sans), Standard (Geist), Retro (Press Start/VT323) */
-@import url('https://fonts.googleapis.com/css2?family=Unbounded:wght@400;600;700;900&family=Outfit:wght@300;400;500;600;700&family=Space+Mono:wght@400;700&display=swap');
+/* Funky UI fonts — Unbounded (display) + Outfit (body) + Space Mono (mono).
+   Distinct from Digital (Bebas/IBM Plex/DM Sans), Standard (Geist), Retro (Press Start/VT323).
+   Loaded once via the consolidated Google Fonts <link> in index.html (Phase B font dedup).
+   This file is intentionally a stub — do not re-add an @import here. */

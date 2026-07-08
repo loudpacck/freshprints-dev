@@ -80,6 +80,8 @@ export default function StandardCard({
           <motion.img
             src={image}
             alt={title}
+            loading="lazy"
+            decoding="async"
             onError={() => setImgFailed(true)}
             style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
             animate={reduced ? {} : { scale: hover ? 1.03 : 1 }}

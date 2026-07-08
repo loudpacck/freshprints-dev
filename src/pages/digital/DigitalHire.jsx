@@ -89,6 +89,8 @@ function ProjectRow({ project }) {
         <img
           src={project.thumbnail}
           alt={project.name}
+          loading="lazy"
+          decoding="async"
           style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
           onError={e => { e.currentTarget.style.display = 'none' }}
         />

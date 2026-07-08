@@ -46,6 +46,7 @@ function HeroImage({ project }) {
         <img
           src={project.thumbnail}
           alt={project.name}
+          decoding="async"
           onError={() => setFailed(true)}
           style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
         />
@@ -77,6 +78,8 @@ function GalleryImage({ src, alt }) {
         <img
           src={src}
           alt={alt}
+          loading="lazy"
+          decoding="async"
           onError={() => setFailed(true)}
           style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
         />

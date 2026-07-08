@@ -145,6 +145,8 @@ function ProjectRow({ project, index }) {
           <img
             src={project.thumbnail}
             alt={project.name}
+            loading="lazy"
+            decoding="async"
             style={thumbImgStyle}
             onError={e => { e.currentTarget.style.display = 'none' }}
           />

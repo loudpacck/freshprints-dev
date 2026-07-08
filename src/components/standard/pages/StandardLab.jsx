@@ -58,6 +58,8 @@ function ExperimentCard({ experiment }) {
           <img
             src={experiment.thumbnail}
             alt={experiment.name}
+            loading="lazy"
+            decoding="async"
             style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
             onError={e => { e.currentTarget.style.display = 'none' }}
           />

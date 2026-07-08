@@ -63,7 +63,7 @@ export function buildHireProjects(stats = pantheonWarsStats) {
     buttonLabel: 'Play Here',
     buttonUrl: '/games/pantheon-wars',
     isExternal: false,
-    thumbnail: '/thumbnails/pantheon_wars/pantheon_wars.png',
+    thumbnail: '/thumbnails/pantheon_wars/pantheon_wars.webp',
   },
   {
     id: 'predictinator',
@@ -75,7 +75,7 @@ export function buildHireProjects(stats = pantheonWarsStats) {
     buttonLabel: 'Predict Here',
     buttonUrl: 'https://predictinator.net',
     isExternal: true,
-    thumbnail: '/thumbnails/predictinator/predictinator thumbnail.png',
+    thumbnail: '/thumbnails/predictinator/predictinator thumbnail.webp',
   },
   {
     id: 'lexis-nails',
@@ -89,7 +89,7 @@ export function buildHireProjects(stats = pantheonWarsStats) {
     buttonLabel: 'Check it out',
     buttonUrl: 'https://www.lexisnails.com/',
     isExternal: true,
-    thumbnail: '/thumbnails/lexisnails/lexis nails tb 1.png',
+    thumbnail: '/thumbnails/lexisnails/lexis nails tb 1.webp',
   },
   {
     id: 'plutus',
@@ -102,7 +102,7 @@ export function buildHireProjects(stats = pantheonWarsStats) {
     buttonLabel: 'Test Here',
     buttonUrl: '/lab/plutus',
     isExternal: false,
-    thumbnail: '/thumbnails/plutus/plutus.png',
+    thumbnail: '/thumbnails/plutus/plutus.webp',
   },
   ]
 }

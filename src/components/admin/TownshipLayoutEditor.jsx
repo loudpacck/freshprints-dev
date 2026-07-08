@@ -865,6 +865,7 @@ export default function TownshipLayoutEditor() {
                       onError={e => { e.currentTarget.src = getEmptyBuildingUrl(faction) }}
                       alt={plot.id}
                       draggable={false}
+                      decoding="async"
                       style={{ display: 'block', height: 220, width: 'auto', userSelect: 'none', pointerEvents: 'none' }}
                     />
                     {isHovered && (

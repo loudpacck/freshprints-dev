@@ -416,6 +416,8 @@ export default function StandardLanding() {
                 <img
                   src="/images/profile_picture/prof%20pic%201.jpg"
                   alt="Kyle DeBord"
+                  loading="lazy"
+                  decoding="async"
                   style={{
                     position: 'absolute',
                     inset: 0,

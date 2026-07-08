@@ -1,1 +1,3 @@
-@import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=IBM+Plex+Mono:wght@400;500;600&family=DM+Sans:wght@400;500;600&display=swap');
+/* Digital theme fonts — Bebas Neue (display) + IBM Plex Mono (mono) + DM Sans (body).
+   Loaded once via the consolidated Google Fonts <link> in index.html (Phase B font dedup).
+   This file is intentionally a stub — do not re-add an @import here. */
