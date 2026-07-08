@@ -55,6 +55,55 @@ export function greetingLine(theme, tone) {
   return pick(t[tone] || t.serious)
 }
 
+// --- Route-aware greetings ($0, local) ---------------------------------------
+// Used when the panel is FIRST opened on a given route. Unknown routes fall back
+// to the theme/tone greeting above. Starter chips stay the same everywhere.
+function routeKey(pathname) {
+  const p = String(pathname || '').split('?')[0].split('#')[0]
+  if (p === '/portfolio' || p.startsWith('/portfolio/')) return 'portfolio'
+  if (p === '/skills') return 'skills'
+  if (p === '/store') return 'store'
+  if (p === '/contact') return 'contact'
+  if (p === '/hub') return 'hub'
+  return 'default'
+}
+
+const ROUTE_GREETINGS = {
+  portfolio: [
+    "Browsing the work? Ask me about any project on this page.",
+    "Portfolio view. Want the story behind one of these builds?",
+  ],
+  skills: [
+    "Checking the skill tree? Ask me how any of this shows up in real work.",
+    "Skills page. I can tell you what Kyle actually ships with any of these.",
+  ],
+  store: [
+    "Window shopping? Ask me what any of this does.",
+    "The store. Happy to explain anything here.",
+  ],
+  contact: [
+    "Ready to reach out? I can even help you word it.",
+    "Contact page. Want me to draft your message to Kyle?",
+  ],
+  hub: [
+    "The command center. Ask me where to go — or anything about Kyle.",
+    "Hub view. I can point you at the good stuff.",
+  ],
+}
+
+export function routeGreetingLine(pathname, theme, tone) {
+  const bank = ROUTE_GREETINGS[routeKey(pathname)]
+  return bank ? pick(bank) : greetingLine(theme, tone)
+}
+
+// Dropped at most once per session if the chat is open while the route changes.
+const TRANSITION_LINES = [
+  "Oh, we moved — I'll follow. Ask away whenever.",
+  "New page, same blob. Still here if you need me.",
+  "Right behind you.",
+]
+export function routeTransitionLine() { return pick(TRANSITION_LINES) }
+
 // Shown as tappable chips on first open — all three are guaranteed cache hits.
 export const STARTER_CHIPS = [
   'What has Kyle built?',

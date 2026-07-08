@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
+import { useLocation, useNavigate } from 'react-router-dom'
 import { useTheme } from '@/themes/useTheme'
 import useReducedMotion from '@/hooks/useReducedMotion'
 import { useHireTone, toneFromCopyMode } from '@/components/hire/HireToneContext'
@@ -7,7 +8,7 @@ import BlobertBlob from './BlobertBlob'
 import BlobertChat from './BlobertChat'
 import { getSkin, apiThemeFor } from './blobertSkins'
 import {
-  greetingLine, STARTER_CHIPS, FAQ_CHIPS, napLine, wakeLine, isDismissal,
+  routeGreetingLine, routeTransitionLine, STARTER_CHIPS, FAQ_CHIPS, napLine, wakeLine, isDismissal,
   themeReactionLine, toneAckLine, LIMIT_INTRO, networkFallbackLine,
   LEAD_CHIP_LABEL, LEAD_DRAFT_INSTRUCTION, leadCopiedLine, leadFailIntroLine,
 } from './blobertLines'
@@ -15,6 +16,20 @@ import {
 const HIGHLIGHT_SLUGS = ['pantheon-wars', 'predictinator', 'lexis-nails', 'plutus']
 const SESSION_KEY = 'blobert-session'
 const NAP_KEY = 'blobert-napping'
+const TRANSITION_KEY = 'blobert-transition-said' // once-per-session route-change line
+
+// Poll (rAF, up to `timeoutMs`) for an element that may not exist yet — e.g. a
+// /hire card after we navigate there from another page. Abandons silently.
+function pollForElement(id, timeoutMs, onFound) {
+  const start = performance.now()
+  const tick = () => {
+    const el = document.getElementById(id)
+    if (el) { onFound(el); return }
+    if (performance.now() - start > timeoutMs) return
+    requestAnimationFrame(tick)
+  }
+  requestAnimationFrame(tick)
+}
 
 let msgSeq = 0
 function nextId() { msgSeq += 1; return `m${msgSeq}` }
@@ -58,6 +73,9 @@ export default function BlobertWidget() {
   const { copyMode } = useHireTone()
   const tone = toneFromCopyMode(copyMode)
   const skin = getSkin(themeId)
+  const location = useLocation()
+  const navigate = useNavigate()
+  const onHire = location.pathname === '/hire'
 
   const [mode, setMode] = useState(() => (sessionStorage.getItem(NAP_KEY) === '1' ? 'napping' : 'bubble'))
   const [messages, setMessages] = useState([])
@@ -129,6 +147,19 @@ export default function BlobertWidget() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tone])
 
+  // --- Route-change line ($0) — at most once per session, only if panel open --
+  const prevPathRef = useRef(location.pathname)
+  useEffect(() => {
+    const prev = prevPathRef.current
+    if (prev === location.pathname) return
+    prevPathRef.current = location.pathname
+    if (mode !== 'open') return
+    if (sessionStorage.getItem(TRANSITION_KEY)) return
+    sessionStorage.setItem(TRANSITION_KEY, '1')
+    addMsg({ role: 'blobert', text: routeTransitionLine(), apiHistory: false })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [location.pathname])
+
   // --- Open / wake / dismiss transitions ------------------------------------
   function openPanel() {
     const wasNapping = mode === 'napping'
@@ -141,7 +172,7 @@ export default function BlobertWidget() {
       greetedRef.current = true
       addMsg({
         role: 'blobert',
-        text: greetingLine(apiThemeFor(themeId), tone),
+        text: routeGreetingLine(location.pathname, apiThemeFor(themeId), tone),
         apiHistory: false,
         chips: STARTER_CHIPS.map(label => ({ label, action: 'send' })),
       })
@@ -168,11 +199,12 @@ export default function BlobertWidget() {
         history,
         theme: apiThemeFor(themeId),
         tone,
+        path: location.pathname,
         sessionId: sessionIdRef.current,
       }),
     })
     return resp.json()
-  }, [themeId, tone])
+  }, [themeId, tone, location.pathname])
 
   // --- Send a normal visitor message ----------------------------------------
   async function sendMessage(text) {
@@ -237,8 +269,22 @@ export default function BlobertWidget() {
       chips: lead ? [{ label: LEAD_CHIP_LABEL, action: 'lead' }] : undefined,
     })
 
-    if (highlight) pulseElement(`blobert-card-${highlight}`, reduced)
-    else if (openContact) pulseElement('blobert-contact-cta', reduced)
+    if (highlight) fireHighlight(highlight)
+    else if (openContact) fireOpenContact()
+  }
+
+  // On /hire the target cards/CTA exist now; off /hire we navigate there first,
+  // then poll for the element before running the scroll+pulse.
+  function fireHighlight(slug) {
+    const id = `blobert-card-${slug}`
+    if (onHire) { pulseElement(id, reduced); return }
+    navigate('/hire')
+    pollForElement(id, 2000, () => pulseElement(id, reduced))
+  }
+
+  function fireOpenContact() {
+    if (onHire) { pulseElement('blobert-contact-cta', reduced); return }
+    navigate('/contact')
   }
 
   // --- Lead draft: hidden instruction → clipboard prefill -------------------
@@ -282,7 +328,10 @@ export default function BlobertWidget() {
     } else {
       replacePending(pendingId, { role: 'blobert', text: `${leadFailIntroLine()}\n\n${draft}`, apiHistory: false })
     }
-    pulseElement('blobert-contact-cta', reduced)
+    // On /hire, spotlight the on-page CTA; off /hire, take them to the contact form
+    // (the clipboard draft is already copied either way).
+    if (onHire) pulseElement('blobert-contact-cta', reduced)
+    else navigate('/contact')
     setPending(false)
     leadInFlightRef.current = false
   }
@@ -290,9 +339,12 @@ export default function BlobertWidget() {
   const blobState = pending ? 'thinking' : (mode === 'napping' ? 'napping' : 'idle')
   const c = skin.colors
 
-  // Avoid colliding with other bottom-right chrome: Digital's SoundToggle
-  // (bottom-right) and Retro's sticky 28px status bar.
-  const bottomExtra = themeId === 'retro' ? 30 : 0
+  // Avoid colliding with other fixed chrome. Two additive offset sources:
+  //  - per-theme: Digital's SoundToggle (bottom-right) and Retro's 28px status bar
+  //  - per-route: /hub's bottom-center controls cluster (lift the bubble above it)
+  const THEME_BOTTOM_LIFT = { retro: 30 }
+  const ROUTE_BOTTOM_LIFT = { '/hub': 84 }
+  const bottomExtra = (THEME_BOTTOM_LIFT[themeId] || 0) + (ROUTE_BOTTOM_LIFT[location.pathname] || 0)
   const bubbleRight = themeId === 'digital'
     ? 'calc(88px + env(safe-area-inset-right, 0px))'
     : 'max(16px, env(safe-area-inset-right))'

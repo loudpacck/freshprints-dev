@@ -4,13 +4,14 @@ import { useEffect, useRef, useState } from 'react'
 // sclera, dark pupil, and specular highlight in every skin. Only the body layer
 // (fill, rim, shape, motion) changes per theme via the `skin` prop.
 //
-// state: 'idle' | 'thinking' | 'napping'
+// state: 'idle' | 'thinking' | 'napping' | 'wide' (startled — eyes go wide)
 export default function BlobertBlob({ skin, reduced, state = 'idle', size = 72 }) {
   const wrapRef = useRef(null)
   const [pupil, setPupil] = useState({ x: 0, y: 0 })
   const [blinking, setBlinking] = useState(false)
   const napping = state === 'napping'
   const thinking = state === 'thinking'
+  const wide = state === 'wide'
   const b = skin.body
 
   // --- Pupil tracking: cursor on fine pointers, scroll drift on touch --------
@@ -58,7 +59,7 @@ export default function BlobertBlob({ skin, reduced, state = 'idle', size = 72 }
 
   // --- Blink loop (every 3–8s) — runs even under reduced motion --------------
   useEffect(() => {
-    if (napping) { setBlinking(false); return undefined }
+    if (napping || wide) { setBlinking(false); return undefined }
     let t1, t2, cancelled = false
     const loop = () => {
       const delay = 3000 + Math.random() * 5000
@@ -70,12 +71,13 @@ export default function BlobertBlob({ skin, reduced, state = 'idle', size = 72 }
     }
     loop()
     return () => { cancelled = true; clearTimeout(t1); clearTimeout(t2) }
-  }, [napping])
+  }, [napping, wide])
 
   const px = pupil.x * 4
   const py = pupil.y * 4
   const closed = napping || blinking
-  const openScaleY = thinking ? 0.5 : 1
+  // Startled = eyes pop wide; thinking = squint; otherwise neutral.
+  const eyeTransform = thinking ? 'scaleY(0.5)' : wide ? 'scale(1.28)' : 'scaleY(1)'
 
   // --- Body layer styling from the skin --------------------------------------
   const bodyStyle = {
@@ -116,7 +118,7 @@ export default function BlobertBlob({ skin, reduced, state = 'idle', size = 72 }
           closed ? (
             <line key={ex} x1={ex - 8} y1={46} x2={ex + 8} y2={46} stroke="#1a1a22" strokeWidth={3} strokeLinecap="round" />
           ) : (
-            <g key={ex} style={{ transformBox: 'fill-box', transformOrigin: 'center', transform: `scaleY(${openScaleY})`, transition: 'transform 100ms ease' }}>
+            <g key={ex} style={{ transformBox: 'fill-box', transformOrigin: 'center', transform: eyeTransform, transition: 'transform 100ms ease' }}>
               <circle cx={ex} cy={46} r={10} fill="#ffffff" stroke="rgba(0,0,0,0.15)" strokeWidth={0.5} />
               <circle cx={ex + px} cy={46 + py} r={4.6} fill="#1a1a22" />
               <circle cx={ex + px - 1.5} cy={46 + py - 1.6} r={1.4} fill="#ffffff" />

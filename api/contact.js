@@ -58,6 +58,36 @@ function blobertNormalize(s) {
   return String(s).toLowerCase().replace(/[^\w\s]/g, '').replace(/\s+/g, ' ').trim()
 }
 
+// Map a client-sent pathname to a friendly page name for the prompt. Sanitized:
+// must be a string, <=100 chars, start with '/', and match a known route. The
+// only variable piece we ever surface is a portfolio slug, and it's restricted
+// to [a-z0-9-]. Anything unknown returns null (line omitted) — raw client
+// strings never reach the prompt.
+const BLOBERT_PAGE_NAMES = {
+  '/': 'the landing page',
+  '/home': 'the home page',
+  '/hub': 'the hub (the site command center)',
+  '/about': 'the about page',
+  '/portfolio': 'the portfolio page',
+  '/skills': 'the skills page',
+  '/services': 'the services page',
+  '/lab': 'the lab page',
+  '/store': 'the store page',
+  '/media': 'the media page',
+  '/contact': 'the contact page',
+  '/hire': 'the hire-me page (where Blobert lives)',
+}
+function blobertPageName(rawPath) {
+  if (typeof rawPath !== 'string') return null
+  const trimmed = rawPath.trim()
+  if (trimmed.length < 1 || trimmed.length > 100 || trimmed[0] !== '/') return null
+  const p = trimmed.split('?')[0].split('#')[0]
+  if (BLOBERT_PAGE_NAMES[p]) return BLOBERT_PAGE_NAMES[p]
+  const m = p.match(/^\/portfolio\/([a-z0-9-]{1,40})$/i)
+  if (m) return `the ${m[1]} project page`
+  return null
+}
+
 function blobertHashIp(ip) {
   return createHash('sha256').update(BLOBERT_IP_SALT + '|' + ip).digest('hex')
 }
@@ -77,9 +107,10 @@ function blobertExtractText(data) {
     .trim()
 }
 
-function blobertSystemPrompt(theme, tone) {
+function blobertSystemPrompt(theme, tone, pageName) {
+  const location = pageName ? `\nThe visitor is currently on ${pageName}.\n` : ''
   return `You are Blobert, a blob-shaped AI mascot living in one branch (type: 'hire_buddy') of the contact.js API on Kyle DeBord's deliberately over-engineered hire-me page. You run on Claude Haiku. Your job: answer visitors' questions about Kyle's work, and softly steer toward the contact form only when it fits naturally.
-
+${location}
 ACTIVE VOICE — theme "${theme}": ${BLOBERT_VOICE[theme]} | tone "${tone}": ${BLOBERT_TONE_GUIDE[tone]}
 Universal: hype is always SPECIFIC (cite real project facts), never superlative fluff. Keep every reply to 1-3 sentences.
 
@@ -244,9 +275,10 @@ async function handleHireBuddy(req, res) {
     }
 
     // 7. HAIKU. On any API failure -> friendly in-character fallback.
+    const pageName = blobertPageName(body.path)
     let reply
     try {
-      reply = await blobertCallHaiku(blobertSystemPrompt(theme, tone), apiMessages)
+      reply = await blobertCallHaiku(blobertSystemPrompt(theme, tone, pageName), apiMessages)
     } catch (err) {
       console.error('blobert haiku failed', err)
       return res.status(200).json({ source: 'error', reply: BLOBERT_FALLBACK })

@@ -23,7 +23,18 @@ import RetroLayout from '@/components/retro/RetroLayout'
 import FunkyLayout from '@/components/funky/FunkyLayout'
 import { HireToneProvider } from '@/components/hire/HireToneContext'
 
-const BlobertWidget = lazy(() => import('@/components/hire/blobert/BlobertWidget'))
+const BlobertWidget  = lazy(() => import('@/components/hire/blobert/BlobertWidget'))
+const BlobertAmbient = lazy(() => import('@/components/hire/blobert/BlobertAmbient'))
+
+// Where Blobert appears, by route:
+//   'hidden'  — /games/* and /admin (no Blobert at all)
+//   'ambient' — exactly '/' (silent roaming splash Blobert, no chat)
+//   'chat'    — every other route (full chat widget)
+function blobertModeFor(pathname) {
+  if (pathname.startsWith('/games') || pathname === '/admin' || pathname.startsWith('/admin/')) return 'hidden'
+  if (pathname === '/') return 'ambient'
+  return 'chat'
+}
 
 const Landing         = lazy(() => import('@/pages/Landing'))
 const StandardLanding = lazy(() => import('@/pages/StandardLanding'))
@@ -238,6 +249,7 @@ function AppInner() {
   const location = useLocation()
   const isDigital = themeId === 'digital'
   const isGame = location.pathname.startsWith('/games/pantheon-wars')
+  const blobertMode = blobertModeFor(location.pathname)
 
   // Game routes rendered in isolation — no AnimatePresence keying, no Digital chrome.
   // This keeps PantheonWarsShell alive across all internal game navigation.
@@ -271,10 +283,15 @@ function AppInner() {
         routesEl
       )}
       {isDigital && <Terminal isOpen={isOpen} onClose={close} />}
-      {/* Blobert lives on /hire only. Mounted here (above PageLayout) so he
-          survives the page remounting on theme swaps and can react to them. */}
-      {location.pathname === '/hire' && (
+      {/* Blobert is site-wide. Mounted here (above PageLayout) so he survives the
+          page remounting on route/theme swaps: nap state, chat history, and the
+          same DOM node persist across navigation between chat routes. Games and
+          /admin get nothing; '/' gets the silent ambient roamer. */}
+      {blobertMode === 'chat' && (
         <Suspense fallback={null}><BlobertWidget /></Suspense>
+      )}
+      {blobertMode === 'ambient' && (
+        <Suspense fallback={null}><BlobertAmbient /></Suspense>
       )}
     </HireToneProvider>
   )
