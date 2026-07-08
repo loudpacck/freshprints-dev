@@ -424,7 +424,6 @@ const ALIGNMENT_DATA = {
     lore: 'The divine order must be preserved. When the Eternal Accord shattered during the Unraveling, the Coalition rose to restore balance — servants of the Pantheon who believe the gods are the rightful architects of creation. They seek power through knowledge, ascending toward divine truth.',
     benefitChip: '+15% XP FROM ALL SOURCES',
     benefitDesc: 'Quests, adventures, and Titan raids yield greater experience. The path to godhood is accelerated.',
-    pvpNote: 'Battles the Mortal Compact in PvP',
     color: '#E8D080',
     border: 'rgba(232,208,128,0.32)',
     bg: 'rgba(232,208,128,0.07)',
@@ -438,7 +437,6 @@ const ALIGNMENT_DATA = {
     lore: 'Mortals are not tools of the divine. Born from the chaos of the Unraveling, the Mortal Compact fights to break the chains of divine rule and claim the world for humanity. They earn their glory through blood and defiance, not by kneeling to gods.',
     benefitChip: '+10% GLORY ON WINS • GLORY ON LOSS',
     benefitDesc: 'Every battle earns glory. Victory brings 10% more. Even defeat earns glory — the fallen are not forgotten.',
-    pvpNote: 'Battles the Pantheon Coalition in PvP',
     color: '#C25E3C',
     border: 'rgba(194,94,60,0.32)',
     bg: 'rgba(194,94,60,0.07)',
@@ -447,7 +445,7 @@ const ALIGNMENT_DATA = {
 }
 
 function AlignmentCard({ data, onChoose, isChoosing }) {
-  const { icon, title, subtitle, lore, benefitChip, benefitDesc, pvpNote, color, border, bg, bgHover } = data
+  const { icon, title, subtitle, lore, benefitChip, benefitDesc, color, border, bg, bgHover } = data
   const [hovered, setHovered] = useState(false)
 
   return (
@@ -528,16 +526,6 @@ function AlignmentCard({ data, onChoose, isChoosing }) {
         }}>
           {benefitDesc}
         </p>
-      </div>
-
-      {/* PvP note */}
-      <div style={{
-        fontFamily: "'IBM Plex Mono', monospace",
-        fontSize: 9,
-        letterSpacing: '0.08em',
-        color: 'rgba(240,240,248,0.25)',
-      }}>
-        {pvpNote}
       </div>
 
       {/* Choose button */}
