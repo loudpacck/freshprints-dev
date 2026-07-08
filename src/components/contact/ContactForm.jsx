@@ -1,8 +1,12 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import Button from '@/components/ui/Button'
 import LoadingDot from '@/components/ui/LoadingDot'
 import { useSound } from '@/sound/useSound'
+
+// Where Blobert stashes a drafted lead message for the contact form to pick up.
+const LEAD_DRAFT_KEY = 'blobert_lead_draft'
+const LEAD_DRAFT_NOTE = 'Drafted by Blobert — edit anything before sending.'
 
 const TOPICS = [
   'General Question',
@@ -67,6 +71,7 @@ function blurInput(e) {
 
 export default function ContactForm() {
   const [status, setStatus] = useState('idle') // idle | loading | success | error
+  const [leadNote, setLeadNote] = useState(false)
   const { play } = useSound()
 
   const {
@@ -74,7 +79,25 @@ export default function ContactForm() {
     handleSubmit,
     formState: { errors },
     reset,
+    setValue,
   } = useForm({ mode: 'onChange' })
+
+  // Prefill the message when Blobert drafted a lead. Runs on mount and when
+  // Blobert fires the event (covers being drafted while already on /contact).
+  // The key is cleared immediately so it never re-applies on a later visit.
+  useEffect(() => {
+    const apply = () => {
+      let draft = null
+      try { draft = sessionStorage.getItem(LEAD_DRAFT_KEY) } catch { draft = null }
+      if (!draft) return
+      setValue('message', draft, { shouldDirty: true, shouldValidate: true })
+      setLeadNote(true)
+      try { sessionStorage.removeItem(LEAD_DRAFT_KEY) } catch { /* ignore */ }
+    }
+    apply()
+    window.addEventListener('blobert-lead-draft', apply)
+    return () => window.removeEventListener('blobert-lead-draft', apply)
+  }, [setValue])
 
   async function onSubmit(data) {
     setStatus('loading')
@@ -154,6 +177,31 @@ export default function ContactForm() {
             ))}
           </select>
         </Field>
+
+        {leadNote && (
+          <div style={{
+            display: 'flex', alignItems: 'center', gap: 'var(--space-2)',
+            marginBottom: 'var(--space-3)', padding: 'var(--space-2) var(--space-3)',
+            background: 'var(--color-accent-primary-dim, var(--color-bg-elevated))',
+            border: '1px solid var(--color-accent-primary)',
+            borderRadius: 'var(--radius-sm)',
+          }}>
+            <span style={{
+              flex: 1, fontFamily: 'var(--font-mono)', fontSize: 'var(--text-xs)',
+              color: 'var(--color-text-secondary)',
+            }}>
+              {LEAD_DRAFT_NOTE}
+            </span>
+            <button
+              type="button"
+              onClick={() => setLeadNote(false)}
+              aria-label="Dismiss note"
+              style={{ background: 'transparent', border: 'none', color: 'var(--color-text-muted)', cursor: 'pointer', fontSize: 16, lineHeight: 1, padding: 2 }}
+            >
+              ×
+            </button>
+          </div>
+        )}
 
         <Field label="MESSAGE" error={errors.message?.message}>
           <textarea

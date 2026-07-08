@@ -5,6 +5,7 @@ import { projects } from '@/data/projects'
 import useReducedMotion from '@/hooks/useReducedMotion'
 import Reveal from '@/components/standard/StandardReveal'
 import StandardPillFilter from '@/components/standard/StandardPillFilter'
+import { factKeyForSlug } from '@/components/hire/blobert/blobertLines'
 
 const FILTERS = [
   { value: 'all',         label: 'All' },
@@ -48,6 +49,7 @@ function ProjectCard({ project }) {
   return (
     <motion.div
       onClick={() => navigate(`/portfolio/${project.slug}`)}
+      data-blobert-fact={factKeyForSlug(project.slug) || undefined}
       whileHover={reduced ? {} : { y: -2, boxShadow: 'var(--shadow-lg)' }}
       transition={{ duration: 0.2 }}
       style={{

@@ -138,6 +138,15 @@ const WAKE_LINES = [
 ]
 export function wakeLine() { return pick(WAKE_LINES) }
 
+// Waking from a nap HE started (two ignored yawns → self-nap). Sheepish.
+const SHEEPISH_WAKE_LINES = [
+  "oh— I wasn't sleeping. resting my pixels.",
+  "I'm up! I was just... thinking. with my eyes shut. on purpose.",
+  'totally awake. that was strategic downtime, not a nap.',
+  "who, me? napping? no. blinking. slowly.",
+]
+export function sheepishWakeLine() { return pick(SHEEPISH_WAKE_LINES) }
+
 // Conservative dismissal check — normalizes then matches whole words/phrases so
 // "goodbye" naps him but "bye the way" or "don't stop" won't false-trigger.
 const DISMISS_PHRASES = ['go away', 'goodbye', 'bye', 'get lost', 'leave me alone', 'go to sleep', 'take a nap', 'shoo', 'buzz off']
@@ -190,3 +199,86 @@ export function leadCopiedLine() {
 export function leadFailIntroLine() {
   return "Here's your message — copy it and send it through the contact form:"
 }
+
+// Phase 2 primary lead flow: draft stored, contact form prefilled directly.
+export const LEAD_STORAGE_KEY = 'blobert_lead_draft'
+export const LEAD_PREFILL_NOTE = 'Drafted by Blobert — edit anything before sending.'
+export function leadDeliveredLine() {
+  return pick([
+    'drafted and delivered — polish it and hit send.',
+    "I dropped a draft straight into the contact form. tweak it, then send it off.",
+    'sent your draft to the contact form. give it a once-over and it\'s good to go.',
+  ])
+}
+
+// --- Proactive nudges (Phase 2) ----------------------------------------------
+// One tappable speech bubble anchored to the collapsed blob. Each trigger fires
+// at most once per session; all copy is local ($0). See blobertBehavior.js for
+// the governors and BlobertWidget for the wiring.
+const NUDGE_DWELL = {
+  standard: 'psst — I know everything about the guy who built this. ask me stuff.',
+  digital: '> psst. Kyle\'s whole build history is cached in here. query me.',
+  retro: 'Psst! It looks like you have questions. I have answers about Kyle!',
+  funky: 'psssst. I am absolutely stuffed with Kyle facts. ask me things.',
+  pantheon: 'psst — I know everything about the guy who built this. ask me stuff.',
+}
+export function nudgeDwellLine(theme) { return NUDGE_DWELL[theme] || NUDGE_DWELL.standard }
+
+const NUDGE_TONE = [
+  'there\'s a funny version of this page. just saying.',
+  'psst — this page has a funnier setting. it\'s a toggle up top.',
+]
+export function nudgeToneLine() { return pick(NUDGE_TONE) }
+
+const NUDGE_THEME = [
+  'this whole site has other outfits, you know. so do I.',
+  'you can redress this entire site — and me. try switching the look.',
+]
+export function nudgeThemeLine() { return pick(NUDGE_THEME) }
+
+// Per-project hype facts — sourced strictly from hirePageData.js copy.
+const PROJECT_FACTS = {
+  'pantheon-wars': [
+    "That's Pantheon Wars — a full multiplayer MMO Kyle built solo. 16,000+ quests completed by real players.",
+    'Pantheon Wars has PvP, an in-game economy, and 11k+ page views. One person made all of it.',
+    "See that one? A persistent Greek-mythology browser MMO, built solo as a portfolio piece.",
+  ],
+  predictinator: [
+    'Predictinator does AI sports picks across NBA, NHL, MLB and NFL — and you never pay for wrong ones.',
+    'Predictinator gives you 3 free tokens to start, plus 1 free every single day.',
+  ],
+  'lexis-nails': [
+    'Lexis Nails is real paid client work — a storefront with an AI try-on that renders nails onto your hand photo.',
+    'Lexis Nails has a mix-and-match 10-nail custom builder. Kyle shipped the whole thing.',
+  ],
+  plutus: [
+    'Plutus is an algorithmic crypto trading bot with a simulation mode — 6 strategies, 58% sim win rate.',
+    'Plutus is still in development, but you can test the simulator right in the Lab.',
+  ],
+}
+export function projectFactLine(id) {
+  const arr = PROJECT_FACTS[id]
+  return arr ? pick(arr) : null
+}
+export function hasProjectFacts(id) { return !!PROJECT_FACTS[id] }
+
+// The starter chip injected into chat when a nudge is tapped open (not auto-sent).
+// All chip labels are guaranteed server-cache hits.
+const NUDGE_CHIPS = {
+  'dwell-no-chat': 'What has Kyle built?',
+  'tone-toggle': 'Why should I hire him?',
+  'theme-tease': 'Why should I hire him?',
+  'pantheon-wars': 'Tell me about Pantheon Wars',
+  predictinator: 'What is Predictinator?',
+  'lexis-nails': 'Tell me about Lexis Nails',
+  plutus: 'Tell me about Plutus',
+}
+export function nudgeChipFor(key) { return NUDGE_CHIPS[key] || 'What has Kyle built?' }
+
+// Portfolio slug → fun-fact key (only projects that have a fact bank above).
+const PORTFOLIO_FACT_KEYS = {
+  'predictinator-5000': 'predictinator',
+  plutus: 'plutus',
+  pantheon: 'pantheon-wars',
+}
+export function factKeyForSlug(slug) { return PORTFOLIO_FACT_KEYS[slug] || null }

@@ -94,8 +94,8 @@ function MessageBubble({ msg, skin, reduced, animate, onRevealed, onChip, onLead
 }
 
 export default function BlobertChat({
-  skin, reduced, blobState, messages, inputDisabled,
-  isMobile, kbInset, bottomExtra = 0, revealedRef, onSend, onLeadDraft, onClose,
+  skin, reduced, blobState, messages, inputDisabled, gaze = null,
+  isMobile, kbInset, bottomExtra = 0, autoFocus = false, revealedRef, onSend, onLeadDraft, onClose,
 }) {
   const c = skin.colors
   const listRef = useRef(null)
@@ -107,6 +107,14 @@ export default function BlobertChat({
     const el = listRef.current
     if (el) el.scrollTop = el.scrollHeight
   }, [messages])
+
+  // Pre-focus the input when opened from a nudge (desktop only — avoids yanking
+  // up the mobile keyboard unprompted).
+  useEffect(() => {
+    if (!autoFocus) return
+    if (!window.matchMedia('(pointer: fine)').matches) return
+    taRef.current && taRef.current.focus()
+  }, [autoFocus])
 
   function autosize() {
     const ta = taRef.current
@@ -175,7 +183,7 @@ export default function BlobertChat({
         display: 'flex', alignItems: 'center', gap: 'var(--space-3, 10px)',
         padding: '10px 12px', borderBottom: `1px solid ${c.border}`, background: c.panelElevated, flexShrink: 0,
       }}>
-        <BlobertBlob skin={skin} reduced={reduced} state={blobState} size={38} />
+        <BlobertBlob skin={skin} reduced={reduced} state={blobState} size={38} gaze={gaze} />
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ fontFamily: skin.fonts.display, fontSize: 'var(--text-base, 16px)', color: c.text, lineHeight: 1.1, letterSpacing: 'var(--tracking-wide, 0.02em)' }}>
             Blobert

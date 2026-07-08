@@ -149,6 +149,16 @@ The admin button is a UI placeholder only. No authentication is implemented. Pha
 - PredictinatorWidget — collapses to 1fr at 768px; table has overflowX: auto
 - CADViewer — collapses at 768px; cad-specs-grid goes 4→2 col
 
+## Blobert — Phase 2 (Personality Polish + Lead Prefill)
+
+Blobert lives in `src/components/hire/blobert/`. Phase 2 additions (all frontend-only except the prefill hand-off; no API/prompt changes):
+
+- **Idle life** (`blobertBehavior.js` + `BlobertWidget.jsx`): one scheduler loop rolls a random idle act every 12–30s while the bubble is **collapsed + awake**. Acts: glance (drives pupils via the new `gaze` prop), sway, rare micro-bounce, per-theme flavor (digital glitch / retro 2px shudder / funky squish; standard = none), and yawn (only after 90s zero-interaction). Never repeats an act back-to-back. Suspended while the panel is open, napping, or under reduced motion. **Two ignored yawns → self-nap.**
+- **Nap variety + wake**: 3 poses (`poseTransform`: normal / slump / puddle — puddle only funky+retro), 3 snore variants (zzz / big Z / growing-popping bubble; bubble skipped under reduced motion). Wake = stretch + two forced blinks (`blinkSignal` prop) + line, ~800ms; reduced motion wakes instantly. `NAP_KEY` stores `'1'` (manual) vs `'self'` (self-nap) → normal `wakeLine()` vs `sheepishWakeLine()`.
+- **Proactive nudges** (`BlobertNudge.jsx`): one governed speech bubble anchored above the blob. 4 triggers, each once/session: dwell-no-chat (45s, per-theme line), tone-toggle (/hire, 30s, funny toggle untouched), theme-tease (60s, theme unchanged), fun-facts (project card in view 4s+, IntersectionObserver on `[data-blobert-fact]` portfolio cards + `#blobert-card-*` hire cards). Governors (all in one interval in BlobertWidget): sessionStorage cap 4, ≥90s between, none in first 30s on a page, none while panel open / napping / input focused / doc hidden / within 60s of last Blobert interaction. Dismiss ✕ silences ALL for the session. Tapping opens chat pre-focused with the related starter chip injected (not auto-sent).
+- **Eyes track the highlight**: `[[highlight:<slug>]]` drives pupils toward the pulsed card for the pulse duration via the same pupil mechanism (`gaze` override in `BlobertBlob`), then releases.
+- **Lead prefill** (replaces clipboard as primary): `[[lead]]` → Haiku draft → `sessionStorage['blobert_lead_draft']` + `blobert-lead-draft` CustomEvent → `navigate('/contact')`. Both contact forms (Digital `ContactForm.jsx`, Standard `StandardContact.jsx`) prefill the `message` field via RHF `setValue` on mount + event, show a dismissible "Drafted by Blobert" note, and clear the key immediately. Clipboard remains the fallback when storage is unavailable.
+
 ## Key Design Decisions
 
 **Hub is the navigation.** No traditional navbar. Hub at /hub is the central command center with 8 nodes (Portfolio, Skills, Services, Lab, Store, Media, About, Contact). Every other page has a HubReturnButton component fixed top-left.

@@ -5,6 +5,7 @@ import Card from '@/components/ui/Card'
 import Tag from '@/components/ui/Tag'
 import Badge from '@/components/ui/Badge'
 import { getCategoryColor, getCategoryIcon } from '@/utils/categoryAssets'
+import { factKeyForSlug } from '@/components/hire/blobert/blobertLines'
 
 function CategoryFallback({ category, aspectRatio }) {
   const color = getCategoryColor(category)
@@ -63,6 +64,7 @@ export default function ProjectCard({ project, size = 'default' }) {
     <div
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
+      data-blobert-fact={factKeyForSlug(project.slug) || undefined}
       style={{ height: '100%' }}
     >
       <Card

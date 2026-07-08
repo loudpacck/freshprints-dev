@@ -5,7 +5,13 @@ import { useEffect, useRef, useState } from 'react'
 // (fill, rim, shape, motion) changes per theme via the `skin` prop.
 //
 // state: 'idle' | 'thinking' | 'napping' | 'wide' (startled — eyes go wide)
-export default function BlobertBlob({ skin, reduced, state = 'idle', size = 72 }) {
+//
+// gaze: optional { x, y } in normalized -1..1. When set, it OVERRIDES the built-in
+//   cursor/scroll pupil tracking (used for idle glances + eyes-track-the-highlight).
+//   Passing it under reduced motion just shifts the pupils once — no animation.
+// blinkSignal: optional number; incrementing it forces one blink (the wake sequence
+//   pulses it twice). Undefined/null → ignored.
+export default function BlobertBlob({ skin, reduced, state = 'idle', size = 72, gaze = null, blinkSignal = null }) {
   const wrapRef = useRef(null)
   const [pupil, setPupil] = useState({ x: 0, y: 0 })
   const [blinking, setBlinking] = useState(false)
@@ -57,6 +63,15 @@ export default function BlobertBlob({ skin, reduced, state = 'idle', size = 72 }
     return () => { window.removeEventListener('scroll', onScroll); if (raf) cancelAnimationFrame(raf) }
   }, [reduced, napping])
 
+  // --- Forced blink (wake sequence pulses this) ------------------------------
+  useEffect(() => {
+    if (blinkSignal == null || napping || wide) return undefined
+    setBlinking(true)
+    const t = setTimeout(() => setBlinking(false), 130)
+    return () => clearTimeout(t)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [blinkSignal])
+
   // --- Blink loop (every 3–8s) — runs even under reduced motion --------------
   useEffect(() => {
     if (napping || wide) { setBlinking(false); return undefined }
@@ -73,8 +88,9 @@ export default function BlobertBlob({ skin, reduced, state = 'idle', size = 72 }
     return () => { cancelled = true; clearTimeout(t1); clearTimeout(t2) }
   }, [napping, wide])
 
-  const px = pupil.x * 4
-  const py = pupil.y * 4
+  // A supplied gaze overrides live cursor/scroll tracking.
+  const px = (gaze ? gaze.x : pupil.x) * 4
+  const py = (gaze ? gaze.y : pupil.y) * 4
   const closed = napping || blinking
   // Startled = eyes pop wide; thinking = squint; otherwise neutral.
   const eyeTransform = thinking ? 'scaleY(0.5)' : wide ? 'scale(1.28)' : 'scaleY(1)'
