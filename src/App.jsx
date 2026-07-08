@@ -21,6 +21,9 @@ import PWTitleCardSequence from '@/components/games/pantheon-wars/PWTitleCardSeq
 import StandardLayout from '@/components/standard/StandardLayout'
 import RetroLayout from '@/components/retro/RetroLayout'
 import FunkyLayout from '@/components/funky/FunkyLayout'
+import { HireToneProvider } from '@/components/hire/HireToneContext'
+
+const BlobertWidget = lazy(() => import('@/components/hire/blobert/BlobertWidget'))
 
 const Landing         = lazy(() => import('@/pages/Landing'))
 const StandardLanding = lazy(() => import('@/pages/StandardLanding'))
@@ -257,7 +260,7 @@ function AppInner() {
   )
 
   return (
-    <>
+    <HireToneProvider>
       <ScrollToTop />
       <AutoTrackers />
       {isDigital && <PageChrome />}
@@ -268,7 +271,12 @@ function AppInner() {
         routesEl
       )}
       {isDigital && <Terminal isOpen={isOpen} onClose={close} />}
-    </>
+      {/* Blobert lives on /hire only. Mounted here (above PageLayout) so he
+          survives the page remounting on theme swaps and can react to them. */}
+      {location.pathname === '/hire' && (
+        <Suspense fallback={null}><BlobertWidget /></Suspense>
+      )}
+    </HireToneProvider>
   )
 }
 

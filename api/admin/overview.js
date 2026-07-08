@@ -120,6 +120,87 @@ async function handleSaveHireStats(req, res) {
   }
 }
 
+// --- Blobert admin (chat-log dashboard) ------------------------------------
+
+const BLOBERT_DAILY_CAP = 1000
+
+function rollupAnsweredBy(rows) {
+  const o = { cache: 0, fuzzy: 0, ai: 0, ratelimited: 0, capped: 0 }
+  for (const r of rows) {
+    if (r.answered_by in o) o[r.answered_by] = Number(r.c)
+  }
+  return o
+}
+
+async function handleBlobertAdmin(req, res) {
+  const { session } = req.query
+
+  // Full transcript for one session.
+  if (session) {
+    try {
+      const rows = await sql`
+        SELECT role, content, answered_by, theme, tone, created_at
+        FROM hire_buddy_logs
+        WHERE session_id = ${session}
+        ORDER BY created_at ASC, id ASC
+      `
+      return res.status(200).json({ transcript: rows })
+    } catch (err) {
+      console.error('blobert transcript error:', err)
+      return res.status(500).json({ error: 'Failed to load transcript' })
+    }
+  }
+
+  try {
+    const [by24h, by30d, aiToday, chats24h, sessions, dailyVolume] = await Promise.all([
+      sql`SELECT answered_by, COUNT(*)::int AS c FROM hire_buddy_logs WHERE created_at > NOW() - INTERVAL '24 hours' GROUP BY answered_by`,
+      sql`SELECT answered_by, COUNT(*)::int AS c FROM hire_buddy_logs WHERE created_at > NOW() - INTERVAL '30 days' GROUP BY answered_by`,
+      // Matches the brain's own cap query exactly (all 'ai' rows this UTC day).
+      sql`SELECT COUNT(*)::int AS c FROM hire_buddy_logs WHERE answered_by = 'ai' AND created_at >= date_trunc('day', NOW() AT TIME ZONE 'UTC') AT TIME ZONE 'UTC'`,
+      sql`SELECT COUNT(DISTINCT session_id)::int AS c FROM hire_buddy_logs WHERE created_at > NOW() - INTERVAL '24 hours'`,
+      sql`
+        SELECT
+          session_id,
+          MAX(created_at) AS last_activity,
+          COUNT(*) FILTER (WHERE role = 'user')::int AS turns,
+          ARRAY_AGG(DISTINCT answered_by) AS sources,
+          (ARRAY_AGG(content ORDER BY created_at ASC, id ASC) FILTER (WHERE role = 'user'))[1] AS first_message
+        FROM hire_buddy_logs
+        WHERE session_id IS NOT NULL
+        GROUP BY session_id
+        ORDER BY last_activity DESC
+        LIMIT 20
+      `,
+      sql`
+        SELECT DATE_TRUNC('day', created_at) AS day, answered_by, COUNT(*)::int AS c
+        FROM hire_buddy_logs
+        WHERE created_at > NOW() - INTERVAL '30 days'
+        GROUP BY day, answered_by
+        ORDER BY day ASC
+      `,
+    ])
+
+    return res.status(200).json({
+      last24h: rollupAnsweredBy(by24h),
+      last30d: rollupAnsweredBy(by30d),
+      aiToday: Number(aiToday[0]?.c || 0),
+      dailyCap: BLOBERT_DAILY_CAP,
+      chats24h: Number(chats24h[0]?.c || 0),
+      sessions: sessions.map(s => ({
+        session_id: s.session_id,
+        first_message: s.first_message || '',
+        turns: Number(s.turns || 0),
+        last_activity: s.last_activity,
+        sources: (s.sources || []).filter(Boolean),
+      })),
+      dailyVolume: dailyVolume.map(r => ({ day: r.day, answered_by: r.answered_by, count: Number(r.c) })),
+    })
+  } catch (err) {
+    console.error('blobert admin error:', err)
+    return res.status(500).json({ error: 'Failed to load Blobert stats' })
+  }
+}
+
 export default async function handler(req, res) {
   const { action } = req.query
 
@@ -127,6 +208,8 @@ export default async function handler(req, res) {
   if (action === 'hire_stats') return handleHireStatsPublic(req, res)
 
   if (!(await requireAdmin(req, res))) return
+
+  if (req.query.section === 'blobert') return handleBlobertAdmin(req, res)
 
   if (action === 'set_config') return handleSetConfig(req, res)
   if (action === 'get_hire_stats') return handleGetHireStats(req, res)

@@ -1,7 +1,8 @@
-import { useRef, useState } from 'react'
+import { useRef } from 'react'
 import { motion } from 'framer-motion'
 import useReducedMotion from '@/hooks/useReducedMotion'
 import ParticleField from '@/components/effects/ParticleField'
+import { useHireTone } from '@/components/hire/HireToneContext'
 import { heroCopy } from '@/data/hirePageData'
 import { useHirePageStats } from '@/hooks/useHirePageStats'
 import {
@@ -19,7 +20,7 @@ const TOGGLE = [
 
 export default function HireHeroDigital() {
   const reduced = useReducedMotion()
-  const [copyMode, setCopyMode] = useState('confident')
+  const { copyMode, setCopyMode } = useHireTone()
   const copy = heroCopy[copyMode]
   const { stats } = useHirePageStats()
 

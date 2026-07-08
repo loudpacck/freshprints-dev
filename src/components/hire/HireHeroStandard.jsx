@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { motion } from 'framer-motion'
 import useReducedMotion from '@/hooks/useReducedMotion'
 import { useTheme } from '@/themes/useTheme'
+import { useHireTone } from '@/components/hire/HireToneContext'
 import RetroCard from '@/components/retro/RetroCard'
 import RetroButton from '@/components/retro/RetroButton'
 import { heroCopy } from '@/data/hirePageData'
@@ -504,7 +505,7 @@ function ScrollCue({ reduced, theme }) {
 export default function HireHeroStandard() {
   const { themeId } = useTheme()
   const reduced = useReducedMotion()
-  const [copyMode, setCopyMode] = useState('confident')
+  const { copyMode, setCopyMode } = useHireTone()
   const copy = heroCopy[copyMode]
   const { stats } = useHirePageStats()
 

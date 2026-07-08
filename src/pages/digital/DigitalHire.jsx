@@ -48,6 +48,7 @@ function ProjectRow({ project }) {
   return (
     <div
       ref={cardRef}
+      id={`blobert-card-${project.id}`}
       className="dh-row"
       style={{
         position: 'relative',
@@ -252,7 +253,7 @@ export default function DigitalHire() {
         </section>
 
         {/* Bottom CTAs */}
-        <div style={{ display: 'flex', gap: 'var(--space-4)', justifyContent: 'center', flexWrap: 'wrap' }}>
+        <div id="blobert-contact-cta" style={{ display: 'flex', gap: 'var(--space-4)', justifyContent: 'center', flexWrap: 'wrap' }}>
           <HireActionButton url={bottomCtas.otherStuff.url} variant="secondary" size="lg">
             {bottomCtas.otherStuff.label}
           </HireActionButton>

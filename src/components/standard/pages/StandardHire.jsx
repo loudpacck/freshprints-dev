@@ -132,6 +132,7 @@ function ProjectRow({ project, index }) {
     <Reveal delay={index * 0.06}>
       <div
         ref={cardRef}
+        id={`blobert-card-${project.id}`}
         className="hire-row"
         style={cardStyle}
         {...retroHandlers}
@@ -298,7 +299,7 @@ export default function StandardHire() {
       {/* Bottom CTAs */}
       <section className="s-section" style={{ background: 'var(--bg-base)' }}>
         <div className="s-container">
-          <div className="hire-cta-row">
+          <div id="blobert-contact-cta" className="hire-cta-row">
             <HireActionButton url={bottomCtas.otherStuff.url} variant="secondary" size="lg">
               {bottomCtas.otherStuff.label}
             </HireActionButton>
