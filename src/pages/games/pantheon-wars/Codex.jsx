@@ -197,7 +197,7 @@ const ALIGNMENT_ENTRIES = [
     color: '#A78BFA',
     body: `The Pantheon Coalition believes the divine order must be preserved. The Eternal Accord, broken by Ermanôs, can be rebuilt — but only by mortals willing to take up the gods' work in their absence.\n\nLed by Kassandra of Mykenai (a mortal seeress who once spoke directly with Apollo before the Unraveling severed the link), the Coalition gathers warriors who refuse to accept the absence of the divine. They study what fragments of god-power remain. They restore what temples can be restored. They believe that without divine guidance, mortals will repeat every cataclysm they have ever caused.\n\nTo join the Coalition is to accept the gods were not perfect — but to argue that the alternative is worse.`,
     bonus: '+15% XP from quests, adventures, and Titan events',
-    pvp_note: 'Coalition warriors clash with Mortal Compact warriors in the Arena.',
+    pvp_note: 'Coalition warriors fight for their bonuses, not against a single foe — any warrior within your level range is a valid Arena target, whatever their alignment.',
   },
   {
     id: 'compact',
@@ -206,7 +206,7 @@ const ALIGNMENT_ENTRIES = [
     color: '#FB923C',
     body: `The Mortal Compact believes mortals must never again kneel before gods. The Unraveling proved that divine power was always fragile, always conditional, always able to abandon those who relied on it. Better to claim the world for mortals — fully, finally — than to wait for new gods to fail.\n\nLed by Hypatia (the mathematician who discovered evidence of the Accord's hidden clause twenty years before the Unraveling, and whose research was destroyed by the Olympian Remnants for daring to question divine authority), the Compact gathers warriors who refuse to mourn what was lost. They build mortal institutions. They forge mortal alliances. They believe that the absence of gods is not a tragedy but a liberation.\n\nTo join the Compact is to accept that no force in the universe will save you — and to fight, knowing that.`,
     bonus: '+10% glory on PvP wins · Glory earned even on loss, scaling with opponent level',
-    pvp_note: 'Compact warriors clash with Pantheon Coalition warriors in the Arena.',
+    pvp_note: 'Compact warriors fight for their bonuses, not against a single foe — any warrior within your level range is a valid Arena target, whatever their alignment.',
   },
 ]
 

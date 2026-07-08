@@ -134,7 +134,7 @@ function AlignmentGate({ onChoose, isSubmitting }) {
         marginBottom: 28,
         lineHeight: 1.55,
       }}>
-        This decision is permanent. Your alignment determines who you can fight and which quest chains you unlock at higher tiers.
+        This decision is permanent. Your alignment grants a passive edge — extra XP or Glory — and unlocks quest chains at higher tiers. It does not limit who you can fight in the Arena.
       </p>
 
       <div className="pw-align-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
@@ -1404,9 +1404,7 @@ export default function PvP() {
                           fontFamily: "'DM Sans', sans-serif", fontSize: 13,
                           color: 'rgba(240,240,248,0.35)', margin: 0, lineHeight: 1.55,
                         }}>
-                          {user.alignment
-                            ? 'No attackable players within ±10 levels and the correct alignment. Check back as more players join.'
-                            : 'No low-level targets available right now. Choose your alignment at level 10 to unlock the full target pool.'}
+                          No attackable players within your level range right now. Check back as more players join.
                         </p>
                       </div>
                     )}

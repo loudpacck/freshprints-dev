@@ -1706,17 +1706,6 @@ async function handlePvPTargets(req, res) {
     const pvpTargetsTownships = await getPlayerTownships(sql, req.userId)
     const pvpTargetsTownshipBonuses = aggregateTownshipBonuses(pvpTargetsTownships)
     let stats = regenPlayer(userRow, ownedTemples, userRow.class, userRow.faction, pvpTargetsTownshipBonuses)
-    const attAlignment = userRow.alignment
-
-    if (!attAlignment && stats.level >= 10) {
-      return res.status(200).json({
-        targets:            [],
-        stats,
-        requires_alignment: true,
-        pendingAdventureRewards: req.pendingAdventureRewards || null,
-      pendingTownshipUpgrades: req.pendingTownshipUpgrades || null,
-      })
-    }
 
     const limit  = Math.min(50, Math.max(1, parseInt(req.query.limit)  || 20))
     const offset = Math.max(0, parseInt(req.query.offset) || 0)
@@ -1724,62 +1713,24 @@ async function handlePvPTargets(req, res) {
     const minLevel = Math.max(1, stats.level - 4)
     const maxLevel = stats.level + 50
 
-    let targets
-    if (attAlignment === 'coalition') {
-      targets = await sql`
-        SELECT sub.user_id, sub.username, sub.faction, sub.class, sub.alignment,
-               sub.level, sub.health, sub.health_max, sub.glory, sub.attack, sub.defense
-        FROM (
-          SELECT u.id AS user_id, u.username, u.faction, u.class, u.alignment,
-                 ps.level, ps.health_max, ps.glory, ps.attack, ps.defense,
-                 LEAST(ps.health_max, ps.health + FLOOR(EXTRACT(EPOCH FROM (NOW() - ps.last_updated)) / 180)::INT) AS health
-          FROM pw_users u
-          JOIN pw_player_stats ps ON ps.user_id = u.id
-          WHERE u.id != ${req.userId}
-            AND ps.level >= ${minLevel} AND ps.level <= ${maxLevel}
-            AND (u.alignment = 'compact' OR ps.level < 10)
-        ) sub
-        WHERE sub.health > 0
-        ORDER BY sub.level DESC
-        LIMIT ${limit} OFFSET ${offset}
-      `
-    } else if (attAlignment === 'compact') {
-      targets = await sql`
-        SELECT sub.user_id, sub.username, sub.faction, sub.class, sub.alignment,
-               sub.level, sub.health, sub.health_max, sub.glory, sub.attack, sub.defense
-        FROM (
-          SELECT u.id AS user_id, u.username, u.faction, u.class, u.alignment,
-                 ps.level, ps.health_max, ps.glory, ps.attack, ps.defense,
-                 LEAST(ps.health_max, ps.health + FLOOR(EXTRACT(EPOCH FROM (NOW() - ps.last_updated)) / 180)::INT) AS health
-          FROM pw_users u
-          JOIN pw_player_stats ps ON ps.user_id = u.id
-          WHERE u.id != ${req.userId}
-            AND ps.level >= ${minLevel} AND ps.level <= ${maxLevel}
-            AND (u.alignment = 'coalition' OR ps.level < 10)
-        ) sub
-        WHERE sub.health > 0
-        ORDER BY sub.level DESC
-        LIMIT ${limit} OFFSET ${offset}
-      `
-    } else {
-      targets = await sql`
-        SELECT sub.user_id, sub.username, sub.faction, sub.class, sub.alignment,
-               sub.level, sub.health, sub.health_max, sub.glory, sub.attack, sub.defense
-        FROM (
-          SELECT u.id AS user_id, u.username, u.faction, u.class, u.alignment,
-                 ps.level, ps.health_max, ps.glory, ps.attack, ps.defense,
-                 LEAST(ps.health_max, ps.health + FLOOR(EXTRACT(EPOCH FROM (NOW() - ps.last_updated)) / 180)::INT) AS health
-          FROM pw_users u
-          JOIN pw_player_stats ps ON ps.user_id = u.id
-          WHERE u.id != ${req.userId}
-            AND ps.level >= ${minLevel} AND ps.level <= ${maxLevel}
-            AND ps.level < 10
-        ) sub
-        WHERE sub.health > 0
-        ORDER BY sub.level DESC
-        LIMIT ${limit} OFFSET ${offset}
-      `
-    }
+    // Alignment no longer gates targeting — any player within the level range and above 0 HP
+    // is a valid target regardless of alignment (or lack of one).
+    const targets = await sql`
+      SELECT sub.user_id, sub.username, sub.faction, sub.class, sub.alignment,
+             sub.level, sub.health, sub.health_max, sub.glory, sub.attack, sub.defense
+      FROM (
+        SELECT u.id AS user_id, u.username, u.faction, u.class, u.alignment,
+               ps.level, ps.health_max, ps.glory, ps.attack, ps.defense,
+               LEAST(ps.health_max, ps.health + FLOOR(EXTRACT(EPOCH FROM (NOW() - ps.last_updated)) / 180)::INT) AS health
+        FROM pw_users u
+        JOIN pw_player_stats ps ON ps.user_id = u.id
+        WHERE u.id != ${req.userId}
+          AND ps.level >= ${minLevel} AND ps.level <= ${maxLevel}
+      ) sub
+      WHERE sub.health > 0
+      ORDER BY sub.level DESC
+      LIMIT ${limit} OFFSET ${offset}
+    `
 
     const attEquip = await getEquipmentBonuses(sql, req.userId)
     const myPowerRating = calculatePowerRating(stats, attEquip)
@@ -1876,20 +1827,9 @@ async function handlePvPAttack(req, res) {
     const attLevel = attRows[0].level
     const defLevel = defRows[0].level
 
-    if (!attUser.alignment && attLevel >= 10) {
-      return res.status(400).json({ error: 'requires_alignment' })
-    }
-
-    if (attUser.alignment) {
-      const opposing = attUser.alignment === 'coalition' ? 'compact' : 'coalition'
-      if (defUser.alignment !== opposing && defLevel >= 10) {
-        return res.status(400).json({ error: 'invalid_alignment_matchup' })
-      }
-    } else {
-      if (defLevel >= 10) {
-        return res.status(400).json({ error: 'invalid_alignment_matchup' })
-      }
-    }
+    // Alignment no longer gates PvP: level-10+ players may attack without having pledged, and
+    // any alignment matchup (including same-alignment) is allowed. Alignment now only drives
+    // the passive XP/Glory bonuses applied further below.
 
     // Higher player attacking lower: block if gap >= 5. Lower attacking higher: always allowed.
     if (attLevel > defLevel && (attLevel - defLevel) >= 5) {
