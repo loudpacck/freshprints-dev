@@ -22,9 +22,36 @@ export function usePolling(fetchFn, interval = 30000, trigger = 0) {
   }, [])
 
   useEffect(() => {
+    let id = null
+
+    const start = () => {
+      if (id === null) id = setInterval(refresh, interval)
+    }
+    const stop = () => {
+      if (id !== null) {
+        clearInterval(id)
+        id = null
+      }
+    }
+
+    // Pause polling while the tab is hidden; refresh immediately on return
+    const onVisibilityChange = () => {
+      if (document.visibilityState === 'hidden') {
+        stop()
+      } else {
+        refresh()
+        start()
+      }
+    }
+
     refresh()
-    const id = setInterval(refresh, interval)
-    return () => clearInterval(id)
+    if (document.visibilityState !== 'hidden') start()
+    document.addEventListener('visibilitychange', onVisibilityChange)
+
+    return () => {
+      stop()
+      document.removeEventListener('visibilitychange', onVisibilityChange)
+    }
   }, [refresh, interval, trigger])
 
   return { data, loading, error, lastUpdated, refresh }

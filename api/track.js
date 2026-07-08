@@ -3,6 +3,12 @@ import { UAParser } from 'ua-parser-js'
 
 export const config = { runtime: 'nodejs' }
 
+// Ingest limits: at most 50 events per request (excess silently truncated);
+// each event's serialized event_data is capped at 8KB (oversized data replaced
+// with a truncation marker so the event itself is still recorded).
+const MAX_EVENTS_PER_REQUEST = 50
+const MAX_EVENT_DATA_BYTES = 8 * 1024
+
 export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' })
 
@@ -55,20 +61,42 @@ export default async function handler(req, res) {
         ui_mode = EXCLUDED.ui_mode
     `
 
-    for (const ev of events) {
-      const { type, data, ts } = ev
-      await sql`
-        INSERT INTO events (event_type, event_data, session_id, visitor_id, path, ui_theme, ui_mode, timestamp)
-        VALUES (${type}, ${JSON.stringify(data || {})}, ${sessionId}, ${visitorId}, ${currentPath}, ${uiTheme}, ${uiMode}, ${ts ? new Date(ts).toISOString() : new Date().toISOString()})
-      `
-    }
+    const accepted = events.slice(0, MAX_EVENTS_PER_REQUEST)
 
-    const pageViews = events.filter(e => e.type === 'page_view').length
+    // Build one multi-row INSERT (single Neon round-trip)
+    const params = []
+    const rows = accepted.map(ev => {
+      const { type, data, ts } = ev
+      let eventData = JSON.stringify(data || {})
+      if (eventData.length > MAX_EVENT_DATA_BYTES) {
+        eventData = JSON.stringify({ truncated: true, originalBytes: eventData.length })
+      }
+      const base = params.length
+      params.push(
+        type,
+        eventData,
+        sessionId,
+        visitorId,
+        currentPath,
+        uiTheme,
+        uiMode,
+        ts ? new Date(ts).toISOString() : new Date().toISOString()
+      )
+      return `($${base + 1}, $${base + 2}, $${base + 3}, $${base + 4}, $${base + 5}, $${base + 6}, $${base + 7}, $${base + 8})`
+    })
+
+    await sql.query(
+      `INSERT INTO events (event_type, event_data, session_id, visitor_id, path, ui_theme, ui_mode, timestamp)
+       VALUES ${rows.join(', ')}`,
+      params
+    )
+
+    const pageViews = accepted.filter(e => e.type === 'page_view').length
     if (pageViews > 0) {
       await sql`UPDATE sessions SET page_count = page_count + ${pageViews} WHERE id = ${sessionId}`
     }
 
-    return res.status(200).json({ ok: true, recorded: events.length })
+    return res.status(200).json({ ok: true, recorded: accepted.length })
   } catch (err) {
     console.error('[/api/track] CRASH:', err.message)
     console.error('[/api/track] STACK:', err.stack)

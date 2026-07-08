@@ -1,7 +1,7 @@
 # freshprints.dev — Project Reference
 
 > Dense technical reference for AI assistants. Read top-to-bottom before touching any code.
-> Generated: 2026-05-14 | Source of truth: CLAUDE.md + actual code
+> Generated: 2026-07-08 | Source of truth: CLAUDE.md + actual code
 
 ---
 
@@ -15,7 +15,7 @@
 
 **Live URL:** https://freshprints.dev  
 **GitHub:** https://github.com/loudpacck/freshprints-dev  
-**Hosting:** Vercel (Hobby plan — 12 serverless function max, currently 8 used)  
+**Hosting:** Vercel (Hobby plan — 12 serverless function max, currently 11 used; the last slot is permanently reserved — never add api/ files)  
 **DNS:** Cloudflare (gray cloud, DNS-only, NOT proxied — do not proxy or Vercel breaks)  
 **Local path:** `B:\freshprints-dev`  
 **Build tool:** Claude Code running in PowerShell on Windows 11
@@ -99,9 +99,9 @@
 
 ### Vercel Configuration
 - **Plan:** Hobby (12 serverless function max — HARD LIMIT)
-- **Function slots used:** 8 of 12
+- **Function slots used:** 11 of 12 — the last slot is permanently reserved; add new backend logic as switch cases in existing files, NEVER as new api/ files
 - **Auto-deploy:** Push to `main` → Vercel builds and deploys automatically
-- **Config file:** `vercel.json` — SPA rewrite (`/*` → `/index.html`) + security headers
+- **Config file:** `vercel.json` — SPA rewrite (`/*` → `/index.html`) + security headers + two Titan cron schedules
 - **Local full-stack dev:** `vercel dev` (NOT `npm run dev` — API routes won't work otherwise)
 - **Build command:** `npm run build` (Vite)
 
@@ -109,7 +109,11 @@
 ```json
 {
   "rewrites": [{ "source": "/(.*)", "destination": "/index.html" }],
-  "headers": [X-Content-Type-Options, X-Frame-Options: DENY, X-XSS-Protection]
+  "headers": [X-Content-Type-Options, X-Frame-Options: DENY, X-XSS-Protection],
+  "crons": [
+    "/api/games/pantheon-wars/titan-cron?event=morning  @ 0 13 * * *",
+    "/api/games/pantheon-wars/titan-cron?event=evening  @ 0 1 * * *"
+  ]
 }
 ```
 
@@ -132,7 +136,7 @@
 
 ## 4. THEME ARCHITECTURE
 
-Three complete UIs, one planned stub. Each is a fully scoped CSS + layout system.
+Four complete selectable UIs plus a hidden game-only theme. Each is a fully scoped CSS + layout system.
 
 ### Theme Registry (`src/themes/registry.js`)
 | ID | Status | Navigation | Sound Pack | Default? |
@@ -140,8 +144,8 @@ Three complete UIs, one planned stub. Each is a fully scoped CSS + layout system
 | `standard` | complete | navbar (StandardLayout) | none | **YES — default for new visitors** |
 | `digital` | complete | hub (Hub.jsx) | digital | opt-in |
 | `retro` | complete | toolbar (RetroLayout) | retro | opt-in |
-| `pantheon` | stub | — | — | no |
-| `funky` | stub, hidden | — | — | no |
+| `funky` | complete | navbar (FunkyLayout) | funky | opt-in |
+| `pantheon` | complete, hidden | — (game-only, Pantheon Wars chrome) | pantheon | no |
 
 ### How Themes Work
 - `ThemeProvider` (`src/themes/ThemeProvider.jsx`) wraps the entire app outside `<BrowserRouter>`
@@ -153,9 +157,9 @@ Three complete UIs, one planned stub. Each is a fully scoped CSS + layout system
 
 ### Theme Entry Points
 - **`/`** → `Landing.jsx` — always Digital aesthetic (no theme switching, it's the splash)
-- **`/home`** → `HomeRoute` — Standard: `StandardLayout + StandardLanding`, Retro: `RetroLayout + RetroLanding`
+- **`/home`** → `HomeRoute` — Standard: `StandardLayout + StandardLanding`, Retro: `RetroLayout + RetroLanding`, Funky: `FunkyLayout + FunkyLanding`
 - **`/hub`** → `Hub.jsx` — Digital only
-- All inner pages: `PageLayout` wrapper adds `StandardLayout` or `RetroLayout` when not Digital
+- All inner pages: `PageLayout` wrapper adds `StandardLayout`, `RetroLayout`, or `FunkyLayout` when not Digital
 
 ### CSS Token Scoping
 - Standard tokens: `src/themes/standard/tokens.css` → `[data-ui="standard"]`
@@ -168,15 +172,19 @@ Three complete UIs, one planned stub. Each is a fully scoped CSS + layout system
 ### Per-Theme Font Stacks
 | Theme | Display | Mono | Body |
 |---|---|---|---|
-| Standard | Geist | Geist Mono | Geist |
+| Standard | Bricolage Grotesque / Geist | Geist Mono | Geist |
 | Digital | Bebas Neue | IBM Plex Mono | DM Sans |
 | Retro | Press Start 2P (sparingly) | VT323 | MS Sans Serif / Tahoma / Arial |
+| Funky | Unbounded | Space Mono | Outfit |
+| Pantheon | Cinzel | — | Cormorant Garamond |
+
+**Font loading (Phase B consolidation):** ONE Google Fonts `<link>` in `index.html` carries every theme's families (plus Rajdhani for Beat Beaters). The per-theme `fonts.css` files are stubs — do not re-add `@import`s to them.
 
 ### Sound System
 - `SoundManager.js` singleton in `src/sound/`
-- Per-theme mute state: `fp-sound-muted-digital` (default: muted), `fp-sound-muted-retro` (default: unmuted)
-- Digital pack: 13 synthesized sounds via Web Audio API (no audio files)
-- Retro pack: 13 sounds including Win95-style boot chime
+- Per-theme mute state: `fp-sound-muted-digital` (default: muted), `fp-sound-muted-retro` (default: unmuted), `fp-sound-muted-funky` (default: muted)
+- Packs in `src/sound/packs/`: `digital.js`, `retro.js` (Win95-style boot chime), `funky.js`, `pantheon.js` (game)
+- All packs synthesized via Web Audio API (no audio files)
 - Standard: silent (no sound pack)
 - Available sounds: `click, hover, activate, select, terminalOpen, terminalClose, terminalKey, terminalSubmit, modalOpen, modalClose, success, error, toggle`
 
@@ -189,7 +197,7 @@ Three complete UIs, one planned stub. Each is a fully scoped CSS + layout system
 Inner pages are thin theme switchers — the top-level page file checks `themeId` and renders the correct variant:
 - Digital variants: `src/pages/digital/Digital[PageName].jsx`
 - Standard variants: `src/components/standard/pages/Standard[PageName].jsx`
-- Retro variants: currently renders Standard variants inside RetroLayout chrome (Phase 15b is planned but not built)
+- Retro + Funky: render the Standard variants inside RetroLayout / FunkyLayout chrome (documented deferral)
 
 ### Adding a New Theme
 1. Create `src/themes/yourtheme/manifest.js`
@@ -215,6 +223,7 @@ All routes in `src/App.jsx`. All lazy-loaded. `PageLayout` adds theme-appropriat
 | Route | Page File | Standard Component | Digital Component |
 |---|---|---|---|
 | `/about` | `About.jsx` | `StandardAbout` | `DigitalAbout` |
+| `/hire` | `Hire.jsx` | `HireHeroStandard` + shared sections | `HireHeroDigital` + shared sections |
 | `/portfolio` | `Portfolio.jsx` | `StandardPortfolio` | `DigitalPortfolio` |
 | `/portfolio/:slug` | `ProjectPage.jsx` | `StandardProjectPage` | `DigitalProjectPage` |
 | `/skills` | `Skills.jsx` | `StandardSkills` | `DigitalSkills` |
@@ -232,18 +241,26 @@ All routes in `src/App.jsx`. All lazy-loaded. `PageLayout` adds theme-appropriat
 | `*` | `NotFound.jsx` | wrapped by PageLayout | — |
 
 ### Pantheon Wars Routes (under `PantheonWarsShell` — provides `PantheonWarsContext`)
-| Route | Component | Status |
-|---|---|---|
-| `/games/pantheon-wars` | `Dashboard.jsx` | Built ✅ |
-| `/games/pantheon-wars/quests` | `Quests.jsx` | Built ✅ |
-| `/games/pantheon-wars/signup` | `Signup.jsx` | Built ✅ |
-| `/games/pantheon-wars/login` | `Login.jsx` | Built ✅ |
-| `/games/pantheon-wars/inventory` | `Inventory.jsx` | Built ✅ |
-| `/games/pantheon-wars/shop` | `Shop.jsx` | Built ✅ |
-| `/games/pantheon-wars/temples` | `Temples.jsx` | Built ✅ (Phase 4) |
-| `/games/pantheon-wars/pvp` | `PvP.jsx` | Stub ⚠️ |
-| `/games/pantheon-wars/leaderboard` | `Leaderboard.jsx` | Built ✅ |
-| `/games/pantheon-wars/profile` | `Profile.jsx` | Built ✅ |
+All built unless noted. Rendered OUTSIDE `AnimatedRoutes` (prevents shell remount killing the intro song).
+| Route | Component |
+|---|---|
+| `/games/pantheon-wars` | `Dashboard.jsx` |
+| `/games/pantheon-wars/quests` | `Quests.jsx` |
+| `/games/pantheon-wars/signup` / `login` | `Signup.jsx` / `Login.jsx` |
+| `/games/pantheon-wars/forgot-password` / `reset-password` | `ForgotPassword` / `ResetPassword` |
+| `/games/pantheon-wars/inventory` | `Inventory.jsx` |
+| `/games/pantheon-wars/shop` | `Shop.jsx` |
+| `/games/pantheon-wars/temples` | `Temples.jsx` |
+| `/games/pantheon-wars/pvp` + `/pvp/log` | `PvP.jsx` + `PvPLog` |
+| `/games/pantheon-wars/leaderboard` | `Leaderboard.jsx` |
+| `/games/pantheon-wars/profile` | `Profile.jsx` |
+| `/games/pantheon-wars/adventures` | `Adventures.jsx` |
+| `/games/pantheon-wars/township` + `/township-view` | `Township.jsx` + `TownshipView` (error-boundary wrapped) |
+| `/games/pantheon-wars/titan` | `Titan.jsx` |
+| `/games/pantheon-wars/codex` | `Codex.jsx` |
+| `/games/pantheon-wars/alliance` | `Alliance.jsx` |
+| `/games/pantheon-wars/dungeons` | `Dungeons.jsx` |
+| `/games/pantheon-wars/store` | Coming Soon placeholder |
 
 ### Special Behaviors
 - `/lab/beat-beaters` and `/lab/beat-beaters/play` are defined **before** `/lab/:slug` in App.jsx — they take priority over the generic experiment slug matcher
@@ -251,7 +268,7 @@ All routes in `src/App.jsx`. All lazy-loaded. `PageLayout` adds theme-appropriat
 - `/lab/pantheon-wars` → `<Navigate replace />` to `/games/pantheon-wars` (in LabExperiment.jsx)
 - `/admin` uses no layout wrapper (standalone page, auth-gated)
 - Digital theme: `PageChrome` (HubReturnButton), `SoundToggle`, `Terminal` rendered globally in `AppInner`
-- Terminal: backtick (`` ` ``) opens, Escape or backtick closes; commands: help, ls, ls projects, cd [route], whoami, clear, exit
+- Terminal: backtick (`` ` ``) opens, Escape or backtick closes; commands: help, ls, ls projects, cd [route], whoami, clear, exit — `cd hire` works (route added in Phase A)
 
 ---
 
@@ -309,6 +326,16 @@ Indexes: timestamp DESC, event_type, session_id, visitor_id, path
 | `expires_at` | TIMESTAMPTZ | 7 days |
 | `ip_address` | VARCHAR(45) | |
 | `user_agent` | TEXT | |
+
+**`hire_page_stats`** (db/schema.sql) — public counters displayed on `/hire` (live stats strip)
+
+**Blobert tables** (`db/migrations/blobert-brain.sql`):
+- `hire_buddy_faqs` — curated Q&A knowledge base (cache tier before the AI call)
+- `hire_buddy_variants` — phrasing variants linked to FAQs (fuzzy-match tier)
+- `hire_buddy_logs` — every Blobert exchange (session_id, ip_hash, answer source), 90-day purge
+
+### Migrations (`db/migrations/`)
+`schema.sql` holds the core tables; later features each added a migration file: account-recovery-moderator (password reset tokens, moderators, invites, sessions, actions), admin-config, adventures, alliances-phase-a, blobert-brain, craftsmanship-potion-overhaul, dm-read-state, dungeons-d1, live-chat, pending-rewards, titan-event, township. All game tables stay `pw_`-prefixed.
 
 ### Pantheon Wars Tables (all prefixed `pw_`)
 
@@ -425,19 +452,23 @@ Indexes: timestamp DESC, event_type, session_id, visitor_id, path
 
 ## 7. API ENDPOINTS
 
-**CRITICAL: Vercel Hobby = 12 function limit. 8 used. Add game logic as switch cases in game.js — NEVER create new API files.**
+**CRITICAL: Vercel Hobby = 12 function limit. 11 used — the last slot is permanently reserved. Add backend logic as switch cases in existing files (`?action=` / `type` routing) — NEVER create new API files.**
+
+Function inventory (11): `contact.js`, `track.js`, `auth/admin.js`, `auth/check.js`, `auth/logout.js`, `auth/moderator.js`, `auth/reset.js`, `admin/overview.js`, `games/pantheon-wars/auth.js`, `games/pantheon-wars/game.js`, `games/pantheon-wars/titan-cron.js`
 
 ### Infrastructure APIs
 
-**`api/contact.js`** — handles 3 form types via `type` field in POST body
+**`api/contact.js`** — handles 4 request types via `type` field in POST body
 - `type: 'contact'` — Contact page form
 - `type: 'newsletter'` — Media page NewsletterStrip
 - `type: 'intake'` — Services IntakeWizard
-- Sends emails via Resend
+- `type: 'hire_buddy'` — **Blobert**, the /hire AI mascot: validation → FAQ cache → fuzzy variant match → rate limit + daily cap → Claude (Anthropic API) → `hire_buddy_logs`
+- Email types send via Resend
 
 **`api/track.js`** — event ingestion
-- POST — accepts `{ events[] }` array, writes to visitors/sessions/events tables
-- Respects Do-Not-Track header
+- POST — accepts `{ events[] }` array; visitor/session upserts + ONE multi-row INSERT for all events (Phase C)
+- Limits: max 50 events per request (excess truncated), 8KB per event_data (oversized replaced with truncation marker)
+- Client respects Do-Not-Track (tracker never sends)
 
 **`api/auth/admin.js`** — admin login
 - POST — verifies password against `ADMIN_PASSWORD_HASH`, creates session cookie `fp_admin`
@@ -448,10 +479,14 @@ Indexes: timestamp DESC, event_type, session_id, visitor_id, path
 **`api/auth/logout.js`** — admin logout
 - POST — revokes session, clears `fp_admin` cookie
 
-**`api/admin/overview.js`** — stats dashboard (admin-gated)
-- GET — returns 30-day stats: session count, visitor count, page views, top paths, recent events, area chart data
+**`api/auth/moderator.js`** — game moderator system, routed by `?action=` (activate, login, logout, check, generate_invite, list_invites, list_mods, deactivate_mod, list_actions, lookup_player, set_mod_badge, chat_audit, chat_moderations, chat_lift_moderation; helpers in `lib/modAuth.js`)
 
-### Game APIs (CONSOLIDATED — 2 files total)
+**`api/auth/reset.js`** — game player password reset, routed by `?action=` (`request` emails a token via Resend — rate-limited 3/24h; `verify` validates the token and sets the new password)
+
+**`api/admin/overview.js`** — stats dashboard (admin-gated except deliberately public reads: `action=get_config`, `action=hire_stats`)
+- GET — site stats: sessions, visitors, page views, top paths, recent events, area chart data; plus `admin_metrics` game snapshot
+
+### Game APIs (CONSOLIDATED — 3 files total)
 
 **`api/games/pantheon-wars/auth.js`** — player auth, routed by `?action=`
 | Action | Method | Auth Required | Description |
@@ -461,22 +496,22 @@ Indexes: timestamp DESC, event_type, session_id, visitor_id, path
 | `logout` | POST | no | Revoke session, clear cookie |
 | `me` | GET | yes | Return current user + stats with regen applied |
 
-**`api/games/pantheon-wars/game.js`** — all game actions, routed by `?action=`, all require `pw_session` auth
-| Action | Method | Description |
-|---|---|---|
-| `quests` | GET | List quests available to player level, with completions |
-| `complete` | POST | Complete a quest: spend energy, earn XP+drachma+loot, check level-up |
-| `inventory` | GET | List player inventory with equipped state and equipment bonuses |
-| `equip` | POST | Equip item by `inventory_id` (auto-unequips same-slot item) |
-| `unequip` | POST | Unequip item by `inventory_id` |
-| `sell` | POST | Delete inventory item, add sell_price to drachma |
-| `shop` | GET | List purchasable items (drachma + glory tabs), player currency |
-| `buy` | POST | Purchase item with drachma or glory |
-| `leaderboard` | GET | Ranked list by `?type=level/glory/drachma/mastery` + `?faction=all/olympians/aesir/annunaki` |
-| `allocate` | POST | Spend stat points into attack/defense |
-| `temples` | GET | Catalog of available temples + owned temples + passive income total |
-| `temples_buy` | POST | Purchase a temple type |
-| `temples_upgrade` | POST | Upgrade an owned temple (max level 10, +25% income each) |
+**`api/games/pantheon-wars/game.js`** — ALL game actions, routed by `?action=` (~90 actions), `pw_session` auth. Grouped by domain:
+| Domain | Actions |
+|---|---|
+| Quests / progression | `quests`, `complete`, `allocate`, `stat_reset_free`, `alignment_choose`, `codex`, `pending_rewards`, `acknowledge_reward`, `craftsmanship_claim` |
+| Inventory / shop | `inventory`, `equip`, `unequip`, `sell`, `sell_bulk`, `buy`, `shop`, `consume` |
+| Temples / township | `temples`, `temples_buy`, `temples_upgrade`, `township`, `township_establish`, `township_upgrade` |
+| PvP | `pvp_targets`, `pvp_attack`, `pvp_log` |
+| Leaderboard | `leaderboard` (type: level/glory/drachma/mastery × faction filter) |
+| Adventures | `adventures`, `adventures_start`, `adventures_claim`, `adventures_abandon` |
+| Titan events | `titan_status`, `titan_join`, `titan_claim`, `titan_history`, `titan_recap`, `titan_player_log`, `titan_admin_trigger` |
+| Alliances | `alliance_*` (create, browse, info, invites, kick/promote/demote, donations, treasury log, disband, transfer) |
+| Dungeons | `dungeon_*` (list, group create/browse/join, queue, loadout, votekick, run/recap/log) |
+| Live chat (Pusher) | `chat_*` (send/fetch, DMs, alliance channel, moderation, pusher_auth) |
+| Admin | `admin_metrics` (game snapshot for dashboard), `user_lookup` |
+
+**`api/games/pantheon-wars/titan-cron.js`** — Vercel cron target (13:00 / 01:00 UTC via vercel.json, guarded by `CRON_SECRET`) — spawns/resolves Titan events
 
 ---
 
@@ -524,8 +559,9 @@ Indexes: timestamp DESC, event_type, session_id, visitor_id, path
 ### Important Notes
 - `ua-parser-js` must be imported as `{ UAParser }` (named import) — `import UAParser from ...` breaks
 - Events sent to `POST /api/track` with keepalive on pagehide
+- Server caps: 50 events/request, 8KB per event_data; all events written in one multi-row INSERT
 - Respects `navigator.doNotTrack`
-- Admin dashboard at `/admin` shows: 4 stat cards, 30-day area chart, top paths, recent events
+- Admin dashboard at `/admin` (Phase 12 state): 8 tabs — OVERVIEW, SITE ANALYTICS, GAME METRICS, BLOBERT, HIRE STATS, TITAN, MODERATOR, TOWNSHIP EDITOR. Data tabs poll every 30s via `usePolling` (pauses while the tab is hidden, immediate refresh on return)
 
 ---
 
@@ -533,8 +569,8 @@ Indexes: timestamp DESC, event_type, session_id, visitor_id, path
 
 | File | Contents | Used By |
 |---|---|---|
-| `projects.js` | 7 portfolio projects (slug, name, status, category, stack, metrics, thumbnail, images, hasDemo, demoUrl, liveUrl, cta, relatedSlugs) | Portfolio, ProjectPage, About, StandardLanding |
-| `labExperiments.js` | 5 lab experiments incl. Pantheon Wars (external flag) | Lab, LabExperiment, StandardLanding |
+| `projects.js` | 10 portfolio projects (slug, name, status, category, stack, metrics, thumbnail, images, hasDemo, demoUrl, liveUrl, cta, relatedSlugs) | Portfolio, ProjectPage, About, StandardLanding |
+| `labExperiments.js` | 6 lab experiments incl. Pantheon Wars (external flag) and Beat Beaters | Lab, LabExperiment, StandardLanding |
 | `skills.js` | Disciplines, tools (with IDs + parentId), specializations (3 tiers) | Skills, About, StandardAbout |
 | `services.js` | 6 service categories with packages, prices, deliverables | Services, About, StandardLanding |
 | `storeProducts.js` | Digital, software, physical products (id, type, name, price, purchaseUrl) | Store |
@@ -557,15 +593,18 @@ Indexes: timestamp DESC, event_type, session_id, visitor_id, path
 
 All in `src/data/projects.js`:
 
-| Slug | Name | Status | Categories | Featured |
-|---|---|---|---|---|
-| `predictinator-5000` | Predictinator | ACTIVE | software, ai | yes |
-| `plutus` | Plutus | BETA | software, ai | yes |
-| `pantheon` | Pantheon | IN_DEVELOPMENT | games | yes |
-| `jogger` | Jogger | IN_DEVELOPMENT | games, ai | no |
-| `architect` | Architect (Archie) | BETA | ai, engineering | no |
-| `hot-potato` | Hot Potato | ACTIVE | games | no |
-| `fresh-prints-prototypes` | Fresh Prints - Production & Design | AVAILABLE | engineering | yes |
+| Slug | Status | Featured |
+|---|---|---|
+| `predictinator-5000` | ACTIVE | yes |
+| `plutus` | IN_DEVELOPMENT | yes |
+| `lexis-nails` | ACTIVE | yes |
+| `pantheon` | ACTIVE | yes |
+| `jogger` | IN_DEVELOPMENT | no |
+| `architect` (Archie) | BETA | no |
+| `hot-potato` | ACTIVE | no |
+| `beat-beaters` | IN_DEVELOPMENT | no |
+| `pantheon-wars` | ACTIVE | no |
+| `fresh-prints-prototypes` | AVAILABLE | yes |
 
 ### Status Color Map
 | Status | Color | Notes |
@@ -598,8 +637,9 @@ Persistent multiplayer browser idle RPG at `/games/pantheon-wars`. Greek/Norse/M
 | Phase B1 — Stat Allocation | Profile page, spend stat_points into attack/defense | ✅ Complete |
 | Phase B2/B3 — Inventory + Shop + Leaderboard | Items, loot drops, equip/sell/buy, leaderboard | ✅ Complete |
 | Phase 4 — Temples | Passive income properties, purchase + upgrade | ✅ Complete |
-| Phase 5 — PvP | Combat, target list, combat log, glory | ❌ Not built |
-| Phase 6 — Leaderboards + Polish | Leaderboards built ✅, remaining polish | Partial |
+| Phase 5 — PvP | Combat, target list, combat log (`/pvp/log`), glory | ✅ Complete |
+| Phase 6 — Leaderboards + Polish | Leaderboards + polish | ✅ Complete |
+| Later systems | Township (+ admin Township Editor), Titan events (cron-driven), Adventures, Alliances, Dungeons, Live chat (Pusher), Codex, Moderators, Password reset | ✅ Built (see routes + game.js action domains) |
 
 ### Game Mechanics
 - **Factions:** olympians (+5% XP), aesir (+5% attack), annunaki (+5% drachma)
@@ -650,12 +690,12 @@ Persistent multiplayer browser idle RPG at `/games/pantheon-wars`. Greek/Norse/M
 
 Chart files are `fetch()`'d at runtime. Vercel serves them as static files with no server code involved.
 
-### Lane Layout
+### Lane Layout (home-row split)
 ```
-Lanes:  W(0)  A(1)  S(2)  D(3)  |  Space(4)  |  I(5)  J(6)  K(7)  L(8)
-Colors: #FF3B3B #FF9F0A #30D158 #0A84FF  #FFFFFF  #BF5AF2 #FF375F #64D2FF #FFD60A
+Lanes:  A(0)  S(1)  D(2)  F(3)  |  Space(4, 2.5× wide)  |  J(5)  K(6)  L(7)  ;(8)
+Colors: #FF3B3B #FF7A1A #FFB300 #FFE600  #FFFFFF  #0A84FF #5E5CE6 #AF52DE #FF2D92
 ```
-6px cluster gap between D/Space and Space/I.
+6px cluster gaps flank Space (F/Space and Space/J); 2px between all other adjacent lanes.
 
 ### Chart JSON Schema (`public/charts/*.json`)
 ```json
@@ -721,16 +761,15 @@ Beat Meter: fills 10% per PERFECT. Shift at 50%+ activates 8s × 2 score multipl
 
 ## 14. KNOWN ISSUES / TECHNICAL DEBT
 
-- **`react-three-fiber` chunk is ~868KB** — pre-existing, non-critical, not blocking. Hub background 3D scene loads this.
+- **`react-three-fiber` chunk is ~868KB** — no longer on the splash's first-paint path: `DeferredParticleField` (Phase B) lazy-mounts it after first paint on Landing / DigitalPortfolio / Digital hire hero. The Hub still loads it eagerly (its background needs it).
+- **Store purchase links** — the six external products in `storeProducts.js` are flagged `comingSoon` (Phase A); BUY renders disabled until real Gumroad URLs exist.
 - **CAD model descriptions** — all 6 models in `cadModels.js` have `description: 'Description coming soon.'`
 - **`cadModels.js` relatedProjectSlug** — all 6 models have `relatedProjectSlug: null` (not linked to portfolio projects)
 - **UA Parser import** — must use `{ UAParser }` named import (v2 breaking change). Default import `UAParser` throws at runtime. Previously broke tracking; fixed.
-- **`siteStatus.js` lastUpdated** — set to `'2026-05-07'`, may need updating.
-- **PvP route** — `src/pages/games/pantheon-wars/PvP.jsx` is a stub. Dashboard shows it as disabled (`comingSoon: true`).
-- **Profile photo in About** — may still show a placeholder in some UI variants.
+- **`siteStatus.js` lastUpdated** — still `'2026-05-07'`, stale.
 - **Standard tokens** include Digital-name aliases as a bridge — these are intentional but create a dual naming convention.
-- **Retro inner pages** — Retro theme currently renders Standard page variants inside RetroLayout. Phase 15b (dedicated Retro inner pages) was planned but not built.
-- **`src/styles/tokens.css`** — stub comment only. All real tokens are in `src/themes/digital/tokens.css`. Don't add tokens to the stub.
+- **Retro/Funky inner pages** — both themes render Standard page variants inside their own chrome. Dedicated variants (Retro Phase 15b) were deferred by design.
+- **`src/styles/tokens.css`** — stub comment only. Real tokens live per-theme in `src/themes/*/tokens.css`. Don't add tokens to the stub.
 
 ---
 
@@ -747,7 +786,7 @@ Beat Meter: fills 10% per PERFECT. Shift at 50%+ activates 8s × 2 score multipl
 9. **Admin cookie: `fp_admin`** | **Player cookie: `pw_session`** — completely separate systems
 10. **`npm run db:init` is safe to re-run** — all `CREATE TABLE IF NOT EXISTS`
 11. **`npm run db:seed:pw` is safe to re-run** — all `ON CONFLICT DO NOTHING`
-12. **Vercel function limit: 12 max, 8 used** — 4 slots remain
+12. **Vercel function limit: 12 max, 11 used** — the last slot is permanently reserved; never add api/ files
 13. **Token source of truth: each theme's own `tokens.css`** — never hardcode colors/spacing inline
 14. **Category color map (tags, cards):** software → #00C8FF, games → #FFB347, engineering → #A0A0B8, ai → #8B5CF6, content → #FBBF24
 15. **Design tokens for everything** — never hardcode hex values except in token definition files
@@ -772,6 +811,11 @@ All must be set in `.env.local` for local dev AND in Vercel dashboard for produc
 | `RESEND_API_KEY` | Resend email service API key |
 | `CONTACT_TO_EMAIL` | Receiving email for contact form submissions (Kyle's email) |
 | `CONTACT_FROM_EMAIL` | Verified sender in Resend (e.g. `noreply@freshprints.dev`) |
+| `ANTHROPIC_API_KEY` | Claude API key for Blobert (`type: 'hire_buddy'` in contact.js) |
+| `BLOBERT_IP_SALT` | Salt for hashing visitor IPs in `hire_buddy_logs` |
+| `SITE_URL` | Base URL for password-reset links (defaults to `https://www.freshprints.dev`) |
+| `CRON_SECRET` | Guards `titan-cron.js` against non-Vercel invocation |
+| `PUSHER_APP_ID` / `PUSHER_KEY` / `PUSHER_SECRET` / `PUSHER_CLUSTER` | Pusher credentials for game live chat (`lib/pwPusher.js`) |
 
 ---
 
@@ -780,21 +824,25 @@ All must be set in `.env.local` for local dev AND in Vercel dashboard for produc
 ```
 B:\freshprints-dev\
 │
-├── api/                          Vercel serverless functions
-│   ├── contact.js                Contact/newsletter/intake emails
-│   ├── track.js                  Analytics event ingestion
+├── api/                          Vercel serverless functions (11 of 12 — last slot reserved)
+│   ├── contact.js                Contact/newsletter/intake emails + Blobert (type: 'hire_buddy')
+│   ├── track.js                  Analytics event ingestion (batched, capped)
 │   ├── auth/
 │   │   ├── admin.js              Admin login
 │   │   ├── check.js              Admin session validation
-│   │   └── logout.js             Admin session revocation
+│   │   ├── logout.js             Admin session revocation
+│   │   ├── moderator.js          Game moderator system (?action= routed)
+│   │   └── reset.js              Game player password reset (?action= routed)
 │   ├── admin/
 │   │   └── overview.js           Admin dashboard stats
 │   └── games/pantheon-wars/
 │       ├── auth.js               Player signup/login/logout/me
-│       └── game.js               All game actions (quests, inventory, shop, temples, etc.)
+│       ├── game.js               ALL game actions (~90 ?action= cases)
+│       └── titan-cron.js         Vercel cron target for Titan events
 │
 ├── db/
-│   └── schema.sql                Full DB schema (run via npm run db:init)
+│   ├── schema.sql                Core DB schema (run via npm run db:init)
+│   └── migrations/               Feature migrations (blobert-brain, alliances, dungeons, live-chat, titan-event, township, ...)
 │
 ├── docs/
 │   └── PROJECT_REFERENCE.md      This file
@@ -802,8 +850,11 @@ B:\freshprints-dev\
 ├── lib/                          Shared backend utilities
 │   ├── auth.js                   Admin auth helpers (fp_admin cookie)
 │   ├── db.js                     Neon DB client export
+│   ├── modAuth.js                Moderator auth helpers (session, logging)
+│   ├── profanityFilter.js        Chat profanity filtering
 │   ├── pwAuth.js                 Player auth helpers (pw_session cookie)
-│   └── pwHelpers.js              Pure game logic (regenPlayer, checkLevelUp)
+│   ├── pwHelpers.js              Pure game logic (regenPlayer, checkLevelUp)
+│   └── pwPusher.js               Pusher server client for live chat
 │
 ├── pantheon_wars/
 │   └── docs/
@@ -813,9 +864,10 @@ B:\freshprints-dev\
 │   ├── 3d_files/                 CAD .glb models (6 files)
 │   ├── audio/                    MP3 audio files for Beat Beaters (test.mp3 = demo)
 │   ├── charts/                   Chart JSON files for Beat Beaters (demo.json = demo)
-│   ├── thumbnails/               Project card thumbnails
-│   ├── images/                   Project gallery images
-│   └── og-image.svg              Open Graph image
+│   ├── thumbnails/               Project card thumbnails (WebP — originals deleted in Phase C)
+│   ├── images/                   Project gallery images (WebP + prof pic 1.jpg)
+│   ├── og-image.png              Open Graph image (PNG — SVG kept alongside but meta tags point at PNG)
+│   └── og-image.svg              Legacy OG image
 │
 ├── scripts/                      One-off Node scripts (not Vercel functions)
 │   ├── init-db.js                Runs schema.sql
@@ -831,7 +883,9 @@ B:\freshprints-dev\
 │   │   ├── admin/                AdminLoginModal, AdminOverview
 │   │   ├── contact/              ContactForm, ContactDirect
 │   │   ├── dev/                  DevThemeSwitcher (Ctrl+Shift+T, dev-only)
-│   │   ├── effects/              ParticleField (reusable animated particles)
+│   │   ├── effects/              ParticleField + DeferredParticleField (lazy-mounts three.js after first paint)
+│   │   ├── funky/                FunkyLayout, FunkyNav, FunkyFooter, FunkyButton, FunkyCard, dividers/transitions
+│   │   ├── hire/                 Hire page heroes (Digital/Standard), theme tiles, blobert/ (BlobertWidget + skins)
 │   │   ├── hub/                  HubSystemControls, UIPicker (Digital variant)
 │   │   ├── lab/                  ExperimentCard; experiments/ subfolder
 │   │   ├── layout/               PageChrome (HubReturnButton), SoundToggle, Footer
@@ -871,7 +925,9 @@ B:\freshprints-dev\
 │   │   ├── useSound.js           React hook
 │   │   └── packs/
 │   │       ├── digital.js        13 synthesized sounds
-│   │       └── retro.js          13 retro sounds + aliases
+│   │       ├── retro.js          13 retro sounds + aliases
+│   │       ├── funky.js          Liquid/synth sounds + aliases
+│   │       └── pantheon.js       Game sound pack
 │   │
 │   ├── styles/
 │   │   ├── global.css            Global resets, overflow-x: hidden on html+body, blueprint grid (light mode)
@@ -883,17 +939,17 @@ B:\freshprints-dev\
 │   │   ├── useTheme.js           Re-export for clean imports
 │   │   ├── registry.js           Theme manifest registry
 │   │   ├── digital/              manifest.js, tokens.css
-│   │   ├── standard/             manifest.js, tokens.css, fonts.css
-│   │   ├── retro/                manifest.js, tokens.css, fonts.css
-│   │   ├── pantheon/             manifest.js (stub)
-│   │   └── funky/                manifest.js (stub, hidden)
+│   │   ├── standard/             manifest.js, tokens.css, fonts.css (stub)
+│   │   ├── retro/                manifest.js, tokens.css, fonts.css (stub)
+│   │   ├── funky/                manifest.js, tokens.css, fonts.css (stub)
+│   │   └── pantheon/             manifest.js (complete, hidden — game-only)
 │   │
 │   ├── tracking/                 Tracker.js, sessionUtils.js, useTracker.js, AutoTrackers.jsx
 │   └── utils/                    categoryAssets.js (getCategoryColor, getCategoryIcon)
 │
-├── index.html                    Vite entry; Geist fonts; Google model-viewer CDN; flash prevention script; Plausible analytics
+├── index.html                    Vite entry; single consolidated all-theme Google Fonts link; model-viewer CDN; flash prevention script; Plausible analytics
 ├── vite.config.js                @vitejs/plugin-react, @tailwindcss/vite, path alias @→/src
-├── vercel.json                   SPA rewrite + security headers
+├── vercel.json                   SPA rewrite + security headers + Titan cron schedules
 └── package.json                  All dependencies
 ```
 
@@ -910,7 +966,7 @@ B:\freshprints-dev\
 
 ### Standard-Specific Components
 - `StandardLayout.jsx` — nav + main + footer wrapper
-- `StandardNav.jsx` — sticky blur nav, hamburger mobile
+- `StandardNav.jsx` — sticky blur nav, hamburger mobile, includes "Hire Me" link (Phase A — all theme navs link /hire)
 - `StandardFooter.jsx` — 3-col, "Switch to Operations Terminal" opens UIPicker
 - `StandardButton.jsx` — primary/secondary/ghost variants
 - `StandardCard.jsx` — image + status badge + hover-lift
