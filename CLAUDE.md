@@ -472,9 +472,9 @@ Token source of truth is now `src/themes/digital/tokens.css` (not `src/styles/to
 - **Shared lib:** `lib/db.js` (Neon client), `lib/auth.js` (session helpers)
 - **API endpoints:**
   - `POST /api/track` — ingest events (page_view, scroll_depth, time_on_page)
-  - `POST /api/auth/admin` — authenticate (returns session cookie)
-  - `POST /api/auth/logout` — revoke session
-  - `GET  /api/auth/check` — validate current session
+  - `POST /api/auth/admin?action=login` — authenticate (returns session cookie); bare POST defaults to login
+  - `POST /api/auth/admin?action=logout` — revoke session
+  - `GET  /api/auth/admin?action=check` — validate current session (always 200 `{ authenticated }`)
   - `GET  /api/admin/overview` — stats dashboard data (auth-gated)
 - **Frontend tracker:** `src/tracking/` — `Tracker.js` (singleton, 5s auto-flush, keepalive on pagehide), `sessionUtils.js` (visitor/session IDs in localStorage/sessionStorage), `useTracker.js` hook, `AutoTrackers.jsx` (mounted in AppInner)
 - **Auto-tracked events:** `page_view`, `scroll_depth` (25/50/75/100%), `time_on_page`

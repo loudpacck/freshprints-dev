@@ -290,7 +290,7 @@ export default function Admin() {
 
   useEffect(() => {
     Promise.all([
-      fetch('/api/auth/check').then(r => r.json()).catch(() => ({ authenticated: false })),
+      fetch('/api/auth/admin?action=check').then(r => r.json()).catch(() => ({ authenticated: false })),
       fetch('/api/auth/moderator?action=check').then(r => r.json()).catch(() => ({ authenticated: false })),
     ]).then(([adminData, modData]) => {
       if (adminData.authenticated) {
@@ -308,7 +308,7 @@ export default function Admin() {
 
   async function handleLogout() {
     if (authType === 'admin') {
-      await fetch('/api/auth/logout', { method: 'POST' })
+      await fetch('/api/auth/admin?action=logout', { method: 'POST' })
     } else {
       await fetch('/api/auth/moderator?action=logout', { method: 'POST' })
     }

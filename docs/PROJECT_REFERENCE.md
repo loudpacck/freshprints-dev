@@ -15,7 +15,7 @@
 
 **Live URL:** https://freshprints.dev  
 **GitHub:** https://github.com/loudpacck/freshprints-dev  
-**Hosting:** Vercel (Hobby plan — 12 serverless function max, currently 11 used; the last slot is permanently reserved — never add api/ files)  
+**Hosting:** Vercel (Hobby plan — 12 serverless function max, currently 9 used; the last slot is permanently reserved — never add api/ files)  
 **DNS:** Cloudflare (gray cloud, DNS-only, NOT proxied — do not proxy or Vercel breaks)  
 **Local path:** `B:\freshprints-dev`  
 **Build tool:** Claude Code running in PowerShell on Windows 11
@@ -99,7 +99,7 @@
 
 ### Vercel Configuration
 - **Plan:** Hobby (12 serverless function max — HARD LIMIT)
-- **Function slots used:** 11 of 12 — the last slot is permanently reserved; add new backend logic as switch cases in existing files, NEVER as new api/ files
+- **Function slots used:** 9 of 12 — the last slot is permanently reserved; add new backend logic as switch cases in existing files, NEVER as new api/ files
 - **Auto-deploy:** Push to `main` → Vercel builds and deploys automatically
 - **Config file:** `vercel.json` — SPA rewrite (`/*` → `/index.html`) + security headers + two Titan cron schedules
 - **Local full-stack dev:** `vercel dev` (NOT `npm run dev` — API routes won't work otherwise)
@@ -452,9 +452,9 @@ Indexes: timestamp DESC, event_type, session_id, visitor_id, path
 
 ## 7. API ENDPOINTS
 
-**CRITICAL: Vercel Hobby = 12 function limit. 11 used — the last slot is permanently reserved. Add backend logic as switch cases in existing files (`?action=` / `type` routing) — NEVER create new API files.**
+**CRITICAL: Vercel Hobby = 12 function limit. 9 used — the last slot is permanently reserved. Add backend logic as switch cases in existing files (`?action=` / `type` routing) — NEVER create new API files.**
 
-Function inventory (11): `contact.js`, `track.js`, `auth/admin.js`, `auth/check.js`, `auth/logout.js`, `auth/moderator.js`, `auth/reset.js`, `admin/overview.js`, `games/pantheon-wars/auth.js`, `games/pantheon-wars/game.js`, `games/pantheon-wars/titan-cron.js`
+Function inventory (9): `contact.js`, `track.js`, `auth/admin.js`, `auth/moderator.js`, `auth/reset.js`, `admin/overview.js`, `games/pantheon-wars/auth.js`, `games/pantheon-wars/game.js`, `games/pantheon-wars/titan-cron.js`
 
 ### Infrastructure APIs
 
@@ -470,14 +470,10 @@ Function inventory (11): `contact.js`, `track.js`, `auth/admin.js`, `auth/check.
 - Limits: max 50 events per request (excess truncated), 8KB per event_data (oversized replaced with truncation marker)
 - Client respects Do-Not-Track (tracker never sends)
 
-**`api/auth/admin.js`** — admin login
-- POST — verifies password against `ADMIN_PASSWORD_HASH`, creates session cookie `fp_admin`
-
-**`api/auth/check.js`** — validate admin session
-- GET — returns `{ ok: true }` or 401
-
-**`api/auth/logout.js`** — admin logout
-- POST — revokes session, clears `fp_admin` cookie
+**`api/auth/admin.js`** — consolidated admin auth (Phase D1), routed by `?action=` (login, check, logout)
+- `action=login` (POST) — verifies password against `ADMIN_PASSWORD_HASH`, creates session cookie `fp_admin`; 800ms delay + 401 on wrong password; bare POST with no action defaults to login
+- `action=check` (any method) — always 200 `{ authenticated: true|false }`, never 401
+- `action=logout` (POST) — revokes session, clears `fp_admin` cookie
 
 **`api/auth/moderator.js`** — game moderator system, routed by `?action=` (activate, login, logout, check, generate_invite, list_invites, list_mods, deactivate_mod, list_actions, lookup_player, set_mod_badge, chat_audit, chat_moderations, chat_lift_moderation; helpers in `lib/modAuth.js`)
 
@@ -786,7 +782,7 @@ Beat Meter: fills 10% per PERFECT. Shift at 50%+ activates 8s × 2 score multipl
 9. **Admin cookie: `fp_admin`** | **Player cookie: `pw_session`** — completely separate systems
 10. **`npm run db:init` is safe to re-run** — all `CREATE TABLE IF NOT EXISTS`
 11. **`npm run db:seed:pw` is safe to re-run** — all `ON CONFLICT DO NOTHING`
-12. **Vercel function limit: 12 max, 11 used** — the last slot is permanently reserved; never add api/ files
+12. **Vercel function limit: 12 max, 9 used** — the last slot is permanently reserved; never add api/ files
 13. **Token source of truth: each theme's own `tokens.css`** — never hardcode colors/spacing inline
 14. **Category color map (tags, cards):** software → #00C8FF, games → #FFB347, engineering → #A0A0B8, ai → #8B5CF6, content → #FBBF24
 15. **Design tokens for everything** — never hardcode hex values except in token definition files
@@ -824,13 +820,11 @@ All must be set in `.env.local` for local dev AND in Vercel dashboard for produc
 ```
 B:\freshprints-dev\
 │
-├── api/                          Vercel serverless functions (11 of 12 — last slot reserved)
+├── api/                          Vercel serverless functions (9 of 12 — last slot reserved)
 │   ├── contact.js                Contact/newsletter/intake emails + Blobert (type: 'hire_buddy')
 │   ├── track.js                  Analytics event ingestion (batched, capped)
 │   ├── auth/
-│   │   ├── admin.js              Admin login
-│   │   ├── check.js              Admin session validation
-│   │   ├── logout.js             Admin session revocation
+│   │   ├── admin.js              Admin auth: login/check/logout (?action= routed)
 │   │   ├── moderator.js          Game moderator system (?action= routed)
 │   │   └── reset.js              Game player password reset (?action= routed)
 │   ├── admin/

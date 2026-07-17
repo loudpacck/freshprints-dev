@@ -48,7 +48,7 @@ export default function AdminLoginModal({ onClose }) {
     setLoading(true)
     setError(null)
     try {
-      const res = await fetch('/api/auth/admin', {
+      const res = await fetch('/api/auth/admin?action=login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ password }),
