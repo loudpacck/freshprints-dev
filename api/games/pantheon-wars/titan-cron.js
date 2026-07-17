@@ -1,5 +1,5 @@
 import { neon } from '@neondatabase/serverless'
-import { processExpiredTitanEvents, scheduleNextTitanEvent } from '../../../lib/pwHelpers.js'
+import { processExpiredTitanEvents, scheduleNextTitanEvent, writeDailySnapshot } from '../../../lib/pwHelpers.js'
 import { requireAdmin } from '../../../lib/auth.js'
 
 const sql = neon(process.env.POSTGRES_DATABASE_URL || process.env.POSTGRES_URL)
@@ -29,11 +29,22 @@ export default async function handler(req, res) {
     const didWork     = await processExpiredTitanEvents(sql)
     const nextFightAt = await scheduleNextTitanEvent(sql)
 
+    // Daily stats snapshot — isolated so a failure can never throw into the titan path.
+    let snapshot = 'skipped'
+    try {
+      await writeDailySnapshot(sql)
+      snapshot = 'ok'
+    } catch (err) {
+      console.error('[titan-cron] snapshot failed (titan unaffected):', err)
+      snapshot = 'failed'
+    }
+
     return res.status(200).json({
       ok:            true,
       slot,
       processed:     didWork,
       next_event_at: nextFightAt.toISOString(),
+      snapshot,
     })
   } catch (err) {
     console.error('[titan-cron] error:', err)
