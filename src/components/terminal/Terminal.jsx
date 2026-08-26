@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { useNavigate } from 'react-router-dom'
 import { useSound } from '@/sound/useSound'
 
-const ROUTES = ['portfolio', 'skills', 'services', 'hire', 'lab', 'store', 'media', 'about', 'contact']
+const ROUTES = ['portfolio', 'skills', 'services', 'hire', 'lab', 'media', 'about', 'contact']
 
 const HELP_LINES = [
   '  help             list commands',

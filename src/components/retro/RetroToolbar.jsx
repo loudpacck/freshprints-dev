@@ -2,18 +2,12 @@ import { useState } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { AnimatePresence, motion } from 'framer-motion'
 import { useSound } from '@/sound/useSound'
+import { PRIMARY_NAV } from '@/data/navigation'
 
-const NAV_ITEMS = [
-  { label: 'Work',     href: '/portfolio' },
-  { label: 'Services', href: '/services' },
-  { label: 'Hire Me',  href: '/hire' },
-  { label: 'About',    href: '/about' },
-  { label: 'Contact',  href: '/contact' },
-  null, // separator
-  { label: 'Lab',      href: '/lab' },
-  { label: 'Store',    href: '/store' },
-  { label: 'Media',    href: '/media' },
-]
+// Canonical destinations only. The menu-bar separator convention is preserved
+// on the divider before the UI picker below; the old mid-list separator split
+// no longer maps to anything in the canonical order.
+const NAV_ITEMS = PRIMARY_NAV
 
 const RAISED_SM = `
   inset 1px 1px 0 var(--bevel-highlight),
@@ -140,21 +134,11 @@ export default function RetroToolbar({ onOpenPicker }) {
 
         {/* Desktop nav items */}
         <div className="retro-menubar-items" style={{ display: 'flex', alignItems: 'center', height: '100%' }}>
-          {NAV_ITEMS.map((item, i) => {
-            if (item === null) {
-              return (
-                <div key={`sep-${i}`} style={{
-                  width: 1,
-                  height: 16,
-                  background: 'var(--bevel-shadow)',
-                  margin: '0 2px',
-                }} />
-              )
-            }
+          {NAV_ITEMS.map((item) => {
             const active = location.pathname.startsWith(item.href)
             return (
               <button
-                key={item.href}
+                key={item.id}
                 onClick={() => go(item.href)}
                 style={{
                   padding: '2px 8px',
@@ -239,9 +223,9 @@ export default function RetroToolbar({ onOpenPicker }) {
               borderBottom: '2px solid var(--bevel-shadow)',
             }}
           >
-            {NAV_ITEMS.filter(Boolean).map(item => (
+            {NAV_ITEMS.map(item => (
               <button
-                key={item.href}
+                key={item.id}
                 onClick={() => go(item.href)}
                 style={{
                   display: 'block',

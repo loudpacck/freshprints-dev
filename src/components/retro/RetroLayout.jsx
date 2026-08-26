@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import RetroToolbar from './RetroToolbar'
 import RetroStatusBar from './RetroStatusBar'
+import RetroFooter from './RetroFooter'
 import UIPicker from '@/components/ui/UIPicker'
 
 export default function RetroLayout({ children }) {
@@ -35,6 +36,8 @@ export default function RetroLayout({ children }) {
       >
         {children}
       </main>
+
+      <RetroFooter />
 
       <RetroStatusBar onOpenPicker={() => setPickerOpen(true)} />
 

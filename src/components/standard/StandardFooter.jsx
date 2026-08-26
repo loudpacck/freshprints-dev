@@ -1,13 +1,8 @@
 import { Link } from 'react-router-dom'
 import { socialLinks } from '@/data/socialLinks'
+import { PRIMARY_NAV, UTILITY_NAV } from '@/data/navigation'
 
-const SITE_LINKS = [
-  { to: '/hire',   label: 'Hire Me' },
-  { to: '/lab',    label: 'Lab' },
-  { to: '/store',  label: 'Store' },
-  { to: '/media',  label: 'Media' },
-  { to: '/skills', label: 'Skills' },
-]
+const SITE_LINKS = [...PRIMARY_NAV, ...UTILITY_NAV]
 
 const CONNECT_LINKS = [
   { label: 'Email',              href: `mailto:${socialLinks.email}` },
@@ -95,10 +90,10 @@ export default function StandardFooter({ onOpenPicker }) {
           {/* Col 2 — Site */}
           <div>
             <div style={col.heading}>Site</div>
-            {SITE_LINKS.map(({ to, label }) => (
+            {SITE_LINKS.map(({ id, label, href }) => (
               <Link
-                key={to}
-                to={to}
+                key={id}
+                to={href}
                 style={col.link}
                 onMouseEnter={e => e.target.style.color = 'var(--text-secondary)'}
                 onMouseLeave={e => e.target.style.color = 'var(--text-tertiary)'}

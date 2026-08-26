@@ -1,5 +1,5 @@
 import { lazy, Suspense, useEffect, useState, Component } from 'react'
-import { BrowserRouter, Routes, Route, Outlet, useLocation } from 'react-router-dom'
+import { BrowserRouter, Routes, Route, Outlet, Navigate, useLocation } from 'react-router-dom'
 import { AnimatePresence } from 'framer-motion'
 
 import PageChrome from '@/components/layout/PageChrome'
@@ -52,7 +52,6 @@ const LabExperiment      = lazy(() => import('@/pages/LabExperiment'))
 const BeatBeatersSelect  = lazy(() => import('@/pages/BeatBeatersSelect'))
 const BeatBeaters        = lazy(() => import('@/pages/BeatBeaters'))
 const BeatBeatersEditor  = lazy(() => import('@/pages/BeatBeatersEditor'))
-const Store           = lazy(() => import('@/pages/Store'))
 const Media           = lazy(() => import('@/pages/Media'))
 const Contact         = lazy(() => import('@/pages/Contact'))
 const Admin             = lazy(() => import('@/pages/Admin'))
@@ -200,7 +199,8 @@ function AnimatedRoutes() {
         <Route path="/lab/beat-beaters/play"    element={<BeatBeaters />} />
         <Route path="/lab/beat-beaters/editor"  element={<BeatBeatersEditor />} />
         <Route path="/lab/:slug"                element={<PageLayout><LabExperiment /></PageLayout>} />
-        <Route path="/store"              element={<PageLayout><Store /></PageLayout>} />
+        {/* Store retired — legacy links/bookmarks land on Hire */}
+        <Route path="/store"              element={<Navigate to="/hire" replace />} />
         <Route path="/media"              element={<PageLayout><Media /></PageLayout>} />
         <Route path="/contact"            element={<PageLayout><Contact /></PageLayout>} />
         <Route path="/admin"              element={<Admin />} />

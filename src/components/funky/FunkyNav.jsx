@@ -3,19 +3,7 @@ import { Link, useLocation } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import useReducedMotion from '@/hooks/useReducedMotion'
 import { useSound } from '@/sound/useSound'
-
-// Full page parity — all 8 tabs, including Skills.
-const NAV_LINKS = [
-  { to: '/about',     label: 'About' },
-  { to: '/portfolio', label: 'Portfolio' },
-  { to: '/skills',    label: 'Skills' },
-  { to: '/services',  label: 'Services' },
-  { to: '/lab',       label: 'Lab' },
-  { to: '/store',     label: 'Store' },
-  { to: '/media',     label: 'Media' },
-  { to: '/contact',   label: 'Contact' },
-  { to: '/hire',      label: 'Hire' },
-]
+import { PRIMARY_NAV } from '@/data/navigation'
 
 function MenuIcon() {
   return (
@@ -116,11 +104,11 @@ export default function FunkyNav({ onOpenPicker }) {
 
         {/* Desktop nav */}
         <nav aria-label="Main navigation" className="funky-desktop-nav" style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}>
-          {NAV_LINKS.map(({ to, label }) => (
+          {PRIMARY_NAV.map(({ id, label, href }) => (
             <Link
-              key={to}
-              to={to}
-              className={`funky-pill${isActive(to) ? ' active' : ''}`}
+              key={id}
+              to={href}
+              className={`funky-pill${isActive(href) ? ' active' : ''}`}
               onMouseEnter={() => play('hover')}
               onClick={() => play('click')}
               style={{ textDecoration: 'none', fontSize: 'var(--text-sm)' }}
@@ -171,11 +159,11 @@ export default function FunkyNav({ onOpenPicker }) {
             }}
           >
             <nav aria-label="Mobile navigation" style={{ padding: 'var(--space-3) var(--space-5) var(--space-5)', display: 'flex', flexDirection: 'column', gap: 'var(--space-2)' }}>
-              {NAV_LINKS.map(({ to, label }) => (
+              {PRIMARY_NAV.map(({ id, label, href }) => (
                 <Link
-                  key={to}
-                  to={to}
-                  className={`funky-pill${isActive(to) ? ' active' : ''}`}
+                  key={id}
+                  to={href}
+                  className={`funky-pill${isActive(href) ? ' active' : ''}`}
                   onClick={() => play('click')}
                   style={{ textDecoration: 'none', textAlign: 'left', minHeight: 44, display: 'flex', alignItems: 'center', fontSize: 'var(--text-base)' }}
                 >

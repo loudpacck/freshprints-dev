@@ -1,13 +1,8 @@
 import { Link } from 'react-router-dom'
 import { socialLinks } from '@/data/socialLinks'
+import { PRIMARY_NAV, UTILITY_NAV } from '@/data/navigation'
 
-const SITE_LINKS = [
-  { to: '/portfolio', label: 'Portfolio' },
-  { to: '/lab',       label: 'Lab' },
-  { to: '/store',     label: 'Store' },
-  { to: '/media',     label: 'Media' },
-  { to: '/skills',    label: 'Skills' },
-]
+const SITE_LINKS = [...PRIMARY_NAV, ...UTILITY_NAV]
 
 const CONNECT_LINKS = [
   { label: 'Email',               href: `mailto:${socialLinks.email}` },
@@ -82,10 +77,10 @@ export default function FunkyFooter({ onOpenPicker }) {
           {/* Site */}
           <div>
             <div style={heading}>Site</div>
-            {SITE_LINKS.map(({ to, label }) => (
+            {SITE_LINKS.map(({ id, label, href }) => (
               <Link
-                key={to}
-                to={to}
+                key={id}
+                to={href}
                 style={linkStyle}
                 onMouseEnter={e => e.target.style.color = 'var(--accent)'}
                 onMouseLeave={e => e.target.style.color = 'var(--text-tertiary)'}

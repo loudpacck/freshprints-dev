@@ -3,14 +3,7 @@ import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useTheme } from '@/themes/useTheme'
 import useReducedMotion from '@/hooks/useReducedMotion'
-
-const NAV_LINKS = [
-  { to: '/portfolio', label: 'Work' },
-  { to: '/services',  label: 'Services' },
-  { to: '/about',     label: 'About' },
-  { to: '/contact',   label: 'Contact' },
-  { to: '/hire',      label: 'Hire Me' },
-]
+import { PRIMARY_NAV } from '@/data/navigation'
 
 function SunIcon() {
   return (
@@ -141,11 +134,11 @@ export default function StandardNav({ onOpenPicker }) {
           }}
           className="s-desktop-nav"
         >
-          {NAV_LINKS.map(({ to, label }) => (
+          {PRIMARY_NAV.map(({ id, label, href }) => (
             <Link
-              key={to}
-              to={to}
-              className={`s-nav-link${isActive(to) ? ' active' : ''}`}
+              key={id}
+              to={href}
+              className={`s-nav-link${isActive(href) ? ' active' : ''}`}
             >
               {label}
             </Link>
@@ -257,10 +250,10 @@ export default function StandardNav({ onOpenPicker }) {
             }}
           >
             <nav aria-label="Mobile navigation">
-              {NAV_LINKS.map(({ to, label }) => (
+              {PRIMARY_NAV.map(({ id, label, href }) => (
                 <Link
-                  key={to}
-                  to={to}
+                  key={id}
+                  to={href}
                   style={{
                     display: 'flex',
                     alignItems: 'center',
@@ -269,7 +262,7 @@ export default function StandardNav({ onOpenPicker }) {
                     fontFamily: 'var(--font-body)',
                     fontWeight: 'var(--weight-medium)',
                     fontSize: 'var(--text-base)',
-                    color: isActive(to) ? 'var(--text-primary)' : 'var(--text-secondary)',
+                    color: isActive(href) ? 'var(--text-primary)' : 'var(--text-secondary)',
                     textDecoration: 'none',
                     borderBottom: '1px solid var(--border-subtle)',
                     transition: 'color 150ms',
