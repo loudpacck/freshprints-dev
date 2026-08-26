@@ -62,7 +62,6 @@ function routeKey(pathname) {
   const p = String(pathname || '').split('?')[0].split('#')[0]
   if (p === '/portfolio' || p.startsWith('/portfolio/')) return 'portfolio'
   if (p === '/skills') return 'skills'
-  if (p === '/store') return 'store'
   if (p === '/contact') return 'contact'
   if (p === '/hub') return 'hub'
   return 'default'
@@ -76,10 +75,6 @@ const ROUTE_GREETINGS = {
   skills: [
     "Checking the skill tree? Ask me how any of this shows up in real work.",
     "Skills page. I can tell you what Kyle actually ships with any of these.",
-  ],
-  store: [
-    "Window shopping? Ask me what any of this does.",
-    "The store. Happy to explain anything here.",
   ],
   contact: [
     "Ready to reach out? I can even help you word it.",

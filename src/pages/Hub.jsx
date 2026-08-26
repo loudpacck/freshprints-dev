@@ -15,7 +15,7 @@ const NODES = [
   { id: 1, label: 'SKILLS',    route: '/skills',    descriptor: 'Capability matrix',   icon: 'gear'      },
   { id: 2, label: 'SERVICES',  route: '/services',  descriptor: 'Hire me',             icon: 'briefcase' },
   { id: 3, label: 'LAB',       route: '/lab',       descriptor: 'Experiments & demos', icon: 'beaker'    },
-  { id: 4, label: 'STORE',     route: '/store',     descriptor: 'Products',            icon: 'cart'      },
+  { id: 4, label: 'HIRE',      route: '/hire',      descriptor: 'Start a project',     icon: 'hire'      },
   { id: 5, label: 'MEDIA',     route: '/media',     descriptor: 'Content & devlogs',   icon: 'play'      },
   { id: 6, label: 'ABOUT',     route: '/about',     descriptor: 'Who I am',            icon: 'profile'   },
   { id: 7, label: 'CONTACT',   route: '/contact',   descriptor: 'Get in touch',        icon: 'mail'      },
@@ -64,7 +64,7 @@ function Icon({ type }) {
     case 'gear':      return <svg viewBox="0 0 20 20" style={s}><circle cx="10" cy="10" r="2.5" {...p}/><path d="M10 3.5v2M10 14.5v2M3.5 10h2M14.5 10h2M5.6 5.6l1.5 1.5M13 13l1.5 1.5M5.6 14.4l1.5-1.5M13 7l1.5-1.5" {...p}/></svg>
     case 'briefcase': return <svg viewBox="0 0 20 20" style={s}><rect x="2" y="7" width="16" height="11" rx="1.5" {...p}/><path d="M7 7V5.5A1.5 1.5 0 018.5 4h3A1.5 1.5 0 0113 5.5V7" {...p}/><line x1="2" y1="12" x2="18" y2="12" {...p}/></svg>
     case 'beaker':    return <svg viewBox="0 0 20 20" style={s}><path d="M7.5 2v6L3 15.5a1 1 0 00.9 1.5h12.2a1 1 0 00.9-1.5L12.5 8V2" {...p}/><line x1="6" y1="2" x2="14" y2="2" {...p}/><circle cx="8.5" cy="14" r="0.8" fill="currentColor" stroke="none"/></svg>
-    case 'cart':      return <svg viewBox="0 0 20 20" style={s}><path d="M1 1.5h2l2.5 9H15l2-6H5" {...p}/><circle cx="8.5" cy="17" r="1.5" {...p}/><circle cx="14.5" cy="17" r="1.5" {...p}/></svg>
+    case 'hire':      return <svg viewBox="0 0 20 20" style={s}><circle cx="7.5" cy="6.5" r="3.5" {...p}/><path d="M1.5 18c0-3.3 2.7-6 6-6" {...p}/><line x1="15" y1="10.5" x2="15" y2="17" {...p}/><line x1="11.75" y1="13.75" x2="18.25" y2="13.75" {...p}/></svg>
     case 'play':      return <svg viewBox="0 0 20 20" style={s}><polygon points="4,2 18,10 4,18" {...p}/></svg>
     case 'profile':   return <svg viewBox="0 0 20 20" style={s}><circle cx="10" cy="6.5" r="3.5" {...p}/><path d="M2.5 19c0-4.1 3.4-7.5 7.5-7.5s7.5 3.4 7.5 7.5" {...p}/></svg>
     case 'mail':      return <svg viewBox="0 0 20 20" style={s}><rect x="1.5" y="4" width="17" height="13" rx="1.5" {...p}/><polyline points="1.5,4 10,12 18.5,4" {...p}/></svg>

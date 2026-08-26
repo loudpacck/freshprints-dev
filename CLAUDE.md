@@ -85,7 +85,7 @@ Status values are defined in `src/components/ui/Badge.jsx` (Digital), `src/compo
 - [x] Phase 3 — Portfolio (data file, filterable grid, project deep-dive pages, CAD viewer)
 - [x] Phase 4 — Skills + Services (skill matrix node graph, services packages, intake wizard)
 - [x] Phase 5 — Lab (Predictinator widget, Plutus simulator, Architect demo, CAD models)
-- [x] Phase 6 — Store + Media (product grid, devlog grid, featured video)
+- [x] Phase 6 — Store + Media (product grid, devlog grid, featured video) — Store retired in Phase 1 (2026-08-26)
 - [x] Phase 7 — About + Contact + Polish (about page, contact page, forms backend, SEO, mobile audit, lazy loading)
 - [x] Phase 8 — Sound FX System (Web Audio API synthesizer, digital pack, useSound hook, SoundToggle button)
 - [x] Phase 9 — Theme Architecture Refactor (multi-theme system, CSS scoped to data-ui, ThemeProvider context, DevThemeSwitcher)
@@ -96,6 +96,31 @@ Status values are defined in `src/components/ui/Badge.jsx` (Digital), `src/compo
 - [x] Phase 16 — Beat Beaters Rhythm Game (2026-05-30)
 - [x] Phase 17a — Funky UI Foundation (2026-05-31)
 - [x] Phase 17b — Funky Showpiece (frosted panels, liquid transitions, dividers) (2026-05-31)
+- [x] Phase 1 — Single-source navigation config + Store removal (2026-08-26)
+
+---
+
+## Navigation (Phase 1, 2026-08-26)
+
+**`src/data/navigation.js` is the single source of truth for site navigation. Themes must not hardcode their own link lists.**
+
+Exports:
+- `PRIMARY_NAV` — the canonical 6 destinations, in this exact order: **Work** (/portfolio) · **Lab** (/lab) · **Hire** (/hire) · **Media** (/media) · **About** (/about) · **Contact** (/contact)
+- `UTILITY_NAV` — footer-only: **Skills** (/skills)
+
+Each entry is `{ id, label, href }`. `id` is a stable slug (`'work'`, `'lab'`, …) so themes key off identity, not label text.
+
+**Wired to it:** `StandardNav`, `StandardFooter`, `RetroToolbar`, `RetroFooter`, `FunkyNav`, `FunkyFooter`. Footers render `PRIMARY_NAV + UTILITY_NAV`; Retro's footer renders `UTILITY_NAV` + social links.
+
+**Not wired to it:** the Digital theme. `Hub.jsx` (structurally hardcoded grid), `hub/UIPicker.jsx`, `PageChrome`, and `Terminal.jsx` still carry their own lists — out of scope by design.
+
+**`/services` is intentionally absent** from `PRIMARY_NAV` — it merges into `/hire` in a later phase. The route, page, and data still exist and remain reachable directly. Likewise Skills merges into About later; `UTILITY_NAV` keeps it reachable until then.
+
+### Store removal (Phase 1 / 1b)
+
+The Store was retired — 6 of 7 products were unbuyable and all 7 images 404'd. Deleted: `src/data/storeProducts.js`, `src/pages/Store.jsx`, `src/pages/digital/DigitalStore.jsx`, `src/components/standard/pages/StandardStore.jsx`, `src/components/store/`. `/store` now redirects to `/hire` via `<Navigate replace />` so old links resolve. Hub node 4 was relabeled STORE → HIRE in place (the grid is structurally hardcoded — never add/remove nodes). `DecisionTree`'s middle card became "see the work" → `/portfolio`.
+
+---
 
 ## Phase 10 — Mobile Audit Results (2026-05-10)
 
@@ -141,7 +166,6 @@ The admin button is a UI placeholder only. No authentication is implemented. Pha
 - ProjectPage — hero uses clamp(), metrics bar collapses at 640px, all grids wrap
 - Skills — MobileAccordion path renders below 768px, no overflow
 - DecisionTree — `minmax(220px, 1fr)` correctly collapses to 1 col on narrow screens
-- Store — ProductGrid collapses at 900px → 540px; featured strip collapses at 768px
 - Media — VideoGrid collapses at 900px → 540px; FeaturedVideo collapses at 768px
 - About — all subcomponents use flexWrap or page-container responsive padding
 - Contact — layout-two-col has 768px breakpoint; ContactForm is 100% width
@@ -161,7 +185,7 @@ Blobert lives in `src/components/hire/blobert/`. Phase 2 additions (all frontend
 
 ## Key Design Decisions
 
-**Hub is the navigation.** No traditional navbar. Hub at /hub is the central command center with 8 nodes (Portfolio, Skills, Services, Lab, Store, Media, About, Contact). Every other page has a HubReturnButton component fixed top-left.
+**Hub is the navigation (Digital only).** No traditional navbar. Hub at /hub is the central command center with 8 nodes (Portfolio, Skills, Services, Lab, Hire, Media, About, Contact). Every other page has a HubReturnButton component fixed top-left. The Hub grid is structurally hardcoded and does NOT read from `navigation.js` — see "Navigation" below.
 
 **Sections inside the hub feel professional, not gamey.** The hub has the game UI feel. The pages it leads to are clean, premium, conversion-focused. The transitions are the game; the content is the product.
 
@@ -177,13 +201,15 @@ Blobert lives in `src/components/hire/blobert/`. Phase 2 additions (all frontend
 
 **experiments.js** — each: { slug, name, status, description, component (string ref) }
 
-**products.js** — each: { id, type ('digital'|'software'|'physical'), name, description, price, includes[], purchaseUrl, image }
+**navigation.js** — `PRIMARY_NAV[]` (the canonical 6 chrome destinations) + `UTILITY_NAV[]` (footer-only). Each entry: { id, label, href }. Single source of truth — see "Navigation" below.
 
 **skills.js** — three tiers: disciplines[], tools[], specializations[]. Each tool/spec has parentId linking up the tree, and projectLinks[] linking down to portfolio slugs.
 
 ## Hub Architecture Notes (Phase 2)
 
-**Node count:** 8 nodes, labels: PORTFOLIO, SKILLS, SERVICES, LAB, STORE, MEDIA, ABOUT, CONTACT
+**Node count:** 8 nodes, labels: PORTFOLIO, SKILLS, SERVICES, LAB, HIRE, MEDIA, ABOUT, CONTACT
+
+**Structurally hardcoded:** `NODES` ids must equal array index; `ROWS` uses slice boundaries (0-3, 3-5, 5-8); `ADJACENCY` and `ENTRY_DELAY` are keyed 0..7. Never add or remove a node — edit label/descriptor/route in place.
 
 **Layout:** 3-2-3 flex rows. Auto-honeycomb offset works naturally: Row 1 (3 nodes = 452px wide) and Row 3 center in the container; Row 2 (2 nodes = 296px wide) auto-centers, landing at 78px offset — exactly half a hex+gap.
 
@@ -241,7 +267,7 @@ Blobert lives in `src/components/hire/blobert/`. Phase 2 additions (all frontend
 
 **Components:** `src/components/services/`
 - `AvailabilityIndicator.jsx` — pulsing dot pill from siteStatus.availability
-- `DecisionTree.jsx` — 3-card decision helper (hire / store / consult)
+- `DecisionTree.jsx` — 3-card decision helper (hire / see the work / consult)
 - `ServiceCategoryTabs.jsx` — ALL / ENGINEERING / SOFTWARE / GAMES / AI / CONTENT tab bar
 - `ServiceCategoryBlock.jsx` — one service with header + PackageCard grid + custom scope link
 - `PackageCard.jsx` — name, price, timeline, deliverables (cyan square bullets), INQUIRE button
@@ -257,13 +283,9 @@ Blobert lives in `src/components/hire/blobert/`. Phase 2 additions (all frontend
 
 **Pattern:** `onInquire(serviceId)` prop on PackageCard bubbles up to Services page which opens IntakeWizard with `prefillServiceType`. Wizard uses `useForm()` at the top level, passing `register`/`watch`/`setValue`/`getValues` into each step.
 
-## Store + Media Architecture (Phase 6)
+## Media Architecture (Phase 6)
 
-**Store (`src/pages/Store.jsx`):**
-- No per-product routes — detail opens in `ProductDetailModal` (portal to document.body)
-- External products link out to Gumroad via `window.open`. Physical custom-print links to `/contact?topic=custom-print` internally
-- `StoreFeaturedStrip` (60/40 layout), `ProductGrid` (3-col, AnimatePresence filter), `ProductDetailModal`
-- All in `src/components/store/`
+> The Store was retired in Phase 1 (2026-08-26). See "Navigation + Store Removal" below.
 
 **Media (`src/pages/Media.jsx`) — Phase 15b restructure:**
 - Data: `src/data/media.js` — `media.tabs[]`, `media.videos[]` (each `{ id (YouTube ID), title, description, tabId, duration, publishedAt }`), `media.featuredVideoId`, `media.newsletterCopy`
@@ -563,14 +585,13 @@ All 10 inner pages now have Standard UI variants. Digital versions are preserved
 - `StandardSkills` — hero, sticky discipline tabs, AnimatePresence-animated detail view (tools + specializations), related projects
 - `StandardLab` — hero, 2-column experiment grid with accentColor previews, newsletter strip
 - `StandardLabExperiment` — back bar, hero, experiment widget wrapped in card, about panel, related experiments
-- `StandardStore` — hero, filter pills, product grid, Standard-native product detail modal (no Digital tokens)
 - `StandardMedia` — hero with YouTube subscribe buttons, featured video lightbox, series tab filter, video grid, newsletter strip
 
 ### Shared Standard components added
 
 - `StandardReveal.jsx` — scroll-reveal wrapper (framer-motion, respects prefers-reduced-motion)
 - `StandardSectionHeader.jsx` — eyebrow + heading + subtitle pattern
-- `StandardPillFilter.jsx` — filter pill bar used in Portfolio, Store, Media
+- `StandardPillFilter.jsx` — filter pill bar used in Portfolio and Media
 - `StandardButton.jsx` — updated to accept `target` and `rel` props for external links
 
 ### Token bridge
@@ -841,7 +862,7 @@ Built entirely alongside Digital/Standard/Retro — every Funky style is scoped 
 ### Chrome (`src/components/funky/`)
 - `FunkyLayout.jsx` — `.funky-layout` wrapper: `FunkyBackground` + `FunkyNav` + `<main id="main-content" class="funky-main">` + `FunkyFooter` + `UIPicker`.
 - `FunkyBackground.jsx` — fixed, behind content (z-index 0): three slow morphing liquid blobs (lime/turquoise/coral, `mix-blend-mode:screen`, blurred) + faint low-contrast concentric optical field. All motion is CSS (GPU-friendly).
-- `FunkyNav.jsx` — sticky blur nav, gradient-text logo, **all 8 tabs incl. Skills** (About, Portfolio, Skills, Services, Lab, Store, Media, Contact) as liquid `.funky-pill` buttons (fill slides across, slight stretch, text stays crisp), mute toggle + UI-picker icon; hamburger < 768px.
+- `FunkyNav.jsx` — sticky blur nav, gradient-text logo, tabs rendered from `PRIMARY_NAV` (see "Navigation") as liquid `.funky-pill` buttons (fill slides across, slight stretch, text stays crisp), mute toggle + UI-picker icon; hamburger < 768px.
 - `FunkyFooter.jsx` — 3-col (Brand/Site/Connect), connect links from `socialLinks`, "Switch Interface →" opens UIPicker.
 - `FunkyButton.jsx` — tactile liquid pill, variants primary (lime gradient) / secondary (turquoise outline) / ghost; plays `select`/`hover`; supports `href`.
 - `FunkyCard.jsx` — organic `.funky-card`: blob radius that morphs + colored offset shadow that shifts on hover; content stays clean.

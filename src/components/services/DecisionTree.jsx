@@ -13,13 +13,12 @@ function BuildIcon() {
   )
 }
 
-function StoreIcon() {
+function WorkIcon() {
   return (
     <svg width="28" height="28" viewBox="0 0 28 28" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M4 4h20l-2.5 9H6.5z" />
-      <path d="M6.5 13v9h15v-9" />
-      <circle cx="11" cy="25" r="1.5" />
-      <circle cx="19" cy="25" r="1.5" />
+      <rect x="3" y="5" width="22" height="18" rx="2" />
+      <circle cx="9.5" cy="11" r="2" />
+      <path d="M3 19l6-5.5 5 4.5 4-3.5 7 6" />
     </svg>
   )
 }
@@ -45,11 +44,11 @@ const CARDS = [
     accentColor: 'var(--color-accent-primary)',
   },
   {
-    icon: <StoreIcon />,
-    question: 'Want a starting point you customize?',
-    action: 'VIEW STORE',
+    icon: <WorkIcon />,
+    question: 'Want to see what this looks like built?',
+    action: 'VIEW THE WORK',
     type: 'navigate',
-    target: '/store',
+    target: '/portfolio',
     accentColor: 'var(--color-accent-secondary)',
   },
   {
