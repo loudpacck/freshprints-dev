@@ -246,10 +246,23 @@ function ProjectRow({ project, index }) {
           )}
 
           {project.stats?.length > 0 && (
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 'var(--space-6)' }}>
-              {project.stats.map(stat => (
-                <StatValue key={stat.label} value={stat.value} label={stat.label} reduced={reduced} active={inView} />
-              ))}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 'var(--space-6)' }}>
+                {project.stats.map(stat => (
+                  <StatValue key={stat.label} value={stat.value} label={stat.label} reduced={reduced} active={inView} />
+                ))}
+              </div>
+              {isLive && (
+                <p style={{
+                  fontFamily: 'var(--font-mono)',
+                  fontSize: 'var(--text-xs)',
+                  color: 'var(--text-tertiary)',
+                  margin: 0,
+                  lineHeight: 'var(--leading-normal)',
+                }}>
+                  Live figures — read from the Pantheon Wars database each time this page loads.
+                </p>
+              )}
             </div>
           )}
 

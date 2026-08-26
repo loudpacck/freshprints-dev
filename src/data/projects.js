@@ -26,7 +26,7 @@ export const projects = [
     hasDemo: true,
     demoUrl: '/lab/predictinator',
     liveUrl: 'https://predictinator.net',
-    cta: { label: 'View Live Stats', href: '/lab/predictinator' },
+    cta: { label: 'View Sample Interface', href: '/lab/predictinator' },
     relatedSlugs: ['plutus', 'architect'],
     protected: false,
   },
@@ -42,7 +42,7 @@ export const projects = [
     stack: ['Python', 'FastAPI', 'React', 'Vite', 'WebSockets', 'PostgreSQL'],
     metrics: [
       { label: 'Active Testers', value: '3' },
-      { label: 'Strategies Implemented', value: '6' },
+      { label: 'Strategies Implemented', value: '4' },
       { label: 'Backtest Period', value: '5 years' },
       { label: 'Sim Win Rate', value: '58%' },
     ],
@@ -234,7 +234,7 @@ export const projects = [
     timeline: 'Q2 2025 — Present',
     stack: ['Vite', 'React', 'Vercel Functions', 'Neon Postgres', 'bcrypt', 'Framer Motion'],
     metrics: [
-      { label: 'Pages Built', value: '10' },
+      { label: 'Pages Built', value: '21' },
       { label: 'API Actions', value: '14+' },
       { label: 'Item Types', value: '50' },
       { label: 'Game Systems', value: '6' },
@@ -261,7 +261,7 @@ export const projects = [
     metrics: [
       { label: 'Parts Produced', value: '50+' },
       { label: 'Materials Used', value: '8' },
-      { label: 'Avg Lead Time', value: '5 days' },
+      { label: 'Lead Time', value: '3 days – 2 weeks' },
     ],
     thumbnail: '/thumbnails/fresh_prints/FP TB.webp',
     images: [],

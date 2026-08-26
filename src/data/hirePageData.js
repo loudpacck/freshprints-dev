@@ -6,7 +6,7 @@ function formatCommas(n) {
   return n.toLocaleString('en-US')
 }
 
-function formatCompactCurrency(n) {
+function formatCompactDrachma(n) {
   return `~${(n / 1_000_000).toFixed(1)}M`
 }
 
@@ -58,7 +58,7 @@ export function buildHireProjects(stats = pantheonWarsStats) {
       { label: 'Game Page Views', value: formatCommas(stats.gamePageViews) },
       { label: 'Quests Completed', value: formatCommas(stats.questsCompleted) },
       { label: 'PvP Battles', value: formatCommas(stats.pvpFights) },
-      { label: 'In-Game Economy', value: formatCompactCurrency(stats.drachmaEconomy) },
+      { label: 'Drachma in Circulation', value: formatCompactDrachma(stats.drachmaEconomy) },
     ],
     buttonLabel: 'Play Here',
     buttonUrl: '/games/pantheon-wars',
@@ -83,7 +83,7 @@ export function buildHireProjects(stats = pantheonWarsStats) {
     tagline: 'E-commerce storefront for hand-painted, one-of-a-kind press-on nails — real, paid client work.',
     features: [
       { label: 'Build a Set', desc: 'A mix-and-match custom 10-nail builder.' },
-      { label: 'Try On Hands', desc: 'AI preview that renders your chosen nails onto a real hand photo via GPT-4o.' },
+      { label: 'Try On Hands', desc: 'AI preview that renders your chosen nails onto a real hand photo via OpenAI gpt-image-2.' },
     ],
     stats: [],
     buttonLabel: 'Check it out',
@@ -96,7 +96,7 @@ export function buildHireProjects(stats = pantheonWarsStats) {
     name: 'Plutus',
     tagline: 'Algorithmic crypto trading bot with a simulation mode. Status: in development.',
     stats: [
-      { label: 'Strategies', value: '6' },
+      { label: 'Strategies', value: '4' },
       { label: 'Sim Win Rate', value: '58%' },
     ],
     buttonLabel: 'Test Here',

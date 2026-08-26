@@ -47,6 +47,23 @@ export default function PredictinatorWidget() {
       }}
       className="predictinator-grid"
     >
+      {/* Sample-data banner */}
+      <div
+        style={{
+          gridColumn: '1 / -1',
+          background: 'var(--color-bg-elevated)',
+          border: '1px solid var(--color-border-subtle)',
+          borderLeft: '3px solid var(--color-status-beta)',
+          borderRadius: 'var(--radius-md)',
+          padding: 'var(--space-4) var(--space-5)',
+        }}
+      >
+        <p style={{ ...monoSm, color: 'var(--color-text-secondary)', margin: 0, lineHeight: 'var(--leading-normal)' }}>
+          // SAMPLE DATA: Every figure, chart point, and matchup below is fixed sample data
+          illustrating the Predictinator interface. These are not live results.
+        </p>
+      </div>
+
       {/* Left: Stats panel */}
       <div
         style={{
@@ -68,7 +85,7 @@ export default function PredictinatorWidget() {
             64.2%
           </p>
           <p style={{ ...monoSm, color: 'var(--color-text-muted)', textTransform: 'uppercase', marginTop: 'var(--space-1)' }}>
-            LAST 30 DAYS
+            SAMPLE 30-DAY WINDOW
           </p>
         </div>
 
@@ -78,17 +95,17 @@ export default function PredictinatorWidget() {
             GAMES PREDICTED
           </p>
           <p style={{ fontFamily: 'var(--font-display)', fontSize: 'var(--text-5xl)', color: 'var(--color-text-primary)', lineHeight: 1, margin: 0 }}>
-            1,247
+            1,200+
           </p>
           <p style={{ ...monoSm, color: 'var(--color-text-muted)', textTransform: 'uppercase', marginTop: 'var(--space-1)' }}>
-            ALL TIME
+            SAMPLE TOTAL
           </p>
         </div>
 
         {/* Current streak */}
         <div>
           <p style={{ ...monoSm, color: 'var(--color-text-muted)', textTransform: 'uppercase', marginBottom: 'var(--space-2)' }}>
-            CURRENT STREAK
+            SAMPLE STREAK
           </p>
           <p style={{ fontFamily: 'var(--font-display)', fontSize: 'var(--text-5xl)', color: 'var(--color-status-active)', lineHeight: 1, margin: 0 }}>
             8 W
@@ -101,7 +118,7 @@ export default function PredictinatorWidget() {
         {/* Accuracy chart */}
         <div>
           <p style={{ ...monoSm, color: 'var(--color-text-muted)', textTransform: 'uppercase', marginBottom: 'var(--space-3)' }}>
-            ACCURACY TREND
+            ACCURACY TREND (SAMPLE)
           </p>
           <ResponsiveContainer width="100%" height={120}>
             <AreaChart data={ACCURACY_DATA} margin={{ top: 4, right: 0, left: -20, bottom: 0 }}>
@@ -160,7 +177,7 @@ export default function PredictinatorWidget() {
             letterSpacing: 'var(--tracking-wider)',
           }}
         >
-          // RECENT PICKS
+          // SAMPLE PICKS
         </p>
 
         {/* Table */}
@@ -280,7 +297,7 @@ export default function PredictinatorWidget() {
           }}
         >
           <span style={{ ...monoSm, color: 'var(--color-text-muted)' }}>
-            // MODEL: ENSEMBLE_V2.4 // LAST UPDATED: 2026.05.08
+            // MODEL: ENSEMBLE_V2.4 // SAMPLE INTERFACE — NOT A LIVE FEED
           </span>
           <button
             style={{

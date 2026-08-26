@@ -139,7 +139,7 @@ export default function PlutusSimulator() {
   const [isRunning, setIsRunning] = useState(false)
   const [results, setResults] = useState(null)
 
-  function runBacktest() {
+  function runSimulation() {
     setIsRunning(true)
     setTimeout(() => {
       const cfg = STRATEGY_CONFIGS[selectedStrategy]
@@ -164,6 +164,22 @@ export default function PlutusSimulator() {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-6)' }}>
+      {/* Simulated-data banner */}
+      <div
+        style={{
+          background: 'var(--color-bg-elevated)',
+          border: '1px solid var(--color-border-subtle)',
+          borderLeft: '3px solid var(--color-status-beta)',
+          borderRadius: 'var(--radius-md)',
+          padding: 'var(--space-4) var(--space-5)',
+        }}
+      >
+        <p style={{ ...monoSm, color: 'var(--color-text-secondary)', margin: 0, lineHeight: 'var(--leading-normal)' }}>
+          // SIMULATED: Every curve and figure here is generated from synthetic data to
+          demonstrate the analysis interface. No real market data is backtested.
+        </p>
+      </div>
+
       {/* Control bar */}
       <div
         style={{
@@ -211,11 +227,11 @@ export default function PlutusSimulator() {
         <div style={{ marginLeft: 'auto' }}>
           <Button
             variant="primary"
-            onClick={runBacktest}
+            onClick={runSimulation}
             disabled={isRunning}
             icon={isRunning ? <LoadingDot size={6} color="var(--color-text-inverse)" /> : null}
           >
-            {isRunning ? 'COMPUTING...' : 'RUN BACKTEST'}
+            {isRunning ? 'COMPUTING...' : 'RUN SIMULATION'}
           </Button>
         </div>
       </div>
@@ -241,7 +257,7 @@ export default function PlutusSimulator() {
             <rect x="34" y="6" width="6" height="30" rx="1" fill="var(--color-text-muted)" />
           </svg>
           <p style={{ ...monoSm, color: 'var(--color-text-muted)', textTransform: 'uppercase', textAlign: 'center' }}>
-            // SELECT STRATEGY AND PRESS RUN BACKTEST
+            // SELECT STRATEGY AND PRESS RUN SIMULATION
           </p>
         </div>
       )}
@@ -261,7 +277,7 @@ export default function PlutusSimulator() {
         >
           <LoadingDot />
           <p style={{ ...monoSm, color: 'var(--color-text-muted)', textTransform: 'uppercase' }}>
-            // RUNNING BACKTEST...
+            // RUNNING SIMULATION...
           </p>
         </div>
       )}
