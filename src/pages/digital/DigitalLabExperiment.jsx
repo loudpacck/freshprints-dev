@@ -5,15 +5,9 @@ import Badge from '@/components/ui/Badge'
 import Button from '@/components/ui/Button'
 import NotFound from '@/pages/NotFound'
 
-import PredictinatorWidget from '@/components/lab/experiments/PredictinatorWidget'
-import PlutusSimulator from '@/components/lab/experiments/PlutusSimulator'
-import ArchitectDemo from '@/components/lab/experiments/ArchitectDemo'
 import CADViewer from '@/components/lab/experiments/CADViewer'
 
 const COMPONENT_MAP = {
-  PredictinatorWidget,
-  PlutusSimulator,
-  ArchitectDemo,
   CADViewer,
 }
 

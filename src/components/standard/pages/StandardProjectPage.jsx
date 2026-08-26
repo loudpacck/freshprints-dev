@@ -100,6 +100,8 @@ export default function StandardProjectPage() {
 
   const catColor = CATEGORY_COLORS[project.category[0]] || 'var(--accent)'
   const statusColor = STATUS_COLORS[project.status] || 'var(--accent)'
+  const ctaHref = project.cta?.href || '/contact'
+  const ctaIsExternal = /^https?:\/\//i.test(ctaHref)
   const dotExtra = STATUS_DOT_EXTRA[project.status] || {}
 
   const related = project.relatedSlugs
@@ -431,11 +433,15 @@ export default function StandardProjectPage() {
                 letterSpacing: 'var(--tracking-tight)',
                 marginBottom: 'var(--space-6)',
               }}>
-                {project.cta?.label || 'Discuss This Work'}
+                {ctaIsExternal ? 'Want to see it running?' : (project.cta?.label || 'Discuss This Work')}
               </h2>
               <div style={{ display: 'flex', gap: 'var(--space-4)', justifyContent: 'center', flexWrap: 'wrap' }}>
-                <StandardButton size="lg" href={project.cta?.href || '/contact'}>
-                  Get in Touch
+                <StandardButton
+                  size="lg"
+                  href={ctaHref}
+                  target={ctaIsExternal ? '_blank' : undefined}
+                >
+                  {ctaIsExternal ? `${project.cta.label} ↗` : 'Get in Touch'}
                 </StandardButton>
                 {project.slug === 'pantheon' && (
                   <StandardButton variant="secondary" onClick={() => navigate('/games/pantheon-wars', { state: { from: 'external' } })}>
