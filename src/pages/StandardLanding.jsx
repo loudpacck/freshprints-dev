@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
-import { getFeaturedProjects } from '@/data/projects'
+import { getProjectBySlug } from '@/data/projects'
 import { skillTiers } from '@/data/skills'
 import { services } from '@/data/services'
 import { siteStatus } from '@/data/siteStatus'
@@ -160,7 +160,7 @@ function Hero({ reduced }) {
         letterSpacing: 'var(--tracking-display)',
         margin: '0 0 var(--space-6)',
       }}>
-        I build across software, AI, games, and hardware — end to end.
+        I design the part, then write the software around it.
       </h1>
     ),
     (
@@ -172,8 +172,8 @@ function Hero({ reduced }) {
         maxWidth: 'var(--measure-prose)',
         margin: '0 0 var(--space-7)',
       }}>
-        From multiplayer games with thousands of players to ML prediction systems and
-        CAD-driven hardware — a multidisciplinary builder who owns the whole problem.
+        Contract work in both directions — Hot Potato hit 2,000 players on Roblox,
+        Fresh Prints has produced 50+ parts.
       </p>
     ),
     (
@@ -184,7 +184,7 @@ function Hero({ reduced }) {
     (
       <div style={{ display: 'flex', gap: 'var(--space-4)', flexWrap: 'wrap' }}>
         <StandardButton size="lg" onClick={() => navigate('/contact')}>
-          Get in Touch →
+          Send a Message →
         </StandardButton>
         <StandardButton variant="secondary" size="lg" onClick={() => navigate('/portfolio')}>
           See the Work
@@ -283,9 +283,19 @@ function DisciplineRow({ index, label, desc, first }) {
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
+// Curated, not sliced. The hero names a Roblox game and parts cut in Siemens
+// NX, so Hot Potato and Fresh Prints have to be on the page under it — a plain
+// getFeaturedProjects().slice(0, 4) dropped both.
+const LANDING_FEATURED = [
+  'hot-potato',
+  'fresh-prints-prototypes',
+  'predictinator-5000',
+  'lexis-nails',
+]
+
 export default function StandardLanding() {
   const reduced = useReducedMotion()
-  const featured = getFeaturedProjects().slice(0, 4)
+  const featured = LANDING_FEATURED.map(getProjectBySlug).filter(Boolean)
   const disciplines = skillTiers.disciplines
 
   return (
@@ -461,9 +471,8 @@ export default function StandardLanding() {
                   margin: '0 0 var(--space-4)',
                   maxWidth: 'var(--measure-prose)',
                 }}>
-                  I'm a mechanical designer who writes production software, a software developer who
-                  builds games, and a game developer who thinks in CAD. I started in engineering —
-                  tolerances, materials, manufacturing — and ended up shipping ML models and multiplayer games.
+                  I started on tolerances and DFM review, for parts that had to survive a real
+                  shop floor. Those habits carried straight into the software.
                 </p>
                 <p style={{
                   fontFamily: 'var(--font-body)',
@@ -473,8 +482,7 @@ export default function StandardLanding() {
                   margin: '0 0 var(--space-7)',
                   maxWidth: 'var(--measure-prose)',
                 }}>
-                  Fresh Prints is the umbrella — engineering prototypes, software products, and game
-                  projects under one roof, for people who need someone who can own a problem end to end.
+                  Fresh Prints is the shop name. It covers both halves.
                 </p>
                 <ArrowLink href="/about">Read the full story →</ArrowLink>
               </div>
@@ -518,10 +526,10 @@ export default function StandardLanding() {
                 margin: '0 auto var(--space-8)',
                 maxWidth: 'var(--measure-prose)',
               }}>
-                I take on freelance and consulting work for genuinely interesting projects. Tell me about yours.
+                I take contract work where the problem crosses domains — hardware that needs software, or software that needs a physical part.
               </p>
               <div style={{ display: 'flex', gap: 'var(--space-4)', justifyContent: 'center', flexWrap: 'wrap', alignItems: 'center' }}>
-                <StandardButton size="lg" href="/contact">Start a Conversation →</StandardButton>
+                <StandardButton size="lg" href="/contact">Send a Message →</StandardButton>
                 <a
                   href={`mailto:${socialLinks.email}`}
                   style={{

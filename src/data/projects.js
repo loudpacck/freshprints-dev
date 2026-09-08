@@ -251,7 +251,7 @@ export const projects = [
     slug: 'fresh-prints-prototypes',
     name: 'Fresh Prints - Production & Design',
     tagline: 'End-to-end product prototyping and small-batch manufacturing',
-    description: 'A portfolio of physical prototypes designed and manufactured under the Fresh Prints brand. Covers concept modeling, design-for-manufacturing review, FDM printing, and small-batch production. Each piece is designed for real-world function — not just visual mockups.',
+    description: 'A portfolio of physical prototypes designed and manufactured under the Fresh Prints brand. Covers concept modeling, design-for-manufacturing review, FDM printing, and small-batch production. Recent parts include a replacement internal door handle for a 1986 Subaru Brat, a behind-seat audio enclosure for a Mitsubishi Mighty Max, an EverGreens 7 iron, and touch-activated rechargeable LED panels with their own PCBs.',
     category: ['engineering'],
     status: 'AVAILABLE',
     featured: true,

@@ -3,6 +3,8 @@ import { useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import { projects } from '@/data/projects'
 import useReducedMotion from '@/hooks/useReducedMotion'
+import { useTheme } from '@/themes/useTheme'
+import { formatEyebrow } from '@/utils/eyebrow'
 import Reveal from '@/components/standard/StandardReveal'
 import StandardPillFilter from '@/components/standard/StandardPillFilter'
 import { factKeyForSlug } from '@/components/hire/blobert/blobertLines'
@@ -159,6 +161,7 @@ function ProjectCard({ project }) {
 }
 
 export default function StandardPortfolio() {
+  const { themeId } = useTheme()
   const reduced = useReducedMotion()
   const [active, setActive] = useState('all')
 
@@ -189,7 +192,7 @@ export default function StandardPortfolio() {
               letterSpacing: 'var(--tracking-wider)',
               marginBottom: 'var(--space-3)',
             }}>
-              // PORTFOLIO
+              {formatEyebrow('PORTFOLIO', themeId)}
             </div>
             <h1 style={{
               fontFamily: 'var(--font-body)',

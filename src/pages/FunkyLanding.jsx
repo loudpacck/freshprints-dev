@@ -4,7 +4,7 @@ import useReducedMotion from '@/hooks/useReducedMotion'
 import FunkyCard from '@/components/funky/FunkyCard'
 import FunkyButton from '@/components/funky/FunkyButton'
 import FunkyDivider from '@/components/funky/FunkyDivider'
-import { getFeaturedProjects } from '@/data/projects'
+import { getProjectBySlug } from '@/data/projects'
 
 const CAPABILITIES = [
   { label: 'Software',    color: 'var(--accent-lime)' },
@@ -17,11 +17,15 @@ const SECTION_CTAS = [
   { label: 'Browse Work', to: '/portfolio', variant: 'primary' },
   { label: 'Hire Me',     to: '/hire',      variant: 'secondary' },
   { label: 'The Lab',     to: '/lab',       variant: 'ghost' },
-  { label: 'Get in Touch', to: '/contact',  variant: 'ghost' },
+  { label: 'Send a Message', to: '/contact', variant: 'ghost' },
 ]
 
 // Two-line title; each word reveals with a settling skew ("warp") + rise.
 const TITLE_LINES = [['Fresh'], ['Prints']]
+
+// Curated so the capability chips above have a card under each of them:
+// Hot Potato (games), Predictinator (software + AI), Fresh Prints (engineering).
+const LANDING_FEATURED = ['hot-potato', 'predictinator-5000', 'fresh-prints-prototypes']
 
 function FeaturedCard({ project, onClick }) {
   return (
@@ -72,7 +76,7 @@ function FeaturedCard({ project, onClick }) {
 export default function FunkyLanding() {
   const navigate = useNavigate()
   const reduced = useReducedMotion()
-  const featured = getFeaturedProjects().slice(0, 3)
+  const featured = LANDING_FEATURED.map(getProjectBySlug).filter(Boolean)
 
   // Orchestrated load reveal: eyebrow → title words → subhead → CTAs → chips.
   const container = {
@@ -117,7 +121,7 @@ export default function FunkyLanding() {
               letterSpacing: 'var(--tracking-widest)',
               marginBottom: 'var(--space-4)',
             }}>
-              // PSYCHEDELIC STUDIO
+              ~ PSYCHEDELIC STUDIO ~
             </motion.div>
 
             <h1 style={{
@@ -160,8 +164,8 @@ export default function FunkyLanding() {
               maxWidth: 'var(--measure-prose)',
               marginBottom: 'var(--space-7)',
             }}>
-              I'm Kyle — I build software, games, hardware, and AI experiments.
-              Same work, wilder wrapper. Pick a thread and pull.
+              I'm Kyle. Same work as the other three interfaces, louder paint.
+              Hot Potato peaked at 2,000 monthly players on Roblox; Predictinator is live at predictinator.net.
             </motion.p>
 
             <motion.div variants={rise} style={{ display: 'flex', gap: 'var(--space-4)', flexWrap: 'wrap' }}>
@@ -242,7 +246,7 @@ export default function FunkyLanding() {
               letterSpacing: 'var(--tracking-display)',
               margin: 0,
             }}>
-              Got something to build?
+              Want a part printed or a system built?
             </h2>
             <p style={{
               fontFamily: 'var(--font-body)',
@@ -251,10 +255,10 @@ export default function FunkyLanding() {
               maxWidth: 'var(--measure-prose)',
               margin: 0,
             }}>
-              Available for contracting work. Response time typically under 24 hours.
+              Open for contract work, two-week lead time. I answer within 48 hours.
             </p>
             <FunkyButton variant="primary" onClick={() => navigate('/contact')}>
-              Start a Conversation
+              Send a Message
             </FunkyButton>
           </FunkyCard>
         </div>

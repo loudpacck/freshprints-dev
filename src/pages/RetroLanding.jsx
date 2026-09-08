@@ -4,7 +4,7 @@ import { motion } from 'framer-motion'
 import RetroCard from '@/components/retro/RetroCard'
 import RetroButton from '@/components/retro/RetroButton'
 import RetroBootSequence from '@/components/retro/RetroBootSequence'
-import { getFeaturedProjects } from '@/data/projects'
+import { getProjectBySlug } from '@/data/projects'
 
 const SERVICE_TILES = [
   { label: 'Engineering',  icon: '⚙', href: '/hire' },
@@ -95,11 +95,15 @@ function ProjectCard({ project, onClick }) {
   )
 }
 
+// Curated so the hero's claims have cards under them: Hot Potato (the 2,000
+// players), Predictinator (the live site), Fresh Prints (the printed parts).
+const LANDING_FEATURED = ['hot-potato', 'predictinator-5000', 'fresh-prints-prototypes']
+
 export default function RetroLanding() {
   const navigate = useNavigate()
   // Boot sequence replays on every mount — i.e. every navigation to /home in Retro UI.
   const [booting, setBooting] = useState(true)
-  const featured = getFeaturedProjects().slice(0, 3)
+  const featured = LANDING_FEATURED.map(getProjectBySlug).filter(Boolean)
 
   if (booting) {
     return <RetroBootSequence onComplete={() => setBooting(false)} />
@@ -132,15 +136,15 @@ export default function RetroLanding() {
             maxWidth: 560,
             lineHeight: 1.6,
           }}>
-            Hi! I'm Kyle. I build software, games, hardware, and AI experiments.
-            Click around — this site is a portfolio of how I think.
+            Hi, I'm Kyle. My Roblox game Hot Potato peaked at 2,000 monthly players.
+            My pick engine Predictinator is live at predictinator.net. Click around.
           </p>
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
             <RetroButton variant="primary" onClick={() => navigate('/portfolio')}>
               Browse Work
             </RetroButton>
             <RetroButton onClick={() => navigate('/contact')}>
-              Get in Touch
+              Send a Message
             </RetroButton>
           </div>
         </div>
@@ -198,8 +202,8 @@ export default function RetroLanding() {
                 margin: '0 0 10px',
                 lineHeight: 1.6,
               }}>
-                Mechanical designer, software developer, and game developer operating
-                under the Fresh Prints brand. I turn ideas into shipped products.
+                Fresh Prints is my shop. Right now that's Predictinator's models on
+                one side and parts on the printer on the other.
               </p>
               <RetroButton onClick={() => navigate('/about')} style={{ fontSize: 11 }}>
                 Read More →
@@ -256,7 +260,7 @@ export default function RetroLanding() {
               color: 'var(--text-primary)',
               marginBottom: 8,
             }}>
-              Project? Question? Let's chat.
+              Want a part printed or a system built?
             </div>
             <p style={{
               fontFamily: 'var(--font-body)',
@@ -264,7 +268,7 @@ export default function RetroLanding() {
               color: 'var(--text-secondary)',
               margin: '0 0 12px',
             }}>
-              Available for contracting work. Response time typically under 24 hours.
+              Open for contract work, two-week lead time. I answer within 48 hours.
             </p>
             <div style={{ display: 'flex', gap: 8 }}>
               <RetroButton variant="primary" onClick={() => navigate('/contact')}>

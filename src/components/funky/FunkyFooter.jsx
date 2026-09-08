@@ -70,7 +70,7 @@ export default function FunkyFooter({ onOpenPicker }) {
               color: 'var(--text-tertiary)',
               lineHeight: 'var(--leading-relaxed)',
             }}>
-              Creative engineering across software, AI, hardware, and game systems.
+              Same shop as the other interfaces. Parts in Siemens NX, netcode in Unreal.
             </p>
           </div>
 

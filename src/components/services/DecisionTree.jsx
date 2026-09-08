@@ -54,7 +54,7 @@ const CARDS = [
   {
     icon: <CalendarIcon />,
     question: 'Just need advice?',
-    action: 'BOOK A CALL',
+    action: 'SEND A MESSAGE',
     type: 'navigate',
     target: '/contact',
     accentColor: '#8B5CF6',

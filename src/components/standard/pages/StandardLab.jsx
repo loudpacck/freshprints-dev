@@ -3,6 +3,8 @@ import { useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { experiments } from '@/data/labExperiments'
 import useReducedMotion from '@/hooks/useReducedMotion'
+import { useTheme } from '@/themes/useTheme'
+import { formatEyebrow } from '@/utils/eyebrow'
 import Reveal from '@/components/standard/StandardReveal'
 import StandardButton from '@/components/standard/StandardButton'
 
@@ -193,6 +195,7 @@ function ExperimentCard({ experiment }) {
 }
 
 function NewsletterStrip() {
+  const { themeId } = useTheme()
   const [email, setEmail] = useState('')
   const [status, setStatus] = useState('idle')
 
@@ -233,7 +236,7 @@ function NewsletterStrip() {
               letterSpacing: 'var(--tracking-wider)',
               marginBottom: 'var(--space-3)',
             }}>
-              // STAY IN THE LOOP
+              {formatEyebrow('STAY IN THE LOOP', themeId)}
             </div>
             <h2 style={{
               fontFamily: 'var(--font-body)',
@@ -305,6 +308,7 @@ function NewsletterStrip() {
 }
 
 export default function StandardLab() {
+  const { themeId } = useTheme()
   const reduced = useReducedMotion()
 
   return (
@@ -330,7 +334,7 @@ export default function StandardLab() {
               letterSpacing: 'var(--tracking-wider)',
               marginBottom: 'var(--space-3)',
             }}>
-              // THE LAB
+              {formatEyebrow('THE LAB', themeId)}
             </div>
             <h1 style={{
               fontFamily: 'var(--font-body)',

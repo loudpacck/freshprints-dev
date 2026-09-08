@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { socialList } from '@/data/socialLinks'
 import useReducedMotion from '@/hooks/useReducedMotion'
 import { useTheme } from '@/themes/useTheme'
+import { formatEyebrow } from '@/utils/eyebrow'
 import Reveal from '@/components/standard/StandardReveal'
 import StandardButton from '@/components/standard/StandardButton'
 import IntakeWizard from '@/components/services/IntakeWizard'
@@ -72,7 +73,7 @@ export default function StandardAbout() {
               letterSpacing: 'var(--tracking-wider)',
               marginBottom: 'var(--space-3)',
             }}>
-              // ABOUT
+              {formatEyebrow('ABOUT', themeId)}
             </div>
             <h1 style={{
               fontFamily: 'var(--font-body)',
@@ -93,7 +94,7 @@ export default function StandardAbout() {
               lineHeight: 'var(--leading-normal)',
               marginBottom: 'var(--space-3)',
             }}>
-              Creative engineer working across software, games, hardware, and AI.
+              I design parts in Siemens NX and write the software that ends up around them.
             </p>
             <p style={{
               fontFamily: 'var(--font-mono)',
@@ -146,7 +147,7 @@ export default function StandardAbout() {
                     letterSpacing: '0.1em',
                     marginTop: 'var(--space-2)',
                   }}>
-                    // KYLE.JPG
+                    {formatEyebrow('KYLE.JPG', themeId)}
                   </div>
                 </div>
               ) : (
@@ -188,7 +189,7 @@ export default function StandardAbout() {
                     zIndex: 1,
                     textShadow: '0 1px 4px rgba(0,0,0,0.7)',
                   }}>
-                    // KYLE DEBORD · BASED IN MASSACHUSETTS
+                    {formatEyebrow('KYLE DEBORD · BASED IN MASSACHUSETTS', themeId)}
                   </div>
                 </div>
               )}
@@ -203,7 +204,7 @@ export default function StandardAbout() {
                   lineHeight: 'var(--leading-relaxed)',
                   marginBottom: 'var(--space-5)',
                 }}>
-                  I'm a mechanical designer who writes production software, a software developer who builds games, and a game developer who thinks in CAD. I started in engineering — tolerances, materials, manufacturing constraints — and ended up shipping ML models and multiplayer games.
+                  I'm a mechanical designer who ended up writing production software. Predictinator started as a question about calibrated probabilities and is now live at predictinator.net. Hot Potato started as a Roblox build and peaked at 2,000 monthly players.
                 </p>
                 <p style={{
                   fontFamily: 'var(--font-body)',
@@ -220,7 +221,7 @@ export default function StandardAbout() {
                   color: 'var(--text-secondary)',
                   lineHeight: 'var(--leading-relaxed)',
                 }}>
-                  Fresh Prints is the umbrella — engineering prototypes, software products, and game projects all under one roof.
+                  Fresh Prints is the shop name. 50+ parts produced across 8 materials, designed in Siemens NX and Fusion 360 and printed in-house.
                 </p>
               </div>
             </Reveal>
@@ -241,7 +242,7 @@ export default function StandardAbout() {
                 letterSpacing: 'var(--tracking-wider)',
                 marginBottom: 'var(--space-4)',
               }}>
-                // THE STORY
+                {formatEyebrow('THE STORY', themeId)}
               </div>
               <h2 style={{
                 fontFamily: 'var(--font-body)',
@@ -303,7 +304,7 @@ export default function StandardAbout() {
               letterSpacing: 'var(--tracking-wider)',
               marginBottom: 'var(--space-3)',
             }}>
-              // WHAT I DO
+              {formatEyebrow('WHAT I DO', themeId)}
             </div>
             <h2 style={{
               fontFamily: 'var(--font-body)',
@@ -342,7 +343,7 @@ export default function StandardAbout() {
               letterSpacing: 'var(--tracking-wider)',
               marginBottom: 'var(--space-3)',
             }}>
-              // CONNECT
+              {formatEyebrow('CONNECT', themeId)}
             </div>
             <h2 style={{
               fontFamily: 'var(--font-body)',
@@ -442,7 +443,7 @@ export default function StandardAbout() {
                 letterSpacing: 'var(--tracking-tight)',
                 marginBottom: 'var(--space-4)',
               }}>
-                Let's Build Something
+                Want a part printed or a system built?
               </h2>
               <p style={{
                 fontFamily: 'var(--font-body)',
@@ -451,12 +452,12 @@ export default function StandardAbout() {
                 lineHeight: 'var(--leading-normal)',
                 marginBottom: 'var(--space-8)',
               }}>
-                I take on freelance work for genuinely interesting projects.
+                Open for contract work, two-week lead time.
               </p>
               <div style={{ display: 'flex', gap: 'var(--space-4)', justifyContent: 'center', flexWrap: 'wrap' }}>
-                <StandardButton size="lg" href="/contact">Start a Conversation</StandardButton>
+                <StandardButton size="lg" href="/contact">Send a Message</StandardButton>
                 <StandardButton variant="secondary" size="lg" onClick={() => setWizardOpen(true)}>
-                  Project Inquiry
+                  Start a Commission
                 </StandardButton>
               </div>
             </div>

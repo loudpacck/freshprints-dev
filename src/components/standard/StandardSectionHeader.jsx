@@ -1,6 +1,15 @@
+import { useTheme } from '@/themes/useTheme'
+import { formatEyebrow, eyebrowHasTick } from '@/utils/eyebrow'
+
 // Editorial-technical section header: mono eyebrow (optional leading index +
 // hairline tick), oversized display heading, measured subtitle.
+//
+// The eyebrow's decorator is per-theme (see src/utils/eyebrow.js) because this
+// component is also what Retro and Funky render for every hosted inner page.
 export default function StandardSectionHeader({ eyebrow, heading, subtitle, index, center = false }) {
+  const { themeId } = useTheme()
+  const eyebrowText = formatEyebrow(eyebrow, themeId)
+  const showTick = eyebrowHasTick(themeId)
   return (
     <div style={{ textAlign: center ? 'center' : 'left', marginBottom: 'var(--space-10)' }}>
       {eyebrow && (
@@ -21,7 +30,7 @@ export default function StandardSectionHeader({ eyebrow, heading, subtitle, inde
               {index}
             </span>
           )}
-          {!center && (
+          {!center && showTick && (
             <span aria-hidden="true" style={{ width: 'var(--space-6)', height: '1px', background: 'var(--accent)' }} />
           )}
           <span style={{
@@ -31,7 +40,7 @@ export default function StandardSectionHeader({ eyebrow, heading, subtitle, inde
             textTransform: 'uppercase',
             letterSpacing: 'var(--label-tracking)',
           }}>
-            {eyebrow}
+            {eyebrowText}
           </span>
         </div>
       )}

@@ -183,11 +183,11 @@ export default function About() {
           </h2>
           <div style={{ display: 'flex', gap: 'var(--space-4)', justifyContent: 'center', flexWrap: 'wrap' }}>
             <Button variant="primary" size="lg" onClick={() => setWizardOpen(true)}>
-              START A PROJECT
+              START A COMMISSION
             </Button>
             <Link to="/contact" style={{ textDecoration: 'none' }}>
               <Button variant="secondary" size="lg">
-                JUST SAY HI
+                SEND A MESSAGE
               </Button>
             </Link>
           </div>

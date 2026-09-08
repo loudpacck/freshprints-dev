@@ -162,7 +162,7 @@ export default function LabExperiment() {
           </p>
           <div style={{ display: 'flex', gap: 'var(--space-4)', flexWrap: 'wrap' }}>
             <Button variant="primary" onClick={() => navigate('/contact')}>
-              DISCUSS A BUILD
+              SEND A MESSAGE
             </Button>
             <Button variant="secondary" onClick={() => navigate('/hire')}>
               VIEW PACKAGES

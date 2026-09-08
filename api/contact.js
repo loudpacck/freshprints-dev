@@ -69,8 +69,6 @@ const BLOBERT_PAGE_NAMES = {
   '/hub': 'the hub (the site command center)',
   '/about': 'the about page',
   '/portfolio': 'the portfolio page',
-  '/skills': 'the skills page',
-  '/services': 'the services page',
   '/lab': 'the lab page',
   '/store': 'the store page',
   '/media': 'the media page',

@@ -3,6 +3,8 @@ import { motion } from 'framer-motion'
 import { useForm } from 'react-hook-form'
 import { socialList } from '@/data/socialLinks'
 import useReducedMotion from '@/hooks/useReducedMotion'
+import { useTheme } from '@/themes/useTheme'
+import { formatEyebrow } from '@/utils/eyebrow'
 import Reveal from '@/components/standard/StandardReveal'
 import StandardButton from '@/components/standard/StandardButton'
 
@@ -251,6 +253,7 @@ function ContactForm() {
 }
 
 export default function StandardContact() {
+  const { themeId } = useTheme()
   const reduced = useReducedMotion()
 
   return (
@@ -276,7 +279,7 @@ export default function StandardContact() {
               letterSpacing: 'var(--tracking-wider)',
               marginBottom: 'var(--space-3)',
             }}>
-              // CONTACT
+              {formatEyebrow('CONTACT', themeId)}
             </div>
             <h1 style={{
               fontFamily: 'var(--font-body)',

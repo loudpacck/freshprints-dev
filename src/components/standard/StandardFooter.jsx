@@ -83,7 +83,7 @@ export default function StandardFooter({ onOpenPicker }) {
               color: 'var(--text-tertiary)',
               lineHeight: 'var(--leading-relaxed)',
             }}>
-              Creative engineering across software, AI, hardware, and game systems.
+              Contract design and software. 50+ parts produced, games live on Roblox.
             </p>
           </div>
 

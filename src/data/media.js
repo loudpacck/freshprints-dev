@@ -17,11 +17,11 @@ export const media = {
   tabs: [
     { id: 'loudd-docs',    label: 'Loudd Docs',    active: true,  channelUrl: socialLinks.youtube.docs.url },
     { id: 'loudd',         label: 'Loudd',          active: true,  channelUrl: socialLinks.youtube.general.url },
-    { id: 'devlogs',       label: 'Devlogs',        active: false, comingSoonMessage: 'Project devlogs coming soon — diving deeper into freshprints.dev, Jogger, and other builds.' },
-    { id: 'design',        label: 'Design',         active: false, comingSoonMessage: 'Design process content coming soon — CAD walkthroughs, UI breakdowns, and creative direction.' },
-    { id: 'production',    label: 'Production',     active: false, comingSoonMessage: 'Production workflows coming soon — manufacturing, prototyping, and shop floor content.' },
-    { id: 'ai-production', label: 'AI Production',  active: false, comingSoonMessage: 'AI-assisted production content coming soon — workflows, tools, and case studies.' },
-    { id: 'music',         label: 'Music',          active: false, comingSoonMessage: 'Original music coming soon. A whole different side of what I make.' },
+    { id: 'devlogs',       label: 'Devlogs',        active: false, comingSoonMessage: 'Nothing filmed yet. First one up will be Jogger, the UE5 endless runner.' },
+    { id: 'design',        label: 'Design',         active: false, comingSoonMessage: 'Empty for now. I want to record a Siemens NX walkthrough of the Subaru Brat door handle first.' },
+    { id: 'production',    label: 'Production',     active: false, comingSoonMessage: 'No videos here yet. This is where the printer and the shop floor end up.' },
+    { id: 'ai-production', label: 'AI Production',  active: false, comingSoonMessage: 'Not started. Archie, the drawing validator, is the obvious first subject.' },
+    { id: 'music',         label: 'Music',          active: false, comingSoonMessage: 'Nothing published. I make music too; none of it is ready.' },
   ],
 
   // Each video: { id (YouTube video ID), title, description, tabId, duration, publishedAt }

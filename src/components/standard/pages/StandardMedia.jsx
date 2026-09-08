@@ -4,6 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { media, getVideosForTab, getThumbnailUrl, getThumbnailFallbackUrl, getEmbedUrl } from '@/data/media'
 import { socialLinks } from '@/data/socialLinks'
 import { useTheme } from '@/themes/useTheme'
+import { formatEyebrow } from '@/utils/eyebrow'
 import useReducedMotion from '@/hooks/useReducedMotion'
 import Reveal from '@/components/standard/StandardReveal'
 import StandardButton from '@/components/standard/StandardButton'
@@ -320,6 +321,7 @@ function ComingSoon({ tabLabel, message, isRetro }) {
 function NewsletterStrip() {
   const [email, setEmail] = useState('')
   const [status, setStatus] = useState('idle')
+  const { themeId } = useTheme()
   const copy = media.newsletterCopy
 
   async function handleSubmit(e) {
@@ -355,7 +357,7 @@ function NewsletterStrip() {
               letterSpacing: 'var(--tracking-wider)',
               marginBottom: 'var(--space-3)',
             }}>
-              {copy.eyebrow}
+              {formatEyebrow(copy.eyebrow, themeId)}
             </div>
             <h2 style={{
               fontFamily: 'var(--font-body)',
@@ -378,7 +380,7 @@ function NewsletterStrip() {
             </p>
             {status === 'success' ? (
               <div style={{ fontFamily: 'var(--font-body)', fontSize: 'var(--text-base)', color: '#22C55E' }}>
-                {copy.success}
+                {formatEyebrow(copy.success, themeId)}
               </div>
             ) : (
               <form onSubmit={handleSubmit} style={{ display: 'flex', gap: 'var(--space-3)', maxWidth: 400, margin: '0 auto' }}>
@@ -458,7 +460,7 @@ export default function StandardMedia() {
               letterSpacing: 'var(--tracking-wider)',
               marginBottom: 'var(--space-3)',
             }}>
-              // MEDIA
+              {formatEyebrow('MEDIA', themeId)}
             </div>
             <h1 style={{
               fontFamily: 'var(--font-body)',

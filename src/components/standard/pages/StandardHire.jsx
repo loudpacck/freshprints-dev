@@ -312,7 +312,7 @@ export default function StandardHire() {
       {/* Project rows */}
       <section className="s-section" style={{ background: 'var(--bg-base)' }}>
         <div className="s-container">
-          <StandardSectionHeader eyebrow="// THE PROOF" heading="What I've Shipped" />
+          <StandardSectionHeader eyebrow="The Proof" heading="What I've Shipped" />
           <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-6)' }}>
             {hireProjects.map((project, i) => (
               <ProjectRow key={project.id} project={project} index={i} />
@@ -325,7 +325,7 @@ export default function StandardHire() {
       <section className="s-section" style={{ background: 'var(--bg-base)', paddingBottom: 0 }}>
         <div className="s-container">
           <StandardSectionHeader
-            eyebrow="// THE OFFER"
+            eyebrow="The Offer"
             heading="Ways To Work With Me"
             subtitle="Fixed-price packages for predictable engagements, custom contracts for everything else. Solo execution — no overhead, no handoffs, no agency markup."
           />
@@ -412,7 +412,7 @@ export default function StandardHire() {
       {/* Theme tiles */}
       <section className="s-section" style={{ background: 'var(--bg-elevated)' }}>
         <div className="s-container">
-          <StandardSectionHeader eyebrow="// LIVE PREVIEW" heading="See It In Any Interface" subtitle="Click a tile to swap the UI right here, in place." />
+          <StandardSectionHeader eyebrow="Live Preview" heading="See It In Any Interface" subtitle="Click a tile to swap the UI right here, in place." />
           <HireThemeTiles />
         </div>
       </section>
