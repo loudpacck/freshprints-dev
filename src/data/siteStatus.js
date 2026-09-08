@@ -1,3 +1,5 @@
+// `availability` must be one of: 'OPEN' | 'BOOKING' | 'UNAVAILABLE'.
+// These are the keys AvailabilityIndicator (src/components/ui/) renders.
 export const siteStatus = {
   lastUpdated: '2026-05-07',
   availability: 'OPEN',

@@ -1,5 +1,5 @@
 import { siteStatus } from '@/data/siteStatus'
-import AvailabilityIndicator from '@/components/services/AvailabilityIndicator'
+import AvailabilityIndicator from '@/components/ui/AvailabilityIndicator'
 
 function Row({ label, isLast, children }) {
   return (

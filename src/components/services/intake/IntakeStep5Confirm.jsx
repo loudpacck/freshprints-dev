@@ -1,5 +1,6 @@
 import { motion, AnimatePresence } from 'framer-motion'
 import { getCategoryColor } from '@/utils/categoryAssets'
+import { SERVICE_TYPE_LABEL, serviceTypeCategory } from './serviceTypes'
 
 const LABEL_MAP = {
   serviceType: 'Service',
@@ -34,6 +35,7 @@ const BUDGET_LABEL = {
 
 function resolveValue(key, val) {
   if (!val) return '—'
+  if (key === 'serviceType') return SERVICE_TYPE_LABEL[val] ?? val
   if (key === 'scope') return SCOPE_LABEL[val] ?? val
   if (key === 'timeline') return TIMELINE_LABEL[val] ?? val
   if (key === 'budget') return BUDGET_LABEL[val] ?? val
@@ -42,7 +44,7 @@ function resolveValue(key, val) {
 
 export default function IntakeStep5Confirm({ getValues, submitted }) {
   const values = getValues()
-  const accentColor = getCategoryColor(values.serviceType === 'fresh-prints' ? 'engineering' : values.serviceType)
+  const accentColor = getCategoryColor(serviceTypeCategory(values.serviceType))
 
   const fields = ['serviceType', 'scope', 'timeline', 'budget', 'name', 'email', 'description']
 

@@ -193,7 +193,6 @@ function AnimatedRoutes() {
         <Route path="/portfolio/:slug"    element={<PageLayout><ProjectPage /></PageLayout>} />
         <Route path="/skills"             element={<PageLayout><Skills /></PageLayout>} />
         <Route path="/services"           element={<PageLayout><Services /></PageLayout>} />
-        <Route path="/services/:category" element={<PageLayout><Services /></PageLayout>} />
         <Route path="/lab"                        element={<PageLayout><Lab /></PageLayout>} />
         <Route path="/lab/beat-beaters"         element={<BeatBeatersSelect />} />
         <Route path="/lab/beat-beaters/play"    element={<BeatBeaters />} />

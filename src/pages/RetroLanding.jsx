@@ -7,11 +7,11 @@ import RetroBootSequence from '@/components/retro/RetroBootSequence'
 import { getFeaturedProjects } from '@/data/projects'
 
 const SERVICE_TILES = [
-  { label: 'Engineering',  icon: '⚙', href: '/services/engineering' },
-  { label: 'Software',     icon: '💾', href: '/services/software' },
-  { label: 'Games',        icon: '🎮', href: '/services/games' },
-  { label: 'AI',           icon: '🤖', href: '/services/ai' },
-  { label: 'Content',      icon: '📺', href: '/services/content' },
+  { label: 'Engineering',  icon: '⚙', href: '/services' },
+  { label: 'Software',     icon: '💾', href: '/services' },
+  { label: 'Games',        icon: '🎮', href: '/services' },
+  { label: 'AI',           icon: '🤖', href: '/services' },
+  { label: 'Content',      icon: '📺', href: '/services' },
   { label: 'Custom',       icon: '📋', href: '/contact' },
 ]
 

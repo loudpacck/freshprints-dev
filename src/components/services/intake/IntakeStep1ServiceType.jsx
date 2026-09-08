@@ -1,13 +1,5 @@
 import { getCategoryColor } from '@/utils/categoryAssets'
-
-const SERVICE_TYPES = [
-  { id: 'engineering', label: 'Engineering',   icon: '⚙️' },
-  { id: 'software',    label: 'Software',      icon: '</>' },
-  { id: 'games',       label: 'Games',         icon: '🎮' },
-  { id: 'ai',          label: 'AI',            icon: '◈' },
-  { id: 'content',     label: 'Content',       icon: '▶' },
-  { id: 'fresh-prints',label: 'Fresh Prints',  icon: '□' },
-]
+import { SERVICE_TYPES, serviceTypeCategory } from './serviceTypes'
 
 export default function IntakeStep1ServiceType({ watch, setValue }) {
   const selected = watch('serviceType')
@@ -39,7 +31,7 @@ export default function IntakeStep1ServiceType({ watch, setValue }) {
       }}>
         {SERVICE_TYPES.map(type => {
           const isSelected = selected === type.id
-          const color = getCategoryColor(type.id === 'fresh-prints' ? 'engineering' : type.id)
+          const color = getCategoryColor(serviceTypeCategory(type.id))
           return (
             <button
               key={type.id}

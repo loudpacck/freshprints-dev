@@ -377,7 +377,7 @@ export default function StandardLanding() {
                 {services.map(s => (
                   <a
                     key={s.id}
-                    href={`/services/${s.category}`}
+                    href="/services"
                     style={{
                       fontFamily: 'var(--font-mono)',
                       fontSize: 'var(--text-xs)',

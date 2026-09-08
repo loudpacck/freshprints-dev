@@ -1,32 +1,20 @@
 import { useState } from 'react'
-import { useParams, useNavigate } from 'react-router-dom'
+import { useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import { services } from '@/data/services'
 import Button from '@/components/ui/Button'
 import Card from '@/components/ui/Card'
-import AvailabilityIndicator from '@/components/services/AvailabilityIndicator'
+import AvailabilityIndicator from '@/components/ui/AvailabilityIndicator'
 import DecisionTree from '@/components/services/DecisionTree'
-import ServiceCategoryTabs from '@/components/services/ServiceCategoryTabs'
+import ServiceCategoryTabs, { filterServicesByTab } from '@/components/services/ServiceCategoryTabs'
 import ServiceCategoryBlock from '@/components/services/ServiceCategoryBlock'
 import ProcessSection from '@/components/services/ProcessSection'
-import TestimonialsPlaceholder from '@/components/services/TestimonialsPlaceholder'
 import IntakeWizard from '@/components/services/IntakeWizard'
 
-const CATEGORY_FOR_ID = {
-  engineering: 'engineering',
-  software: 'software',
-  gamedev: 'games',
-  ai: 'ai',
-  content: 'content',
-  'fresh-prints': 'engineering',
-}
-
 export default function Services() {
-  const { category: paramCategory } = useParams()
   const navigate = useNavigate()
-  const initialTab = paramCategory ? (CATEGORY_FOR_ID[paramCategory] ?? 'all') : 'all'
 
-  const [activeTab, setActiveTab] = useState(initialTab)
+  const [activeTab, setActiveTab] = useState('all')
   const [wizardOpen, setWizardOpen] = useState(false)
   const [wizardServiceType, setWizardServiceType] = useState('')
 
@@ -35,9 +23,7 @@ export default function Services() {
     setWizardOpen(true)
   }
 
-  const filteredServices = activeTab === 'all'
-    ? services
-    : services.filter(s => s.category === activeTab || (activeTab === 'engineering' && s.id === 'fresh-prints'))
+  const filteredServices = filterServicesByTab(services, activeTab)
 
   return (
     <motion.div
@@ -133,9 +119,6 @@ export default function Services() {
 
         {/* ── Process ── */}
         <ProcessSection />
-
-        {/* ── Testimonials ── */}
-        <TestimonialsPlaceholder />
 
         {/* ── Final CTA ── */}
         <Card style={{
