@@ -72,7 +72,7 @@ export default function Landing() {
             margin: 0,
           }}
         >
-          ENGINEER. DEVELOPER. BUILDER.
+          I DESIGN THE PART, THEN WRITE THE SOFTWARE AROUND IT.
         </motion.h1>
 
         <motion.p
@@ -84,7 +84,7 @@ export default function Landing() {
             margin: 0,
           }}
         >
-          Mechanical design, software, games, AI.
+          Siemens NX and Python. Live work at predictinator.net.
         </motion.p>
 
         <motion.div {...fadeUp(0.9, reduced)}>

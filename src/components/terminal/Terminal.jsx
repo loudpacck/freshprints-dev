@@ -87,7 +87,7 @@ export default function Terminal({ isOpen, onClose }) {
     } else if (cmd === 'whoami') {
       lines = [
         '  Kyle DeBord',
-        '  Mechanical Designer | Software Developer | Game Developer',
+        '  Mechanical designer, currently iterating on predictinator.net',
         '  Location: United States',
       ]
     } else if (cmd === 'exit') {

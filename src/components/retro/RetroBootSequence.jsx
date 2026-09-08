@@ -7,8 +7,8 @@ const BIOS_LINES = [
   'Copyright (c) 1998-2026 Kyle DeBord',
   'Initializing portfolio modules...',
   'Loading projects.dat         OK',
-  'Loading skills.dat           OK',
-  'Loading services.dat         OK',
+  'Loading lab.dat              OK',
+  'Loading hire.dat             OK',
   'Press any key to continue, or wait...',
 ]
 

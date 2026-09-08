@@ -54,7 +54,7 @@ export default function About() {
                 letterSpacing: 'var(--tracking-wide)',
                 marginBottom: 'var(--space-8)',
               }}>
-                Engineer. Developer. Builder.
+                50+ parts produced. 2,000 players at peak.
               </p>
 
               <p style={{

@@ -70,7 +70,6 @@ const BLOBERT_PAGE_NAMES = {
   '/about': 'the about page',
   '/portfolio': 'the portfolio page',
   '/lab': 'the lab page',
-  '/store': 'the store page',
   '/media': 'the media page',
   '/contact': 'the contact page',
   '/hire': 'the hire-me page (where Blobert lives)',

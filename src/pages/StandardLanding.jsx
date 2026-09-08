@@ -160,7 +160,7 @@ function Hero({ reduced }) {
         letterSpacing: 'var(--tracking-display)',
         margin: '0 0 var(--space-6)',
       }}>
-        I design the part, then write the software around it.
+        I take a project from the CAD file to the live URL.
       </h1>
     ),
     (
