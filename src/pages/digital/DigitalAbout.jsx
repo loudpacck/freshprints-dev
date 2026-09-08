@@ -64,7 +64,7 @@ export default function About() {
                 lineHeight: 'var(--leading-normal)',
                 maxWidth: 680,
               }}>
-                I design real things. Software systems, mechanical assemblies, and games. Some get shipped to clients, some get shipped to my own platforms, and some live as experiments in the lab. I work solo across disciplines because the interesting problems sit in the seams where they meet.
+                I work alone, and that shows up in what's here. Pantheon Wars is a live browser MMO with real players in it, and I built the whole thing end to end. Most of what sits on this site got finished the same way, by one person who wouldn't put it down until it ran.
               </p>
             </div>
 

@@ -67,7 +67,7 @@ export default function Portfolio() {
                 maxWidth: 560,
               }}
             >
-              Software, games, engineering, AI. Real projects, real outcomes.
+              Ten projects. Predictinator runs live at predictinator.net; Pantheon Wars runs here on the site.
             </p>
           </header>
 

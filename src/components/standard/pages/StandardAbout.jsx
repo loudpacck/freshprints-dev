@@ -324,7 +324,7 @@ export default function StandardAbout() {
               maxWidth: 600,
               marginBottom: 'var(--space-8)',
             }}>
-              Five disciplines, dozens of tools, and the work that proves them.
+              Five disciplines and 26 tools, from Siemens NX to PyTorch.
             </p>
           </Reveal>
           <StandardCapabilityMatrix />

@@ -114,7 +114,7 @@ export default function DigitalMedia() {
                   margin: 0,
                 }}
               >
-                Devlogs, build series, and mini-docs from the workshop.
+                Nine videos across two channels. Loudd Docs digs into internet history; the first devlog will be Jogger.
               </p>
             </div>
 

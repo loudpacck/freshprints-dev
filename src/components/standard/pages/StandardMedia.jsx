@@ -481,7 +481,7 @@ export default function StandardMedia() {
               lineHeight: 'var(--leading-normal)',
               marginBottom: 'var(--space-6)',
             }}>
-              Devlogs, build series, and mini-documentaries.
+              Loudd Docs covers internet history. The first devlog will be Jogger, the UE5 endless runner.
             </p>
             <div style={{ display: 'flex', gap: 'var(--space-3)', flexWrap: 'wrap' }}>
               <StandardButton variant="secondary" href={socialLinks.youtube.general.url} target="_blank" rel="noopener noreferrer">

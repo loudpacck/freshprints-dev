@@ -41,7 +41,7 @@ export default function Contact() {
             lineHeight: 'var(--leading-normal)',
             maxWidth: 560,
           }}>
-            For general questions, press, podcasting, and partnerships. Commission work flows through the <a href="/hire" style={{ color: 'var(--color-text-accent)', textDecoration: 'none' }}>hire page</a> — it's faster and gives me what I need to scope.
+            This form reaches me directly for general questions and press. Commission work flows through the <a href="/hire" style={{ color: 'var(--color-text-accent)', textDecoration: 'none' }}>hire page</a> — it's faster and gives me what I need to scope.
           </p>
         </header>
 

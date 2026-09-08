@@ -226,6 +226,15 @@ a {
   }
 }
 
+/* Landing corner overlay — hide below 480px so the hire link never overlaps it
+   (same breakpoint + pattern as .hub-corner-bl / .hub-corner-br above) */
+@media (max-width: 479px) {
+  .landing-corner-bl,
+  .landing-corner-br {
+    display: none !important;
+  }
+}
+
 /* Hub system controls cluster */
 .hub-controls-cluster {
   display: flex;

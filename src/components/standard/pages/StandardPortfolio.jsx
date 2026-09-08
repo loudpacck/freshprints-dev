@@ -212,7 +212,7 @@ export default function StandardPortfolio() {
               maxWidth: 640,
               lineHeight: 'var(--leading-normal)',
             }}>
-              A small selection of recent builds across software, games, hardware, and AI.
+              Ten projects. Predictinator runs live at predictinator.net; Pantheon Wars runs here on the site.
             </p>
           </Reveal>
         </div>

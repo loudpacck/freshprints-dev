@@ -119,6 +119,7 @@ export default function Landing() {
 
       {/* Bottom-left version */}
       <motion.span
+        className="landing-corner-bl"
         initial={reduced ? undefined : { opacity: 0 }}
         animate={{ opacity: 1 }}
         transition={{ delay: 1.2, duration: 0.4 }}
@@ -137,6 +138,7 @@ export default function Landing() {
 
       {/* Bottom-right date */}
       <motion.span
+        className="landing-corner-br"
         initial={reduced ? undefined : { opacity: 0 }}
         animate={{ opacity: 1 }}
         transition={{ delay: 1.4, duration: 0.4 }}
