@@ -8,8 +8,8 @@
  * `id` is a stable slug so themes can key off identity rather than label text.
  * Label casing/formatting is the theme's business; the label here is canonical.
  *
- * Note: /services is intentionally absent — it merges into /hire in a later
- * phase. The route and page still exist and remain reachable directly.
+ * Note: /services merged into /hire; /skills merged into /about. Both old
+ * routes now redirect and are intentionally absent from every list here.
  */
 
 // The canonical 6 destinations, in canonical order. Every theme's primary
@@ -24,7 +24,7 @@ export const PRIMARY_NAV = [
 ]
 
 // Secondary destinations — footer only, never in the primary nav.
-// Skills merges into About in a later phase; keep it reachable until then.
-export const UTILITY_NAV = [
-  { id: 'skills', label: 'Skills', href: '/skills' },
-]
+// Currently EMPTY: Skills merged into /about in Phase 6 and was the only entry.
+// The export stays so footers can keep spreading it; add future footer-only
+// destinations here.
+export const UTILITY_NAV = []

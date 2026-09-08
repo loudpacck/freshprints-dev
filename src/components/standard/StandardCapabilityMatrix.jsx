@@ -1,11 +1,8 @@
 import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import { skillTiers, getToolsForDiscipline, getSpecializationsForTool } from '@/data/skills'
 import { projects } from '@/data/projects'
 import useReducedMotion from '@/hooks/useReducedMotion'
-import Reveal from '@/components/standard/StandardReveal'
-import StandardButton from '@/components/standard/StandardButton'
 import StandardCard from '@/components/standard/StandardCard'
 
 const PROFICIENCY_LABELS = {
@@ -16,7 +13,6 @@ const PROFICIENCY_LABELS = {
 
 function DisciplineDetail({ discipline }) {
   const reduced = useReducedMotion()
-  const navigate = useNavigate()
   const tools = getToolsForDiscipline(discipline.id)
 
   const relatedSlugs = [...new Set(tools.flatMap(t => t.projectLinks))]
@@ -35,7 +31,7 @@ function DisciplineDetail({ discipline }) {
     >
       {/* Heading */}
       <div style={{ marginBottom: 'var(--space-8)' }}>
-        <h2 style={{
+        <h3 style={{
           fontFamily: 'var(--font-body)',
           fontWeight: 'var(--weight-semibold)',
           fontSize: 'var(--text-3xl)',
@@ -43,7 +39,7 @@ function DisciplineDetail({ discipline }) {
           marginBottom: 'var(--space-2)',
         }}>
           {discipline.label}
-        </h2>
+        </h3>
         <p style={{
           fontFamily: 'var(--font-body)',
           fontSize: 'var(--text-base)',
@@ -201,62 +197,20 @@ function DisciplineDetail({ discipline }) {
   )
 }
 
-export default function StandardSkills() {
-  const reduced = useReducedMotion()
-  const navigate = useNavigate()
+/**
+ * The capability matrix formerly rendered by the standalone /skills page
+ * (StandardSkills). Relocated into About in Phase 6 — discipline tab bar,
+ * per-tool proficiency ratings, specializations tier, and per-discipline
+ * related-project cards, all unchanged. Page chrome (hero, CTA) intentionally
+ * dropped; About supplies its own.
+ */
+export default function StandardCapabilityMatrix() {
   const [activeId, setActiveId] = useState(skillTiers.disciplines[0].id)
 
-  const activeDiscipline = skillTiers.disciplines.find(d => d.id === activeId)
+  const activeDiscipline = skillTiers.disciplines.find(d => d.id === activeId) || skillTiers.disciplines[0]
 
   return (
-    <motion.div
-      initial={reduced ? {} : { opacity: 0 }}
-      animate={{ opacity: 1 }}
-      exit={{ opacity: 0 }}
-      transition={{ duration: 0.4 }}
-    >
-      {/* Hero */}
-      <section style={{
-        paddingTop: 'var(--space-16)',
-        paddingBottom: 'var(--space-10)',
-        background: 'var(--gradient-hero)',
-      }}>
-        <div className="s-container">
-          <Reveal>
-            <div style={{
-              fontFamily: 'var(--font-mono)',
-              fontSize: 'var(--text-xs)',
-              color: 'var(--accent)',
-              textTransform: 'uppercase',
-              letterSpacing: 'var(--tracking-wider)',
-              marginBottom: 'var(--space-3)',
-            }}>
-              // SKILLS
-            </div>
-            <h1 style={{
-              fontFamily: 'var(--font-body)',
-              fontWeight: 'var(--weight-bold)',
-              fontSize: 'var(--text-6xl)',
-              color: 'var(--text-primary)',
-              letterSpacing: 'var(--tracking-tight)',
-              lineHeight: 'var(--leading-tight)',
-              marginBottom: 'var(--space-4)',
-            }}>
-              Tools &amp; Disciplines
-            </h1>
-            <p style={{
-              fontFamily: 'var(--font-body)',
-              fontSize: 'var(--text-xl)',
-              color: 'var(--text-secondary)',
-              maxWidth: 560,
-              lineHeight: 'var(--leading-normal)',
-            }}>
-              Five disciplines, dozens of tools, learned through years of building.
-            </p>
-          </Reveal>
-        </div>
-      </section>
-
+    <div>
       {/* Discipline tabs */}
       <div style={{
         position: 'sticky',
@@ -266,65 +220,37 @@ export default function StandardSkills() {
         backdropFilter: 'blur(12px)',
         WebkitBackdropFilter: 'blur(12px)',
         borderBottom: '1px solid var(--border-subtle)',
+        marginBottom: 'var(--space-10)',
       }}>
-        <div className="s-container" style={{ padding: 0 }}>
-          <div style={{ display: 'flex', overflowX: 'auto', WebkitOverflowScrolling: 'touch', scrollbarWidth: 'none' }}>
-            {skillTiers.disciplines.map(disc => (
-              <button
-                key={disc.id}
-                onClick={() => setActiveId(disc.id)}
-                style={{
-                  fontFamily: 'var(--font-body)',
-                  fontSize: 'var(--text-sm)',
-                  fontWeight: 'var(--weight-medium)',
-                  color: activeId === disc.id ? disc.color : 'var(--text-secondary)',
-                  background: 'none',
-                  border: 'none',
-                  borderBottom: `2px solid ${activeId === disc.id ? disc.color : 'transparent'}`,
-                  cursor: 'pointer',
-                  padding: 'var(--space-4) var(--space-5)',
-                  whiteSpace: 'nowrap',
-                  transition: 'all 150ms ease',
-                }}
-              >
-                {disc.label}
-              </button>
-            ))}
-          </div>
+        <div style={{ display: 'flex', overflowX: 'auto', WebkitOverflowScrolling: 'touch', scrollbarWidth: 'none' }}>
+          {skillTiers.disciplines.map(disc => (
+            <button
+              key={disc.id}
+              onClick={() => setActiveId(disc.id)}
+              style={{
+                fontFamily: 'var(--font-body)',
+                fontSize: 'var(--text-sm)',
+                fontWeight: 'var(--weight-medium)',
+                color: activeId === disc.id ? disc.color : 'var(--text-secondary)',
+                background: 'none',
+                border: 'none',
+                borderBottom: `2px solid ${activeId === disc.id ? disc.color : 'transparent'}`,
+                cursor: 'pointer',
+                padding: 'var(--space-4) var(--space-5)',
+                whiteSpace: 'nowrap',
+                transition: 'all 150ms ease',
+              }}
+            >
+              {disc.label}
+            </button>
+          ))}
         </div>
       </div>
 
       {/* Discipline detail */}
-      <section className="s-section" style={{ background: 'var(--bg-base)' }}>
-        <div className="s-container">
-          <AnimatePresence mode="wait">
-            <DisciplineDetail key={activeId} discipline={activeDiscipline} />
-          </AnimatePresence>
-        </div>
-      </section>
-
-      {/* CTA */}
-      <section style={{ paddingBottom: 'var(--space-16)', background: 'var(--bg-base)' }}>
-        <div className="s-container">
-          <Reveal>
-            <div style={{
-              textAlign: 'center',
-              borderTop: '1px solid var(--border-subtle)',
-              paddingTop: 'var(--space-12)',
-            }}>
-              <p style={{
-                fontFamily: 'var(--font-body)',
-                fontSize: 'var(--text-lg)',
-                color: 'var(--text-secondary)',
-                marginBottom: 'var(--space-6)',
-              }}>
-                Want to talk about a project?
-              </p>
-              <StandardButton href="/contact">Get in Touch</StandardButton>
-            </div>
-          </Reveal>
-        </div>
-      </section>
+      <AnimatePresence mode="wait">
+        <DisciplineDetail key={activeId} discipline={activeDiscipline} />
+      </AnimatePresence>
 
       <style>{`
         .sd-detail-grid {
@@ -337,6 +263,6 @@ export default function StandardSkills() {
           .sd-detail-grid { grid-template-columns: 1fr; }
         }
       `}</style>
-    </motion.div>
+    </div>
   )
 }

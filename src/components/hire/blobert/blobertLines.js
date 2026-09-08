@@ -61,7 +61,6 @@ export function greetingLine(theme, tone) {
 function routeKey(pathname) {
   const p = String(pathname || '').split('?')[0].split('#')[0]
   if (p === '/portfolio' || p.startsWith('/portfolio/')) return 'portfolio'
-  if (p === '/skills') return 'skills'
   if (p === '/contact') return 'contact'
   if (p === '/hub') return 'hub'
   return 'default'
@@ -71,10 +70,6 @@ const ROUTE_GREETINGS = {
   portfolio: [
     "Browsing the work? Ask me about any project on this page.",
     "Portfolio view. Want the story behind one of these builds?",
-  ],
-  skills: [
-    "Checking the skill tree? Ask me how any of this shows up in real work.",
-    "Skills page. I can tell you what Kyle actually ships with any of these.",
   ],
   contact: [
     "Ready to reach out? I can even help you word it.",

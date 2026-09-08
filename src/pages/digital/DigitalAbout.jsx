@@ -4,9 +4,8 @@ import { Link } from 'react-router-dom'
 import Button from '@/components/ui/Button'
 import AboutStatus from '@/components/about/AboutStatus'
 import AboutStory from '@/components/about/AboutStory'
-import AboutCapabilities from '@/components/about/AboutCapabilities'
-import AboutStack from '@/components/about/AboutStack'
 import AboutConnect from '@/components/about/AboutConnect'
+import SkillMatrix from '@/components/skills/SkillMatrix'
 import IntakeWizard from '@/components/services/IntakeWizard'
 
 export default function About() {
@@ -137,16 +136,35 @@ export default function About() {
         {/* C. The Story */}
         <AboutStory />
 
-        {/* D. Capabilities */}
-        <AboutCapabilities />
+        {/* D. Capabilities — merged from the retired /skills page */}
+        <section style={{ marginBottom: 'var(--space-20)' }}>
+          <p style={{
+            fontFamily: 'var(--font-mono)',
+            fontSize: 'var(--text-xs)',
+            color: 'var(--color-text-accent)',
+            textTransform: 'uppercase',
+            letterSpacing: 'var(--tracking-widest)',
+            marginBottom: 'var(--space-4)',
+          }}>
+            // I BUILD
+          </p>
+          <p style={{
+            fontFamily: 'var(--font-body)',
+            fontSize: 'var(--text-base)',
+            color: 'var(--color-text-secondary)',
+            lineHeight: 'var(--leading-normal)',
+            maxWidth: 680,
+            marginBottom: 'var(--space-10)',
+          }}>
+            Skills connected to the work that proves them. Click a discipline to expand.
+          </p>
+          <SkillMatrix />
+        </section>
 
-        {/* E. Stack */}
-        <AboutStack />
-
-        {/* F. Connect */}
+        {/* E. Connect */}
         <AboutConnect />
 
-        {/* G. Final CTA strip */}
+        {/* F. Final CTA strip */}
         <div style={{
           background: 'var(--color-bg-surface)',
           border: '1px solid var(--color-border-subtle)',

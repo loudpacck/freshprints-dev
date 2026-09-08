@@ -12,7 +12,7 @@ import HubSystemControls from '@/components/hub/HubSystemControls'
 
 const NODES = [
   { id: 0, label: 'PORTFOLIO', route: '/portfolio', descriptor: 'Engineering work',    icon: 'terminal'  },
-  { id: 1, label: 'SKILLS',    route: '/skills',    descriptor: 'Capability matrix',   icon: 'gear'      },
+  { id: 1, label: 'BEAT BEATERS', route: '/lab/beat-beaters', descriptor: '9-lane rhythm game', icon: 'note' },
   { id: 2, label: 'PANTHEON',  route: '/games/pantheon-wars', descriptor: 'Live browser MMO', icon: 'controller' },
   { id: 3, label: 'LAB',       route: '/lab',       descriptor: 'Experiments & demos', icon: 'beaker'    },
   { id: 4, label: 'HIRE',      route: '/hire',      descriptor: 'Start a project',     icon: 'hire'      },
@@ -61,6 +61,7 @@ function Icon({ type }) {
 
   switch (type) {
     case 'terminal':  return <svg viewBox="0 0 20 20" style={s}><polyline points="3,5 9,10 3,15" {...p}/><line x1="11" y1="15" x2="17" y2="15" {...p}/></svg>
+    case 'note':      return <svg viewBox="0 0 20 20" style={s}><circle cx="6" cy="15" r="2.5" {...p}/><circle cx="15" cy="13" r="2.5" {...p}/><line x1="8.5" y1="15" x2="8.5" y2="4" {...p}/><line x1="17.5" y1="13" x2="17.5" y2="2.5" {...p}/><path d="M8.5 4l9-1.5" {...p}/></svg>
     case 'gear':      return <svg viewBox="0 0 20 20" style={s}><circle cx="10" cy="10" r="2.5" {...p}/><path d="M10 3.5v2M10 14.5v2M3.5 10h2M14.5 10h2M5.6 5.6l1.5 1.5M13 13l1.5 1.5M5.6 14.4l1.5-1.5M13 7l1.5-1.5" {...p}/></svg>
     case 'controller': return <svg viewBox="0 0 20 20" style={s}><rect x="1.5" y="6" width="17" height="10" rx="3.5" {...p}/><line x1="6" y1="9" x2="6" y2="13" {...p}/><line x1="4" y1="11" x2="8" y2="11" {...p}/><circle cx="14" cy="10" r="1" fill="currentColor" stroke="none"/><circle cx="15.5" cy="12.5" r="1" fill="currentColor" stroke="none"/></svg>
     case 'beaker':    return <svg viewBox="0 0 20 20" style={s}><path d="M7.5 2v6L3 15.5a1 1 0 00.9 1.5h12.2a1 1 0 00.9-1.5L12.5 8V2" {...p}/><line x1="6" y1="2" x2="14" y2="2" {...p}/><circle cx="8.5" cy="14" r="0.8" fill="currentColor" stroke="none"/></svg>

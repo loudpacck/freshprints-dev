@@ -1,79 +1,13 @@
 import { useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { useState } from 'react'
-import { skillTiers } from '@/data/skills'
 import { socialList } from '@/data/socialLinks'
 import useReducedMotion from '@/hooks/useReducedMotion'
 import { useTheme } from '@/themes/useTheme'
 import Reveal from '@/components/standard/StandardReveal'
 import StandardButton from '@/components/standard/StandardButton'
 import IntakeWizard from '@/components/services/IntakeWizard'
-
-const CAPABILITIES = [
-  {
-    icon: (
-      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-        <polyline points="16 18 22 12 16 6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-        <polyline points="8 6 2 12 8 18" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-      </svg>
-    ),
-    title: 'Software Engineering',
-    desc: 'Full-stack apps, APIs, and production systems. Python, React, FastAPI, PostgreSQL.',
-  },
-  {
-    icon: (
-      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-        <polygon points="5 3 19 12 5 21 5 3" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-      </svg>
-    ),
-    title: 'Game Development',
-    desc: 'Multiplayer mechanics, UE5 Blueprints, Roblox Luau, and shipped live games.',
-  },
-  {
-    icon: (
-      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-        <circle cx="12" cy="12" r="3" stroke="currentColor" strokeWidth="2"/>
-        <path d="M19.07 4.93a10 10 0 010 14.14M4.93 4.93a10 10 0 000 14.14" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
-        <line x1="12" y1="2" x2="12" y2="5" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
-        <line x1="12" y1="19" x2="12" y2="22" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
-        <line x1="2" y1="12" x2="5" y2="12" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
-        <line x1="19" y1="12" x2="22" y2="12" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
-      </svg>
-    ),
-    title: 'Mechanical Design',
-    desc: 'CAD in Siemens NX and Fusion 360. GD&T, DFM review, and functional prototyping.',
-  },
-  {
-    icon: (
-      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-        <path d="M12 2L2 7l10 5 10-5-10-5z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-        <path d="M2 17l10 5 10-5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-        <path d="M2 12l10 5 10-5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-      </svg>
-    ),
-    title: 'AI & Automation',
-    desc: 'ML pipelines, scikit-learn, PyTorch, LLM workflows, and intelligent tooling.',
-  },
-  {
-    icon: (
-      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-        <rect x="2" y="5" width="20" height="14" rx="4" stroke="currentColor" strokeWidth="2" fill="none"/>
-        <polygon points="10 8.5 16 12 10 15.5" fill="currentColor"/>
-      </svg>
-    ),
-    title: 'Content Creation',
-    desc: 'Devlog series, build documentation, video production, and technical storytelling.',
-  },
-  {
-    icon: (
-      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-        <path d="M14.7 6.3a1 1 0 000 1.4l1.6 1.6a1 1 0 001.4 0l3.77-3.77a6 6 0 01-7.94 7.94l-6.91 6.91a2.12 2.12 0 01-3-3l6.91-6.91a6 6 0 017.94-7.94l-3.76 3.76z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-      </svg>
-    ),
-    title: 'Hardware Prototyping',
-    desc: 'FDM printing, 3D scanning, end-to-end prototyping, and small-batch manufacturing.',
-  },
-]
+import StandardCapabilityMatrix from '@/components/standard/StandardCapabilityMatrix'
 
 const SOCIAL_ICONS = {
   email: (
@@ -114,12 +48,6 @@ export default function StandardAbout() {
   const [wizardOpen, setWizardOpen] = useState(false)
   const { themeId } = useTheme()
   const isRetro = themeId === 'retro'
-
-  const allTools = skillTiers.tools
-  const byDiscipline = skillTiers.disciplines.map(d => ({
-    ...d,
-    tools: allTools.filter(t => t.parentId === d.id),
-  }))
 
   return (
     <motion.div
@@ -363,7 +291,7 @@ export default function StandardAbout() {
         </div>
       </section>
 
-      {/* Capabilities */}
+      {/* Capabilities — merged from the retired /skills page */}
       <section className="s-section" style={{ background: 'var(--bg-base)' }}>
         <div className="s-container">
           <Reveal>
@@ -383,107 +311,22 @@ export default function StandardAbout() {
               fontSize: 'var(--text-4xl)',
               color: 'var(--text-primary)',
               letterSpacing: 'var(--tracking-tight)',
-              marginBottom: 'var(--space-10)',
+              marginBottom: 'var(--space-4)',
             }}>
               What I Build
             </h2>
-          </Reveal>
-          <div className="s-cap-grid">
-            {CAPABILITIES.map((cap, i) => (
-              <Reveal key={cap.title} delay={i * 0.05}>
-                <div style={{
-                  padding: 'var(--space-6)',
-                  background: 'var(--bg-card)',
-                  border: '1px solid var(--border-subtle)',
-                  borderRadius: 'var(--radius-xl)',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  gap: 'var(--space-3)',
-                }}>
-                  <div style={{ color: 'var(--accent)' }}>{cap.icon}</div>
-                  <div style={{
-                    fontFamily: 'var(--font-body)',
-                    fontWeight: 'var(--weight-semibold)',
-                    fontSize: 'var(--text-lg)',
-                    color: 'var(--text-primary)',
-                    lineHeight: 'var(--leading-snug)',
-                  }}>
-                    {cap.title}
-                  </div>
-                  <div style={{
-                    fontFamily: 'var(--font-body)',
-                    fontSize: 'var(--text-sm)',
-                    color: 'var(--text-secondary)',
-                    lineHeight: 'var(--leading-normal)',
-                  }}>
-                    {cap.desc}
-                  </div>
-                </div>
-              </Reveal>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* Stack */}
-      <section className="s-section" style={{ background: 'var(--bg-elevated)' }}>
-        <div className="s-container">
-          <Reveal>
-            <div style={{
-              fontFamily: 'var(--font-mono)',
-              fontSize: 'var(--text-xs)',
-              color: 'var(--accent)',
-              textTransform: 'uppercase',
-              letterSpacing: 'var(--tracking-wider)',
-              marginBottom: 'var(--space-3)',
-            }}>
-              // THE STACK
-            </div>
-            <h2 style={{
+            <p style={{
               fontFamily: 'var(--font-body)',
-              fontWeight: 'var(--weight-semibold)',
-              fontSize: 'var(--text-4xl)',
-              color: 'var(--text-primary)',
-              letterSpacing: 'var(--tracking-tight)',
-              marginBottom: 'var(--space-10)',
+              fontSize: 'var(--text-lg)',
+              color: 'var(--text-secondary)',
+              lineHeight: 'var(--leading-normal)',
+              maxWidth: 600,
+              marginBottom: 'var(--space-8)',
             }}>
-              Tools &amp; Tech
-            </h2>
+              Five disciplines, dozens of tools, and the work that proves them.
+            </p>
           </Reveal>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-8)' }}>
-            {byDiscipline.map((disc, i) => (
-              <Reveal key={disc.id} delay={i * 0.06}>
-                <div>
-                  <div style={{
-                    fontFamily: 'var(--font-mono)',
-                    fontSize: 'var(--text-xs)',
-                    color: disc.color,
-                    textTransform: 'uppercase',
-                    letterSpacing: '0.08em',
-                    marginBottom: 'var(--space-3)',
-                  }}>
-                    {disc.label}
-                  </div>
-                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 'var(--space-2)' }}>
-                    {disc.tools.map(tool => (
-                      <span key={tool.id} style={{
-                        fontFamily: 'var(--font-body)',
-                        fontSize: 'var(--text-sm)',
-                        color: 'var(--text-secondary)',
-                        background: 'var(--bg-card)',
-                        border: '1px solid var(--border-subtle)',
-                        borderRadius: 'var(--radius-lg)',
-                        padding: 'var(--space-2) var(--space-3)',
-                        transition: 'border-color 150ms ease',
-                      }}>
-                        {tool.label}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-              </Reveal>
-            ))}
-          </div>
+          <StandardCapabilityMatrix />
         </div>
       </section>
 

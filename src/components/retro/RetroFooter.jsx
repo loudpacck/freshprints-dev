@@ -66,7 +66,8 @@ export default function RetroFooter() {
           gap: 'var(--space-6)',
         }}
       >
-        {/* More */}
+        {/* More — hidden while UTILITY_NAV is empty (Skills merged into /about) */}
+        {UTILITY_NAV.length > 0 && (
         <div>
           <div style={heading}>More</div>
           {UTILITY_NAV.map(({ id, label, href }) => (
@@ -80,6 +81,7 @@ export default function RetroFooter() {
             </button>
           ))}
         </div>
+        )}
 
         {/* Connect */}
         <div>
