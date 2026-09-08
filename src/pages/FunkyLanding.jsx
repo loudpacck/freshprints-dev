@@ -15,7 +15,7 @@ const CAPABILITIES = [
 
 const SECTION_CTAS = [
   { label: 'Browse Work', to: '/portfolio', variant: 'primary' },
-  { label: 'Services',    to: '/services',  variant: 'secondary' },
+  { label: 'Hire Me',     to: '/hire',      variant: 'secondary' },
   { label: 'The Lab',     to: '/lab',       variant: 'ghost' },
   { label: 'Get in Touch', to: '/contact',  variant: 'ghost' },
 ]

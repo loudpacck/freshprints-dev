@@ -24,12 +24,17 @@ export default function HireActionButton({
   variant = 'primary',
   size = 'md',
   style,
+  onClick,
 }) {
   const navigate = useNavigate()
   const { themeId } = useTheme()
 
   function handleClick() {
-    if (isExternal) {
+    // `onClick` wins over `url` — used by the merged /hire bottom CTA, which
+    // opens the IntakeWizard in place rather than navigating anywhere.
+    if (onClick) {
+      onClick()
+    } else if (isExternal) {
       window.open(url, '_blank', 'noopener,noreferrer')
     } else {
       navigate(url)

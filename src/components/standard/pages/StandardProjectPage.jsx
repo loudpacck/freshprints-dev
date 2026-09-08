@@ -441,7 +441,7 @@ export default function StandardProjectPage() {
                   href={ctaHref}
                   target={ctaIsExternal ? '_blank' : undefined}
                 >
-                  {ctaIsExternal ? `${project.cta.label} ↗` : 'Get in Touch'}
+                  {ctaIsExternal ? `${project.cta.label} ↗` : 'Start a Commission'}
                 </StandardButton>
                 {project.slug === 'pantheon' && (
                   <StandardButton variant="secondary" onClick={() => navigate('/games/pantheon-wars', { state: { from: 'external' } })}>

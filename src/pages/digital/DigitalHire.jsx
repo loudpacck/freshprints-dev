@@ -1,12 +1,29 @@
-import { useRef } from 'react'
-import { motion } from 'framer-motion'
+import { useRef, useState } from 'react'
+import { motion, AnimatePresence } from 'framer-motion'
 import { bottomCtas } from '@/data/hirePageData'
+import { services } from '@/data/services'
 import { useHirePageStats } from '@/hooks/useHirePageStats'
 import useReducedMotion from '@/hooks/useReducedMotion'
 import HireHeroDigital from '@/components/hire/HireHeroDigital'
 import HireThemeTiles from '@/components/hire/HireThemeTiles'
 import HireActionButton from '@/components/hire/HireActionButton'
 import { useInViewOnce, useStatCountUp, useCardPointer } from '@/components/hire/hireCardUtils'
+import AvailabilityIndicator from '@/components/ui/AvailabilityIndicator'
+import DecisionTree from '@/components/services/DecisionTree'
+import ServiceCategoryTabs, { filterServicesByTab } from '@/components/services/ServiceCategoryTabs'
+import ServiceCategoryBlock from '@/components/services/ServiceCategoryBlock'
+import ProcessSection from '@/components/services/ProcessSection'
+import IntakeWizard from '@/components/services/IntakeWizard'
+
+// Digital section eyebrow — bare mono `// LABEL`, the page's existing convention.
+const EYEBROW = {
+  fontFamily: 'var(--font-mono)',
+  fontSize: 'var(--text-xs)',
+  color: 'var(--color-text-muted)',
+  textTransform: 'uppercase',
+  letterSpacing: 'var(--tracking-widest)',
+  marginBottom: 'var(--space-6)',
+}
 
 // One stat, counting up from 0 once its card scrolls into view, then breathing
 // a subtle cyan "live" pulse so the numbers feel real-time.
@@ -221,6 +238,18 @@ function ProjectRow({ project }) {
 export default function DigitalHire() {
   const { hireProjects } = useHirePageStats()
 
+  // Offer sections (merged in from /services, Phase 5b)
+  const [activeTab, setActiveTab] = useState('all')
+  const [wizardOpen, setWizardOpen] = useState(false)
+  const [wizardServiceType, setWizardServiceType] = useState('')
+
+  function openWizard(serviceId = '') {
+    setWizardServiceType(serviceId)
+    setWizardOpen(true)
+  }
+
+  const filteredServices = filterServicesByTab(services, activeTab)
+
   return (
     <motion.div
       initial={{ opacity: 0 }}
@@ -252,6 +281,61 @@ export default function DigitalHire() {
           </div>
         </section>
 
+        {/* ── The offer (merged in from /services, Phase 5b) ── */}
+        <section style={{ marginBottom: 'var(--space-16)' }}>
+          <div style={EYEBROW}>// THE OFFER</div>
+          <p style={{
+            fontFamily: 'var(--font-body)',
+            fontSize: 'var(--text-base)',
+            color: 'var(--color-text-secondary)',
+            lineHeight: 'var(--leading-normal)',
+            maxWidth: 640,
+            marginTop: 0,
+            marginBottom: 'var(--space-6)',
+          }}>
+            Fixed-price packages for predictable engagements. Custom contracts for everything else.
+            Solo execution — no overhead, no handoffs, no agency markup.
+          </p>
+          <AvailabilityIndicator />
+        </section>
+
+        {/* Decision tree — Digital only */}
+        <DecisionTree />
+
+        {/* Packages */}
+        <section id="packages-section" style={{ marginBottom: 'var(--space-20)' }}>
+          <div style={{ marginBottom: 'var(--space-6)' }}>
+            <ServiceCategoryTabs active={activeTab} onChange={setActiveTab} />
+          </div>
+
+          <AnimatePresence mode="wait">
+            <motion.div
+              key={activeTab}
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -6 }}
+              transition={{ duration: 0.22 }}
+              className="services-packages-grid"
+              style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(auto-fit, minmax(min(480px, 100%), 1fr))',
+                gap: 'var(--space-6)',
+              }}
+            >
+              {filteredServices.map(service => (
+                <ServiceCategoryBlock
+                  key={service.id}
+                  service={service}
+                  onInquire={(id) => openWizard(id)}
+                />
+              ))}
+            </motion.div>
+          </AnimatePresence>
+        </section>
+
+        {/* Process */}
+        <ProcessSection />
+
         {/* Theme tiles */}
         <section style={{ marginBottom: 'var(--space-20)' }}>
           <div style={{
@@ -273,7 +357,7 @@ export default function DigitalHire() {
             {bottomCtas.otherStuff.label}
           </HireActionButton>
           <HireActionButton
-            url={bottomCtas.letsWork.url}
+            onClick={() => openWizard()}
             variant="primary"
             size="lg"
             style={{ boxShadow: 'var(--shadow-lg)', fontSize: 'var(--text-base)', padding: 'var(--space-5) var(--space-10)' }}
@@ -283,6 +367,16 @@ export default function DigitalHire() {
         </div>
 
       </div>
+
+      {/* ── Intake Wizard ──
+          Kept mounted (not gated on `wizardOpen`) so its own AnimatePresence
+          can play the close animation and the modalClose sound — Digital ships
+          with sound on. This is the pattern the old Digital /services used. */}
+      <IntakeWizard
+        isOpen={wizardOpen}
+        onClose={() => setWizardOpen(false)}
+        prefillServiceType={wizardServiceType}
+      />
 
       <style>{`
         .dh-row {

@@ -113,9 +113,13 @@ export function buildHireProjects(stats = pantheonWarsStats) {
 export const hireProjects = buildHireProjects(pantheonWarsStats)
 
 // --- Bottom CTAs ---------------------------------------------------------
+// `letsWork` has no url on purpose: /services merged into /hire (Phase 5b), so
+// a link here would be a self-link. The primary action opens the IntakeWizard
+// in place instead. "Start a Commission" is the one canonical label for this
+// action across the merged page.
 export const bottomCtas = {
   otherStuff: { label: 'Other Stuff', url: '/portfolio' },
-  letsWork: { label: "Let's Work", url: '/services' },
+  letsWork: { label: 'Start a Commission', action: 'intake' },
 }
 
 export default {

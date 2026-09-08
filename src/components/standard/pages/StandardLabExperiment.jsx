@@ -285,7 +285,7 @@ export default function StandardLabExperiment() {
               </p>
               <div style={{ display: 'flex', gap: 'var(--space-4)', flexWrap: 'wrap' }}>
                 <StandardButton href="/contact">Discuss a Build</StandardButton>
-                <StandardButton variant="secondary" href="/services">View Services</StandardButton>
+                <StandardButton variant="secondary" href="/hire">View Packages</StandardButton>
               </div>
             </div>
           </Reveal>

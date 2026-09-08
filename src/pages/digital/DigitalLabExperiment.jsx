@@ -164,8 +164,8 @@ export default function LabExperiment() {
             <Button variant="primary" onClick={() => navigate('/contact')}>
               DISCUSS A BUILD
             </Button>
-            <Button variant="secondary" onClick={() => navigate('/services')}>
-              VIEW SERVICES
+            <Button variant="secondary" onClick={() => navigate('/hire')}>
+              VIEW PACKAGES
             </Button>
           </div>
         </div>

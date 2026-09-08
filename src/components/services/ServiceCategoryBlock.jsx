@@ -1,4 +1,3 @@
-import { useNavigate } from 'react-router-dom'
 import { getCategoryColor } from '@/utils/categoryAssets'
 import PackageCard from './PackageCard'
 
@@ -17,7 +16,6 @@ function ServiceIcon({ type, color }) {
 }
 
 export default function ServiceCategoryBlock({ service, onInquire }) {
-  const navigate = useNavigate()
   const accentColor = getCategoryColor(service.category)
 
   return (
@@ -89,8 +87,11 @@ export default function ServiceCategoryBlock({ service, onInquire }) {
           }}>
             Need something custom?
           </span>
+          {/* Phase 5b: this used to route to /contact while Standard opened the
+              wizard prefilled. The wizard wins — it captures structured scope,
+              timeline and budget; /contact is a freeform box. */}
           <button
-            onClick={() => navigate('/contact')}
+            onClick={() => onInquire(service.id)}
             style={{
               background: 'none',
               border: 'none',

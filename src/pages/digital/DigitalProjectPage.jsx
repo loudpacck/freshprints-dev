@@ -230,9 +230,9 @@ export default function ProjectPage() {
               )}
               <Button
                 variant="secondary"
-                onClick={() => navigate('/services')}
+                onClick={() => navigate('/hire')}
               >
-                VIEW ALL SERVICES
+                VIEW PACKAGES
               </Button>
             </div>
             {project.slug === 'pantheon' && (

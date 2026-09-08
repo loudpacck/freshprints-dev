@@ -1,4 +1,4 @@
-import { useRef } from 'react'
+import { useRef, useState } from 'react'
 import { motion } from 'framer-motion'
 import useReducedMotion from '@/hooks/useReducedMotion'
 import { useTheme } from '@/themes/useTheme'
@@ -7,6 +7,12 @@ import StandardSectionHeader from '@/components/standard/StandardSectionHeader'
 import HireHeroStandard from '@/components/hire/HireHeroStandard'
 import HireThemeTiles from '@/components/hire/HireThemeTiles'
 import HireActionButton from '@/components/hire/HireActionButton'
+import AvailabilityIndicator from '@/components/ui/AvailabilityIndicator'
+import PackageCard from '@/components/services/PackageCard'
+import ProcessSection from '@/components/services/ProcessSection'
+import ServiceCategoryTabs, { filterServicesByTab } from '@/components/services/ServiceCategoryTabs'
+import IntakeWizard from '@/components/services/IntakeWizard'
+import { services } from '@/data/services'
 import { bottomCtas } from '@/data/hirePageData'
 import { useHirePageStats } from '@/hooks/useHirePageStats'
 import { useInViewOnce, useStatCountUp, useCardPointer } from '@/components/hire/hireCardUtils'
@@ -281,6 +287,18 @@ export default function StandardHire() {
   const reduced = useReducedMotion()
   const { hireProjects } = useHirePageStats()
 
+  // Offer sections (merged in from /services, Phase 5b)
+  const [activeTab, setActiveTab] = useState('all')
+  const [wizardOpen, setWizardOpen] = useState(false)
+  const [wizardPrefill, setWizardPrefill] = useState(null)
+
+  const visibleServices = filterServicesByTab(services, activeTab)
+
+  function inquire(serviceId) {
+    setWizardPrefill(serviceId)
+    setWizardOpen(true)
+  }
+
   return (
     <motion.div
       initial={reduced ? {} : { opacity: 0 }}
@@ -303,6 +321,94 @@ export default function StandardHire() {
         </div>
       </section>
 
+      {/* ── The offer (merged in from /services, Phase 5b) ── */}
+      <section className="s-section" style={{ background: 'var(--bg-base)', paddingBottom: 0 }}>
+        <div className="s-container">
+          <StandardSectionHeader
+            eyebrow="// THE OFFER"
+            heading="Ways To Work With Me"
+            subtitle="Fixed-price packages for predictable engagements, custom contracts for everything else. Solo execution — no overhead, no handoffs, no agency markup."
+          />
+          <Reveal>
+            <AvailabilityIndicator />
+          </Reveal>
+        </div>
+      </section>
+
+      {/* Category tabs */}
+      <ServiceCategoryTabs active={activeTab} onChange={setActiveTab} />
+
+      {/* Packages */}
+      <section id="packages-section" className="s-section" style={{ background: 'var(--bg-base)' }}>
+        <div className="s-container">
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-16)' }}>
+            {visibleServices.map((service, si) => (
+              <Reveal key={service.id} delay={si * 0.05}>
+                <div>
+                  <div style={{ marginBottom: 'var(--space-6)' }}>
+                    <h3 style={{
+                      fontFamily: 'var(--font-body)',
+                      fontWeight: 'var(--weight-semibold)',
+                      fontSize: 'var(--text-3xl)',
+                      color: 'var(--text-primary)',
+                      marginBottom: 'var(--space-2)',
+                    }}>
+                      {service.name}
+                    </h3>
+                    <p style={{
+                      fontFamily: 'var(--font-body)',
+                      fontSize: 'var(--text-base)',
+                      color: 'var(--text-secondary)',
+                      lineHeight: 'var(--leading-normal)',
+                    }}>
+                      {service.description}
+                    </p>
+                  </div>
+                  <div className="s-grid-2">
+                    {service.packages.map(pkg => (
+                      <PackageCard
+                        key={pkg.name}
+                        pkg={pkg}
+                        serviceCategory={service.category}
+                        onInquire={() => inquire(service.id)}
+                      />
+                    ))}
+                  </div>
+                  {service.customAvailable && (
+                    <div style={{
+                      marginTop: 'var(--space-4)',
+                      fontFamily: 'var(--font-body)',
+                      fontSize: 'var(--text-sm)',
+                      color: 'var(--text-secondary)',
+                    }}>
+                      Need something custom?{' '}
+                      <button
+                        onClick={() => inquire(service.id)}
+                        style={{
+                          color: 'var(--accent)',
+                          background: 'none',
+                          border: 'none',
+                          cursor: 'pointer',
+                          fontFamily: 'var(--font-body)',
+                          fontSize: 'var(--text-sm)',
+                          padding: 0,
+                          textDecoration: 'underline',
+                        }}
+                      >
+                        Describe your scope →
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </Reveal>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Process */}
+      <ProcessSection />
+
       {/* Theme tiles */}
       <section className="s-section" style={{ background: 'var(--bg-elevated)' }}>
         <div className="s-container">
@@ -319,7 +425,7 @@ export default function StandardHire() {
               {bottomCtas.otherStuff.label}
             </HireActionButton>
             <HireActionButton
-              url={bottomCtas.letsWork.url}
+              onClick={() => setWizardOpen(true)}
               variant="primary"
               size="lg"
               style={{
@@ -333,6 +439,14 @@ export default function StandardHire() {
           </div>
         </div>
       </section>
+
+      {wizardOpen && (
+        <IntakeWizard
+          isOpen={wizardOpen}
+          prefillServiceType={wizardPrefill}
+          onClose={() => { setWizardOpen(false); setWizardPrefill(null) }}
+        />
+      )}
 
       <style>{`
         .hire-row {

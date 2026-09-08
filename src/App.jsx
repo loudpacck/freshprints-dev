@@ -46,7 +46,6 @@ const Hire            = lazy(() => import('@/pages/Hire'))
 const Portfolio       = lazy(() => import('@/pages/Portfolio'))
 const ProjectPage     = lazy(() => import('@/pages/ProjectPage'))
 const Skills          = lazy(() => import('@/pages/Skills'))
-const Services        = lazy(() => import('@/pages/Services'))
 const Lab                = lazy(() => import('@/pages/Lab'))
 const LabExperiment      = lazy(() => import('@/pages/LabExperiment'))
 const BeatBeatersSelect  = lazy(() => import('@/pages/BeatBeatersSelect'))
@@ -192,7 +191,8 @@ function AnimatedRoutes() {
         <Route path="/portfolio"          element={<PageLayout><Portfolio /></PageLayout>} />
         <Route path="/portfolio/:slug"    element={<PageLayout><ProjectPage /></PageLayout>} />
         <Route path="/skills"             element={<PageLayout><Skills /></PageLayout>} />
-        <Route path="/services"           element={<PageLayout><Services /></PageLayout>} />
+        {/* Services merged into Hire (Phase 5b) — legacy links/bookmarks land on Hire */}
+        <Route path="/services"           element={<Navigate to="/hire" replace />} />
         <Route path="/lab"                        element={<PageLayout><Lab /></PageLayout>} />
         <Route path="/lab/beat-beaters"         element={<BeatBeatersSelect />} />
         <Route path="/lab/beat-beaters/play"    element={<BeatBeaters />} />

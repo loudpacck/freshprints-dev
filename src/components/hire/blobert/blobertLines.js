@@ -235,7 +235,7 @@ export function nudgeThemeLine() { return pick(NUDGE_THEME) }
 const PROJECT_FACTS = {
   'pantheon-wars': [
     "That's Pantheon Wars — a full multiplayer MMO Kyle built solo. 16,000+ quests completed by real players.",
-    'Pantheon Wars has PvP, an in-game economy, and 11k+ page views. One person made all of it.',
+    'Pantheon Wars has PvP, an in-game economy, and a live page-view counter you can see right on that card. One person made all of it.',
     "See that one? A persistent Greek-mythology browser MMO, built solo as a portfolio piece.",
   ],
   predictinator: [
@@ -247,7 +247,7 @@ const PROJECT_FACTS = {
     'Lexis Nails has a mix-and-match 10-nail custom builder. Kyle shipped the whole thing.',
   ],
   plutus: [
-    'Plutus is an algorithmic crypto trading bot with a simulation mode — 6 strategies, 58% sim win rate.',
+    'Plutus is an algorithmic crypto trading bot with a simulation mode — 4 strategies, 58% sim win rate.',
     'Plutus is still in development, but you can test the simulator right in the Lab.',
   ],
 }

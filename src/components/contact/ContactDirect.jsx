@@ -169,10 +169,10 @@ export default function ContactDirect() {
           lineHeight: 'var(--leading-normal)',
           marginBottom: 'var(--space-4)',
         }}>
-          Looking to hire me for a project? Use the commission flow on the services page — it's faster and gives me what I need to scope properly.
+          Looking to hire me for a project? Use the commission flow on the hire page — it&apos;s faster and gives me what I need to scope properly.
         </p>
         <Link
-          to="/services"
+          to="/hire"
           style={{
             fontFamily: 'var(--font-mono)',
             fontSize: 'var(--text-xs)',

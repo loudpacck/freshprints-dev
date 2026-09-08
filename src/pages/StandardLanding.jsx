@@ -377,7 +377,7 @@ export default function StandardLanding() {
                 {services.map(s => (
                   <a
                     key={s.id}
-                    href="/services"
+                    href="/hire"
                     style={{
                       fontFamily: 'var(--font-mono)',
                       fontSize: 'var(--text-xs)',
@@ -394,7 +394,7 @@ export default function StandardLanding() {
                   </a>
                 ))}
               </div>
-              <ArrowLink href="/services">Services & packages →</ArrowLink>
+              <ArrowLink href="/hire">Packages & pricing →</ArrowLink>
             </div>
           </Reveal>
         </div>
