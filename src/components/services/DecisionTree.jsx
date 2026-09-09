@@ -57,7 +57,7 @@ const CARDS = [
     action: 'SEND A MESSAGE',
     type: 'navigate',
     target: '/contact',
-    accentColor: '#8B5CF6',
+    accentColor: 'var(--color-text-secondary)',
   },
 ]
 

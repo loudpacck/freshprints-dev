@@ -168,7 +168,6 @@ export default function Terminal({ isOpen, onClose }) {
               display: 'flex',
               flexDirection: 'column',
               overflow: 'hidden',
-              boxShadow: 'var(--shadow-lg)',
             }}
           >
             {/* Header */}
@@ -180,10 +179,12 @@ export default function Terminal({ isOpen, onClose }) {
               background: 'var(--color-bg-elevated)',
               flexShrink: 0,
             }}>
-              <div style={{ display: 'flex', gap: 6, marginRight: 'var(--space-4)' }}>
-                <span style={{ width: 12, height: 12, borderRadius: '50%', background: '#FF5F56', display: 'block' }} />
-                <span style={{ width: 12, height: 12, borderRadius: '50%', background: '#FFBD2E', display: 'block' }} />
-                <span style={{ width: 12, height: 12, borderRadius: '50%', background: '#27C93F', display: 'block' }} />
+              {/* Phase 9: macOS traffic lights retired for phosphor blocks —
+                  this is a CRT terminal, not a desktop window. */}
+              <div style={{ display: 'flex', gap: 5, marginRight: 'var(--space-4)' }}>
+                <span style={{ width: 9, height: 9, background: 'var(--color-text-muted)', display: 'block' }} />
+                <span style={{ width: 9, height: 9, background: 'var(--color-text-muted)', display: 'block' }} />
+                <span style={{ width: 9, height: 9, background: 'var(--color-accent-primary)', display: 'block' }} />
               </div>
               <span style={{
                 flex: 1,
@@ -281,9 +282,22 @@ export default function Terminal({ isOpen, onClose }) {
                   fontFamily: 'var(--font-mono)',
                   fontSize: 'var(--text-sm)',
                   color: 'var(--color-text-primary)',
-                  caretColor: 'var(--color-text-accent)',
+                  caretColor: 'transparent',
                 }}
               />
+              {/* Block cursor stands in for the caret; stops under reduced motion. */}
+              <span
+                className="dg-cursor"
+                aria-hidden="true"
+                style={{
+                  fontFamily: 'var(--font-mono)',
+                  fontSize: 'var(--text-sm)',
+                  marginLeft: -6,
+                  flexShrink: 0,
+                }}
+              >
+                █
+              </span>
             </div>
           </motion.div>
         </motion.div>

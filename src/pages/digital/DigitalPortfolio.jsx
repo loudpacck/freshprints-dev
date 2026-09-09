@@ -1,15 +1,12 @@
 import { useState } from 'react'
 import { motion } from 'framer-motion'
 import { projects } from '@/data/projects'
-import { useTheme } from '@/themes/useTheme'
 import FeaturedStrip from '@/components/portfolio/FeaturedStrip'
 import FilterBar from '@/components/portfolio/FilterBar'
 import ProjectGrid from '@/components/portfolio/ProjectGrid'
-import DeferredParticleField from '@/components/effects/DeferredParticleField'
 
 export default function Portfolio() {
   const [activeFilter, setActiveFilter] = useState('all')
-  const { themeId } = useTheme()
 
   const filtered =
     activeFilter === 'all'
@@ -24,12 +21,6 @@ export default function Portfolio() {
       transition={{ duration: 0.3 }}
       style={{ position: 'relative' }}
     >
-      {themeId === 'digital' && (
-        <div style={{ position: 'fixed', inset: 0, zIndex: 0, pointerEvents: 'none' }}>
-          <DeferredParticleField />
-        </div>
-      )}
-
       <div style={{ position: 'relative', zIndex: 1 }}>
         <div className="page-container">
           {/* Page header */}

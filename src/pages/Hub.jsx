@@ -3,7 +3,6 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { useNavigate } from 'react-router-dom'
 import useReducedMotion from '@/hooks/useReducedMotion'
 import useDeferredMount from '@/hooks/useDeferredMount'
-import Badge from '@/components/ui/Badge'
 import { siteStatus } from '@/data/siteStatus'
 import { useSound } from '@/sound/useSound'
 import HubSystemControls from '@/components/hub/HubSystemControls'
@@ -73,9 +72,10 @@ function Icon({ type }) {
   }
 }
 
-// ─── Three.js background (lazy — keeps the three.js chunk off the Hub's critical path) ──
+// ─── Code-rain background (lazy — canvas only, no library) ──
+// Hub-only by design. Do not import HubRain from any other page.
 
-const HubBackground = lazy(() => import('@/components/hub/HubBackground'))
+const HubRain = lazy(() => import('@/components/hub/HubRain'))
 
 // ─── Single hex node ──────────────────────────────────────────────────────────
 
@@ -104,7 +104,6 @@ function HexNode({ node, isHovered, isFocused, isExiting, onHover, onClick, node
         cursor: 'crosshair',
         outline: 'none',
         flexShrink: 0,
-        animation: (!active && !reduced) ? `nodeIdle 3.2s ease-in-out ${entryDelay * 0.5}s infinite` : 'none',
       }}
       tabIndex={0}
       role="button"
@@ -121,55 +120,24 @@ function HexNode({ node, isHovered, isFocused, isExiting, onHover, onClick, node
         }
       }}
     >
-      {/* Hex border via SVG */}
+      {/* Hex outline via SVG — drawn, not lit. Phase 9: no drop-shadow glow.
+          Idle: 1px border token, transparent fill.
+          Hover/focus: border flips to accent, fill stays transparent.
+          Pressed (exiting): inverted — accent fill, bg-base glyphs. */}
       <svg
         width={HEX_W}
         height={HEX_H}
-        style={{
-          position: 'absolute',
-          inset: 0,
-          overflow: 'visible',
-          filter: isExiting
-            ? 'drop-shadow(0 0 18px rgba(0,200,255,0.65)) drop-shadow(0 0 50px rgba(0,200,255,0.35))'
-            : active
-              ? 'drop-shadow(0 0 14px rgba(0,200,255,0.45)) drop-shadow(0 0 36px rgba(0,200,255,0.20))'
-              : 'drop-shadow(0 0 8px rgba(0,200,255,0.20)) drop-shadow(0 0 20px rgba(0,200,255,0.08))',
-          transition: reduced ? undefined : 'filter 250ms ease-out',
-        }}
+        style={{ position: 'absolute', inset: 0, overflow: 'visible' }}
       >
-        {/* Base fill + stroke */}
         <polygon
           points={HEX_POINTS}
-          fill="var(--color-bg-surface)"
-          stroke="#00C8FF"
-          strokeWidth={1.5}
+          fill={isExiting ? 'var(--color-accent-primary)' : 'transparent'}
+          stroke={active || isExiting ? 'var(--color-accent-primary)' : 'var(--color-border-default)'}
+          strokeWidth={1}
           style={{
-            strokeOpacity: active ? 1 : 0.6,
-            transition: reduced ? undefined : 'stroke-opacity 200ms',
+            transition: reduced ? undefined : 'stroke 200ms, fill 200ms',
           }}
         />
-        {/* Inner glow overlay — opacity controls idle vs hover intensity; fades on exit */}
-        <polygon
-          points={HEX_POINTS}
-          fill="var(--color-bg-surface)"
-          stroke="none"
-          filter="url(#hexInnerGlow)"
-          style={{
-            opacity: isExiting ? 0 : active ? 1 : 0.6,
-            transition: reduced ? undefined : 'opacity 250ms ease-out',
-            pointerEvents: 'none',
-          }}
-        />
-        {isFocused && (
-          <polygon
-            points={HEX_POINTS}
-            fill="none"
-            stroke="var(--color-accent-primary)"
-            strokeWidth={2.5}
-            opacity={0.5}
-            style={{ filter: 'drop-shadow(0 0 5px rgba(0,200,255,0.7))' }}
-          />
-        )}
       </svg>
 
       {/* Node content */}
@@ -181,7 +149,11 @@ function HexNode({ node, isHovered, isFocused, isExiting, onHover, onClick, node
         alignItems: 'center',
         justifyContent: 'center',
         gap: 'var(--space-2)',
-        color: active ? 'var(--color-text-accent)' : 'var(--color-text-secondary)',
+        color: isExiting
+          ? 'var(--color-text-inverse)'
+          : active
+            ? 'var(--color-text-accent)'
+            : 'var(--color-text-primary)',
         transition: 'color 200ms',
         pointerEvents: 'none',
         userSelect: 'none',
@@ -213,7 +185,7 @@ function HexNode({ node, isHovered, isFocused, isExiting, onHover, onClick, node
               marginTop: 'var(--space-2)',
               fontFamily: 'var(--font-mono)',
               fontSize: 'var(--text-xs)',
-              color: '#FFFFFF',
+              color: 'var(--color-text-secondary)',
               whiteSpace: 'nowrap',
               pointerEvents: 'none',
             }}
@@ -300,8 +272,8 @@ function MobileRadial({ onNavigate }) {
                 width: nodeW,
                 left: -(nodeW / 2),
                 top: -(NODE_H / 2),
-                background: 'var(--color-bg-surface)',
-                border: '1px solid rgba(0,200,255,0.4)',
+                background: 'transparent',
+                border: '1px solid var(--color-border-default)',
                 borderRadius: 'var(--radius-sm)',
                 padding: 'var(--space-2) var(--space-1)',
                 cursor: 'crosshair',
@@ -310,7 +282,7 @@ function MobileRadial({ onNavigate }) {
                 fontWeight: 'var(--weight-medium)',
                 textTransform: 'uppercase',
                 letterSpacing: 0,
-                color: 'var(--color-text-secondary)',
+                color: 'var(--color-text-primary)',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
@@ -327,7 +299,7 @@ function MobileRadial({ onNavigate }) {
         {/* Center toggle button — plain div centers it at the 0×0 origin = viewport center */}
         <div style={{ position: 'absolute', left: 0, top: 0, transform: 'translate(-50%, -50%)', zIndex: 2 }}>
           <motion.button
-            animate={{ background: open ? 'var(--color-accent-primary)' : 'var(--color-bg-elevated)' }}
+            animate={{ background: open ? 'var(--color-accent-primary)' : 'transparent' }}
             transition={{ duration: 0.2 }}
             onClick={() => setOpen((v) => !v)}
             style={{
@@ -423,38 +395,17 @@ export default function Hub() {
       transition={{ duration: 0.3 }}
       style={{ position: 'relative', minHeight: '100vh', overflow: 'hidden', background: 'var(--color-bg-base)' }}
     >
-      {/* ── Three.js background — deferred past first paint, skipped under reduced motion ── */}
-      {!reduced && bgReady && (
+      {/* ── Code rain — deferred past first paint. HubRain self-skips under
+             reduced motion and below 768px; see the component. ── */}
+      {!reduced && !isMobile && bgReady && (
         <Suspense fallback={null}>
-          <HubBackground reduced={reduced} />
+          <HubRain />
         </Suspense>
       )}
 
-      {/* ── SVG filter defs (shared by all hex nodes) ── */}
-      <svg width="0" height="0" style={{ position: 'absolute', pointerEvents: 'none' }}>
-        <defs>
-          <filter id="hexInnerGlow" x="-20%" y="-20%" width="140%" height="140%">
-            <feMorphology operator="erode" radius="1" in="SourceAlpha" result="eroded" />
-            <feGaussianBlur in="eroded" stdDeviation="3" result="blurred" />
-            <feFlood floodColor="#00C8FF" floodOpacity="0.70" result="color" />
-            <feComposite in="color" in2="blurred" operator="in" result="innerGlow" />
-            <feComposite in="SourceGraphic" in2="innerGlow" operator="over" />
-          </filter>
-        </defs>
-      </svg>
-
-      {/* ── Scan-line ── */}
-      {!reduced && (
-        <div style={{ position: 'fixed', inset: 0, overflow: 'hidden', pointerEvents: 'none', zIndex: 1 }}>
-          <div style={{
-            position: 'absolute',
-            left: 0, right: 0,
-            height: 3,
-            background: 'linear-gradient(transparent, rgba(0,200,255,0.05), transparent)',
-            animation: 'scanLine 10s linear infinite',
-          }} />
-        </div>
-      )}
+      {/* Phase 9: the SVG inner-glow filter and the sweeping cyan scan-bar are
+          gone. The CRT signal is the repeating scanline overlay defined once in
+          digital/tokens.css, applied to the whole viewport. */}
 
       {/* ── UI overlay ── */}
       {(() => {
@@ -489,7 +440,22 @@ export default function Hub() {
                 pointerEvents: 'auto',
               }}
             >
-              <Badge status="ACTIVE" pulse={!reduced} label="ONLINE" />
+              {/* Phase 9: the ONLINE readout is plain mono text plus one
+                  blinking block cursor — the single animated element in the
+                  hub chrome. .dg-cursor stops under reduced motion. */}
+              <span style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 'var(--space-2)',
+                fontFamily: 'var(--font-mono)',
+                fontSize: 'var(--text-xs)',
+                textTransform: 'uppercase',
+                letterSpacing: 'var(--tracking-wider)',
+                color: 'var(--color-text-secondary)',
+              }}>
+                ONLINE
+                <span className="dg-cursor" aria-hidden="true">█</span>
+              </span>
             </motion.div>
 
             {/* Bottom-left — hidden below 480px via CSS */}

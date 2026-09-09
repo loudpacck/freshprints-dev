@@ -58,12 +58,15 @@ const digitalSkin = {
     mono: 'var(--font-mono, monospace)',
   },
   radius: 'var(--radius-lg, 8px)',
-  bubbleShadow: `0 0 22px ${GLOW}`,
+  // Phase 9: Digital is a phosphor terminal — no bloom. The accent halo and
+  // rim are gone; the 1px accent stroke plus the scanlines carry it. Only the
+  // digital skin changed; the other three keep their own treatment.
+  bubbleShadow: 'none',
   body: {
     fill: 'var(--color-bg-surface)',
     stroke: ACCENT,
     strokeWidth: 1.5,
-    rim: GLOW,
+    rim: 'none',
     radius: '50%',
     breathe: false, jitter: true, morph: false, bevel: false, scanlines: true, crispEdges: false,
     gradient: null,

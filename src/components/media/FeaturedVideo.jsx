@@ -44,7 +44,7 @@ function Thumbnail({ video, onClick }) {
           style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', transition: 'transform 0.3s ease' }}
         />
       ) : (
-        <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(135deg, rgba(0,200,255,0.12) 0%, var(--color-bg-elevated) 100%)' }} />
+        <div style={{ position: 'absolute', inset: 0, background: 'var(--color-bg-elevated)' }} />
       )}
       {/* Overlay */}
       <div
@@ -66,7 +66,6 @@ function Thumbnail({ video, onClick }) {
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            boxShadow: 'var(--shadow-glow-blue)',
           }}
         >
           <svg width="20" height="24" viewBox="0 0 20 24" fill="none">

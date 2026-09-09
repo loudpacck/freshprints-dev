@@ -4,8 +4,8 @@ import ExperimentCard from '@/components/lab/ExperimentCard'
 
 const blueprintGrid = {
   backgroundImage: [
-    'linear-gradient(rgba(0, 200, 255, 0.04) 1px, transparent 1px)',
-    'linear-gradient(90deg, rgba(0, 200, 255, 0.04) 1px, transparent 1px)',
+    'linear-gradient(rgba(47, 90, 56, 0.22) 1px, transparent 1px)',
+    'linear-gradient(90deg, rgba(47, 90, 56, 0.22) 1px, transparent 1px)',
   ].join(', '),
   backgroundSize: '40px 40px',
 }

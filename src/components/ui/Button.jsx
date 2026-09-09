@@ -1,5 +1,6 @@
 import { motion } from 'framer-motion'
 import { useSound } from '@/sound/useSound'
+import { useTheme } from '@/themes/useTheme'
 
 const sizeStyles = {
   sm: { fontSize: 'var(--text-xs)', padding: 'var(--space-2) var(--space-4)', gap: 'var(--space-2)' },
@@ -25,6 +26,28 @@ const variantStyles = {
   },
 }
 
+// Phase 9 — Digital only. A terminal button is drawn, not filled: accent border
+// and accent text on transparent, inverting to an accent fill on hover.
+// Retro, Funky and Standard render this same component inside their own chrome
+// (IntakeWizard, ContactForm, NewsletterStrip) and keep the original variants.
+const digitalVariantStyles = {
+  primary: {
+    background: 'transparent',
+    color: 'var(--color-accent-primary)',
+    border: '1px solid var(--color-accent-primary)',
+  },
+  secondary: {
+    background: 'transparent',
+    color: 'var(--color-text-primary)',
+    border: '1px solid var(--color-border-default)',
+  },
+  ghost: {
+    background: 'transparent',
+    color: 'var(--color-text-secondary)',
+    border: '1px solid transparent',
+  },
+}
+
 export default function Button({
   children,
   variant = 'primary',
@@ -39,6 +62,9 @@ export default function Button({
   glow = false,
 }) {
   const { play } = useSound()
+  const { themeId } = useTheme()
+  const isDigital = themeId === 'digital'
+  const variantSet = isDigital ? digitalVariantStyles : variantStyles
 
   const base = {
     display: 'inline-flex',
@@ -54,7 +80,7 @@ export default function Button({
     width: fullWidth ? '100%' : 'auto',
     transition: 'border-color var(--duration-base)',
     ...sizeStyles[size],
-    ...variantStyles[variant],
+    ...(variantSet[variant] || variantSet.primary),
     ...styleProp,
   }
 
@@ -75,13 +101,18 @@ export default function Button({
       onMouseEnter={handleMouseEnter}
       onClick={handleClick}
       disabled={disabled}
-      whileHover={disabled ? {} : {
-        scale: 1.02,
-        filter: 'brightness(1.1)',
-        // Digital neon glow — cyan halo pulled from the accent token
-        ...(glow && { boxShadow: '0 0 0 1px var(--color-accent-primary), 0 0 22px rgba(0, 200, 255, 0.4)' }),
-      }}
-      whileTap={disabled ? {} : { scale: glow ? 0.95 : 0.97 }}
+      whileHover={disabled ? {} : (isDigital
+        // Terminal hover: invert. No scale, no brightness, no halo — the `glow`
+        // prop is accepted for API compatibility and deliberately ignored here.
+        ? (variant === 'ghost'
+            ? { color: 'var(--color-accent-primary)' }
+            : {
+                background: 'var(--color-accent-primary)',
+                color: 'var(--color-text-inverse)',
+                borderColor: 'var(--color-accent-primary)',
+              })
+        : { scale: 1.02, filter: 'brightness(1.1)' })}
+      whileTap={disabled ? {} : { scale: isDigital ? 1 : 0.97 }}
       transition={{ duration: 0.15 }}
     >
       {icon && <span style={{ display: 'flex', alignItems: 'center' }}>{icon}</span>}

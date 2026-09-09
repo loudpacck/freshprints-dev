@@ -115,17 +115,9 @@ a {
   border: none;
 }
 
-[data-ui="digital"][data-mode="light"] body::after {
-  content: '';
-  position: fixed;
-  inset: 0;
-  pointer-events: none;
-  z-index: var(--z-base);
-  background-image:
-    linear-gradient(rgba(0, 80, 160, 0.05) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(0, 80, 160, 0.05) 1px, transparent 1px);
-  background-size: 40px 40px;
-}
+/* Phase 9: the Digital light-mode blueprint grid is retired. Light mode is now
+   a paper printout of the terminal — a plain surface. The dark-mode scanline
+   overlay lives in themes/digital/tokens.css and also owns body::after. */
 
 @media (prefers-reduced-motion: reduce) {
   *,
@@ -275,19 +267,9 @@ a {
 }
 
 /* Landing page Enter button aura */
+/* Phase 9: the ENTER button's breathing cyan aura is retired — a phosphor
+   terminal has no bloom. The class is kept as an inert layout wrapper so
+   Landing.jsx's markup is untouched. */
 .landing-enter-aura {
   display: inline-block;
-  border-radius: var(--radius-sm);
-  animation: auraBreath 3.5s ease-in-out infinite;
-}
-
-.landing-enter-aura:hover {
-  animation-play-state: paused;
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .landing-enter-aura {
-    animation: none;
-    box-shadow: 0 0 28px rgba(0, 200, 255, 0.40), 0 0 60px rgba(0, 200, 255, 0.18);
-  }
 }

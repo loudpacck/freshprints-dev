@@ -36,7 +36,7 @@ function VideoThumbnail({ videoId, title }) {
           style={{
             position: 'absolute',
             inset: 0,
-            background: 'linear-gradient(135deg, rgba(0,200,255,0.1) 0%, var(--color-bg-elevated) 100%)',
+            background: 'var(--color-bg-elevated)',
           }}
         />
       )}
@@ -110,8 +110,8 @@ export default function VideoCard({ video, onPlay }) {
             textTransform: 'uppercase',
             letterSpacing: 'var(--tracking-wider)',
             color: tab.color ?? 'var(--color-accent-primary)',
-            background: tab.color ? `${tab.color}18` : 'rgba(0,200,255,0.08)',
-            border: `1px solid ${tab.color ? `${tab.color}33` : 'rgba(0,200,255,0.2)'}`,
+            background: 'transparent',
+            border: '1px solid var(--color-border-default)',
             borderRadius: 'var(--radius-sm)',
             padding: '2px var(--space-2)',
           }}

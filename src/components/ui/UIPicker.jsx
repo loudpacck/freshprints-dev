@@ -30,17 +30,18 @@ const THEME_PREVIEWS = {
       </div>
     ),
   },
+  // Phase 9: Digital is a phosphor terminal — green on near-black, not cyan.
   digital: {
-    bg: '#0A0A0F',
-    accent: '#00C8FF',
+    bg: '#050805',
+    accent: '#33FF66',
     label: 'Digital',
     preview: (
-      <div style={{ padding: '8px 10px', background: '#0A0A0F', border: '1px solid #00C8FF33' }}>
-        <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 9, color: '#00C8FF', marginBottom: 4 }}>
+      <div style={{ padding: '8px 10px', background: '#050805', border: '1px solid #1E3A25' }}>
+        <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 9, color: '#33FF66', marginBottom: 4 }}>
           // FRESH PRINTS TERMINAL
         </div>
-        <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 8, color: '#606070' }}>
-          ⬡ PORTFOLIO  ⬡ SKILLS  ⬡ LAB
+        <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 8, color: '#5FA86E' }}>
+          ⬡ PORTFOLIO  ⬡ LAB  ⬡ HIRE
         </div>
       </div>
     ),

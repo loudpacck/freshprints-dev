@@ -36,21 +36,25 @@ function EmailIcon() {
   )
 }
 
+// Phase 9: the per-service brand hues (cyan, YouTube red, LinkedIn blue) are
+// retired — this renders only inside Digital, and a phosphor terminal prints
+// every glyph in the same ink.
+const ICON_TINT = 'var(--color-text-secondary)'
 const ICON_MAP = {
-  email: { Icon: EmailIcon, color: '#00C8FF' },
-  'youtube-main': { Icon: YoutubeIcon, color: '#FF4444' },
-  'youtube-docs': { Icon: YoutubeIcon, color: '#FF4444' },
-  github: { Icon: GithubIcon, color: '#A0A0B8' },
-  linkedin: { Icon: LinkedinIcon, color: '#0077B5' },
+  email: { Icon: EmailIcon, color: ICON_TINT },
+  'youtube-main': { Icon: YoutubeIcon, color: ICON_TINT },
+  'youtube-docs': { Icon: YoutubeIcon, color: ICON_TINT },
+  github: { Icon: GithubIcon, color: ICON_TINT },
+  linkedin: { Icon: LinkedinIcon, color: ICON_TINT },
 }
 
 function ConnectCard({ id, label, url, handle, description }) {
-  const { Icon, color } = ICON_MAP[id] ?? { Icon: EmailIcon, color: '#00C8FF' }
+  const { Icon, color } = ICON_MAP[id] ?? { Icon: EmailIcon, color: ICON_TINT }
   const isExternal = url.startsWith('http') || url.startsWith('mailto')
 
   const inner = (
     <motion.div
-      whileHover={{ y: -2, borderColor: color }}
+      whileHover={{ borderColor: 'var(--color-accent-primary)' }}
       transition={{ duration: 0.2 }}
       style={{
         background: 'var(--color-bg-surface)',

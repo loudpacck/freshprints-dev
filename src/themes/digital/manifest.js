@@ -11,6 +11,6 @@ export default {
     body: 'DM Sans',
   },
   tagline: 'The default experience.',
-  description: 'Dark, precise, electric. Built for focus and speed.',
-  palette: ['#0A0A0F', '#111116', '#00C8FF', '#FFB347', '#F0F0F8'],
+  description: 'Phosphor terminal. Green on black, scanlines, a blinking cursor.',
+  palette: ['#050805', '#0A100B', '#33FF66', '#FFB000', '#B8F5C4'],
 }

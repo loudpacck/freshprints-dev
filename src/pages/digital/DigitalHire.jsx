@@ -84,23 +84,8 @@ function ProjectRow({ project }) {
         willChange: 'transform',
       }}
     >
-      {/* Neon edge highlight that follows the pointer */}
-      {!reduced && (
-        <div
-          aria-hidden="true"
-          className="dh-glow"
-          style={{
-            position: 'absolute',
-            inset: 0,
-            zIndex: 2,
-            pointerEvents: 'none',
-            opacity: 'var(--pactive)',
-            transition: 'opacity 200ms ease',
-            background: 'radial-gradient(420px circle at calc(var(--mx) * 100%) calc(var(--my) * 100%), var(--color-accent-primary-glow), transparent 62%)',
-            mixBlendMode: 'screen',
-          }}
-        />
-      )}
+      {/* Phase 9: the pointer-tracked neon edge highlight is gone. A phosphor
+          terminal doesn't bloom under the cursor. */}
 
       <div style={{ aspectRatio: '16/10', background: 'var(--color-bg-elevated)', overflow: 'hidden' }}>
         <img
@@ -386,21 +371,19 @@ export default function DigitalHire() {
         @media (max-width: 768px) {
           .dh-row { grid-template-columns: 1fr; }
         }
-        /* Live pulse — a soft cyan breath on each stat after it counts up. */
+        /* Live pulse — Phase 9: an opacity breath, no text-shadow bloom. */
         .dh-stat-num.is-live {
           animation: dh-stat-breath 3.2s ease-in-out infinite;
         }
         @keyframes dh-stat-breath {
-          0%, 100% { text-shadow: 0 0 0 transparent; opacity: 1; }
-          50% { text-shadow: 0 0 14px var(--color-accent-primary-glow); opacity: 0.9; }
+          0%, 100% { opacity: 1; }
+          50% { opacity: 0.72; }
         }
-        /* Pantheon "LIVE" heartbeat dot. */
+        /* Pantheon "LIVE" heartbeat dot — square block, no halo. */
         .dh-live-dot {
           width: 8px;
           height: 8px;
-          border-radius: 50%;
           background: var(--color-accent-primary);
-          box-shadow: 0 0 8px var(--color-accent-primary-glow);
         }
         .dh-live-dot.dh-beat { animation: dh-beat 1.8s ease-in-out infinite; }
         @keyframes dh-beat {

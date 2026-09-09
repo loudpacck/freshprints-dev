@@ -1,7 +1,6 @@
 import { useRef } from 'react'
 import { motion } from 'framer-motion'
 import useReducedMotion from '@/hooks/useReducedMotion'
-import DeferredParticleField from '@/components/effects/DeferredParticleField'
 import { useHireTone } from '@/components/hire/HireToneContext'
 import { heroCopy } from '@/data/hirePageData'
 import { useHirePageStats } from '@/hooks/useHirePageStats'
@@ -42,9 +41,6 @@ export default function HireHeroDigital() {
         overflow: 'hidden',
       }}
     >
-      {/* Neon particle field (fixed, mouse-reactive, deferred past first paint) */}
-      <DeferredParticleField />
-
       {/* One-shot scanline sweep on load */}
       {!reduced && <div className="hhd-scanline" aria-hidden="true" />}
 
@@ -68,7 +64,6 @@ export default function HireHeroDigital() {
           letterSpacing: 'var(--tracking-tight)',
           margin: 0,
           marginBottom: 'var(--space-5)',
-          textShadow: '0 0 34px var(--color-accent-primary-glow)',
           maxWidth: 900,
           minHeight: '1.2em',
         }}>
@@ -187,7 +182,8 @@ export default function HireHeroDigital() {
           height: 140px;
           pointer-events: none;
           z-index: 1;
-          background: linear-gradient(to bottom, transparent, var(--color-accent-primary-glow), transparent);
+          /* Phase 9: recolored to phosphor; the glow token it used is gone. */
+          background: linear-gradient(to bottom, transparent, rgba(51, 255, 102, 0.14), transparent);
           opacity: 0.5;
           animation: hhd-sweep 1.4s ease-out 1 both;
         }

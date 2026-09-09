@@ -1,5 +1,5 @@
 import { motion, AnimatePresence } from 'framer-motion'
-import { getCategoryColor, getCategoryHex } from '@/utils/categoryAssets'
+import { getCategoryColor } from '@/utils/categoryAssets'
 import { SERVICE_TYPE_LABEL, serviceTypeCategory } from './serviceTypes'
 
 const LABEL_MAP = {
@@ -45,7 +45,6 @@ function resolveValue(key, val) {
 export default function IntakeStep5Confirm({ getValues, submitted }) {
   const values = getValues()
   const accentColor = getCategoryColor(serviceTypeCategory(values.serviceType))
-  const accentHex = getCategoryHex(serviceTypeCategory(values.serviceType))   // alpha suffix needs a literal
 
   const fields = ['serviceType', 'scope', 'timeline', 'budget', 'name', 'email', 'description']
 
@@ -75,8 +74,8 @@ export default function IntakeStep5Confirm({ getValues, submitted }) {
                 width: 64,
                 height: 64,
                 borderRadius: '50%',
-                background: '#22C55E22',
-                border: '2px solid #22C55E',
+                background: 'transparent',
+                border: '2px solid var(--color-status-active, #22C55E)',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
@@ -126,7 +125,7 @@ export default function IntakeStep5Confirm({ getValues, submitted }) {
 
             <div style={{
               background: 'var(--color-bg-surface)',
-              border: `1px solid ${accentHex}44`,
+              border: '1px solid var(--color-border-default)',
               borderTop: `2px solid ${accentColor}`,
               borderRadius: 'var(--radius-md)',
               overflow: 'hidden',

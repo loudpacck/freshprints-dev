@@ -43,7 +43,7 @@ const METHODS = [
     value: socialLinks.email,
     href: `mailto:${socialLinks.email}`,
     Icon: EmailIcon,
-    color: '#00C8FF',
+    color: 'var(--color-text-secondary)',
   },
   {
     id: 'youtube-main',
@@ -51,7 +51,7 @@ const METHODS = [
     value: socialLinks.youtube.general.handle,
     href: socialLinks.youtube.general.url,
     Icon: YoutubeIcon,
-    color: '#FF4444',
+    color: 'var(--color-text-secondary)',
   },
   {
     id: 'youtube-docs',
@@ -59,7 +59,7 @@ const METHODS = [
     value: socialLinks.youtube.docs.handle,
     href: socialLinks.youtube.docs.url,
     Icon: YoutubeIcon,
-    color: '#FF4444',
+    color: 'var(--color-text-secondary)',
   },
   {
     id: 'github',
@@ -67,7 +67,7 @@ const METHODS = [
     value: socialLinks.github.handle,
     href: socialLinks.github.url,
     Icon: GithubIcon,
-    color: '#A0A0B8',
+    color: 'var(--color-text-secondary)',
   },
   {
     id: 'linkedin',
@@ -75,7 +75,7 @@ const METHODS = [
     value: socialLinks.linkedin.handle,
     href: socialLinks.linkedin.url,
     Icon: LinkedinIcon,
-    color: '#0077B5',
+    color: 'var(--color-text-secondary)',
   },
 ]
 

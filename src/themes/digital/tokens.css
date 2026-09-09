@@ -1,34 +1,62 @@
+/* ─── Digital theme — phosphor terminal (Phase 9) ───
+   Green phosphor on near-black, scanlines, blinking cursor. Matrix as
+   atmosphere, not screensaver. No glow, no gradients, no cyan, no violet.
+   Amber (--color-status-warn) is the only non-green, reserved for status.
+   Scoped entirely to [data-ui="digital"] — Standard, Retro, Funky and Pantheon
+   carry their own token files and are unaffected by anything in here. */
 [data-ui="digital"] {
-  --color-bg-base:        #0A0A0F;
-  --color-bg-surface:     #111116;
-  --color-bg-elevated:    #18181F;
-  --color-bg-overlay:     rgba(10, 10, 15, 0.85);
+  --color-bg-base:        #050805;   /* near-black with a green cast */
+  --color-bg-surface:     #0A100B;
+  --color-bg-elevated:    #101811;
+  --color-bg-overlay:     rgba(5, 8, 5, 0.88);
 
-  --color-border-subtle:  rgba(255, 255, 255, 0.06);
-  --color-border-default: rgba(255, 255, 255, 0.10);
-  --color-border-strong:  rgba(255, 255, 255, 0.20);
+  --color-border-subtle:  #142B1A;
+  --color-border-default: #1E3A25;
+  --color-border-strong:  #2F5A38;
 
-  --color-accent-primary:      #00C8FF;
-  --color-accent-primary-dim:  rgba(0, 200, 255, 0.15);
-  --color-accent-primary-glow: rgba(0, 200, 255, 0.35);
+  /* One accent: bright phosphor. Cursor, active node, primary CTA only. */
+  --color-accent-primary:      #33FF66;
+  --color-accent-primary-dim:  rgba(51, 255, 102, 0.10);
+  /* --color-accent-primary-glow is deliberately NOT defined. Shared components
+     that reference it (Blobert, ContactForm) already pass a flat fallback, so
+     they resolve to the accent with no halo. */
 
-  --color-accent-secondary:      #FFB347;
-  --color-accent-secondary-dim:  rgba(255, 179, 71, 0.12);
-  --color-accent-secondary-glow: rgba(255, 179, 71, 0.30);
+  /* Secondary maps onto the same phosphor — Digital has one accent now.
+     Amber lives only in the status map below. */
+  --color-accent-secondary:      #33FF66;
+  --color-accent-secondary-dim:  rgba(51, 255, 102, 0.10);
 
-  --color-status-active:         #22C55E;
-  --color-status-beta:           #F59E0B;
-  --color-status-stable:         #00C8FF;
-  --color-status-concept:        #8B5CF6;
-  --color-status-error:          #EF4444;
-  --color-status-in-development: #F59E0B;
-  --color-status-available:      #FFFFFF;
+  /* Status — ACTIVE/PRODUCTION = accent, STABLE = secondary text,
+     CONCEPT = muted, BETA/IN_DEVELOPMENT/error = warn amber. */
+  --color-status-warn:           #FFB000;
+  --color-status-active:         var(--color-accent-primary);
+  --color-status-beta:           var(--color-status-warn);
+  --color-status-stable:         var(--color-text-secondary);
+  --color-status-concept:        var(--color-text-muted);
+  --color-status-error:          var(--color-status-warn);
+  --color-status-in-development: var(--color-status-warn);
+  --color-status-available:      var(--color-text-primary);
 
-  --color-text-primary:   #F0F0F8;
-  --color-text-secondary: #9090A8;
-  --color-text-muted:     #50505F;
-  --color-text-accent:    #00C8FF;
-  --color-text-inverse:   #0A0A0F;
+  /* AVAILABLE dot: no glow. Other themes do not define these two, so their
+     var() fallbacks keep the original glow treatment untouched. */
+  --status-available-glow:   none;
+  --status-available-border: 1px solid var(--color-border-strong);
+
+  /* Category map — every category renders in dim phosphor except ENGINEERING,
+     which takes the accent (matching Standard's choice of the shop half).
+     Read through the var(--color-category-*) hooks so nothing leaks. */
+  --color-category-engineering: var(--color-accent-primary);
+  --color-category-software:    var(--color-text-secondary);
+  --color-category-games:       var(--color-text-secondary);
+  --color-category-ai:          var(--color-text-secondary);
+  --color-category-content:     var(--color-text-secondary);
+  --color-category-default:     var(--color-text-muted);
+
+  --color-text-primary:   #B8F5C4;   /* soft phosphor — body text */
+  --color-text-secondary: #5FA86E;
+  --color-text-muted:     #2F5A38;
+  --color-text-accent:    var(--color-accent-primary);
+  --color-text-inverse:   #050805;   /* laid on an accent fill */
 
   --font-display: 'Bebas Neue', 'Arial Narrow', sans-serif;
   --font-mono:    'IBM Plex Mono', 'Courier New', monospace;
@@ -76,17 +104,18 @@
   --space-24: 6rem;
   --space-32: 8rem;
 
-  --radius-sm: 4px;
-  --radius-md: 8px;
-  --radius-lg: 12px;
-  --radius-xl: 16px;
+  /* Square-ish. A terminal draws boxes, not rounded cards. */
+  --radius-sm: 0px;
+  --radius-md: 0px;
+  --radius-lg: 0px;
+  --radius-xl: 0px;
   --radius-full: 9999px;
 
-  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.4);
-  --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.5);
-  --shadow-lg: 0 8px 32px rgba(0, 0, 0, 0.6);
-  --shadow-glow-blue: 0 0 20px rgba(0, 200, 255, 0.25), 0 0 60px rgba(0, 200, 255, 0.10);
-  --shadow-glow-amber: 0 0 20px rgba(255, 179, 71, 0.25), 0 0 60px rgba(255, 179, 71, 0.10);
+  /* Neutral, no colored halos. --shadow-glow-blue and --shadow-glow-amber
+     are deleted; every usage was removed in Phase 9. */
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.5);
+  --shadow-md: 0 1px 2px rgba(0, 0, 0, 0.5);
+  --shadow-lg: 0 4px 16px rgba(0, 0, 0, 0.6);
 
   --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
   --ease-in-expo:  cubic-bezier(0.7, 0, 0.84, 0);
@@ -108,20 +137,65 @@
   --z-toast: 600;
 }
 
+/* ─── Light mode — a paper printout of the same terminal ─── */
 [data-ui="digital"][data-mode="light"] {
-  --color-bg-base: #F5F5F0;
-  --color-bg-surface: #FFFFFF;
-  --color-bg-elevated: #FAFAF8;
-  --color-bg-overlay: rgba(245, 245, 240, 0.90);
-  --color-border-subtle: rgba(0, 80, 160, 0.08);
-  --color-border-default: rgba(0, 80, 160, 0.15);
-  --color-border-strong: rgba(0, 80, 160, 0.30);
-  --color-accent-primary: #0050A0;
-  --color-accent-primary-dim: rgba(0, 80, 160, 0.10);
-  --color-accent-primary-glow: rgba(0, 80, 160, 0.20);
-  --color-text-primary: #0A0A1A;
-  --color-text-secondary: #404060;
-  --color-text-muted: #8080A0;
-  --color-text-accent: #0050A0;
-  --color-text-inverse: #F0F0F8;
+  --color-bg-base:        #E8ECE6;
+  --color-bg-surface:     #F1F4F0;
+  --color-bg-elevated:    #FFFFFF;
+  --color-bg-overlay:     rgba(232, 236, 230, 0.92);
+
+  --color-border-subtle:  #D6DED8;
+  --color-border-default: #C4D1C7;
+  --color-border-strong:  #A3B7A8;
+
+  --color-accent-primary:     #1B7A3A;
+  --color-accent-primary-dim: rgba(27, 122, 58, 0.10);
+
+  --color-accent-secondary:     #1B7A3A;
+  --color-accent-secondary-dim: rgba(27, 122, 58, 0.10);
+
+  --color-status-warn: #9A5B00;
+
+  --color-text-primary:   #0F2E18;
+  --color-text-secondary: #3C6B47;
+  --color-text-muted:     #7A9A82;
+  --color-text-accent:    var(--color-accent-primary);
+  --color-text-inverse:   #FFFFFF;   /* laid on the deep-green accent fill */
+}
+
+/* ─── CRT scanline overlay — dark mode only ───
+   The whole CRT signal is this plus the palette. One repeating 1px line at very
+   low opacity; deliberately below the threshold where a screenshot reads as
+   striped. pointer-events:none so it never intercepts a click. */
+[data-ui="digital"]:not([data-mode="light"]) body::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: var(--z-overlay);
+  background-image: repeating-linear-gradient(
+    to bottom,
+    rgba(51, 255, 102, 0.014) 0px,
+    rgba(51, 255, 102, 0.014) 1px,
+    transparent 1px,
+    transparent 4px
+  );
+}
+
+/* ─── Blinking block cursor ───
+   The one animated element in the hub chrome and the terminal prompt. */
+[data-ui="digital"] .dg-cursor {
+  color: var(--color-accent-primary);
+  animation: dg-blink 1.06s steps(2, start) infinite;
+}
+@keyframes dg-blink {
+  0%, 50%      { opacity: 1; }
+  50.01%, 100% { opacity: 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  [data-ui="digital"] .dg-cursor {
+    animation: none !important;
+    opacity: 1;
+  }
 }

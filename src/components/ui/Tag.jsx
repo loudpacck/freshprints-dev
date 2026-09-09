@@ -1,11 +1,15 @@
+// Phase 9: the tinted fills and colored borders are gone — a tag is drawn, not
+// filled. The label reads through the per-theme --color-category-* hooks, so
+// Digital resolves phosphor and every other theme keeps its own fallback hex.
 const categoryColors = {
-  software:    { color: '#00C8FF', bg: 'rgba(0, 200, 255, 0.10)',   border: 'rgba(0, 200, 255, 0.25)' },
-  games:       { color: '#FFB347', bg: 'rgba(255, 179, 71, 0.10)',  border: 'rgba(255, 179, 71, 0.25)' },
-  engineering: { color: '#A0A0B8', bg: 'rgba(160, 160, 184, 0.08)', border: 'rgba(160, 160, 184, 0.20)' },
-  ai:          { color: '#8B5CF6', bg: 'rgba(139, 92, 246, 0.10)',  border: 'rgba(139, 92, 246, 0.25)' },
-  content:     { color: '#FBBF24', bg: 'rgba(251, 191, 36, 0.10)',  border: 'rgba(251, 191, 36, 0.25)' },
-  default:     { color: 'var(--color-text-muted)', bg: 'var(--color-bg-elevated)', border: 'var(--color-border-subtle)' },
+  software:    { color: 'var(--color-category-software, #00C8FF)' },
+  games:       { color: 'var(--color-category-games, #FFB347)' },
+  engineering: { color: 'var(--color-category-engineering, #A0A0B8)' },
+  ai:          { color: 'var(--color-category-ai, #8B5CF6)' },
+  content:     { color: 'var(--color-category-content, #FBBF24)' },
+  default:     { color: 'var(--color-text-muted)' },
 }
+const TAG_SURFACE = { bg: 'transparent', border: 'var(--color-border-default)' }
 
 const sizeStyles = {
   sm: { fontSize: 'var(--text-xs)', padding: '2px var(--space-2)' },
@@ -13,7 +17,8 @@ const sizeStyles = {
 }
 
 export default function Tag({ label, category = 'default', size = 'sm' }) {
-  const { color, bg, border } = categoryColors[category] ?? categoryColors.default
+  const { color } = categoryColors[category] ?? categoryColors.default
+  const { bg, border } = TAG_SURFACE
 
   return (
     <span

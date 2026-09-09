@@ -7,7 +7,7 @@ import { useSound } from '@/sound/useSound'
 // Swatch identity per theme (matches the UIPicker mini-previews).
 const THEME_TILES = [
   { id: 'standard', accent: '#E85D04', bg: '#EEF0F2' },   // Phase 8: steel + safety orange
-  { id: 'digital',  accent: '#00C8FF', bg: '#0A0A0F' },
+  { id: 'digital',  accent: '#33FF66', bg: '#050805' },   // Phase 9: phosphor terminal
   { id: 'retro',    accent: '#000080', bg: '#C0C0C0' },
   { id: 'funky',    accent: '#BFFF00', bg: '#12041F' },
   { id: 'pantheon', accent: '#C9A961', bg: '#0A0710' },

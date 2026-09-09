@@ -3,9 +3,9 @@ import { useTheme } from '@/themes/useTheme'
 
 // Canonical availability vocabulary. Keys must match `siteStatus.availability`.
 const STATUS_MAP = {
-  OPEN:        { color: '#22C55E', label: 'AVAILABLE FOR WORK' },
-  BOOKING:     { color: '#F59E0B', label: 'BOOKING AHEAD' },
-  UNAVAILABLE: { color: '#EF4444', label: 'NOT TAKING WORK' },
+  OPEN:        { color: 'var(--color-status-active, #22C55E)',        label: 'AVAILABLE FOR WORK' },
+  BOOKING:     { color: 'var(--color-status-beta, #F59E0B)',          label: 'BOOKING AHEAD' },
+  UNAVAILABLE: { color: 'var(--color-status-error, #EF4444)',         label: 'NOT TAKING WORK' },
 }
 
 function resolveStatus() {

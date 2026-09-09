@@ -74,14 +74,19 @@ const btnStyle = {
   textTransform: 'uppercase',
   letterSpacing: 'var(--tracking-wider)',
   color: 'var(--color-text-secondary)',
-  background: 'var(--color-bg-surface)',
-  border: '1px solid var(--color-border-subtle)',
+  // Phase 9: terminal-drawn — transparent fill, 1px border token, no glow.
+  background: 'transparent',
+  border: '1px solid var(--color-border-default)',
   borderRadius: 'var(--radius-sm)',
   padding: '0.5rem 0.875rem',
   cursor: 'pointer',
   transition: 'color var(--duration-base), border-color var(--duration-base)',
   whiteSpace: 'nowrap',
 }
+
+// One accent. Every control hovers to the same phosphor green — the old
+// per-button cyan/amber/gold hovers are gone.
+const HOVER = { color: 'var(--color-accent-primary)', borderColor: 'var(--color-accent-primary)' }
 
 export default function HubSystemControls({ reduced }) {
   const navigate = useNavigate()
@@ -115,7 +120,7 @@ export default function HubSystemControls({ reduced }) {
           onClick={() => { play('select'); navigate('/hire') }}
           className="hub-control-btn"
           style={btnStyle}
-          whileHover={{ color: 'var(--color-accent-secondary)', borderColor: 'var(--color-accent-secondary)' }}
+          whileHover={HOVER}
           aria-label="Hire me"
         >
           <BriefcaseIcon />
@@ -126,7 +131,7 @@ export default function HubSystemControls({ reduced }) {
           onClick={() => { play('modalOpen'); setModOpen(true) }}
           className="hub-control-btn"
           style={btnStyle}
-          whileHover={{ color: '#C9A961', borderColor: '#C9A961' }}
+          whileHover={HOVER}
           aria-label="Open moderator panel"
         >
           <ShieldIcon />
@@ -137,7 +142,7 @@ export default function HubSystemControls({ reduced }) {
           onClick={() => { play('modalOpen'); setAdminOpen(true) }}
           className="hub-control-btn"
           style={btnStyle}
-          whileHover={{ color: 'var(--color-text-accent)', borderColor: 'var(--color-accent-primary)' }}
+          whileHover={HOVER}
           aria-label="Open admin panel"
         >
           <LockIcon />
@@ -148,7 +153,7 @@ export default function HubSystemControls({ reduced }) {
           onClick={handleSound}
           className="hub-control-btn"
           style={btnStyle}
-          whileHover={{ color: 'var(--color-text-accent)', borderColor: 'var(--color-accent-primary)' }}
+          whileHover={HOVER}
           aria-label={isMuted ? 'Unmute sounds' : 'Mute sounds'}
         >
           {isMuted ? <MutedIcon /> : <SpeakerIcon />}
@@ -159,7 +164,7 @@ export default function HubSystemControls({ reduced }) {
           onClick={() => { play('modalOpen'); setPickerOpen(true) }}
           className="hub-control-btn"
           style={btnStyle}
-          whileHover={{ color: 'var(--color-text-accent)', borderColor: 'var(--color-accent-primary)' }}
+          whileHover={HOVER}
           aria-label="Change UI theme"
         >
           <LayersIcon />

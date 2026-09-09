@@ -22,7 +22,7 @@ export default function ExperimentCard({ experiment, animationDelay = 0 }) {
     >
       <Card
         hoverable
-        accentColor={experiment.accentColor}
+        accentColor="var(--color-accent-primary)"
         onClick={handleClick}
         style={{
           cursor: 'pointer',
@@ -81,7 +81,7 @@ export default function ExperimentCard({ experiment, animationDelay = 0 }) {
           style={{
             fontFamily: 'var(--font-mono)',
             fontSize: 'var(--text-xs)',
-            color: experiment.accentColor,
+            color: 'var(--color-text-secondary)',
             textTransform: 'uppercase',
             letterSpacing: 'var(--tracking-wider)',
             display: 'flex',

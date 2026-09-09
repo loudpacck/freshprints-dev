@@ -15,7 +15,7 @@ function getThemeHome(id) {
 }
 
 const THEME_ACCENTS = {
-  digital: '#00C8FF',
+  digital: '#33FF66',   // Phase 9: phosphor green
   pantheon: '#FFB347',
   standard: '#A0A0B8',
   funky: '#8B5CF6',
@@ -41,15 +41,15 @@ function StatusPill({ label, color }) {
 }
 
 function getStatusInfo(theme, activeId) {
-  if (theme.id === activeId) return { label: 'ACTIVE', color: '#00C8FF' }
+  if (theme.id === activeId) return { label: 'ACTIVE', color: 'var(--color-accent-primary)' }
   if (theme.comingSoon) return { label: 'COMING SOON', color: '#C9A961' }
-  if (theme.status === 'complete') return { label: 'AVAILABLE', color: '#22C55E' }
-  if (theme.hidden) return { label: 'LOCKED', color: '#50505F' }
-  return { label: 'COMING SOON', color: '#F59E0B' }
+  if (theme.status === 'complete') return { label: 'AVAILABLE', color: 'var(--color-text-secondary)' }
+  if (theme.hidden) return { label: 'LOCKED', color: 'var(--color-text-muted)' }
+  return { label: 'COMING SOON', color: 'var(--color-status-warn, #F59E0B)' }
 }
 
 function ThemeCard({ theme, isActive, isShaken, onClick }) {
-  const accent = THEME_ACCENTS[theme.id] || '#00C8FF'
+  const accent = THEME_ACCENTS[theme.id] || '#33FF66'
   const status = getStatusInfo(theme, isActive ? theme.id : '')
   const canSelect = theme.status === 'complete' && !theme.comingSoon && !isActive
 

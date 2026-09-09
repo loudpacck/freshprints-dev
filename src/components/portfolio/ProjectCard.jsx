@@ -4,12 +4,11 @@ import { motion } from 'framer-motion'
 import Card from '@/components/ui/Card'
 import Tag from '@/components/ui/Tag'
 import Badge from '@/components/ui/Badge'
-import { getCategoryColor, getCategoryHex, getCategoryIcon } from '@/utils/categoryAssets'
+import { getCategoryColor, getCategoryIcon } from '@/utils/categoryAssets'
 import { factKeyForSlug } from '@/components/hire/blobert/blobertLines'
 
 function CategoryFallback({ category, aspectRatio }) {
   const color = getCategoryColor(category)
-  const hex = getCategoryHex(category)   // alpha-suffixed tint below needs a literal
   const icon = getCategoryIcon(category)
 
   return (
@@ -17,7 +16,7 @@ function CategoryFallback({ category, aspectRatio }) {
       style={{
         width: '100%',
         aspectRatio,
-        background: `linear-gradient(135deg, ${hex}26 0%, ${hex}0D 100%)`,
+        background: 'var(--color-bg-elevated)',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',

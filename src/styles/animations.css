@@ -54,14 +54,16 @@
   50%       { opacity: 0; }
 }
 
+/* Phase 9: these were cyan/amber halos. A phosphor terminal signals "live"
+   by blinking, not by blooming — both are now opacity-only. */
 @keyframes glowPulse {
-  0%, 100% { box-shadow: 0 0 6px rgba(0, 200, 255, 0.4); }
-  50%       { box-shadow: 0 0 16px rgba(0, 200, 255, 0.8), 0 0 32px rgba(0, 200, 255, 0.3); }
+  0%, 100% { opacity: 1; }
+  50%      { opacity: 0.35; }
 }
 
 @keyframes glowPulseAmber {
-  0%, 100% { box-shadow: 0 0 6px rgba(255, 179, 71, 0.4); }
-  50%       { box-shadow: 0 0 16px rgba(255, 179, 71, 0.8), 0 0 32px rgba(255, 179, 71, 0.3); }
+  0%, 100% { opacity: 1; }
+  50%      { opacity: 0.35; }
 }
 
 @keyframes spinnerRotate {
@@ -79,7 +81,4 @@
   50%       { transform: translateY(-8px); }
 }
 
-@keyframes auraBreath {
-  0%, 100% { box-shadow: 0 0 18px rgba(0, 200, 255, 0.25), 0 0 40px rgba(0, 200, 255, 0.10); }
-  50%       { box-shadow: 0 0 32px rgba(0, 200, 255, 0.45), 0 0 80px rgba(0, 200, 255, 0.20); }
-}
+/* Phase 9: auraBreath (a cyan halo) is retired along with .landing-enter-aura. */

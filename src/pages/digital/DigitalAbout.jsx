@@ -71,14 +71,14 @@ export default function About() {
             <div className="da-portrait">
               <div
                 style={{
-                  border: '1px solid rgba(0, 200, 255, 0.2)',
+                  border: '1px solid var(--color-border-default)',
                   overflow: 'hidden',
                   aspectRatio: '4/5',
                   position: 'relative',
-                  transition: 'box-shadow 200ms ease',
+                  transition: 'border-color 200ms ease',
                 }}
-                onMouseEnter={e => { e.currentTarget.style.boxShadow = '0 0 24px rgba(0, 200, 255, 0.15)' }}
-                onMouseLeave={e => { e.currentTarget.style.boxShadow = 'none' }}
+                onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--color-accent-primary)' }}
+                onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--color-border-default)' }}
               >
                 <img
                   src="/images/profile_picture/prof%20pic%201.jpg"
@@ -101,7 +101,7 @@ export default function About() {
                   left: 0,
                   right: 0,
                   padding: 'var(--space-3)',
-                  background: 'linear-gradient(to top, rgba(10,10,15,0.9) 0%, transparent 100%)',
+                  background: 'rgba(5, 8, 5, 0.72)',
                 }}>
                   <span style={{
                     fontFamily: 'var(--font-mono)',
