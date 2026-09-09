@@ -96,6 +96,7 @@ Status values are defined in `src/components/ui/Badge.jsx` (Digital), `src/compo
 - [x] Phase 16 — Beat Beaters Rhythm Game (2026-05-30)
 - [x] Phase 17a — Funky UI Foundation (2026-05-31)
 - [x] Phase 17b — Funky Showpiece (frosted panels, liquid transitions, dividers) (2026-05-31)
+- [x] Phase 10a — Kishar theme (picker label "Pantheon") — gilded leather and parchment (2026-09-08)
 - [x] Phase 1 — Single-source navigation config + Store removal (2026-08-26)
 
 ---
@@ -106,11 +107,13 @@ Status values are defined in `src/components/ui/Badge.jsx` (Digital), `src/compo
 
 Exports:
 - `PRIMARY_NAV` — the canonical 6 destinations, in this exact order: **Work** (/portfolio) · **Lab** (/lab) · **Hire** (/hire) · **Media** (/media) · **About** (/about) · **Contact** (/contact)
-- `UTILITY_NAV` — footer-only: **Skills** (/skills)
+- `UTILITY_NAV` — footer-only. **Currently EMPTY**: Skills merged into /about in Phase 6 and was its only
+  entry. The export stays so footers can keep spreading it; guard it with a `.length > 0` check
+  (RetroFooter and KisharFooter do) before rendering a heading for it.
 
 Each entry is `{ id, label, href }`. `id` is a stable slug (`'work'`, `'lab'`, …) so themes key off identity, not label text.
 
-**Wired to it:** `StandardNav`, `StandardFooter`, `RetroToolbar`, `RetroFooter`, `FunkyNav`, `FunkyFooter`. Footers render `PRIMARY_NAV + UTILITY_NAV`; Retro's footer renders `UTILITY_NAV` + social links.
+**Wired to it:** `StandardNav`, `StandardFooter`, `RetroToolbar`, `RetroFooter`, `FunkyNav`, `FunkyFooter`, `KisharNav`, `KisharFooter`. Footers render `PRIMARY_NAV + UTILITY_NAV`; Retro's footer renders `UTILITY_NAV` + social links.
 
 **Not wired to it:** the Digital theme. `Hub.jsx` (structurally hardcoded grid), `hub/UIPicker.jsx`, `PageChrome`, and `Terminal.jsx` still carry their own lists — out of scope by design.
 
@@ -433,9 +436,13 @@ Final CTA opens IntakeWizard (same component as Services page).
 Each theme exports: `{ id, label, status, navigation, hasSoundFx, soundPack, fonts, hidden? }`
 
 - `digital` — status: complete, navigation: hub, soundPack: digital
-- `pantheon` — status: stub
-- `standard` — status: stub, navigation: navbar, hasSoundFx: false
-- `funky` — status: stub, hidden: true
+- `standard` — status: complete, navigation: navbar, soundPack: none (default theme)
+- `retro` — status: complete, navigation: toolbar, soundPack: retro
+- `funky` — status: complete, navigation: navbar, soundPack: funky
+- `kishar` — status: complete, navigation: navbar, soundPack: kishar, **picker label "Pantheon"**
+- `pantheon` — the LIVE GAME's stylesheet, not a site theme. Forced on by `PantheonWarsShell`
+  for `/games/pantheon-wars/*` only, excluded from both pickers via `PICKER_EXCLUDED` in
+  `registry.js`. **Never edit `src/themes/pantheon/`.**
 
 ### Registry (`src/themes/registry.js`)
 Exports: `themes`, `themeIds`, `getTheme(id)`, `getAvailableThemes()`, `getCompleteThemes()`
@@ -903,3 +910,73 @@ Funky is now fully realized — inner pages FEEL funky, not just the landing. Al
 **New files:** `FunkyDivider.jsx`, `FunkyPageTransition.jsx`, `FunkyCursorPulse.jsx`. **Edited:** `funky/tokens.css` (frost tokens, section-transparency rule, frosted `.funky-card`, divider/transition/pulse CSS, Part B reduced-motion), `FunkyLayout.jsx` (mounts transition + pulse), `FunkyLanding.jsx` (rewrite).
 
 **Possible targeted follow-up:** hosted inner pages get frosted panels + blob background + liquid transitions, but **not** explicit `FunkyDivider` section breaks or per-card backdrop-blur, because both would require editing the shared `Standard*` page files (forbidden — would change the Standard theme). If bespoke Funky inner-page variants are ever wanted, that's the path to add inline dividers and true per-card glass.
+
+---
+
+## Phase 10a — Kishar Theme (2026-09-08)
+
+Fifth site theme. **Internal id `kishar`; the picker label is "Pantheon".** WoW-adjacent
+gilding, inscriptions, leather and parchment. It inherits the live game's PALETTE
+(obsidian `#0A0710`, gold `#C9A961`/`#F5D88B`/`#6F5C32`, bone `#EDE3CC`/`#A89B7E`,
+faction hues) so site and game read as relatives — but NOT the game's typography and
+NOT its token file.
+
+**`src/themes/pantheon/` is the live game's stylesheet and is untouched by this phase.**
+`PantheonWarsShell` still forces `data-ui="pantheon"` on `/games/pantheon-wars/*`. The
+game stub is hidden from both pickers via `PICKER_EXCLUDED` in `registry.js` and by
+filtering `themeIds` in `hub/UIPicker.jsx` — its manifest was not edited.
+
+### Type
+- Display: **Alegreya SC** — a humanist serif with REAL small caps and weights to 900.
+  Deliberately not Cinzel / Trajan / Marcellus: a Roman inscription capital over flat
+  gold is the AI-mythology template this theme is avoiding.
+- Body: **Alegreya** (Alegreya SC's text companion). Mono: IBM Plex Mono (already loaded).
+- Added to the consolidated Google Fonts `<link>` in `index.html`; `kishar/fonts.css`
+  is a stub per the Phase B dedup convention.
+
+### Material rules
+- Procedural textures only, no image files: `--tex-parchment` (feTurbulence
+  `baseFrequency 0.9`), `--tex-leather` (`0.35`, 3 octaves), `--tex-metal`
+  (`0.02 0.9` + a 360×24 background-size for the brushed stretch). Applied via
+  `.k-tex-parchment` / `.k-tex-leather` / `.k-tex-metal` overlay classes and on
+  `body::before` for the page ground (leather in dark, parchment in light).
+- Depth is bevels (`--bevel-out` / `--bevel-in`: gold-bright over gold-dim), never glow.
+  Gradients appear only inside ornament rendering; `--gradient-hero` is held at `none`.
+- Buttons press IN on `:active` (bevel inverts). No hover-lift anywhere; cards brighten
+  their frame to gold and do not move.
+
+### The binding
+The nav band and footer stay dark leather + royal purple in BOTH modes — a bound cover
+is dark even on a parchment page. `--binding-leather` / `--binding-ink` /
+`--binding-gold` are declared once in the base block and deliberately NOT re-declared
+under `[data-mode="light"]`; sepia ink on tan leather measured 3.7:1 and failed AA.
+
+### Components
+`src/components/kishar/` — `KisharLayout`, `KisharNav` (renders `PRIMARY_NAV` by `id`),
+`KisharFooter` (`PRIMARY_NAV + UTILITY_NAV`, guarded), `KisharButton`, `KisharCard`
+(double frame + inline-SVG gilt corner marks), `KisharSectionRule` (inline SVG: tapered
+rule + centre lozenge). Landing at `src/pages/KisharLanding.jsx` — hero, featured work
+(same four slugs as StandardLanding), a Pantheon Wars callout card, CTA rows.
+
+Hire gets a bespoke `KisharVariant` in `HireHeroStandard.jsx`; `StandardHire`'s proof
+cards take the double frame via an `isKishar` branch.
+
+Eyebrow form: `· LABEL ·` (inscription — small caps flanked by middots), in
+`src/utils/eyebrow.js`.
+
+### Contrast deviations from the brief
+Three values were darkened/lightened to clear WCAG AA on their intended surface. The
+originals are kept as decorative-only tokens; see the comments in `kishar/tokens.css`.
+- dark `--text-tertiary` `#6F6558` → `#918573` (3.16:1 → 4.98:1 on `--bg-card`)
+- light `--text-tertiary` `#8B7A62` → `#6E5F49` (3.29:1 → 4.90:1 on parchment)
+- light `--gold` `#8B6914` → `#75570F` (4.03:1 → 5.32:1 on parchment); `#8B6914`
+  survives as `--gold-metal`, used only inside ornament gradients
+
+### Shared wizard fix (all themes)
+`--color-accent-primary-dim` was defined only by Digital, so a selected option in
+`IntakeStep2Scope` / `IntakeStep3Timeline` rendered MORE transparent than an unselected
+one everywhere else. It is now defined in `standard`, `retro`, `funky` and `kishar`
+tokens (a ~10% wash of each theme's own accent, per mode). Retro also gained the
+`--color-border-subtle` / `--color-border-default` aliases it was missing, which had
+been collapsing every shared component's 1px rule there. `pantheon/tokens.css` was
+NOT touched.

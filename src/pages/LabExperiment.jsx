@@ -21,5 +21,5 @@ export default function LabExperiment() {
   if (RETIRED_TO_PORTFOLIO[slug]) return <Navigate to={RETIRED_TO_PORTFOLIO[slug]} replace />
   if (experiment?.external) return <Navigate to={experiment.externalUrl} replace />
 
-  return (themeId === 'standard' || themeId === 'retro' || themeId === 'funky') ? <StandardLabExperiment /> : <DigitalLabExperiment />
+  return (themeId === 'standard' || themeId === 'retro' || themeId === 'funky' || themeId === 'kishar') ? <StandardLabExperiment /> : <DigitalLabExperiment />
 }

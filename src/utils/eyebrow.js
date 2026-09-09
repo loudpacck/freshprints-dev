@@ -7,17 +7,20 @@
 //   Standard — bare label; the hairline tick in StandardSectionHeader is the mark
 //   Retro    — `[ LABEL ]`, the Win95 group-box / menu-label convention
 //   Funky    — `~ LABEL ~`, matching the theme's liquid wave motif
+//   Kishar   — `· LABEL ·`, an inscription: small caps flanked by middots,
+//              the way a carved or tooled line is centred between two points
 export function formatEyebrow(label, themeId) {
   const bare = String(label ?? '').replace(/^\s*\/\/\s*/, '')
   if (!bare) return bare
   if (themeId === 'digital') return `// ${bare}`
   if (themeId === 'retro') return `[ ${bare} ]`
   if (themeId === 'funky') return `~ ${bare} ~`
+  if (themeId === 'kishar') return `· ${bare} ·`
   return bare
 }
 
 // Themes whose eyebrow mark already brackets the label don't also want the
 // Standard hairline tick in front of it.
 export function eyebrowHasTick(themeId) {
-  return themeId !== 'retro' && themeId !== 'funky'
+  return themeId !== 'retro' && themeId !== 'funky' && themeId !== 'kishar'
 }

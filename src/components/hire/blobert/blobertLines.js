@@ -48,6 +48,16 @@ const GREETINGS = {
       "I'm Blobert and I am VIBRATING at the correct frequency. what's up? ask about Kyle.",
     ],
   },
+  kishar: {
+    serious: [
+      "Blobert, at your service. Ask me anything about Kyle's work.",
+      "Well met. I'm Blobert. What would you like to know about Kyle?",
+    ],
+    funny: [
+      "I'm Blobert. In this lighting I look almost dignified. Ask me about Kyle.",
+      "Blobert here, gilded and everything. Go on, ask me about Kyle.",
+    ],
+  },
 }
 
 export function greetingLine(theme, tone) {
@@ -152,6 +162,7 @@ const THEME_REACTIONS = {
   digital: ["Terminal green — now we're talking. [ok]", 'dark mode for my soul. nice.', '> theme=digital. feels like home.', 'ah, the command line. my natural habitat.'],
   retro: ['ah, Windows 95. I was born here.', 'beige box energy. love it.', 'It looks like you switched to 1998. Excellent choice!'],
   funky: ['FINALLY. My true form.', 'oh this is my FAVORITE. everything is vibrating.', 'color! motion! I have never felt more alive.'],
+  kishar: ['oh, we are being fancy now. I approve.', 'gold trim. I feel like an heirloom.', 'this is the one that matches the game. good taste.'],
 }
 export function themeReactionLine(theme) {
   const arr = THEME_REACTIONS[theme] || THEME_REACTIONS.standard
@@ -211,6 +222,7 @@ const NUDGE_DWELL = {
   retro: 'Psst! It looks like you have questions. I have answers about Kyle!',
   funky: 'psssst. I am absolutely stuffed with Kyle facts. ask me things.',
   pantheon: 'psst — I know everything about the guy who built this. ask me stuff.',
+  kishar: 'psst — I know everything about the guy who built this. ask me stuff.',
 }
 export function nudgeDwellLine(theme) { return NUDGE_DWELL[theme] || NUDGE_DWELL.standard }
 

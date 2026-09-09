@@ -19,6 +19,11 @@
   --color-accent-secondary: var(--accent);   /* amber retired — orange is the only accent */
   --color-border-subtle:  var(--border-subtle);
   --color-border-default: var(--border-strong);
+  /* Selected-state wash for IntakeStep2Scope / IntakeStep3Timeline. Only
+     Digital used to define this, so a selected option rendered MORE
+     transparent than an unselected one in every other theme. Per-mode by
+     construction — --accent-muted is a ~10% wash of each mode's own accent. */
+  --color-accent-primary-dim: var(--accent-muted);
 
   /* Status map — see also Badge.jsx, StandardCard.jsx, StandardPortfolio.jsx,
      StandardProjectPage.jsx (all four read these tokens, not literal hexes).

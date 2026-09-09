@@ -94,6 +94,13 @@
   --color-text-primary: var(--text-primary);
   --color-text-secondary: var(--text-secondary);
   --color-accent-primary: var(--accent-bright);
+  /* Selected-state wash for the intake wizard (see standard/tokens.css).
+     0.15 rather than 0.10: a 10% blue over Win95 silver is invisible. */
+  --color-accent-primary-dim: rgba(16, 132, 208, 0.15);
+  /* Border aliases were missing entirely, which collapsed every shared
+     component's 1px rule to nothing under Retro. Mapped to the bevel ramp. */
+  --color-border-subtle:  var(--bevel-shadow);
+  --color-border-default: var(--bevel-dark);
 
   --color-status-active:         #22C55E;
   --color-status-beta:           #F59E0B;

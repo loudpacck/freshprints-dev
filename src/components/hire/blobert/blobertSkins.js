@@ -123,12 +123,17 @@ export const blobertSkins = {
   retro: retroSkin,
   funky: funkySkin,
   pantheon: { ...standardSkin, key: 'pantheon' },
+  // Kishar aliases the standard skin: every colour in it resolves through the
+  // --color-* bridge, which kishar/tokens.css defines, so the blob picks up
+  // bone-on-obsidian (or sepia-on-parchment) with no per-skin work.
+  kishar: { ...standardSkin, key: 'kishar' },
 }
 
-// The API only knows four themes; pantheon speaks 'standard' per the brain's
-// contract, and its skin already maps to standard above.
+// The API only knows four themes; pantheon and kishar both speak 'standard'
+// per the brain's contract, and their skins already map to standard above.
+const API_ALIASES = new Set(['pantheon', 'kishar'])
 export function apiThemeFor(themeId) {
-  return themeId === 'pantheon' ? 'standard' : (blobertSkins[themeId] ? themeId : 'standard')
+  return API_ALIASES.has(themeId) ? 'standard' : (blobertSkins[themeId] ? themeId : 'standard')
 }
 
 export function getSkin(themeId) {

@@ -28,11 +28,13 @@ class SoundManager {
     if (id === 'digital')  return 'fp-sound-muted-digital'
     if (id === 'pantheon') return 'fp-sound-muted-pantheon'
     if (id === 'funky')    return 'fp-sound-muted-funky'
+    if (id === 'kishar')   return 'fp-sound-muted-kishar'
     return 'fp-sound-muted'
   }
 
   _defaultMuted(id) {
-    // Retro and Pantheon default to unmuted — sound is part of the experience
+    // Retro and Pantheon default to unmuted — sound is part of the experience.
+    // Digital, Funky and Kishar default to muted.
     if (id === 'retro')    return false
     if (id === 'pantheon') return false
     return true

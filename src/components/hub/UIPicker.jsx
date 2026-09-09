@@ -5,20 +5,22 @@ import { useNavigate } from 'react-router-dom'
 import Card from '@/components/ui/Card'
 import { useTheme } from '@/themes/useTheme'
 import { useSound } from '@/sound/useSound'
-import { themes, themeIds } from '@/themes/registry'
+import { themes, themeIds, PICKER_EXCLUDED } from '@/themes/registry'
 
 function getThemeHome(id) {
   if (id === 'digital') return '/hub'
   if (id === 'standard') return '/home'
+  if (id === 'retro') return '/home'
   if (id === 'funky') return '/home'
+  if (id === 'kishar') return '/home'
   return '/'
 }
 
 const THEME_ACCENTS = {
   digital: '#33FF66',   // Phase 9: phosphor green
-  pantheon: '#FFB347',
   standard: '#A0A0B8',
   funky: '#8B5CF6',
+  kishar: '#C9A961',
 }
 
 function StatusPill({ label, color }) {
@@ -295,7 +297,7 @@ export default function UIPicker({ isOpen, onClose }) {
 
               {/* Theme grid */}
               <div className="ui-picker-grid" style={{ marginBottom: 'var(--space-6)' }}>
-                {themeIds.map(id => {
+                {themeIds.filter(id => !PICKER_EXCLUDED.has(id)).map(id => {
                   const theme = themes[id]
                   return (
                     <ThemeCard

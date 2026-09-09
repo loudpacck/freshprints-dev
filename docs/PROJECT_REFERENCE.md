@@ -136,7 +136,7 @@
 
 ## 4. THEME ARCHITECTURE
 
-Four complete selectable UIs plus a hidden game-only theme. Each is a fully scoped CSS + layout system.
+Five complete selectable UIs plus a hidden game-only theme. Each is a fully scoped CSS + layout system.
 
 ### Theme Registry (`src/themes/registry.js`)
 | ID | Status | Navigation | Sound Pack | Default? |
@@ -145,7 +145,13 @@ Four complete selectable UIs plus a hidden game-only theme. Each is a fully scop
 | `digital` | complete | hub (Hub.jsx) | digital | opt-in |
 | `retro` | complete | toolbar (RetroLayout) | retro | opt-in |
 | `funky` | complete | navbar (FunkyLayout) | funky | opt-in |
-| `pantheon` | complete, hidden | — (game-only, Pantheon Wars chrome) | pantheon | no |
+| `kishar` | complete | navbar (KisharLayout) | kishar | opt-in — **picker label is "Pantheon"** |
+| `pantheon` | complete, hidden | — (game-only, Pantheon Wars chrome) | pantheon | never — excluded from both pickers via `PICKER_EXCLUDED` in `registry.js` |
+
+`kishar` and `pantheon` are different things. `pantheon` is the LIVE GAME's stylesheet, forced on by
+`PantheonWarsShell` for `/games/pantheon-wars/*` only; nothing outside that directory may edit it.
+`kishar` is the site theme that borrows the game's palette; it carries the picker label "Pantheon"
+so visitors see one name, while the ids stay distinct.
 
 ### How Themes Work
 - `ThemeProvider` (`src/themes/ThemeProvider.jsx`) wraps the entire app outside `<BrowserRouter>`
@@ -165,6 +171,7 @@ Four complete selectable UIs plus a hidden game-only theme. Each is a fully scop
 - Standard tokens: `src/themes/standard/tokens.css` → `[data-ui="standard"]`
 - Digital tokens: `src/themes/digital/tokens.css` → `[data-ui="digital"]`
 - Retro tokens: `src/themes/retro/tokens.css` → `[data-ui="retro"]`
+- Kishar tokens: `src/themes/kishar/tokens.css` → `[data-ui="kishar"]` (+ `[data-mode="light"]` block)
 - Token source of truth per theme: always the theme's own `tokens.css`
 - Standard tokens include Digital-name aliases (`--color-bg-base`, etc.) for shared component compatibility
 - Retro tokens also include Digital-name aliases for the same reason
@@ -176,14 +183,15 @@ Four complete selectable UIs plus a hidden game-only theme. Each is a fully scop
 | Digital | Bebas Neue | IBM Plex Mono | DM Sans |
 | Retro | Press Start 2P (sparingly) | VT323 | MS Sans Serif / Tahoma / Arial |
 | Funky | Unbounded | Space Mono | Outfit |
+| Kishar | Alegreya SC (real small caps) | IBM Plex Mono | Alegreya |
 | Pantheon | Cinzel | — | Cormorant Garamond |
 
 **Font loading (Phase B consolidation):** ONE Google Fonts `<link>` in `index.html` carries every theme's families (plus Rajdhani for Beat Beaters). The per-theme `fonts.css` files are stubs — do not re-add `@import`s to them.
 
 ### Sound System
 - `SoundManager.js` singleton in `src/sound/`
-- Per-theme mute state: `fp-sound-muted-digital` (default: muted), `fp-sound-muted-retro` (default: unmuted), `fp-sound-muted-funky` (default: muted)
-- Packs in `src/sound/packs/`: `digital.js`, `retro.js` (Win95-style boot chime), `funky.js`, `pantheon.js` (game)
+- Per-theme mute state: `fp-sound-muted-digital` (default: muted), `fp-sound-muted-retro` (default: unmuted), `fp-sound-muted-funky` (default: muted), `fp-sound-muted-kishar` (default: muted)
+- Packs in `src/sound/packs/`: `digital.js`, `retro.js` (Win95-style boot chime), `funky.js`, `kishar.js` (struck wood + bronze, procedural only), `pantheon.js` (game)
 - All packs synthesized via Web Audio API (no audio files)
 - Standard: silent (no sound pack)
 - Available sounds: `click, hover, activate, select, terminalOpen, terminalClose, terminalKey, terminalSubmit, modalOpen, modalClose, success, error, toggle`
@@ -197,14 +205,73 @@ Four complete selectable UIs plus a hidden game-only theme. Each is a fully scop
 Inner pages are thin theme switchers — the top-level page file checks `themeId` and renders the correct variant:
 - Digital variants: `src/pages/digital/Digital[PageName].jsx`
 - Standard variants: `src/components/standard/pages/Standard[PageName].jsx`
-- Retro + Funky: render the Standard variants inside RetroLayout / FunkyLayout chrome (documented deferral)
+- Retro, Funky + Kishar: render the Standard variants inside RetroLayout / FunkyLayout / KisharLayout chrome (documented deferral). Kishar has one bespoke variant: `KisharVariant` in `HireHeroStandard.jsx`.
 
 ### Adding a New Theme
-1. Create `src/themes/yourtheme/manifest.js`
-2. Create `src/themes/yourtheme/tokens.css` (scope to `[data-ui="yourtheme"]`)
-3. Create `src/themes/yourtheme/fonts.css` if needed
-4. Register manifest in `src/themes/registry.js`
-5. Import tokens.css and fonts.css in `src/main.jsx`
+
+The 5-step version this section used to carry was incomplete — a theme registered
+that way renders the Digital page variants, has no sound, is absent from both
+pickers, and breaks Blobert. This is the full list, as executed for `kishar`
+(Phase 10a):
+
+**Theme files**
+1. `src/themes/<id>/manifest.js` — `id`, `label`, `status`, `hidden`, `soundPack`,
+   `fonts`, `palette` (5 hexes; the hub picker's ThemeCard renders them), `tagline`,
+   `description`.
+2. `src/themes/<id>/tokens.css` — everything scoped to `[data-ui="<id>"]`. Must
+   define the FULL Standard-native vocabulary (`--bg-*`, `--text-*`, `--border-*`,
+   `--accent*`, `--text-xs..7xl`, `--display-*`, `--label-*`, `--weight-*`,
+   `--tracking-*`, `--leading-*`, `--space-*`, `--radius-*`, `--shadow-*`,
+   `--nav-height`, `--container-max`, `--measure-*`, `--duration-*`, `--ease-*`,
+   `--z-modal`, `--font-display/body/mono`, `--gradient-hero`) PLUS the Digital-name
+   `--color-*` aliases shared components read, PLUS the `--color-status-*` and
+   `--color-category-*` maps, PLUS `--color-accent-primary-dim`. Copy Standard's
+   `.s-container` / `.s-section` / `.s-grid-2` / `.s-grid-3` / `.s-cap-grid`
+   declarations (they are theme-scoped, so a hosting theme needs its own copies).
+3. `src/themes/<id>/fonts.css` — a stub. Add the families to the ONE consolidated
+   Google Fonts `<link>` in `index.html` instead (Phase B font dedup).
+
+**Registration**
+4. `src/themes/registry.js` — import the manifest, add it to `themes`.
+   Game-only ids go in `PICKER_EXCLUDED`.
+5. `src/main.jsx` — import `tokens.css`, `fonts.css`, and the sound pack.
+
+**Layout + routing**
+6. `src/components/<id>/<Id>Layout.jsx` — nav + `<main>` + footer + `UIPicker`.
+   Nav and footer must render from `src/data/navigation.js`, never a hardcoded list.
+7. `src/pages/<Id>Landing.jsx` — the `/home` page.
+8. `src/App.jsx` — import the layout at the top (layouts are NOT lazy), lazy-import
+   the landing, add a branch in `PageLayout` and one in `HomeRoute`.
+9. The nine thin page switchers in `src/pages/` (About, Contact, Hire, Lab,
+   LabExperiment, Media, Portfolio, ProjectPage) — add the id to the allowlist or
+   the theme silently renders the DIGITAL variants.
+
+**Pickers**
+10. `src/components/ui/UIPicker.jsx` — `THEME_DESCS`, `THEME_PREVIEWS` (a small
+    inline preview card), and `getThemeHome()`. Do NOT add a single-mode theme's id
+    to the mode-picker suppression boolean unless it really is single-mode.
+11. `src/components/hub/UIPicker.jsx` — `THEME_ACCENTS` and `getThemeHome()`.
+12. `src/components/hire/HireThemeTiles.jsx` — a tile `{ id, accent, bg }`, and a
+    `whileHover` branch if the theme's motion language differs.
+
+**Sound**
+13. `src/sound/SoundManager.js` — a case in `_muteKey()`, and in `_defaultMuted()`
+    if it should start unmuted.
+14. `src/sound/packs/<id>.js` — the 13 standard sound names (`click`, `hover`,
+    `activate`, `select`, `terminalOpen`, `terminalClose`, `terminalKey`,
+    `terminalSubmit`, `modalOpen`, `modalClose`, `success`, `error`, `toggle`),
+    ending in `soundManager.registerPack('<id>', pack)`.
+
+**Odds and ends**
+15. `src/components/hire/blobert/blobertSkins.js` (skin + `apiThemeFor` alias) and
+    `blobertLines.js` (`GREETINGS`, `THEME_REACTIONS`, `NUDGE_DWELL`). Aliasing to
+    `standard` is fine.
+16. `src/utils/eyebrow.js` — a per-theme eyebrow decorator in `formatEyebrow()`,
+    and `eyebrowHasTick()` if the mark already brackets the label.
+
+Not required, but check: `ThemeProvider`'s `GAME_ONLY_THEMES` (only `pantheon`
+belongs there) and `PantheonWarsShell`'s unmount restore in `App.jsx`, which hands
+`fp-theme` back on leaving the game.
 
 ---
 

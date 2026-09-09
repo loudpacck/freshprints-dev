@@ -9,7 +9,7 @@ const THEME_DESCS = {
   digital:  'Hub-based command center',
   retro:    'A nostalgic 90s computer experience',
   funky:    'Optical-art playground — fluid, colorful, alive',
-  pantheon: 'Mythological grandeur. WotLK meets myth.',
+  kishar:   'Gilded leather and parchment — the game’s cousin',
 }
 
 const THEME_PREVIEWS = {
@@ -96,17 +96,32 @@ const THEME_PREVIEWS = {
       </div>
     ),
   },
-  pantheon: {
+  // Kishar — picker label "Pantheon". Gilded band over a leather plate.
+  kishar: {
     bg: '#0A0710',
     accent: '#C9A961',
     label: 'Pantheon',
     preview: (
-      <div style={{ padding: '8px 10px', background: '#0A0710', border: '1px solid rgba(201,169,97,0.25)' }}>
-        <div style={{ fontFamily: 'Georgia, serif', fontSize: 9, color: '#C9A961', marginBottom: 4, letterSpacing: '0.1em' }}>
-          PANTHEON WARS
+      <div style={{ background: '#0A0710', border: '1px solid #3D2F1A' }}>
+        <div style={{
+          background: '#3B2A5A',
+          borderTop: '1px solid #F5D88B',
+          borderBottom: '1px solid #6F5C32',
+          padding: '3px 6px',
+        }}>
+          <span style={{ fontFamily: "'Alegreya SC', Georgia, serif", fontSize: 9, color: '#EDE3CC', letterSpacing: '0.1em' }}>
+            Fresh Prints
+          </span>
         </div>
-        <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 7, color: '#5C4626' }}>
-          ◆ QUESTS  ★ GLORY  ₯ DRACHMA
+        <div style={{ padding: '6px', background: '#1A1420' }}>
+          <div style={{ border: '1px solid #5C4626', padding: '4px 5px' }}>
+            <div style={{ fontFamily: "'Alegreya SC', Georgia, serif", fontSize: 9, color: '#C9A961', letterSpacing: '0.08em' }}>
+              Selected Work
+            </div>
+            <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 6.5, color: '#A89B7E' }}>
+              · THE STORY ·
+            </div>
+          </div>
         </div>
       </div>
     ),
@@ -118,6 +133,7 @@ function getThemeHome(id) {
   if (id === 'standard') return '/home'
   if (id === 'retro') return '/home'
   if (id === 'funky') return '/home'
+  if (id === 'kishar') return '/home'
   return '/'
 }
 

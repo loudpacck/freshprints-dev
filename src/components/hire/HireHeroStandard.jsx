@@ -5,6 +5,10 @@ import { useTheme } from '@/themes/useTheme'
 import { useHireTone } from '@/components/hire/HireToneContext'
 import RetroCard from '@/components/retro/RetroCard'
 import RetroButton from '@/components/retro/RetroButton'
+import KisharCard from '@/components/kishar/KisharCard'
+import KisharButton from '@/components/kishar/KisharButton'
+import KisharSectionRule from '@/components/kishar/KisharSectionRule'
+import { formatEyebrow } from '@/utils/eyebrow'
 import { heroCopy } from '@/data/hirePageData'
 import { useHirePageStats } from '@/hooks/useHirePageStats'
 import {
@@ -447,6 +451,114 @@ function FunkyVariant({ copyMode, setCopyMode, copy, reduced, views }) {
 
 // ────────────────────────────────────────────────────────── scroll cue ──
 
+
+// -------------------------------------------------------------- KISHAR --
+// The headline is set on a plate: leather-dark in the dark, parchment in the
+// light, inside the same double frame and gilt corner marks the cards carry.
+// Words fade up in sequence. Nothing tilts, nothing lifts, nothing glows.
+
+function KisharVariant({ copyMode, setCopyMode, copy, reduced, views }) {
+  const words = copy.headline.split(' ')
+
+  return (
+    <section
+      className="hhk-root"
+      style={{
+        position: 'relative',
+        minHeight: '100vh',
+        display: 'flex',
+        alignItems: 'center',
+        padding: 'var(--space-16) 0 var(--space-10)',
+        overflow: 'hidden',
+      }}
+    >
+      <div className="s-container" style={{ position: 'relative', zIndex: 1, width: '100%' }}>
+        <KisharCard padding="var(--space-12) var(--space-10)">
+          <div style={{
+            fontFamily: 'var(--font-mono)',
+            fontSize: 'var(--label-size)',
+            color: 'var(--accent-ink)',
+            textTransform: 'uppercase',
+            letterSpacing: 'var(--label-tracking)',
+            marginBottom: 'var(--space-5)',
+          }}>
+            {formatEyebrow('Hire Me', 'kishar')}
+          </div>
+
+          <motion.h1
+            key={copyMode}
+            initial="hidden"
+            animate="show"
+            variants={{
+              hidden: {},
+              show: { transition: { staggerChildren: reduced ? 0 : 0.05 } },
+            }}
+            style={{
+              fontFamily: 'var(--font-display)',
+              fontWeight: 'var(--weight-bold)',
+              fontSize: 'var(--display-xl)',
+              color: 'var(--text-primary)',
+              letterSpacing: 'var(--tracking-display)',
+              lineHeight: 'var(--leading-display)',
+              margin: '0 0 var(--space-6)',
+              maxWidth: 960,
+            }}
+          >
+            {words.map((w, i) => (
+              <motion.span
+                key={copyMode + '-' + i}
+                variants={{
+                  hidden: reduced ? {} : { opacity: 0, y: '0.3em' },
+                  show: { opacity: 1, y: 0, transition: { duration: 0.55, ease: [0.16, 1, 0.3, 1] } },
+                }}
+                style={{ display: 'inline-block', marginRight: '0.26em' }}
+              >
+                {w}
+              </motion.span>
+            ))}
+          </motion.h1>
+
+          <motion.p
+            key={copyMode + '-sub'}
+            initial={reduced ? {} : { opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, delay: reduced ? 0 : 0.25 }}
+            style={{
+              fontFamily: 'var(--font-body)',
+              fontSize: 'var(--text-xl)',
+              color: 'var(--text-secondary)',
+              maxWidth: 'var(--measure-prose)',
+              lineHeight: 'var(--leading-relaxed)',
+              margin: '0 0 var(--space-7)',
+            }}
+          >
+            {copy.subhead}
+          </motion.p>
+
+          <KisharSectionRule margin="0 0 var(--space-7)" />
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-6)', flexWrap: 'wrap' }}>
+            <div style={{ display: 'inline-flex', gap: 'var(--space-3)' }}>
+              {TOGGLE.map(opt => (
+                <KisharButton
+                  key={opt.id}
+                  variant={copyMode === opt.id ? 'primary' : 'secondary'}
+                  onClick={() => setCopyMode(opt.id)}
+                >
+                  {opt.label}
+                </KisharButton>
+              ))}
+            </div>
+            <LiveViews views={views} color="var(--text-tertiary)" accent="var(--accent-ink)" />
+          </div>
+        </KisharCard>
+      </div>
+
+      <ScrollCue reduced={reduced} theme="kishar" />
+    </section>
+  )
+}
+
 function ScrollCue({ reduced, theme }) {
   const color = theme === 'retro' ? 'var(--accent-bright, var(--text-primary))' : 'var(--accent-ink, var(--accent))'
   return (
@@ -501,5 +613,6 @@ export default function HireHeroStandard() {
 
   if (themeId === 'retro') return <RetroVariant {...shared} />
   if (themeId === 'funky') return <FunkyVariant {...shared} />
+  if (themeId === 'kishar') return <KisharVariant {...shared} />
   return <StandardVariant {...shared} />
 }

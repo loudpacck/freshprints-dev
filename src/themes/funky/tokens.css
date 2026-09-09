@@ -180,6 +180,8 @@
   --color-border-default: var(--border-strong);
   --color-border-strong:  var(--border-strong);
   --color-accent-primary: var(--accent);
+  /* Selected-state wash for the intake wizard (see standard/tokens.css). */
+  --color-accent-primary-dim: var(--accent-muted);
   --color-accent-secondary: var(--accent-amber);
   --color-text-primary:   var(--text-primary);
   --color-text-secondary: var(--text-secondary);

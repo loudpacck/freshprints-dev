@@ -1,0 +1,6 @@
+/* Kishar UI fonts — Alegreya SC (display, real small caps) + Alegreya (body)
+   + IBM Plex Mono (labels/metadata, already loaded for Digital).
+   Deliberately NOT Cinzel/Trajan/Marcellus — see docs/PROJECT_REFERENCE.md §4.
+   Loaded once via the consolidated Google Fonts <link> in index.html
+   (Phase B font dedup). This file is intentionally a stub — do not add an
+   @import here. */

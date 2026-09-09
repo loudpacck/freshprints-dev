@@ -65,11 +65,12 @@ function ProjectRow({ project, index }) {
 
   const isRetro = themeId === 'retro'
   const isFunky = themeId === 'funky'
-  const isStandard = !isRetro && !isFunky
+  const isKishar = themeId === 'kishar'
+  const isStandard = !isRetro && !isFunky && !isKishar
   const isLive = project.id === 'pantheon-wars'
 
   // Retro uses a chunky hover-snap (handlers below), not smooth pointer tilt.
-  useCardPointer(cardRef, { reduced, disabled: isRetro || isStandard })
+  useCardPointer(cardRef, { reduced, disabled: isRetro || isStandard || isKishar })
 
   // Per-theme card presentation.
   const cardStyle = {
@@ -84,6 +85,12 @@ function ProjectRow({ project, index }) {
   if (isRetro) {
     cardStyle.boxShadow = RETRO_RAISED
     cardStyle.transition = 'transform 60ms ease-out'
+  } else if (isKishar) {
+    // Gilded plate: outer stroke here, inner stroke from .kishar-card::after.
+    // Hover brightens the frame to gold and nothing moves.
+    cardStyle.boxShadow = 'none'
+    cardStyle.border = '1px solid var(--border)'
+    cardStyle.transition = 'border-color var(--duration-fast) var(--ease-standard)'
   } else if (isFunky) {
     // Springy, playful tilt toward the cursor + gentle squish, liquid easing.
     cardStyle.boxShadow = 'var(--shadow-sm)'
@@ -104,6 +111,13 @@ function ProjectRow({ project, index }) {
     ? {
         onMouseEnter: e => { e.currentTarget.style.borderColor = 'var(--text-secondary)' },
         onMouseLeave: e => { e.currentTarget.style.borderColor = 'var(--border-subtle)' },
+      }
+    : {}
+
+  const kisharHandlers = isKishar && !reduced
+    ? {
+        onMouseEnter: e => { e.currentTarget.style.borderColor = 'var(--gold)' },
+        onMouseLeave: e => { e.currentTarget.style.borderColor = 'var(--border)' },
       }
     : {}
 
@@ -133,10 +147,11 @@ function ProjectRow({ project, index }) {
       <div
         ref={cardRef}
         id={`blobert-card-${project.id}`}
-        className="hire-row"
+        className={isKishar ? 'hire-row kishar-card' : 'hire-row'}
         style={cardStyle}
         {...retroHandlers}
         {...standardHandlers}
+        {...kisharHandlers}
       >
         <div style={{
           aspectRatio: '16/10',
@@ -484,6 +499,13 @@ export default function StandardHire() {
         }
         [data-ui="funky"] .hire-live-dot {
           box-shadow: 0 0 8px var(--accent);
+        }
+        /* Kishar: the live mark is a struck lozenge in gold, not a lit dot. */
+        [data-ui="kishar"] .hire-live-dot {
+          border-radius: 0;
+          transform: rotate(45deg);
+          width: 7px;
+          height: 7px;
         }
         [data-ui="retro"] .hire-live-dot {
           width: 9px;

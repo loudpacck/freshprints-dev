@@ -21,6 +21,7 @@ import PWTitleCardSequence from '@/components/games/pantheon-wars/PWTitleCardSeq
 import StandardLayout from '@/components/standard/StandardLayout'
 import RetroLayout from '@/components/retro/RetroLayout'
 import FunkyLayout from '@/components/funky/FunkyLayout'
+import KisharLayout from '@/components/kishar/KisharLayout'
 import { HireToneProvider } from '@/components/hire/HireToneContext'
 
 const BlobertWidget  = lazy(() => import('@/components/hire/blobert/BlobertWidget'))
@@ -40,6 +41,7 @@ const Landing         = lazy(() => import('@/pages/Landing'))
 const StandardLanding = lazy(() => import('@/pages/StandardLanding'))
 const RetroLanding    = lazy(() => import('@/pages/RetroLanding'))
 const FunkyLanding    = lazy(() => import('@/pages/FunkyLanding'))
+const KisharLanding   = lazy(() => import('@/pages/KisharLanding'))
 const Hub             = lazy(() => import('@/pages/Hub'))
 const About           = lazy(() => import('@/pages/About'))
 const Hire            = lazy(() => import('@/pages/Hire'))
@@ -107,6 +109,7 @@ function PageLayout({ children }) {
   if (themeId === 'standard') return <StandardLayout>{children}</StandardLayout>
   if (themeId === 'retro')    return <RetroLayout>{children}</RetroLayout>
   if (themeId === 'funky')    return <FunkyLayout>{children}</FunkyLayout>
+  if (themeId === 'kishar')   return <KisharLayout>{children}</KisharLayout>
   return <>{children}</>
 }
 
@@ -169,6 +172,9 @@ function HomeRoute() {
   }
   if (themeId === 'funky') {
     return <FunkyLayout><FunkyLanding /></FunkyLayout>
+  }
+  if (themeId === 'kishar') {
+    return <KisharLayout><KisharLanding /></KisharLayout>
   }
   return <PageLayout><StandardLanding /></PageLayout>
 }

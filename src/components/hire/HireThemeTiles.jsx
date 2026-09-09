@@ -10,8 +10,10 @@ const THEME_TILES = [
   { id: 'digital',  accent: '#33FF66', bg: '#050805' },   // Phase 9: phosphor terminal
   { id: 'retro',    accent: '#000080', bg: '#C0C0C0' },
   { id: 'funky',    accent: '#BFFF00', bg: '#12041F' },
-  { id: 'pantheon', accent: '#C9A961', bg: '#0A0710' },
+  { id: 'kishar',   accent: '#C9A961', bg: '#0A0710' },
 ]
+// 'pantheon' is deliberately absent: it is the live game's stylesheet, not a
+// site theme, and its manifest label collides with Kishar's picker label.
 
 // Win95 bevels for the retro tiles (same idiom as RetroButton).
 const RETRO_RAISED = `
@@ -213,6 +215,10 @@ function Tile({ tile, themeId, tokens, finePointer, reduced, onSelect, play }) {
         }
       : {}
     whileTap = comingSoon || reduced ? {} : { scale: 0.97 }
+  } else if (themeId === 'kishar') {
+    // Gilding does not float. The frame brightens to gold; nothing moves.
+    whileHover = canHover ? { borderColor: 'var(--gold)' } : {}
+    whileTap = comingSoon || reduced ? {} : { y: 1 }
   } else if (themeId === 'funky') {
     // Springy squish/bounce + playful lift, liquid spring easing.
     whileHover = canHover ? { y: -5, scale: 1.04, rotate: -1 } : {}

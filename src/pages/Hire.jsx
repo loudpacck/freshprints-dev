@@ -4,5 +4,5 @@ import StandardHire from '@/components/standard/pages/StandardHire'
 
 export default function Hire() {
   const { themeId } = useTheme()
-  return (themeId === 'standard' || themeId === 'retro' || themeId === 'funky') ? <StandardHire /> : <DigitalHire />
+  return (themeId === 'standard' || themeId === 'retro' || themeId === 'funky' || themeId === 'kishar') ? <StandardHire /> : <DigitalHire />
 }

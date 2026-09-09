@@ -1,0 +1,627 @@
+/* ============================================================
+   Kishar UI — gilded leather, parchment and bronze
+   Picker label: "Pantheon". Internal id: kishar.
+
+   Shares the LIVE GAME's palette (obsidian / gold / bone / faction
+   hues) so the site and Pantheon Wars read as relatives, but owns
+   its own typography and its own token file. Nothing in
+   src/themes/pantheon/ is touched or imported by this file.
+
+   Depth comes from bevels (a light stop over a dark stop in the
+   ornament's own metal), never from glow. Gradients appear only
+   inside ornament rendering — never on text, never as a page fill,
+   never as a card wash. Texture, not color, does the work.
+
+   Dark values live in the base block so the theme is correct even
+   before ThemeProvider stamps data-mode; the light block overrides.
+   Everything is scoped to [data-ui="kishar"] — nothing leaks.
+   ============================================================ */
+
+[data-ui="kishar"] {
+  /* --- Surfaces: candlelit leather and obsidian --- */
+  --bg-base:     #0A0710;   /* obsidian with a violet cast (the game's ground) */
+  --bg-elevated: #14101A;
+  --bg-card:     #1A1420;   /* leather-dark panel */
+  --bg-surface:  var(--bg-card);
+  --bg-content:  var(--bg-card);
+  --bg-input:    #120E18;
+  --bg-overlay:  rgba(10, 7, 16, 0.90);
+
+  --leather:      #2A1B12;  /* brown leather panel body */
+  --leather-edge: #140C08;
+
+  /* --- Text: bone on obsidian --- */
+  --text-primary:    #EDE3CC;
+  --text-secondary:  #A89B7E;
+  /* Spec value #6F6558 measured 3.16:1 on --bg-card and fails AA for normal
+     text. Lightened to #918573 (4.98:1 on card, 5.53:1 on base, 4.59:1 on
+     leather). The original tone is kept below as --text-quaternary, which is
+     decorative-only (dividers, disabled marks) and never carries body copy. */
+  --text-tertiary:   #918573;
+  --text-quaternary: #6F6558;
+  --text-inverse:    #0A0710;
+  --text-disabled:   #6F6558;
+
+  /* --- Metal --- */
+  --gold:        #C9A961;   /* accent, readable as text on every dark ground */
+  --gold-bright: #F5D88B;   /* bevel HIGHLIGHT edge only, never text */
+  --gold-dim:    #6F5C32;   /* bevel SHADOW edge only, never text */
+  --gold-metal:  #C9A961;   /* mid stop inside ornament metal gradients */
+  --silver:      #B9B6AE;   /* muted rules, disabled states */
+  --silver-ink:  #B9B6AE;   /* silver used AS text (see light mode) */
+
+  /* --- Royal purple: nav band, active tab, secondary surface --- */
+  --purple:        #3B2A5A;
+  --purple-bright: #5C4482;
+
+  /* --- The binding: nav band and footer ---
+     A bound cover stays dark leather even on a parchment page, so these five
+     are deliberately NOT re-declared in the light block. Fixing them to the
+     dark palette keeps bone ink and gold legible on the band in both modes
+     (bone on purple is 9.9:1 dark / 8.2:1 light; sepia ink on tan leather
+     would have been 3.7:1 and failed). */
+  --binding-leather:  #2A1B12;
+  --binding-edge:     #140C08;
+  --binding-ink:      #EDE3CC;
+  --binding-ink-dim:  #A89B7E;
+  --binding-gold:     #C9A961;
+  --binding-gold-dim: #6F5C32;
+  --gradient-binding: radial-gradient(120% 140% at 50% 0%, #3A2618 0%, var(--binding-leather) 48%, var(--binding-edge) 100%);
+  --bevel-binding-out: inset 1px 1px 0 var(--binding-gold), inset -1px -1px 0 var(--binding-gold-dim);
+
+  /* --- Frame strokes --- */
+  --border:        #3D2F1A;
+  --border-inner:  #5C4626;
+  --border-subtle: var(--border);
+  --border-strong: var(--border-inner);
+  --border-accent: var(--gold);
+  --hairline:      var(--border);
+
+  /* --- Accent bridge (Standard-native names the hosted pages read) --- */
+  --accent:       var(--gold);
+  --accent-hover: var(--gold-bright);
+  --accent-muted: rgba(201, 169, 97, 0.10);
+  --accent-text:  var(--text-inverse);   /* ink laid ON a gold fill */
+  --accent-ink:   var(--gold);           /* gold used AS text */
+
+  /* Some shared Standard components still reach for the retired amber pair. */
+  --accent-amber:       var(--gold);
+  --accent-amber-hover: var(--gold-bright);
+  --accent-amber-muted: var(--accent-muted);
+  --accent-amber-text:  var(--text-inverse);
+
+  /* --- Faction hues (same values as the game, for future tinting) --- */
+  --faction-olympians: #E8D080;
+  --faction-aesir:     #8AB8D4;
+  --faction-annunaki:  #C25E3C;
+
+  /* --- Bevels: the ornament's own metal. No blur, no glow. --- */
+  --bevel-out: inset 1px 1px 0 var(--gold-bright), inset -1px -1px 0 var(--gold-dim);
+  --bevel-in:  inset 1px 1px 0 var(--gold-dim),    inset -1px -1px 0 var(--gold-bright);
+  --bevel-rule-top:    linear-gradient(to bottom, var(--gold-bright) 0 1px, var(--gold-dim) 1px 2px);
+  --bevel-rule-bottom: linear-gradient(to bottom, var(--gold-dim) 0 1px, var(--gold-bright) 1px 2px);
+  /* Brushed-metal fill for ornament borders ONLY. */
+  --gradient-metal:   linear-gradient(to bottom, var(--gold-bright) 0%, var(--gold-metal) 42%, var(--gold-dim) 100%);
+  --gradient-leather: radial-gradient(120% 140% at 50% 0%, #3A2618 0%, var(--leather) 48%, var(--leather-edge) 100%);
+
+  /* Hosted Standard heroes read --gradient-hero. Kishar bans page-fill
+     gradients, so it is held inert exactly as Standard holds it. */
+  --gradient-hero: none;
+
+  /* --- Procedural textures (data-URI feTurbulence, no image files) ---
+     baseFrequency varies per material: parchment fine, leather coarser,
+     metal near-zero in x with a strong y component for brushed streaks. */
+  --tex-parchment: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 256 256'%3E%3Cfilter id='k'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23k)'/%3E%3C/svg%3E");
+  --tex-leather: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 256 256'%3E%3Cfilter id='k'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.35' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23k)'/%3E%3C/svg%3E");
+  --tex-metal: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 256 256'%3E%3Cfilter id='k'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.02 0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23k)'/%3E%3C/svg%3E");
+
+  --tex-parchment-size: 256px 256px;
+  --tex-leather-size:   220px 220px;
+  --tex-metal-size:     360px 24px;   /* wide/narrow: the directional stretch */
+
+  --tex-ground:         var(--tex-leather);
+  --tex-ground-size:    var(--tex-leather-size);
+  --tex-ground-opacity: 0.10;
+  --tex-panel-opacity:  0.08;
+  --tex-metal-opacity:  0.22;
+
+  /* --- Type families --- */
+  --font-display: 'Alegreya SC', 'Cormorant Garamond', Georgia, serif;
+  --font-body:    'Alegreya', 'Cormorant Garamond', Georgia, serif;
+  --font-mono:    'IBM Plex Mono', ui-monospace, monospace;
+
+  /* --- Base type scale (mirrors Standard; hosted pages depend on it) --- */
+  --text-xs:   0.75rem;
+  --text-sm:   0.875rem;
+  --text-base: 1.0625rem;   /* Alegreya runs a touch small; nudged up */
+  --text-md:   1.125rem;
+  --text-lg:   1.1875rem;
+  --text-xl:   1.3125rem;
+  --text-2xl:  1.5rem;
+  --text-3xl:  1.875rem;
+  --text-4xl:  2.5rem;
+  --text-5xl:  3.5rem;
+  --text-6xl:  4.5rem;
+  --text-7xl:  6rem;
+
+  /* --- Display tier --- */
+  --display-2xl: clamp(3rem, 1.9rem + 5.4vw, 6.5rem);
+  --display-xl:  clamp(2.5rem, 1.8rem + 3.6vw, 4.75rem);
+  --display-lg:  clamp(2.125rem, 1.65rem + 2.4vw, 3.5rem);
+  --display-md:  clamp(1.75rem, 1.5rem + 1.4vw, 2.5rem);
+  --display-sm:  clamp(1.375rem, 1.28rem + 0.6vw, 1.75rem);
+
+  /* --- Eyebrow / mono label --- */
+  --label-size:     0.75rem;
+  --label-tracking: 0.18em;
+
+  --leading-display: 1.02;   /* small caps need more air than a sans display */
+  --leading-tight:   1.15;
+  --leading-snug:    1.35;
+  --leading-normal:  1.6;
+  --leading-relaxed: 1.75;
+  --leading-loose:   1.9;
+
+  --tracking-display: 0.03em;   /* small caps want positive tracking */
+  --tracking-tight:   0.01em;
+  --tracking-normal:  0;
+  --tracking-wide:    0.06em;
+  --tracking-wider:   0.12em;
+  --tracking-widest:  0.2em;
+
+  --weight-light:     400;
+  --weight-regular:   400;
+  --weight-medium:    500;
+  --weight-semibold:  700;
+  --weight-bold:      700;
+  --weight-extrabold: 800;
+
+  /* --- Radii: gilding is cut square, not rounded --- */
+  --radius-none: 0;
+  --radius-sm:   2px;
+  --radius-md:   2px;
+  --radius-lg:   3px;
+  --radius-xl:   3px;
+  --radius-2xl:  4px;
+  --radius-full: 9999px;
+
+  /* --- Spacing / rhythm (mirrors Standard) --- */
+  --space-px: 1px;
+  --space-1:  0.25rem;
+  --space-2:  0.5rem;
+  --space-3:  0.75rem;
+  --space-4:  1rem;
+  --space-5:  1.5rem;
+  --space-6:  2rem;
+  --space-7:  2.5rem;
+  --space-8:  3rem;
+  --space-10: 4rem;
+  --space-12: 6rem;
+  --space-14: 7rem;
+  --space-16: 8rem;
+  --space-20: 12rem;
+
+  --nav-height:    76px;
+  --container-max: 1200px;
+  --measure-card:  26rem;
+  --measure-prose: 62ch;
+
+  /* --- Shadows: flat drops only. No colored bloom anywhere. --- */
+  --shadow-1:  0 1px 3px rgba(0, 0, 0, 0.55);
+  --shadow-sm: var(--shadow-1);
+  --shadow-md: var(--shadow-1);
+  --shadow-lg: 0 3px 10px rgba(0, 0, 0, 0.5);
+  --shadow-xl: 0 8px 28px rgba(0, 0, 0, 0.6);
+
+  /* --- Motion --- */
+  --ease-standard: cubic-bezier(0.4, 0, 0.2, 1);
+  --ease-smooth:   cubic-bezier(0.45, 0, 0.15, 1);
+  --duration-fast: 160ms;
+  --duration-base: 260ms;
+  --duration-slow: 420ms;
+
+  --z-modal: 1000;
+
+  /* --- Status map --- */
+  --color-status-active:         #7FA05A;   /* muted green-bronze, 6.08:1 on card */
+  --color-status-beta:           var(--gold);
+  --color-status-stable:         var(--silver-ink);
+  --color-status-concept:        var(--text-tertiary);
+  --color-status-in-development: var(--gold);
+  --color-status-available:      var(--text-primary);
+  --color-status-error:          #C25E3C;
+  /* AVAILABLE dot: plain bronze border, no glow. */
+  --status-available-glow:   none;
+  --status-available-border: 1px solid var(--border-inner);
+
+  /* --- Category map: gold for the shop half, silver tiers for the rest --- */
+  --color-category-engineering: var(--gold);
+  --color-category-software:    var(--silver-ink);
+  --color-category-games:       var(--text-secondary);
+  --color-category-ai:          var(--text-tertiary);
+  --color-category-content:     var(--silver);
+  --color-category-default:     var(--silver-ink);
+
+  /* --- Digital-name aliases: shared components (IntakeWizard, Blobert,
+         ContactForm, DevThemeSwitcher) read these --- */
+  --color-bg-base:            var(--bg-base);
+  --color-bg-surface:         var(--bg-card);
+  --color-bg-elevated:        var(--bg-elevated);
+  --color-bg-overlay:         var(--bg-overlay);
+  --color-border-subtle:      var(--border-subtle);
+  --color-border-default:     var(--border-strong);
+  --color-border-strong:      var(--border-strong);
+  --color-accent-primary:     var(--accent);
+  --color-accent-primary-dim: rgba(201, 169, 97, 0.10);
+  --color-accent-secondary:   var(--purple-bright);
+  --color-text-primary:       var(--text-primary);
+  --color-text-secondary:     var(--text-secondary);
+  --color-text-muted:         var(--text-tertiary);
+  --color-text-accent:        var(--accent-ink);
+  --color-text-inverse:       var(--text-inverse);
+}
+
+/* --- Light mode: daylight parchment and bronze --- */
+[data-ui="kishar"][data-mode="light"] {
+  --bg-base:     #EFE4CC;   /* parchment */
+  --bg-elevated: #F6EEDC;
+  --bg-card:     #FBF5E6;
+  --bg-input:    #FFFDF6;
+  --bg-overlay:  rgba(239, 228, 204, 0.92);
+
+  --leather:      #C9A67A;  /* tan leather */
+  --leather-edge: #8B6B45;
+
+  --text-primary:   #2A1F14;   /* sepia ink */
+  --text-secondary: #5C4A36;
+  /* Spec value #8B7A62 measured 3.29:1 on parchment and fails AA. Darkened to
+     #6E5F49 (4.90:1 on base, 5.68:1 on card). Original kept as quaternary. */
+  --text-tertiary:   #6E5F49;
+  --text-quaternary: #8B7A62;
+  --text-inverse:    #EFE4CC;
+  --text-disabled:   #8B7A62;
+
+  /* Spec value #8B6914 measured 4.03:1 on parchment, short of AA for normal
+     text, and gold is the accent that carries links and eyebrows. Deepened to
+     #75570F (5.32:1 on base, 6.17:1 on card). #8B6914 is retained below as
+     --gold-metal, the mid stop inside ornament metal, where it never sets type. */
+  --gold:        #75570F;
+  --gold-bright: #C9A961;
+  --gold-dim:    #5C4626;
+  --gold-metal:  #8B6914;
+  --silver:      #7D7A72;   /* rules + disabled marks (3.4:1, non-text use) */
+  --silver-ink:  #6B6860;   /* silver used AS text (4.41:1 on parchment) */
+
+  --purple:        #4A3568;
+  --purple-bright: #6B4F91;
+
+  --border:       #B08D5A;
+  --border-inner: #D4B47C;
+
+  --accent-muted: rgba(117, 87, 15, 0.10);
+  --color-accent-primary-dim: rgba(117, 87, 15, 0.10);
+
+  --tex-ground:         var(--tex-parchment);
+  --tex-ground-size:    var(--tex-parchment-size);
+  --tex-ground-opacity: 0.055;
+  --tex-panel-opacity:  0.045;
+  --tex-metal-opacity:  0.16;
+
+  --color-status-active: #4E6B33;   /* 5.56:1 on card */
+  --color-status-error:  #9C4021;
+
+  --shadow-1:  0 1px 2px rgba(90, 66, 34, 0.18);
+  --shadow-lg: 0 3px 10px rgba(90, 66, 34, 0.16);
+  --shadow-xl: 0 8px 28px rgba(90, 66, 34, 0.22);
+}
+
+/* --- Global resets scoped to Kishar --- */
+[data-ui="kishar"] body {
+  background-color: var(--bg-base);
+  color: var(--text-primary);
+  font-family: var(--font-body);
+  font-size: var(--text-base);
+  line-height: var(--leading-normal);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* The page ground carries a real material: leather grain in the dark, a fine
+   parchment fibre in the light. Overrides the site-wide grain in global.css
+   (same pseudo-element, higher specificity). */
+[data-ui="kishar"] body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  opacity: var(--tex-ground-opacity);
+  background-image: var(--tex-ground);
+  background-repeat: repeat;
+  background-size: var(--tex-ground-size);
+}
+
+[data-ui="kishar"] h1,
+[data-ui="kishar"] h2,
+[data-ui="kishar"] h3,
+[data-ui="kishar"] h4,
+[data-ui="kishar"] h5,
+[data-ui="kishar"] h6 {
+  font-family: var(--font-display);
+  letter-spacing: var(--tracking-display);
+}
+
+/* ============================================================
+   Hosted-page utility classes: replicated from Standard and
+   re-scoped, so the Standard page variants Kishar hosts keep
+   their grid / max-width / rhythm.
+   ============================================================ */
+
+[data-ui="kishar"] .s-container {
+  max-width: var(--container-max);
+  margin: 0 auto;
+  padding: 0 var(--space-8);
+}
+@media (max-width: 768px) {
+  [data-ui="kishar"] .s-container { padding: 0 var(--space-5); }
+}
+
+[data-ui="kishar"] .s-section { padding: var(--space-20) 0; }
+@media (max-width: 768px) {
+  [data-ui="kishar"] .s-section { padding: var(--space-12) 0; }
+  [data-ui="kishar"] {
+    --text-7xl: 3.5rem;
+    --text-6xl: 3rem;
+    --text-5xl: 2.5rem;
+  }
+}
+
+[data-ui="kishar"] .s-grid-3 {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--space-6);
+}
+[data-ui="kishar"] .s-grid-2 {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: var(--space-6);
+}
+@media (max-width: 960px) {
+  [data-ui="kishar"] .s-grid-3 { grid-template-columns: repeat(2, 1fr); }
+}
+@media (max-width: 640px) {
+  [data-ui="kishar"] .s-grid-3,
+  [data-ui="kishar"] .s-grid-2 { grid-template-columns: 1fr; }
+}
+
+[data-ui="kishar"] .s-cap-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--space-5);
+}
+@media (max-width: 960px) {
+  [data-ui="kishar"] .s-cap-grid { grid-template-columns: repeat(2, 1fr); }
+}
+@media (max-width: 540px) {
+  [data-ui="kishar"] .s-cap-grid { grid-template-columns: 1fr; }
+}
+
+/* --- Section transparency ---
+   Hosted page sections set their fill via inline `background: var(--bg-*)`
+   (a background-COLOR). Nulling only the color layer lets the textured ground
+   read through on every route while any background-IMAGE survives. */
+[data-ui="kishar"] .kishar-main section {
+  background-color: transparent !important;
+}
+
+/* ============================================================
+   Kishar chrome
+   ============================================================ */
+
+[data-ui="kishar"] .kishar-layout {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg-base);
+  position: relative;
+  z-index: 1;
+}
+
+[data-ui="kishar"] .kishar-main {
+  flex: 1;
+  padding-top: var(--nav-height);
+  position: relative;
+  z-index: 1;
+}
+
+/* --- Texture overlays. Host needs position: relative. --- */
+[data-ui="kishar"] .k-tex-leather::before,
+[data-ui="kishar"] .k-tex-parchment::before,
+[data-ui="kishar"] .k-tex-metal::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background-repeat: repeat;
+  mix-blend-mode: overlay;
+}
+[data-ui="kishar"] .k-tex-leather::before {
+  background-image: var(--tex-leather);
+  background-size: var(--tex-leather-size);
+  opacity: var(--tex-panel-opacity);
+}
+[data-ui="kishar"] .k-tex-parchment::before {
+  background-image: var(--tex-parchment);
+  background-size: var(--tex-parchment-size);
+  opacity: var(--tex-panel-opacity);
+}
+[data-ui="kishar"] .k-tex-metal::before {
+  background-image: var(--tex-metal);
+  background-size: var(--tex-metal-size);
+  opacity: var(--tex-metal-opacity);
+}
+
+/* --- Beveled gold rules: one gold-bright pixel over one gold-dim pixel --- */
+[data-ui="kishar"] .k-rule-top,
+[data-ui="kishar"] .k-rule-bottom {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 2px;
+  pointer-events: none;
+}
+[data-ui="kishar"] .k-rule-top    { top: 0;    background-image: var(--bevel-rule-top); }
+[data-ui="kishar"] .k-rule-bottom { bottom: 0; background-image: var(--bevel-rule-bottom); }
+
+/* --- Card: leather-dark panel inside a double frame --- */
+[data-ui="kishar"] .kishar-card {
+  position: relative;
+  background-color: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  transition: border-color var(--duration-fast) var(--ease-standard);
+}
+[data-ui="kishar"] .kishar-card::after {
+  content: '';
+  position: absolute;
+  inset: 4px;
+  border: 1px solid var(--border-inner);
+  border-radius: 1px;
+  pointer-events: none;
+  /* Above the card's content (which sits at z-index 1) so the inner stroke
+     reads over images and thumbnails, not behind them. */
+  z-index: 2;
+  opacity: 0.55;
+  transition: opacity var(--duration-fast) var(--ease-standard);
+}
+/* Hover brightens the frame. Nothing moves: no lift, no glow. */
+[data-ui="kishar"] .kishar-card:hover,
+[data-ui="kishar"] .kishar-card:focus-within {
+  border-color: var(--gold);
+}
+[data-ui="kishar"] .kishar-card:hover::after,
+[data-ui="kishar"] .kishar-card:focus-within::after {
+  opacity: 1;
+}
+[data-ui="kishar"] .kishar-card-corner {
+  position: absolute;
+  z-index: 3;
+  color: var(--gold);
+  opacity: 0.75;
+  pointer-events: none;
+  transition: opacity var(--duration-fast) var(--ease-standard);
+}
+[data-ui="kishar"] .kishar-card:hover .kishar-card-corner { opacity: 1; }
+
+/* --- Button: presses IN. Never rises. --- */
+[data-ui="kishar"] .kishar-btn {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  font-family: var(--font-display);
+  font-weight: var(--weight-semibold);
+  letter-spacing: var(--tracking-wide);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  text-decoration: none;
+  transition: background-color var(--duration-fast) var(--ease-standard),
+              border-color var(--duration-fast) var(--ease-standard),
+              color var(--duration-fast) var(--ease-standard);
+}
+[data-ui="kishar"] .kishar-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+[data-ui="kishar"] .kishar-btn--primary {
+  background-color: var(--leather);
+  background-image: var(--gradient-leather);
+  color: var(--text-primary);
+  border: 1px solid var(--gold-dim);
+  box-shadow: var(--bevel-out);
+}
+[data-ui="kishar"] .kishar-btn--primary:hover:not(:disabled) { border-color: var(--gold); }
+[data-ui="kishar"] .kishar-btn--primary:active:not(:disabled) {
+  box-shadow: var(--bevel-in);
+  transform: translateY(1px);
+}
+
+[data-ui="kishar"] .kishar-btn--secondary {
+  background: transparent;
+  color: var(--accent-ink);
+  border: 1px solid var(--gold);
+  box-shadow: none;
+}
+[data-ui="kishar"] .kishar-btn--secondary:hover:not(:disabled) {
+  background-color: var(--accent-muted);
+}
+[data-ui="kishar"] .kishar-btn--secondary:active:not(:disabled) {
+  box-shadow: var(--bevel-in);
+  transform: translateY(1px);
+}
+
+[data-ui="kishar"] .kishar-btn--ghost {
+  background: transparent;
+  color: var(--accent-ink);
+  border: 1px solid transparent;
+  box-shadow: none;
+}
+[data-ui="kishar"] .kishar-btn--ghost:hover:not(:disabled) { color: var(--text-primary); }
+[data-ui="kishar"] .kishar-btn--ghost:active:not(:disabled) { transform: translateY(1px); }
+
+/* --- Nav link: bone at rest, gold with a short rule when active --- */
+[data-ui="kishar"] .kishar-navlink {
+  position: relative;
+  font-family: var(--font-display);
+  font-size: var(--text-base);
+  letter-spacing: var(--tracking-wide);
+  color: var(--text-primary);
+  text-decoration: none;
+  padding: var(--space-2) var(--space-1);
+  background: none;
+  border: none;
+  cursor: pointer;
+  transition: color var(--duration-fast) var(--ease-standard);
+}
+[data-ui="kishar"] .kishar-navlink::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  right: 50%;
+  bottom: 0;
+  height: 1px;
+  background: var(--gold);
+  transition: left var(--duration-fast) var(--ease-standard),
+              right var(--duration-fast) var(--ease-standard);
+}
+[data-ui="kishar"] .kishar-navlink:hover { color: var(--gold-bright); }
+[data-ui="kishar"] .kishar-navlink:hover::after { left: 25%; right: 25%; }
+[data-ui="kishar"] .kishar-navlink.active { color: var(--gold); }
+[data-ui="kishar"] .kishar-navlink.active::after { left: 15%; right: 15%; }
+
+/* The nav band is royal purple in BOTH modes, so its links carry the binding's
+   bone ink rather than the page's sepia (8.2:1 in light, 9.9:1 in dark). */
+[data-ui="kishar"] .kishar-navband .kishar-navlink { color: var(--binding-ink); }
+[data-ui="kishar"] .kishar-navband .kishar-navlink:hover { color: var(--gold-bright); }
+[data-ui="kishar"] .kishar-navband .kishar-navlink.active { color: var(--binding-gold); }
+[data-ui="kishar"] .kishar-navband .kishar-navlink::after { background: var(--binding-gold); }
+
+/* --- Focus ring: bronze, square, no bloom --- */
+[data-ui="kishar"] .kishar-btn:focus-visible,
+[data-ui="kishar"] .kishar-navlink:focus-visible,
+[data-ui="kishar"] .kishar-card a:focus-visible {
+  outline: 2px solid var(--gold);
+  outline-offset: 2px;
+}
+
+/* --- Reduced motion --- */
+@media (prefers-reduced-motion: reduce) {
+  [data-ui="kishar"] .kishar-btn,
+  [data-ui="kishar"] .kishar-card,
+  [data-ui="kishar"] .kishar-card::after,
+  [data-ui="kishar"] .kishar-navlink,
+  [data-ui="kishar"] .kishar-navlink::after {
+    transition: none !important;
+  }
+  [data-ui="kishar"] .kishar-btn:active { transform: none !important; }
+}
