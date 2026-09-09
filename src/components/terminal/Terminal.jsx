@@ -2,8 +2,9 @@ import { useState, useRef, useEffect, useCallback } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useNavigate } from 'react-router-dom'
 import { useSound } from '@/sound/useSound'
+import { projects } from '@/data/projects'
 
-const ROUTES = ['portfolio', 'hire', 'lab', 'media', 'about', 'contact']
+const ROUTES = ['home', 'portfolio', 'hire', 'lab', 'media', 'about', 'contact']
 
 const HELP_LINES = [
   '  help             list commands',
@@ -67,7 +68,7 @@ export default function Terminal({ isOpen, onClose }) {
       lines = HELP_LINES
     } else if (cmd === 'ls') {
       if (args[0] === 'projects') {
-        lines = ['  no projects indexed']
+        lines = projects.map((p) => `  ${p.slug.padEnd(24)}${p.name}`)
       } else {
         lines = ROUTES.map((r) => `  /${r}`)
       }

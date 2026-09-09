@@ -214,7 +214,7 @@ Blobert lives in `src/components/hire/blobert/`. Phase 2 additions (all frontend
 
 **Structurally hardcoded:** `NODES` ids must equal array index; `ROWS` uses slice boundaries (0-3, 3-5, 5-8); `ADJACENCY` and `ENTRY_DELAY` are keyed 0..7. Never add or remove a node — edit label/descriptor/route in place.
 
-**Layout:** 3-2-3 flex rows. Auto-honeycomb offset works naturally: Row 1 (3 nodes = 452px wide) and Row 3 center in the container; Row 2 (2 nodes = 296px wide) auto-centers, landing at 78px offset — exactly half a hex+gap.
+**Layout:** 3-2-3 flex rows. `HEX_W = 140`, row gap `20`. Auto-honeycomb offset works naturally: Row 1 (3 nodes = 460px wide) and Row 3 center in the container; Row 2 (2 nodes = 300px wide) auto-centers, landing at 80px offset — exactly half a hex+gap.
 
 **Keyboard adjacency map** (nodeId → ArrowKey → nextNodeId):
 ```

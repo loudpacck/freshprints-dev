@@ -1,9 +1,16 @@
 import { useLocation, Link } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import Button from '@/components/ui/Button'
+import { useTheme } from '@/themes/useTheme'
 
 export default function NotFound() {
   const { pathname } = useLocation()
+  const { themeId } = useTheme()
+
+  // Digital's entry point is the Hub; every other theme lands on /home.
+  const isDigital = themeId === 'digital'
+  const homeHref = isDigital ? '/hub' : '/home'
+  const homeLabel = isDigital ? 'RETURN TO HUB' : 'RETURN HOME'
 
   return (
     <motion.div
@@ -57,8 +64,8 @@ export default function NotFound() {
         </div>
 
         <div style={{ display: 'flex', gap: 'var(--space-4)', justifyContent: 'center', flexWrap: 'wrap' }}>
-          <Link to="/hub" style={{ textDecoration: 'none' }}>
-            <Button variant="primary">RETURN TO HUB</Button>
+          <Link to={homeHref} style={{ textDecoration: 'none' }}>
+            <Button variant="primary">{homeLabel}</Button>
           </Link>
           <Link to="/portfolio" style={{ textDecoration: 'none' }}>
             <Button variant="secondary">VIEW PORTFOLIO</Button>

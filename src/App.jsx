@@ -167,6 +167,11 @@ function PantheonWarsShell() {
 
 function HomeRoute() {
   const { themeId } = useTheme()
+  // Digital has no /home — its entry point is the Hub. Without this branch it
+  // fell through to StandardLanding, which renders unstyled under [data-ui="digital"].
+  if (themeId === 'digital') {
+    return <Navigate to="/hub" replace />
+  }
   if (themeId === 'retro') {
     return <RetroLayout><RetroLanding /></RetroLayout>
   }

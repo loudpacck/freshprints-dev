@@ -48,10 +48,17 @@
   --space-4:  8px;
   --space-5:  12px;
   --space-6:  16px;
+  --space-7:  20px;
   --space-8:  24px;
   --space-10: 32px;
   --space-12: 48px;
+  --space-14: 56px;
   --space-16: 64px;
+  --space-20: 80px;
+
+  /* Layout — Retro hosts the Standard page variants, which read both. */
+  --nav-height:   48px;   /* RetroToolbar: 24px title bar + 24px menu bar */
+  --container-max: 1280px;
 
   /* Typography */
   --font-display: 'Press Start 2P', system-ui, monospace;
@@ -164,4 +171,59 @@
     inset -1px -1px 0 var(--bevel-highlight),
     inset 2px 2px 0 var(--bevel-shadow),
     inset -2px -2px 0 var(--bevel-light);
+}
+
+
+/* ── Hosted Standard page layout utilities ────────────────────
+   Retro renders the Standard*.jsx page variants inside RetroLayout.
+   Those pages use .s-container / .s-section / .s-grid-* / .s-cap-grid,
+   which are scoped to [data-ui="standard"] — without these copies the
+   grids collapse to block flow and sections lose all vertical rhythm.
+   Same idiom Funky and Kishar already use. */
+[data-ui="retro"] .s-container {
+  max-width: var(--container-max);
+  margin: 0 auto;
+  padding: 0 var(--space-6);
+}
+
+@media (max-width: 768px) {
+  [data-ui="retro"] .s-container {
+    padding: 0 var(--space-5);
+  }
+}
+
+[data-ui="retro"] .s-section { padding: var(--space-12) 0; }
+
+@media (max-width: 768px) {
+  [data-ui="retro"] .s-section { padding: var(--space-8) 0; }
+}
+
+[data-ui="retro"] .s-grid-3 {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--space-6);
+}
+[data-ui="retro"] .s-grid-2 {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: var(--space-6);
+}
+@media (max-width: 960px) {
+  [data-ui="retro"] .s-grid-3 { grid-template-columns: repeat(2, 1fr); }
+}
+@media (max-width: 640px) {
+  [data-ui="retro"] .s-grid-3,
+  [data-ui="retro"] .s-grid-2 { grid-template-columns: 1fr; }
+}
+
+[data-ui="retro"] .s-cap-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--space-5);
+}
+@media (max-width: 960px) {
+  [data-ui="retro"] .s-cap-grid { grid-template-columns: repeat(2, 1fr); }
+}
+@media (max-width: 540px) {
+  [data-ui="retro"] .s-cap-grid { grid-template-columns: 1fr; }
 }

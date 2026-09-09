@@ -204,7 +204,7 @@ function ContactForm() {
             type="button"
             onClick={() => setLeadNote(false)}
             aria-label="Dismiss note"
-            style={{ background: 'transparent', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', fontSize: 16, lineHeight: 1, padding: 2 }}
+            style={{ background: 'transparent', border: 'none', color: 'var(--text-tertiary)', cursor: 'pointer', fontSize: 16, lineHeight: 1, padding: 2 }}
           >
             ×
           </button>
