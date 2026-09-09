@@ -9,6 +9,7 @@ import Terminal from '@/components/terminal/Terminal'
 import LoadingDot from '@/components/ui/LoadingDot'
 import { useTerminal } from '@/hooks/useTerminal'
 import { ThemeProvider, useTheme } from '@/themes/ThemeProvider'
+import { getTheme } from '@/themes/registry'
 import DevThemeSwitcher from '@/components/dev/DevThemeSwitcher'
 import AutoTrackers from '@/tracking/AutoTrackers'
 import { PantheonWarsProvider } from '@/contexts/PantheonWarsContext'
@@ -141,8 +142,7 @@ function PantheonWarsShell() {
       const safe = (!saved || saved === 'pantheon') ? 'standard' : saved
       document.documentElement.dataset.ui = safe
       soundManager.setActiveTheme(safe)
-      const packMap = { digital: 'digital', retro: 'retro' }
-      soundManager.setPack(packMap[safe] ?? null)
+      soundManager.setPack(getTheme(safe)?.soundPack ?? null)
       ambienceManager.stop()
       musicManager.stop()
     }
