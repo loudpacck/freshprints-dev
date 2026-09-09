@@ -13,17 +13,18 @@ const THEME_DESCS = {
 }
 
 const THEME_PREVIEWS = {
+  // Phase 8: Standard's identity swatch is steel + safety orange, not navy on white.
   standard: {
-    bg: '#FFFFFF',
-    accent: '#1E3C64',
+    bg: '#EEF0F2',
+    accent: '#E85D04',
     label: 'Standard',
     font: "'Geist', system-ui",
     preview: (
-      <div style={{ padding: '8px 10px', background: '#F8F8FC', border: '1px solid #E8E8F0' }}>
-        <div style={{ fontFamily: "'Geist', system-ui", fontSize: 10, fontWeight: 600, color: '#0A0A14', marginBottom: 4 }}>
+      <div style={{ padding: '8px 10px', background: '#FFFFFF', border: '1px solid #D3D8DD' }}>
+        <div style={{ fontFamily: "'Geist', system-ui", fontSize: 10, fontWeight: 600, color: '#14171B', marginBottom: 4 }}>
           Fresh Prints
         </div>
-        <div style={{ fontFamily: "'Geist Mono', monospace", fontSize: 8, color: '#8A8A95' }}>
+        <div style={{ fontFamily: "'Geist Mono', monospace", fontSize: 8, color: '#6E757D' }}>
           Portfolio · About · Contact
         </div>
       </div>

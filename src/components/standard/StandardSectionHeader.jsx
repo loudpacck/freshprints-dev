@@ -36,7 +36,7 @@ export default function StandardSectionHeader({ eyebrow, heading, subtitle, inde
           <span style={{
             fontFamily: 'var(--font-mono)',
             fontSize: 'var(--label-size)',
-            color: 'var(--accent)',
+            color: 'var(--accent-ink, var(--accent))',
             textTransform: 'uppercase',
             letterSpacing: 'var(--label-tracking)',
           }}>

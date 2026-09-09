@@ -4,14 +4,15 @@ import { skillTiers, getToolsForDiscipline, getSpecializationsForTool } from '@/
 import { projects } from '@/data/projects'
 import useReducedMotion from '@/hooks/useReducedMotion'
 import StandardCard from '@/components/standard/StandardCard'
+import { useTheme } from '@/themes/useTheme'
 
 const PROFICIENCY_LABELS = {
-  PRODUCTION:   { label: 'Production', color: '#22C55E' },
-  PROFESSIONAL: { label: 'Professional', color: 'var(--accent)' },
-  ACTIVE:       { label: 'Active', color: '#F59E0B' },
+  PRODUCTION:   { label: 'Production',   color: 'var(--color-status-active)' },
+  PROFESSIONAL: { label: 'Professional', color: 'var(--color-status-stable)' },
+  ACTIVE:       { label: 'Active',       color: 'var(--color-status-beta)' },
 }
 
-function DisciplineDetail({ discipline }) {
+function DisciplineDetail({ discipline, discColor }) {
   const reduced = useReducedMotion()
   const tools = getToolsForDiscipline(discipline.id)
 
@@ -58,7 +59,7 @@ function DisciplineDetail({ discipline }) {
           <div style={{
             fontFamily: 'var(--font-mono)',
             fontSize: 'var(--text-xs)',
-            color: 'var(--accent)',
+            color: 'var(--accent-ink, var(--accent))',
             textTransform: 'uppercase',
             letterSpacing: 'var(--tracking-wider)',
             marginBottom: 'var(--space-5)',
@@ -110,7 +111,7 @@ function DisciplineDetail({ discipline }) {
           <div style={{
             fontFamily: 'var(--font-mono)',
             fontSize: 'var(--text-xs)',
-            color: 'var(--accent)',
+            color: 'var(--accent-ink, var(--accent))',
             textTransform: 'uppercase',
             letterSpacing: 'var(--tracking-wider)',
             marginBottom: 'var(--space-5)',
@@ -133,7 +134,7 @@ function DisciplineDetail({ discipline }) {
                     width: 4,
                     height: 4,
                     borderRadius: '50%',
-                    background: discipline.color,
+                    background: discColor,
                     flexShrink: 0,
                   }} />
                   <span style={{
@@ -171,7 +172,7 @@ function DisciplineDetail({ discipline }) {
           <div style={{
             fontFamily: 'var(--font-mono)',
             fontSize: 'var(--text-xs)',
-            color: 'var(--accent)',
+            color: 'var(--accent-ink, var(--accent))',
             textTransform: 'uppercase',
             letterSpacing: 'var(--tracking-wider)',
             marginBottom: 'var(--space-6)',
@@ -206,6 +207,11 @@ function DisciplineDetail({ discipline }) {
  */
 export default function StandardCapabilityMatrix() {
   const [activeId, setActiveId] = useState(skillTiers.disciplines[0].id)
+  const { themeId } = useTheme()
+  // Standard (Phase 8) is a single-accent palette: the discipline hues in
+  // skills.js are the Digital-era cyan/amber/violet set, so Standard resolves
+  // every discipline to the orange accent instead. Other themes keep the hues.
+  const discColorFor = (d) => themeId === 'standard' ? 'var(--accent-ink, var(--accent))' : d.color
 
   const activeDiscipline = skillTiers.disciplines.find(d => d.id === activeId) || skillTiers.disciplines[0]
 
@@ -231,10 +237,10 @@ export default function StandardCapabilityMatrix() {
                 fontFamily: 'var(--font-body)',
                 fontSize: 'var(--text-sm)',
                 fontWeight: 'var(--weight-medium)',
-                color: activeId === disc.id ? disc.color : 'var(--text-secondary)',
+                color: activeId === disc.id ? discColorFor(disc) : 'var(--text-secondary)',
                 background: 'none',
                 border: 'none',
-                borderBottom: `2px solid ${activeId === disc.id ? disc.color : 'transparent'}`,
+                borderBottom: `2px solid ${activeId === disc.id ? discColorFor(disc) : 'transparent'}`,
                 cursor: 'pointer',
                 padding: 'var(--space-4) var(--space-5)',
                 whiteSpace: 'nowrap',
@@ -249,7 +255,7 @@ export default function StandardCapabilityMatrix() {
 
       {/* Discipline detail */}
       <AnimatePresence mode="wait">
-        <DisciplineDetail key={activeId} discipline={activeDiscipline} />
+        <DisciplineDetail key={activeId} discipline={activeDiscipline} discColor={discColorFor(activeDiscipline)} />
       </AnimatePresence>
 
       <style>{`

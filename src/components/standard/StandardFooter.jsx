@@ -153,7 +153,7 @@ export default function StandardFooter({ onOpenPicker }) {
               cursor: 'pointer',
               transition: 'color var(--duration-fast) var(--ease-standard)',
             }}
-            onMouseEnter={e => e.target.style.color = 'var(--accent)'}
+            onMouseEnter={e => e.target.style.color = 'var(--accent-ink, var(--accent))'}
             onMouseLeave={e => e.target.style.color = 'var(--text-tertiary)'}
           >
             Switch to Operations Terminal →

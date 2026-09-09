@@ -1,6 +1,10 @@
 import { motion } from 'framer-motion'
 import useReducedMotion from '@/hooks/useReducedMotion'
+import { useTheme } from '@/themes/useTheme'
 
+// primary   — orange fill, near-black ink (white on safety orange fails AA)
+// secondary — 1px border in text-primary, transparent fill
+// ghost     — text only
 const VARIANTS = {
   primary: {
     background: 'var(--accent)',
@@ -14,7 +18,7 @@ const VARIANTS = {
   },
   ghost: {
     background: 'transparent',
-    color: 'var(--accent)',
+    color: 'var(--accent-ink, var(--accent))',
     border: '1px solid transparent',
   },
 }
@@ -32,7 +36,14 @@ export default function StandardButton({
   style: styleProp,
 }) {
   const reduced = useReducedMotion()
-  const variantStyle = VARIANTS[variant] || VARIANTS.primary
+  const { themeId } = useTheme()
+  // Phase 8: Standard drops button shadows and gives `secondary` a hard
+  // text-primary rule. Retro and Funky render this same button inside their own
+  // chrome and keep the original treatment.
+  const isStandard = themeId === 'standard'
+  const variantStyle = variant === 'secondary' && isStandard
+    ? { ...VARIANTS.secondary, border: '1px solid var(--text-primary)' }
+    : (VARIANTS[variant] || VARIANTS.primary)
 
   const sizeStyle =
     size === 'lg'
@@ -63,8 +74,13 @@ export default function StandardButton({
 
   const hoverProps = reduced ? {} : {
     whileHover: disabled ? {} : {
-      ...(variant === 'primary' && { background: 'var(--accent-hover)', boxShadow: 'var(--shadow-md)' }),
-      ...(variant === 'secondary' && { background: 'var(--accent-muted)', borderColor: 'var(--border-accent)' }),
+      ...(variant === 'primary' && {
+        background: 'var(--accent-hover)',
+        ...(isStandard ? {} : { boxShadow: 'var(--shadow-md)' }),
+      }),
+      ...(variant === 'secondary' && (isStandard
+        ? { background: 'var(--accent-muted)', borderColor: 'var(--accent)' }
+        : { background: 'var(--accent-muted)', borderColor: 'var(--border-accent)' })),
       ...(variant === 'ghost' && { background: 'var(--accent-muted)' }),
     },
     whileTap: disabled ? {} : { scale: 0.98 },

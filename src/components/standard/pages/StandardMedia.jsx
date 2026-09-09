@@ -100,7 +100,10 @@ function VideoLightboxModal({ video, onClose }) {
 function VideoThumbnail({ video, onPlay }) {
   const [imgSrc, setImgSrc] = useState(() => getThumbnailUrl(video.id))
   const [level, setLevel] = useState(0)
+  const [hover, setHover] = useState(false)
   const reduced = useReducedMotion()
+  const { themeId } = useTheme()
+  const isStandard = themeId === 'standard'
 
   function handleError() {
     if (level === 0) {
@@ -112,17 +115,22 @@ function VideoThumbnail({ video, onPlay }) {
   return (
     <motion.div
       onClick={() => onPlay(video)}
-      whileHover={reduced ? {} : { y: -2, boxShadow: 'var(--shadow-lg)' }}
+      onHoverStart={() => setHover(true)}
+      onHoverEnd={() => setHover(false)}
+      whileHover={(reduced || isStandard) ? {} : { y: -2, boxShadow: 'var(--shadow-lg)' }}
       transition={{ duration: 0.2 }}
       style={{
         background: 'var(--bg-card)',
-        border: '1px solid var(--border-subtle)',
+        border: '1px solid',
+        borderColor: (isStandard && hover && !reduced) ? 'var(--text-secondary)' : 'var(--border-subtle)',
         borderRadius: 'var(--radius-xl)',
         overflow: 'hidden',
         cursor: 'pointer',
         display: 'flex',
         flexDirection: 'column',
-        boxShadow: 'var(--shadow-sm)',
+        boxShadow: isStandard ? 'none' : 'var(--shadow-sm)',
+        transitionProperty: 'border-color',
+        transitionDuration: 'var(--duration-fast)',
       }}
     >
       <div style={{ position: 'relative', aspectRatio: '16/9', overflow: 'hidden', flexShrink: 0 }}>
@@ -352,7 +360,7 @@ function NewsletterStrip() {
             <div style={{
               fontFamily: 'var(--font-mono)',
               fontSize: 'var(--text-xs)',
-              color: 'var(--accent)',
+              color: 'var(--accent-ink, var(--accent))',
               textTransform: 'uppercase',
               letterSpacing: 'var(--tracking-wider)',
               marginBottom: 'var(--space-3)',
@@ -379,7 +387,7 @@ function NewsletterStrip() {
               {copy.body}
             </p>
             {status === 'success' ? (
-              <div style={{ fontFamily: 'var(--font-body)', fontSize: 'var(--text-base)', color: '#22C55E' }}>
+              <div style={{ fontFamily: 'var(--font-body)', fontSize: 'var(--text-base)', color: 'var(--color-status-active)' }}>
                 {formatEyebrow(copy.success, themeId)}
               </div>
             ) : (
@@ -455,7 +463,7 @@ export default function StandardMedia() {
             <div style={{
               fontFamily: 'var(--font-mono)',
               fontSize: 'var(--text-xs)',
-              color: 'var(--accent)',
+              color: 'var(--accent-ink, var(--accent))',
               textTransform: 'uppercase',
               letterSpacing: 'var(--tracking-wider)',
               marginBottom: 'var(--space-3)',
@@ -503,7 +511,7 @@ export default function StandardMedia() {
               <div style={{
                 fontFamily: 'var(--font-mono)',
                 fontSize: 'var(--text-xs)',
-                color: 'var(--accent)',
+                color: 'var(--accent-ink, var(--accent))',
                 textTransform: 'uppercase',
                 letterSpacing: 'var(--tracking-wider)',
                 marginBottom: 'var(--space-6)',

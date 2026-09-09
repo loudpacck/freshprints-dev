@@ -8,7 +8,10 @@ const statusMap = {
   RESEARCH:       { color: 'var(--color-status-concept)',        label: 'Research' },
   IN_DEVELOPMENT: { color: 'var(--color-status-in-development)', label: 'In Development' },
   AVAILABLE:      { color: 'var(--color-status-available)',      label: 'Available',
-    dotStyle: { boxShadow: '0 0 6px rgba(255,255,255,0.6)', border: '1px solid rgba(180,180,180,0.4)' } },
+    dotStyle: {
+      boxShadow: 'var(--status-available-glow, 0 0 6px rgba(255,255,255,0.6))',
+      border: 'var(--status-available-border, 1px solid rgba(180,180,180,0.4))',
+    } },
   DEFAULT:        { color: 'var(--color-text-muted)',            label: 'Unknown' },
 }
 

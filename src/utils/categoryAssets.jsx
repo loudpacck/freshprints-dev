@@ -1,4 +1,21 @@
+// Category colors resolve through a per-theme CSS custom property, with the
+// original Digital-era hex as the var() fallback. Standard (Phase 8) defines
+// --color-category-* as a steel-grey ramp with safety orange reserved for
+// ENGINEERING; Digital, Retro, Funky and Pantheon define none of them and so
+// keep the fallbacks below unchanged.
 export const CATEGORY_COLORS = {
+  software:    'var(--color-category-software, #00C8FF)',
+  games:       'var(--color-category-games, #FFB347)',
+  engineering: 'var(--color-category-engineering, #A0A0B8)',
+  ai:          'var(--color-category-ai, #8B5CF6)',
+  content:     'var(--color-category-content, #FBBF24)',
+  default:     'var(--color-category-default, #50505F)',
+}
+
+// Raw hexes, for the handful of call sites that append an alpha suffix
+// (`${hex}26`) to build a tint. A var() reference cannot be concatenated, so
+// those sites must use this map instead of CATEGORY_COLORS.
+export const CATEGORY_HEX = {
   software:    '#00C8FF',
   games:       '#FFB347',
   engineering: '#A0A0B8',
@@ -9,6 +26,10 @@ export const CATEGORY_COLORS = {
 
 export function getCategoryColor(category) {
   return CATEGORY_COLORS[category] ?? CATEGORY_COLORS.default
+}
+
+export function getCategoryHex(category) {
+  return CATEGORY_HEX[category] ?? CATEGORY_HEX.default
 }
 
 export function getCategoryIcon(category) {

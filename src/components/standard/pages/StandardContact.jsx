@@ -120,7 +120,7 @@ function ContactForm() {
           margin: '0 auto var(--space-5)',
         }}>
           <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-            <path d="M20 6L9 17l-5-5" stroke="#22C55E" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+            <path d="M20 6L9 17l-5-5" stroke="var(--color-status-active)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
           </svg>
         </div>
         <h3 style={{
@@ -152,9 +152,9 @@ function ContactForm() {
           {...register('name', { required: true })}
           type="text"
           placeholder="Your name"
-          style={{ ...inputStyle, borderColor: errors.name ? '#EF4444' : 'var(--border-subtle)' }}
+          style={{ ...inputStyle, borderColor: errors.name ? 'var(--color-status-error, #EF4444)' : 'var(--border-subtle)' }}
           onFocus={e => e.target.style.borderColor = 'var(--accent)'}
-          onBlur={e => e.target.style.borderColor = errors.name ? '#EF4444' : 'var(--border-subtle)'}
+          onBlur={e => e.target.style.borderColor = errors.name ? 'var(--color-status-error, #EF4444)' : 'var(--border-subtle)'}
         />
       </div>
       <div>
@@ -163,9 +163,9 @@ function ContactForm() {
           {...register('email', { required: true, pattern: /^\S+@\S+\.\S+$/ })}
           type="email"
           placeholder="your@email.com"
-          style={{ ...inputStyle, borderColor: errors.email ? '#EF4444' : 'var(--border-subtle)' }}
+          style={{ ...inputStyle, borderColor: errors.email ? 'var(--color-status-error, #EF4444)' : 'var(--border-subtle)' }}
           onFocus={e => e.target.style.borderColor = 'var(--accent)'}
-          onBlur={e => e.target.style.borderColor = errors.email ? '#EF4444' : 'var(--border-subtle)'}
+          onBlur={e => e.target.style.borderColor = errors.email ? 'var(--color-status-error, #EF4444)' : 'var(--border-subtle)'}
         />
       </div>
       <div>
@@ -220,10 +220,10 @@ function ContactForm() {
             ...inputStyle,
             resize: 'vertical',
             minHeight: 120,
-            borderColor: errors.message ? '#EF4444' : 'var(--border-subtle)',
+            borderColor: errors.message ? 'var(--color-status-error, #EF4444)' : 'var(--border-subtle)',
           }}
           onFocus={e => e.target.style.borderColor = 'var(--accent)'}
-          onBlur={e => e.target.style.borderColor = errors.message ? '#EF4444' : 'var(--border-subtle)'}
+          onBlur={e => e.target.style.borderColor = errors.message ? 'var(--color-status-error, #EF4444)' : 'var(--border-subtle)'}
         />
       </div>
 
@@ -231,7 +231,7 @@ function ContactForm() {
         <div style={{
           fontFamily: 'var(--font-body)',
           fontSize: 'var(--text-sm)',
-          color: '#EF4444',
+          color: 'var(--color-status-error, #EF4444)',
           padding: 'var(--space-3)',
           background: 'rgba(239, 68, 68, 0.08)',
           borderRadius: 'var(--radius-md)',
@@ -254,6 +254,7 @@ function ContactForm() {
 
 export default function StandardContact() {
   const { themeId } = useTheme()
+  const isStandard = themeId === 'standard'
   const reduced = useReducedMotion()
 
   return (
@@ -274,7 +275,7 @@ export default function StandardContact() {
             <div style={{
               fontFamily: 'var(--font-mono)',
               fontSize: 'var(--text-xs)',
-              color: 'var(--accent)',
+              color: 'var(--accent-ink, var(--accent))',
               textTransform: 'uppercase',
               letterSpacing: 'var(--tracking-wider)',
               marginBottom: 'var(--space-3)',
@@ -340,9 +341,12 @@ export default function StandardContact() {
                         transition: 'all 200ms ease',
                       }}
                       onMouseEnter={e => {
-                        e.currentTarget.style.borderColor = 'var(--border-accent)'
-                        e.currentTarget.style.transform = 'translateY(-1px)'
-                        e.currentTarget.style.boxShadow = 'var(--shadow-md)'
+                        // Phase 8: Standard signals hover with the border alone.
+                        e.currentTarget.style.borderColor = isStandard ? 'var(--text-secondary)' : 'var(--border-accent)'
+                        if (!isStandard) {
+                          e.currentTarget.style.transform = 'translateY(-1px)'
+                          e.currentTarget.style.boxShadow = 'var(--shadow-md)'
+                        }
                       }}
                       onMouseLeave={e => {
                         e.currentTarget.style.borderColor = 'var(--border-subtle)'
@@ -350,7 +354,7 @@ export default function StandardContact() {
                         e.currentTarget.style.boxShadow = 'none'
                       }}
                     >
-                      <div style={{ color: 'var(--accent)', flexShrink: 0 }}>
+                      <div style={{ color: isStandard ? 'var(--text-secondary)' : 'var(--accent-ink, var(--accent))', flexShrink: 0 }}>
                         {SOCIAL_ICONS[link.id] || SOCIAL_ICONS.email}
                       </div>
                       <div>

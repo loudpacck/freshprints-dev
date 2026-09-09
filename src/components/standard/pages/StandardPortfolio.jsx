@@ -5,6 +5,7 @@ import { projects } from '@/data/projects'
 import useReducedMotion from '@/hooks/useReducedMotion'
 import { useTheme } from '@/themes/useTheme'
 import { formatEyebrow } from '@/utils/eyebrow'
+import { CATEGORY_HEX } from '@/utils/categoryAssets'
 import Reveal from '@/components/standard/StandardReveal'
 import StandardPillFilter from '@/components/standard/StandardPillFilter'
 import { factKeyForSlug } from '@/components/hire/blobert/blobertLines'
@@ -19,46 +20,62 @@ const FILTERS = [
 ]
 
 const CATEGORY_COLORS = {
-  software:    '#00C8FF',
-  games:       '#FFB347',
-  engineering: '#A0A0B8',
-  ai:          '#8B5CF6',
-  content:     '#FBBF24',
+  software:    'var(--color-category-software, #00C8FF)',
+  games:       'var(--color-category-games, #FFB347)',
+  engineering: 'var(--color-category-engineering, #A0A0B8)',
+  ai:          'var(--color-category-ai, #8B5CF6)',
+  content:     'var(--color-category-content, #FBBF24)',
 }
 
 const STATUS_COLORS = {
-  ACTIVE:         '#22C55E',
-  BETA:           '#F59E0B',
-  STABLE:         'var(--accent)',
-  CONCEPT:        '#8B5CF6',
-  PRODUCTION:     '#22C55E',
-  IN_DEVELOPMENT: '#F59E0B',
-  AVAILABLE:      '#FFFFFF',
+  ACTIVE:         'var(--color-status-active)',
+  BETA:           'var(--color-status-beta)',
+  STABLE:         'var(--color-status-stable)',
+  PROFESSIONAL:   'var(--color-status-stable)',
+  CONCEPT:        'var(--color-status-concept)',
+  RESEARCH:       'var(--color-status-concept)',
+  PRODUCTION:     'var(--color-status-active)',
+  IN_DEVELOPMENT: 'var(--color-status-in-development)',
+  AVAILABLE:      'var(--color-status-available)',
 }
 const STATUS_DOT_EXTRA = {
-  AVAILABLE: { boxShadow: '0 0 6px rgba(255,255,255,0.6)', border: '1px solid rgba(180,180,180,0.4)' },
+  AVAILABLE: {
+    boxShadow: 'var(--status-available-glow, 0 0 6px rgba(255,255,255,0.6))',
+    border: 'var(--status-available-border, 1px solid rgba(180,180,180,0.4))',
+  },
 }
 
 function ProjectCard({ project }) {
   const navigate = useNavigate()
   const reduced = useReducedMotion()
+  const { themeId } = useTheme()
+  // Phase 8: Standard drops the hover-lift, the drop shadow and the tinted
+  // fallback gradient. Retro and Funky render this page inside their own chrome
+  // and keep the original treatment.
+  const isStandard = themeId === 'standard'
+  const [hover, setHover] = useState(false)
   const [imgFailed, setImgFailed] = useState(false)
   const category = project.category[0]
-  const catColor = CATEGORY_COLORS[category] || 'var(--accent)'
-  const statusColor = STATUS_COLORS[project.status] || 'var(--accent)'
+  const catColor = CATEGORY_COLORS[category] || 'var(--color-category-default, #50505F)'
+  const statusColor = STATUS_COLORS[project.status] || 'var(--color-status-stable)'
   const dotExtra = STATUS_DOT_EXTRA[project.status] || {}
 
   return (
     <motion.div
       onClick={() => navigate(`/portfolio/${project.slug}`)}
       data-blobert-fact={factKeyForSlug(project.slug) || undefined}
-      whileHover={reduced ? {} : { y: -2, boxShadow: 'var(--shadow-lg)' }}
+      onHoverStart={() => setHover(true)}
+      onHoverEnd={() => setHover(false)}
+      whileHover={(reduced || isStandard) ? {} : { y: -2, boxShadow: 'var(--shadow-lg)' }}
       transition={{ duration: 0.2 }}
       style={{
         background: 'var(--bg-card)',
-        border: '1px solid var(--border-subtle)',
+        border: '1px solid',
+        borderColor: (isStandard && hover && !reduced) ? 'var(--text-secondary)' : 'var(--border-subtle)',
         borderRadius: 'var(--radius-xl)',
-        boxShadow: 'var(--shadow-sm)',
+        boxShadow: isStandard ? 'none' : 'var(--shadow-sm)',
+        transitionProperty: 'border-color',
+        transitionDuration: 'var(--duration-fast)',
         overflow: 'hidden',
         cursor: 'pointer',
         display: 'flex',
@@ -86,7 +103,7 @@ function ProjectCard({ project }) {
         ) : (
           <div style={{
             width: '100%', height: '100%',
-            background: `linear-gradient(135deg, ${catColor}22 0%, var(--bg-elevated) 100%)`,
+            background: isStandard ? 'var(--bg-elevated)' : `linear-gradient(135deg, ${CATEGORY_HEX[category] || '#50505F'}22 0%, var(--bg-elevated) 100%)`,
           }} />
         )}
       </div>
@@ -139,7 +156,7 @@ function ProjectCard({ project }) {
             fontFamily: 'var(--font-body)',
             fontSize: 'var(--text-sm)',
             fontWeight: 'var(--weight-medium)',
-            color: 'var(--accent)',
+            color: 'var(--accent-ink, var(--accent))',
           }}>
             View →
           </span>
@@ -187,7 +204,7 @@ export default function StandardPortfolio() {
             <div style={{
               fontFamily: 'var(--font-mono)',
               fontSize: 'var(--text-xs)',
-              color: 'var(--accent)',
+              color: 'var(--accent-ink, var(--accent))',
               textTransform: 'uppercase',
               letterSpacing: 'var(--tracking-wider)',
               marginBottom: 'var(--space-3)',
@@ -236,7 +253,7 @@ export default function StandardPortfolio() {
               <button
                 onClick={() => setActive('all')}
                 style={{
-                  color: 'var(--accent)',
+                  color: 'var(--accent-ink, var(--accent))',
                   background: 'none',
                   border: 'none',
                   cursor: 'pointer',

@@ -16,55 +16,54 @@ import StandardSectionHeader from '@/components/standard/StandardSectionHeader'
 const EASE = [0.16, 1, 0.3, 1]
 const CONTAINER = { maxWidth: 'var(--container-max)', margin: '0 auto', padding: '0 var(--space-8)' }
 
-// ─── Engineering motif SVG ───────────────────────────────────────────────────
+// ─── Hero artifact ───────────────────────────────────────────────────────────
 
-function EngineeringMotif() {
+// SLOT FOR A PHYSICAL-PART PHOTO.
+// Phase 8 replaced a procedurally drawn SVG grid-and-crosshair motif with a
+// real artifact, because photos of actual work carry the page and decorative
+// engineering motifs read as template filler. When a Fresh Prints part photo
+// exists (drop it in public/images/fresh_prints/), swap HERO_IMAGE to it —
+// a shot of a machined part is a better first impression than a screenshot.
+// Falls back through the same priority order used to pick this one:
+// Fresh Prints part photo → Hot Potato Roblox page → Predictinator landing.
+const HERO_IMAGE = {
+  src: '/images/Hot Potato/Roblox Page.webp',
+  alt: 'The Hot Potato experience page on Roblox',
+  caption: 'Hot Potato — live on Roblox',
+}
+
+function HeroArtifact() {
+  const [failed, setFailed] = useState(false)
   return (
-    <div className="s-motif" style={{ width: '100%', height: '100%' }}>
-      <svg
-        viewBox="0 0 480 480"
-        fill="none"
-        xmlns="http://www.w3.org/2000/svg"
-        style={{ width: '100%', height: '100%', display: 'block' }}
-        aria-hidden="true"
-      >
-        {[60, 120, 180, 240, 300, 360, 420].map(y => (
-          <line key={`h${y}`} x1="0" y1={y} x2="480" y2={y} stroke="currentColor" strokeWidth="0.5" opacity="0.25"/>
-        ))}
-        {[60, 120, 180, 240, 300, 360, 420].map(x => (
-          <line key={`v${x}`} x1={x} y1="0" x2={x} y2="480" stroke="currentColor" strokeWidth="0.5" opacity="0.25"/>
-        ))}
-        <circle cx="240" cy="240" r="80" stroke="currentColor" strokeWidth="1" opacity="0.5"/>
-        <circle cx="240" cy="240" r="4"  fill="currentColor" opacity="0.6"/>
-        <line x1="240" y1="150" x2="240" y2="330" stroke="currentColor" strokeWidth="0.75" opacity="0.5"/>
-        <line x1="150" y1="240" x2="330" y2="240" stroke="currentColor" strokeWidth="0.75" opacity="0.5"/>
-        <circle cx="240" cy="240" r="160" stroke="currentColor" strokeWidth="0.75" strokeDasharray="6 4" opacity="0.3"/>
-        {[[60,60],[420,60],[60,420],[420,420]].map(([cx,cy]) => (
-          <g key={`${cx}${cy}`}>
-            <circle cx={cx} cy={cy} r="12" stroke="currentColor" strokeWidth="0.75" opacity="0.45"/>
-            <line x1={cx-8} y1={cy} x2={cx+8} y2={cy} stroke="currentColor" strokeWidth="0.75" opacity="0.45"/>
-            <line x1={cx} y1={cy-8} x2={cx} y2={cy+8} stroke="currentColor" strokeWidth="0.75" opacity="0.45"/>
-          </g>
-        ))}
-        <line x1="60" y1="28" x2="420" y2="28" stroke="currentColor" strokeWidth="0.75" opacity="0.4"/>
-        <line x1="60" y1="22" x2="60" y2="34" stroke="currentColor" strokeWidth="0.75" opacity="0.4"/>
-        <line x1="420" y1="22" x2="420" y2="34" stroke="currentColor" strokeWidth="0.75" opacity="0.4"/>
-        <line x1="240" y1="22" x2="240" y2="34" stroke="currentColor" strokeWidth="0.5" strokeDasharray="2 2" opacity="0.3"/>
-        <line x1="452" y1="60" x2="452" y2="420" stroke="currentColor" strokeWidth="0.75" opacity="0.4"/>
-        <line x1="446" y1="60" x2="458" y2="60" stroke="currentColor" strokeWidth="0.75" opacity="0.4"/>
-        <line x1="446" y1="420" x2="458" y2="420" stroke="currentColor" strokeWidth="0.75" opacity="0.4"/>
-        <path d="M 120 240 A 120 120 0 0 1 240 120" stroke="currentColor" strokeWidth="0.75" strokeDasharray="4 3" opacity="0.3"/>
-        <path d="M 360 240 A 120 120 0 0 1 240 360" stroke="currentColor" strokeWidth="0.75" strokeDasharray="4 3" opacity="0.3"/>
-        <circle cx="240" cy="240" r="40" stroke="currentColor" strokeWidth="0.75" opacity="0.35"/>
-        {[0, 90, 180, 270].map(deg => {
-          const r = 160
-          const rad = (deg * Math.PI) / 180
-          const x = 240 + r * Math.cos(rad)
-          const y = 240 + r * Math.sin(rad)
-          return <circle key={deg} cx={x} cy={y} r="3" fill="currentColor" opacity="0.5"/>
-        })}
-      </svg>
-    </div>
+    <figure style={{ margin: 0, width: '100%' }}>
+      <div style={{
+        border: '1px solid var(--border-subtle)',
+        borderRadius: 'var(--radius-sm)',
+        overflow: 'hidden',
+        background: 'var(--bg-elevated)',
+        aspectRatio: '4/3',
+      }}>
+        {!failed && (
+          <img
+            src={HERO_IMAGE.src}
+            alt={HERO_IMAGE.alt}
+            decoding="async"
+            onError={() => setFailed(true)}
+            style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+          />
+        )}
+      </div>
+      <figcaption style={{
+        marginTop: 'var(--space-3)',
+        fontFamily: 'var(--font-mono)',
+        fontSize: 'var(--label-size)',
+        letterSpacing: 'var(--label-tracking)',
+        textTransform: 'uppercase',
+        color: 'var(--text-tertiary)',
+      }}>
+        {HERO_IMAGE.caption}
+      </figcaption>
+    </figure>
   )
 }
 
@@ -85,7 +84,7 @@ function ArrowLink({ href, children }) {
         fontSize: 'var(--text-sm)',
         fontWeight: 'var(--weight-medium)',
         letterSpacing: 'var(--tracking-wide)',
-        color: 'var(--accent)',
+        color: 'var(--accent-ink, var(--accent))',
         textDecoration: 'none',
         paddingBottom: 'var(--space-1)',
         borderBottom: '1px solid',
@@ -114,9 +113,8 @@ function AvailabilityPill() {
     }}>
       <span style={{
         width: 8, height: 8, borderRadius: '50%',
-        background: isOpen ? 'var(--color-status-active)' : 'var(--accent-amber)',
+        background: isOpen ? 'var(--color-status-active)' : 'var(--text-tertiary)',
         flexShrink: 0,
-        boxShadow: isOpen ? '0 0 8px var(--color-status-active)' : 'none',
       }} />
       <span style={{
         fontFamily: 'var(--font-mono)',
@@ -141,11 +139,11 @@ function Hero({ reduced }) {
     (
       <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-1)', marginBottom: 'var(--space-6)' }}>
         <span style={{ fontFamily: 'var(--font-mono)', fontSize: 'var(--label-size)', letterSpacing: 'var(--label-tracking)', textTransform: 'uppercase' }}>
-          <span style={{ color: 'var(--accent)' }}>Kyle DeBord</span>
+          <span style={{ color: 'var(--accent-ink, var(--accent))' }}>Kyle DeBord</span>
           <span style={{ color: 'var(--text-tertiary)' }}> — Software · AI · Games</span>
         </span>
         <span style={{ fontFamily: 'var(--font-mono)', fontSize: 'var(--label-size)', letterSpacing: 'var(--label-tracking)', textTransform: 'uppercase' }}>
-          <span style={{ color: 'var(--accent-amber)' }}>Fresh Prints</span>
+          <span style={{ color: 'var(--text-primary)' }}>Fresh Prints</span>
           <span style={{ color: 'var(--text-tertiary)' }}> — Prototyping & Design</span>
         </span>
       </div>
@@ -196,7 +194,6 @@ function Hero({ reduced }) {
   return (
     <section style={{
       minHeight: 'calc(100vh - var(--nav-height))',
-      background: 'var(--gradient-hero)',
       display: 'flex',
       alignItems: 'center',
       paddingTop: 'var(--space-12)',
@@ -221,11 +218,9 @@ function Hero({ reduced }) {
             initial={reduced ? {} : { opacity: 0 }}
             animate={reduced ? {} : { opacity: 1 }}
             transition={{ duration: 1, delay: 0.4 }}
-            style={{ color: 'var(--border-strong)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+            style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}
           >
-            <div style={{ width: '100%', aspectRatio: '1' }}>
-              <EngineeringMotif />
-            </div>
+            <HeroArtifact />
           </motion.div>
         </div>
       </div>
@@ -251,7 +246,7 @@ function DisciplineRow({ index, label, desc, first }) {
       <span style={{
         fontFamily: 'var(--font-mono)',
         fontSize: 'var(--label-size)',
-        color: hover ? 'var(--accent)' : 'var(--text-tertiary)',
+        color: hover ? 'var(--accent-ink, var(--accent))' : 'var(--text-tertiary)',
         letterSpacing: 'var(--label-tracking)',
         transition: 'color var(--duration-fast) var(--ease-standard)',
       }}>
@@ -445,7 +440,7 @@ export default function StandardLanding() {
                 <div style={{
                   fontFamily: 'var(--font-mono)',
                   fontSize: 'var(--label-size)',
-                  color: 'var(--accent)',
+                  color: 'var(--accent-ink, var(--accent))',
                   textTransform: 'uppercase',
                   letterSpacing: 'var(--label-tracking)',
                   marginBottom: 'var(--space-4)',
@@ -500,7 +495,7 @@ export default function StandardLanding() {
               borderRadius: 'var(--radius-2xl)',
               padding: 'var(--space-14) var(--space-10)',
               border: '1px solid var(--border-subtle)',
-              background: 'var(--gradient-hero), var(--bg-card)',
+              background: 'var(--bg-card)',
               textAlign: 'center',
             }}>
               <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 'var(--space-6)' }}>

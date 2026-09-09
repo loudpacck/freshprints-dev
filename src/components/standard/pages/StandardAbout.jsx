@@ -49,6 +49,7 @@ export default function StandardAbout() {
   const [wizardOpen, setWizardOpen] = useState(false)
   const { themeId } = useTheme()
   const isRetro = themeId === 'retro'
+  const isStandard = themeId === 'standard'
 
   return (
     <motion.div
@@ -68,7 +69,7 @@ export default function StandardAbout() {
             <div style={{
               fontFamily: 'var(--font-mono)',
               fontSize: 'var(--text-xs)',
-              color: 'var(--accent)',
+              color: 'var(--accent-ink, var(--accent))',
               textTransform: 'uppercase',
               letterSpacing: 'var(--tracking-wider)',
               marginBottom: 'var(--space-3)',
@@ -237,7 +238,7 @@ export default function StandardAbout() {
               <div style={{
                 fontFamily: 'var(--font-mono)',
                 fontSize: 'var(--text-xs)',
-                color: 'var(--accent)',
+                color: 'var(--accent-ink, var(--accent))',
                 textTransform: 'uppercase',
                 letterSpacing: 'var(--tracking-wider)',
                 marginBottom: 'var(--space-4)',
@@ -299,7 +300,7 @@ export default function StandardAbout() {
             <div style={{
               fontFamily: 'var(--font-mono)',
               fontSize: 'var(--text-xs)',
-              color: 'var(--accent)',
+              color: 'var(--accent-ink, var(--accent))',
               textTransform: 'uppercase',
               letterSpacing: 'var(--tracking-wider)',
               marginBottom: 'var(--space-3)',
@@ -338,7 +339,7 @@ export default function StandardAbout() {
             <div style={{
               fontFamily: 'var(--font-mono)',
               fontSize: 'var(--text-xs)',
-              color: 'var(--accent)',
+              color: 'var(--accent-ink, var(--accent))',
               textTransform: 'uppercase',
               letterSpacing: 'var(--tracking-wider)',
               marginBottom: 'var(--space-3)',
@@ -375,9 +376,12 @@ export default function StandardAbout() {
                     transition: 'all 200ms ease',
                   }}
                   onMouseEnter={e => {
-                    e.currentTarget.style.borderColor = 'var(--border-accent)'
-                    e.currentTarget.style.transform = 'translateY(-2px)'
-                    e.currentTarget.style.boxShadow = 'var(--shadow-lg)'
+                    // Phase 8: Standard signals hover with the border alone.
+                    e.currentTarget.style.borderColor = isStandard ? 'var(--text-secondary)' : 'var(--border-accent)'
+                    if (!isStandard) {
+                      e.currentTarget.style.transform = 'translateY(-2px)'
+                      e.currentTarget.style.boxShadow = 'var(--shadow-lg)'
+                    }
                   }}
                   onMouseLeave={e => {
                     e.currentTarget.style.borderColor = 'var(--border-subtle)'
@@ -385,7 +389,7 @@ export default function StandardAbout() {
                     e.currentTarget.style.boxShadow = 'none'
                   }}
                 >
-                  <div style={{ color: 'var(--accent)' }}>
+                  <div style={{ color: isStandard ? 'var(--text-secondary)' : 'var(--accent-ink, var(--accent))' }}>
                     {SOCIAL_ICONS[link.id] || SOCIAL_ICONS.email}
                   </div>
                   <div>

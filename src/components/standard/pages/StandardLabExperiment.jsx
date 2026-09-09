@@ -2,6 +2,7 @@ import { useParams, useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { getExperimentBySlug, experiments } from '@/data/labExperiments'
 import useReducedMotion from '@/hooks/useReducedMotion'
+import { useTheme } from '@/themes/useTheme'
 import Reveal from '@/components/standard/StandardReveal'
 import StandardButton from '@/components/standard/StandardButton'
 import StandardCard from '@/components/standard/StandardCard'
@@ -14,22 +15,29 @@ const COMPONENT_MAP = {
 }
 
 const STATUS_COLORS = {
-  ACTIVE:  '#22C55E',
-  BETA:    '#F59E0B',
-  STABLE:  'var(--accent)',
-  CONCEPT: '#8B5CF6',
+  ACTIVE:         'var(--color-status-active)',
+  BETA:           'var(--color-status-beta)',
+  STABLE:         'var(--color-status-stable)',
+  CONCEPT:        'var(--color-status-concept)',
+  RESEARCH:       'var(--color-status-concept)',
+  IN_DEVELOPMENT: 'var(--color-status-in-development)',
 }
 
 export default function StandardLabExperiment() {
   const { slug } = useParams()
   const navigate = useNavigate()
   const reduced = useReducedMotion()
+  const { themeId } = useTheme()
+  const isStandard = themeId === 'standard'
   const experiment = getExperimentBySlug(slug)
 
   if (!experiment) return <NotFound />
 
   const ExperimentComponent = COMPONENT_MAP[experiment.component]
-  const statusColor = STATUS_COLORS[experiment.status] || 'var(--accent)'
+  const statusColor = STATUS_COLORS[experiment.status] || 'var(--color-status-stable)'
+  // See StandardLab: Standard collapses the per-experiment accent hue to orange.
+  const accentHue = experiment.accentColor
+  const accentColor = isStandard ? 'var(--accent-ink, var(--accent))' : experiment.accentColor
 
   const related = experiments
     .filter(e => e.slug !== slug)
@@ -84,14 +92,14 @@ export default function StandardLabExperiment() {
       <section style={{
         paddingTop: 'var(--space-12)',
         paddingBottom: 'var(--space-8)',
-        background: `linear-gradient(135deg, ${experiment.accentColor}08 0%, var(--bg-base) 60%)`,
+        background: isStandard ? 'var(--bg-base)' : `linear-gradient(135deg, ${accentHue}08 0%, var(--bg-base) 60%)`,
       }}>
         <div className="s-container">
           <Reveal>
             <div style={{
               fontFamily: 'var(--font-mono)',
               fontSize: 'var(--text-xs)',
-              color: experiment.accentColor,
+              color: accentColor,
               textTransform: 'uppercase',
               letterSpacing: 'var(--tracking-wider)',
               marginBottom: 'var(--space-3)',
@@ -175,7 +183,7 @@ export default function StandardLabExperiment() {
               <div style={{
                 fontFamily: 'var(--font-mono)',
                 fontSize: 'var(--text-xs)',
-                color: 'var(--accent)',
+                color: 'var(--accent-ink, var(--accent))',
                 textTransform: 'uppercase',
                 letterSpacing: 'var(--tracking-wider)',
                 marginBottom: 'var(--space-4)',
@@ -210,9 +218,9 @@ export default function StandardLabExperiment() {
                 <span style={{
                   fontFamily: 'var(--font-mono)',
                   fontSize: 'var(--text-xs)',
-                  color: experiment.accentColor,
-                  background: `${experiment.accentColor}18`,
-                  border: `1px solid ${experiment.accentColor}30`,
+                  color: accentColor,
+                  background: isStandard ? 'transparent' : `${accentHue}18`,
+                  border: `1px solid ${isStandard ? 'var(--border-subtle)' : accentHue + '30'}`,
                   borderRadius: 'var(--radius-md)',
                   padding: 'var(--space-1) var(--space-3)',
                   textTransform: 'uppercase',
@@ -234,7 +242,7 @@ export default function StandardLabExperiment() {
               <div style={{
                 fontFamily: 'var(--font-mono)',
                 fontSize: 'var(--text-xs)',
-                color: 'var(--accent)',
+                color: 'var(--accent-ink, var(--accent))',
                 textTransform: 'uppercase',
                 letterSpacing: 'var(--tracking-wider)',
                 marginBottom: 'var(--space-8)',

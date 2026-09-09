@@ -55,13 +55,6 @@ export default function StandardNav({ onOpenPicker }) {
   const navigate = useNavigate()
   const reduced = useReducedMotion()
   const [menuOpen, setMenuOpen] = useState(false)
-  const [scrolled, setScrolled] = useState(false)
-
-  useEffect(() => {
-    function onScroll() { setScrolled(window.scrollY > 80) }
-    window.addEventListener('scroll', onScroll, { passive: true })
-    return () => window.removeEventListener('scroll', onScroll)
-  }, [])
 
   // Close menu on route change
   useEffect(() => { setMenuOpen(false) }, [location.pathname])
@@ -77,12 +70,10 @@ export default function StandardNav({ onOpenPicker }) {
         right: 0,
         zIndex: 50,
         height: 'var(--nav-height)',
-        background: scrolled ? 'var(--bg-overlay)' : 'transparent',
-        backdropFilter: 'blur(12px)',
-        WebkitBackdropFilter: 'blur(12px)',
-        borderBottom: '1px solid',
-        borderColor: scrolled ? 'var(--border-subtle)' : 'transparent',
-        transition: 'background var(--duration-fast) var(--ease-standard), border-color var(--duration-fast) var(--ease-standard)',
+        // Phase 8: solid chrome, 1px rule, no blur. The bar reads as a fixed
+        // fascia rather than a floating glass panel.
+        background: 'var(--bg-elevated)',
+        borderBottom: '1px solid var(--border-subtle)',
       }}
     >
       <div
@@ -242,9 +233,7 @@ export default function StandardNav({ onOpenPicker }) {
             transition={reduced ? { duration: 0 } : { duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
             style={{
               overflow: 'hidden',
-              background: 'var(--bg-overlay)',
-              backdropFilter: 'blur(12px)',
-              WebkitBackdropFilter: 'blur(12px)',
+              background: 'var(--bg-elevated)',
               borderTop: '1px solid var(--border-subtle)',
               borderBottom: '1px solid var(--border-subtle)',
             }}

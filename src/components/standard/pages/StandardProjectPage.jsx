@@ -3,35 +3,44 @@ import { useParams, useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { getProjectBySlug, projects } from '@/data/projects'
 import useReducedMotion from '@/hooks/useReducedMotion'
+import { useTheme } from '@/themes/useTheme'
+import { CATEGORY_HEX } from '@/utils/categoryAssets'
 import Reveal from '@/components/standard/StandardReveal'
 import StandardButton from '@/components/standard/StandardButton'
 import StandardCard from '@/components/standard/StandardCard'
 import NotFound from '@/pages/NotFound'
 
 const CATEGORY_COLORS = {
-  software:    '#00C8FF',
-  games:       '#FFB347',
-  engineering: '#A0A0B8',
-  ai:          '#8B5CF6',
-  content:     '#FBBF24',
+  software:    'var(--color-category-software, #00C8FF)',
+  games:       'var(--color-category-games, #FFB347)',
+  engineering: 'var(--color-category-engineering, #A0A0B8)',
+  ai:          'var(--color-category-ai, #8B5CF6)',
+  content:     'var(--color-category-content, #FBBF24)',
 }
 
 const STATUS_COLORS = {
-  ACTIVE:         '#22C55E',
-  BETA:           '#F59E0B',
-  STABLE:         'var(--accent)',
-  CONCEPT:        '#8B5CF6',
-  PRODUCTION:     '#22C55E',
-  IN_DEVELOPMENT: '#F59E0B',
-  AVAILABLE:      '#FFFFFF',
+  ACTIVE:         'var(--color-status-active)',
+  BETA:           'var(--color-status-beta)',
+  STABLE:         'var(--color-status-stable)',
+  PROFESSIONAL:   'var(--color-status-stable)',
+  CONCEPT:        'var(--color-status-concept)',
+  RESEARCH:       'var(--color-status-concept)',
+  PRODUCTION:     'var(--color-status-active)',
+  IN_DEVELOPMENT: 'var(--color-status-in-development)',
+  AVAILABLE:      'var(--color-status-available)',
 }
 const STATUS_DOT_EXTRA = {
-  AVAILABLE: { boxShadow: '0 0 6px rgba(255,255,255,0.6)', border: '1px solid rgba(180,180,180,0.4)' },
+  AVAILABLE: {
+    boxShadow: 'var(--status-available-glow, 0 0 6px rgba(255,255,255,0.6))',
+    border: 'var(--status-available-border, 1px solid rgba(180,180,180,0.4))',
+  },
 }
 
 function HeroImage({ project }) {
   const [failed, setFailed] = useState(false)
-  const catColor = CATEGORY_COLORS[project.category[0]] || 'var(--accent)'
+  const { themeId } = useTheme()
+  const isStandard = themeId === 'standard'
+  const catColor = CATEGORY_COLORS[project.category[0]] || 'var(--color-category-default, #50505F)'
 
   return (
     <div style={{
@@ -53,7 +62,7 @@ function HeroImage({ project }) {
       ) : (
         <div style={{
           width: '100%', height: '100%',
-          background: `linear-gradient(135deg, ${catColor}22 0%, var(--bg-elevated) 60%, var(--bg-base) 100%)`,
+          background: isStandard ? 'var(--bg-elevated)' : `linear-gradient(135deg, ${CATEGORY_HEX[project.category[0]] || '#50505F'}22 0%, var(--bg-elevated) 60%, var(--bg-base) 100%)`,
         }} />
       )}
     </div>
@@ -98,8 +107,8 @@ export default function StandardProjectPage() {
 
   if (!project) return <NotFound />
 
-  const catColor = CATEGORY_COLORS[project.category[0]] || 'var(--accent)'
-  const statusColor = STATUS_COLORS[project.status] || 'var(--accent)'
+  const catColor = CATEGORY_COLORS[project.category[0]] || 'var(--color-category-default, #50505F)'
+  const statusColor = STATUS_COLORS[project.status] || 'var(--color-status-stable)'
   const ctaHref = project.cta?.href || '/contact'
   const ctaIsExternal = /^https?:\/\//i.test(ctaHref)
   const dotExtra = STATUS_DOT_EXTRA[project.status] || {}
@@ -246,7 +255,7 @@ export default function StandardProjectPage() {
                 <div style={{
                   fontFamily: 'var(--font-mono)',
                   fontSize: 'var(--text-xs)',
-                  color: 'var(--accent)',
+                  color: 'var(--accent-ink, var(--accent))',
                   textTransform: 'uppercase',
                   letterSpacing: 'var(--tracking-wider)',
                   marginBottom: 'var(--space-4)',
@@ -272,7 +281,7 @@ export default function StandardProjectPage() {
                     <div style={{
                       fontFamily: 'var(--font-mono)',
                       fontSize: 'var(--text-xs)',
-                      color: 'var(--accent)',
+                      color: 'var(--accent-ink, var(--accent))',
                       textTransform: 'uppercase',
                       letterSpacing: 'var(--tracking-wider)',
                       marginBottom: 'var(--space-4)',
@@ -306,7 +315,7 @@ export default function StandardProjectPage() {
                     <div style={{
                       fontFamily: 'var(--font-mono)',
                       fontSize: 'var(--text-xs)',
-                      color: 'var(--accent)',
+                      color: 'var(--accent-ink, var(--accent))',
                       textTransform: 'uppercase',
                       letterSpacing: 'var(--tracking-wider)',
                       marginBottom: 'var(--space-4)',
@@ -359,7 +368,7 @@ export default function StandardProjectPage() {
               <div style={{
                 fontFamily: 'var(--font-mono)',
                 fontSize: 'var(--text-xs)',
-                color: 'var(--accent)',
+                color: 'var(--accent-ink, var(--accent))',
                 textTransform: 'uppercase',
                 letterSpacing: 'var(--tracking-wider)',
                 marginBottom: 'var(--space-8)',
@@ -386,7 +395,7 @@ export default function StandardProjectPage() {
               <div style={{
                 fontFamily: 'var(--font-mono)',
                 fontSize: 'var(--text-xs)',
-                color: 'var(--accent)',
+                color: 'var(--accent-ink, var(--accent))',
                 textTransform: 'uppercase',
                 letterSpacing: 'var(--tracking-wider)',
                 marginBottom: 'var(--space-6)',
@@ -476,7 +485,7 @@ export default function StandardProjectPage() {
               <div style={{
                 fontFamily: 'var(--font-mono)',
                 fontSize: 'var(--text-xs)',
-                color: 'var(--accent)',
+                color: 'var(--accent-ink, var(--accent))',
                 textTransform: 'uppercase',
                 letterSpacing: 'var(--tracking-wider)',
                 marginBottom: 'var(--space-8)',

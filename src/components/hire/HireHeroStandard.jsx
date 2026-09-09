@@ -22,7 +22,7 @@ const TOGGLE = [
 
 // ─────────────────────────────────────────────────────────── shared bits ──
 
-function LiveViews({ views, mono = 'var(--font-mono)', color = 'var(--text-tertiary)', accent = 'var(--accent)' }) {
+function LiveViews({ views, mono = 'var(--font-mono)', color = 'var(--text-tertiary)', accent = 'var(--accent-ink, var(--accent))' }) {
   return (
     <div style={{ fontFamily: mono, fontSize: 'var(--text-sm)', color, whiteSpace: 'nowrap' }}>
       <span style={{ color: accent }}>{formatViews(views)}</span> page views and counting
@@ -35,7 +35,6 @@ function LiveViews({ views, mono = 'var(--font-mono)', color = 'var(--text-terti
 
 function StandardVariant({ copyMode, setCopyMode, copy, reduced, views }) {
   const rootRef = useRef(null)
-  usePointerVars(rootRef, reduced)
   const words = copy.headline.split(' ')
 
   return (
@@ -49,32 +48,18 @@ function StandardVariant({ copyMode, setCopyMode, copy, reduced, views }) {
         flexDirection: 'column',
         justifyContent: 'center',
         padding: 'var(--space-16) 0 var(--space-10)',
-        background: 'var(--gradient-hero)',
+        background: 'var(--bg-base)',
         overflow: 'hidden',
-        ['--px']: 0,
-        ['--py']: 0,
       }}
     >
-      {/* Restrained cursor-follow glow (desktop, motion-on only) */}
-      {!reduced && (
-        <div
-          aria-hidden="true"
-          className="hhs-glow"
-          style={{
-            position: 'absolute',
-            inset: '-20%',
-            zIndex: 0,
-            pointerEvents: 'none',
-            background: 'radial-gradient(600px circle at calc(50% + var(--px) * 40%) calc(45% + var(--py) * 40%), var(--accent-soft, rgba(0,200,255,0.10)), transparent 60%)',
-          }}
-        />
-      )}
+      {/* Phase 8: the cursor-follow accent glow is gone. Standard is a flat,
+          unlit surface — no bloom, no gradient wash. */}
 
       <div className="s-container" style={{ position: 'relative', zIndex: 1 }}>
         <div style={{
           fontFamily: 'var(--font-mono)',
           fontSize: 'var(--text-xs)',
-          color: 'var(--accent)',
+          color: 'var(--accent-ink, var(--accent))',
           textTransform: 'uppercase',
           letterSpacing: 'var(--tracking-wider)',
           marginBottom: 'var(--space-4)',
@@ -463,7 +448,7 @@ function FunkyVariant({ copyMode, setCopyMode, copy, reduced, views }) {
 // ────────────────────────────────────────────────────────── scroll cue ──
 
 function ScrollCue({ reduced, theme }) {
-  const color = theme === 'retro' ? 'var(--accent-bright, var(--text-primary))' : 'var(--accent)'
+  const color = theme === 'retro' ? 'var(--accent-bright, var(--text-primary))' : 'var(--accent-ink, var(--accent))'
   return (
     <button
       onClick={() => scrollToContent(reduced)}

@@ -69,7 +69,7 @@ function ProjectRow({ project, index }) {
   const isLive = project.id === 'pantheon-wars'
 
   // Retro uses a chunky hover-snap (handlers below), not smooth pointer tilt.
-  useCardPointer(cardRef, { reduced, disabled: isRetro })
+  useCardPointer(cardRef, { reduced, disabled: isRetro || isStandard })
 
   // Per-theme card presentation.
   const cardStyle = {
@@ -94,13 +94,18 @@ function ProjectRow({ project, index }) {
       : 'perspective(900px) rotateY(calc(var(--rx) * 11deg)) rotateX(calc(var(--ry) * -11deg)) scale(calc(1 + var(--pactive) * 0.03))'
     cardStyle.transition = 'transform 420ms var(--ease-liquid, cubic-bezier(0.5, 1.4, 0.4, 1))'
   } else {
-    // Standard — no tilt: a soft shadow that shifts with the pointer + inner
-    // parallax (thumbnail deeper than content). Premium, restrained.
-    cardStyle.boxShadow = reduced
-      ? 'var(--shadow-sm)'
-      : 'calc(var(--rx) * 20px) calc(10px + var(--ry) * 20px) 42px var(--shadow-color, rgba(2, 6, 23, 0.16))'
-    cardStyle.transition = 'box-shadow 240ms ease-out'
+    // Standard (Phase 8) — flat. No pointer-tracked drop shadow, no parallax.
+    // Hover is a border darkening and nothing else.
+    cardStyle.boxShadow = 'none'
+    cardStyle.transition = 'border-color var(--duration-fast) var(--ease-standard)'
   }
+
+  const standardHandlers = isStandard && !reduced
+    ? {
+        onMouseEnter: e => { e.currentTarget.style.borderColor = 'var(--text-secondary)' },
+        onMouseLeave: e => { e.currentTarget.style.borderColor = 'var(--border-subtle)' },
+      }
+    : {}
 
   // Retro snap handlers — chunky lift on hover, no pointer tracking.
   const retroHandlers = isRetro && !reduced
@@ -118,21 +123,10 @@ function ProjectRow({ project, index }) {
 
   const thumbImgStyle = {
     width: '100%', height: '100%', objectFit: 'cover', display: 'block',
-    ...(isStandard && !reduced
-      ? {
-          transform: 'translate(calc(var(--rx) * 5px), calc(var(--ry) * 5px)) scale(calc(1 + var(--pactive) * 0.08))',
-          transition: 'transform 260ms ease-out',
-          willChange: 'transform',
-        }
-      : {}),
+
   }
 
-  const contentParallax = isStandard && !reduced
-    ? {
-        transform: 'translate(calc(var(--rx) * 2px), calc(var(--ry) * 2px))',
-        transition: 'transform 260ms ease-out',
-      }
-    : {}
+  const contentParallax = {}
 
   return (
     <Reveal delay={index * 0.06}>
@@ -142,6 +136,7 @@ function ProjectRow({ project, index }) {
         className="hire-row"
         style={cardStyle}
         {...retroHandlers}
+        {...standardHandlers}
       >
         <div style={{
           aspectRatio: '16/10',
@@ -186,7 +181,7 @@ function ProjectRow({ project, index }) {
                 fontFamily: 'var(--font-display)',
                 fontWeight: 'var(--weight-semibold)',
                 fontSize: 'var(--text-xl)',
-                color: 'var(--accent)',
+                color: 'var(--accent-ink, var(--accent))',
                 marginBottom: 'var(--space-2)',
               }}>
                 {project.highlight}
@@ -244,7 +239,7 @@ function ProjectRow({ project, index }) {
               fontSize: 'var(--text-xs)',
               textTransform: 'uppercase',
               letterSpacing: 'var(--tracking-wide)',
-              color: 'var(--accent)',
+              color: 'var(--accent-ink, var(--accent))',
             }}>
               <span className={reduced ? 'hire-live-dot' : 'hire-live-dot hire-beat'} aria-hidden="true" />
               Live
@@ -385,7 +380,7 @@ export default function StandardHire() {
                       <button
                         onClick={() => inquire(service.id)}
                         style={{
-                          color: 'var(--accent)',
+                          color: 'var(--accent-ink, var(--accent))',
                           background: 'none',
                           border: 'none',
                           cursor: 'pointer',
@@ -431,7 +426,6 @@ export default function StandardHire() {
               style={{
                 fontSize: 'var(--text-lg)',
                 padding: 'var(--space-5) var(--space-10)',
-                boxShadow: 'var(--shadow-lg)',
               }}
             >
               {bottomCtas.letsWork.label} →

@@ -2,12 +2,13 @@ import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import Tag from '@/components/ui/Tag'
 import Badge from '@/components/ui/Badge'
-import { getCategoryColor, getCategoryIcon } from '@/utils/categoryAssets'
+import { getCategoryColor, getCategoryHex, getCategoryIcon } from '@/utils/categoryAssets'
 
 export default function ProjectHero({ project }) {
   const [imgFailed, setImgFailed] = useState(false)
   const primaryCategory = project.category?.[0] ?? 'default'
   const accentColor = getCategoryColor(primaryCategory)
+  const accentHex = getCategoryHex(primaryCategory)   // alpha-suffixed tint below needs a literal
   const heroImage = project.images?.[0] ?? project.thumbnail
 
   return (
@@ -39,7 +40,7 @@ export default function ProjectHero({ project }) {
           style={{
             position: 'absolute',
             inset: 0,
-            background: `linear-gradient(135deg, ${accentColor}26 0%, ${accentColor}0D 100%)`,
+            background: `linear-gradient(135deg, ${accentHex}26 0%, ${accentHex}0D 100%)`,
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',

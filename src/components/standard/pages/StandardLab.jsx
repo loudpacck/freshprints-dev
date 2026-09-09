@@ -9,17 +9,29 @@ import Reveal from '@/components/standard/StandardReveal'
 import StandardButton from '@/components/standard/StandardButton'
 
 const STATUS_COLORS = {
-  ACTIVE:        '#22C55E',
-  BETA:          '#F59E0B',
-  STABLE:        'var(--accent)',
-  CONCEPT:       '#8B5CF6',
-  IN_DEVELOPMENT: '#F59E0B',
+  ACTIVE:         'var(--color-status-active)',
+  BETA:           'var(--color-status-beta)',
+  STABLE:         'var(--color-status-stable)',
+  CONCEPT:        'var(--color-status-concept)',
+  RESEARCH:       'var(--color-status-concept)',
+  IN_DEVELOPMENT: 'var(--color-status-in-development)',
 }
 
 function ExperimentCard({ experiment }) {
   const navigate = useNavigate()
   const reduced = useReducedMotion()
-  const statusColor = STATUS_COLORS[experiment.status] || 'var(--accent)'
+  const { themeId } = useTheme()
+  // Phase 8: Standard drops the hover-lift, the drop shadow and the accent
+  // tint. Retro and Funky keep the original treatment.
+  const isStandard = themeId === 'standard'
+  const [hover, setHover] = useState(false)
+  const statusColor = STATUS_COLORS[experiment.status] || 'var(--color-status-stable)'
+  // Per-experiment accent hues live in labExperiments.js (grey / red / amber).
+  // Standard is a single-accent palette, so they collapse to orange for actions
+  // and steel for the category eyebrow. Retro and Funky keep the per-experiment hue.
+  const accentHue = experiment.accentColor
+  const accentColor = isStandard ? 'var(--accent-ink, var(--accent))' : experiment.accentColor
+  const eyebrowColor = isStandard ? 'var(--color-category-default, #50505F)' : experiment.accentColor
 
   function handleClick() {
     if (experiment.external) {
@@ -32,23 +44,28 @@ function ExperimentCard({ experiment }) {
   return (
     <motion.div
       onClick={handleClick}
-      whileHover={reduced ? {} : { y: -2, boxShadow: 'var(--shadow-lg)' }}
+      onHoverStart={() => setHover(true)}
+      onHoverEnd={() => setHover(false)}
+      whileHover={(reduced || isStandard) ? {} : { y: -2, boxShadow: 'var(--shadow-lg)' }}
       transition={{ duration: 0.2 }}
       style={{
         background: 'var(--bg-card)',
-        border: '1px solid var(--border-subtle)',
+        border: '1px solid',
+        borderColor: (isStandard && hover && !reduced) ? 'var(--text-secondary)' : 'var(--border-subtle)',
         borderRadius: 'var(--radius-xl)',
         overflow: 'hidden',
         cursor: 'pointer',
         display: 'flex',
         flexDirection: 'column',
-        boxShadow: 'var(--shadow-sm)',
+        boxShadow: isStandard ? 'none' : 'var(--shadow-sm)',
+        transitionProperty: 'border-color',
+        transitionDuration: 'var(--duration-fast)',
       }}
     >
       {/* Preview area */}
       <div style={{
         aspectRatio: '16/9',
-        background: `linear-gradient(135deg, ${experiment.accentColor}18 0%, var(--bg-elevated) 100%)`,
+        background: isStandard ? 'var(--bg-elevated)' : `linear-gradient(135deg, ${accentHue}18 0%, var(--bg-elevated) 100%)`,
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
@@ -70,7 +87,7 @@ function ExperimentCard({ experiment }) {
             fontFamily: 'var(--font-mono)',
             fontSize: 'var(--text-2xl)',
             fontWeight: 'var(--weight-bold)',
-            color: experiment.accentColor,
+            color: accentColor,
             opacity: 0.35,
             letterSpacing: '0.1em',
             textTransform: 'uppercase',
@@ -109,9 +126,9 @@ function ExperimentCard({ experiment }) {
             position: 'absolute',
             top: '0.75rem',
             left: '0.75rem',
-            background: `${experiment.accentColor}22`,
-            border: `1px solid ${experiment.accentColor}55`,
-            borderRadius: '999px',
+            background: isStandard ? 'var(--bg-card)' : `${accentHue}22`,
+            border: `1px solid ${isStandard ? 'var(--accent)' : accentHue + '55'}`,
+            borderRadius: isStandard ? 'var(--radius-sm)' : '999px',
             padding: '0.2rem 0.55rem',
             display: 'flex',
             alignItems: 'center',
@@ -120,7 +137,7 @@ function ExperimentCard({ experiment }) {
             <span style={{
               fontFamily: 'var(--font-mono)',
               fontSize: '0.6rem',
-              color: experiment.accentColor,
+              color: accentColor,
               textTransform: 'uppercase',
               letterSpacing: '0.08em',
               fontWeight: 600,
@@ -142,7 +159,7 @@ function ExperimentCard({ experiment }) {
         <div style={{
           fontFamily: 'var(--font-mono)',
           fontSize: 'var(--text-xs)',
-          color: experiment.accentColor,
+          color: eyebrowColor,
           textTransform: 'uppercase',
           letterSpacing: 'var(--tracking-wider)',
         }}>
@@ -175,7 +192,7 @@ function ExperimentCard({ experiment }) {
           fontFamily: 'var(--font-body)',
           fontSize: 'var(--text-sm)',
           fontWeight: 'var(--weight-medium)',
-          color: experiment.external ? experiment.accentColor : 'var(--accent)',
+          color: accentColor,
           display: 'flex',
           alignItems: 'center',
           gap: 6,
@@ -231,7 +248,7 @@ function NewsletterStrip() {
             <div style={{
               fontFamily: 'var(--font-mono)',
               fontSize: 'var(--text-xs)',
-              color: 'var(--accent)',
+              color: 'var(--accent-ink, var(--accent))',
               textTransform: 'uppercase',
               letterSpacing: 'var(--tracking-wider)',
               marginBottom: 'var(--space-3)',
@@ -261,7 +278,7 @@ function NewsletterStrip() {
               <div style={{
                 fontFamily: 'var(--font-body)',
                 fontSize: 'var(--text-base)',
-                color: '#22C55E',
+                color: 'var(--color-status-active)',
               }}>
                 You're in. Check your inbox.
               </div>
@@ -329,7 +346,7 @@ export default function StandardLab() {
             <div style={{
               fontFamily: 'var(--font-mono)',
               fontSize: 'var(--text-xs)',
-              color: 'var(--accent)',
+              color: 'var(--accent-ink, var(--accent))',
               textTransform: 'uppercase',
               letterSpacing: 'var(--tracking-wider)',
               marginBottom: 'var(--space-3)',

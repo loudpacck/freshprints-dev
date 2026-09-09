@@ -1,4 +1,4 @@
-import { getCategoryColor } from '@/utils/categoryAssets'
+import { getCategoryColor, getCategoryHex } from '@/utils/categoryAssets'
 import { SERVICE_TYPES, serviceTypeCategory } from './serviceTypes'
 
 export default function IntakeStep1ServiceType({ watch, setValue }) {
@@ -32,6 +32,7 @@ export default function IntakeStep1ServiceType({ watch, setValue }) {
         {SERVICE_TYPES.map(type => {
           const isSelected = selected === type.id
           const color = getCategoryColor(serviceTypeCategory(type.id))
+          const hex = getCategoryHex(serviceTypeCategory(type.id))   // alpha suffixes need a literal
           return (
             <button
               key={type.id}
@@ -44,12 +45,12 @@ export default function IntakeStep1ServiceType({ watch, setValue }) {
                 justifyContent: 'center',
                 gap: 'var(--space-3)',
                 padding: 'var(--space-5) var(--space-4)',
-                background: isSelected ? `${color}18` : 'var(--color-bg-surface)',
+                background: isSelected ? `${hex}18` : 'var(--color-bg-surface)',
                 border: `1px solid ${isSelected ? color : 'var(--color-border-subtle)'}`,
                 borderRadius: 'var(--radius-md)',
                 cursor: 'pointer',
                 transition: 'all 150ms',
-                boxShadow: isSelected ? `0 0 16px ${color}30` : 'none',
+                boxShadow: isSelected ? `0 0 16px ${hex}30` : 'none',
               }}
             >
               <span style={{

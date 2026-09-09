@@ -1,6 +1,12 @@
-/* ─── Standard theme — shared typography & spacing ─── */
+/* ─── Standard theme — steel & safety orange (Phase 8) ───
+   Palette direction: cool steel greys, one safety-orange accent used sparingly.
+   No glow, no colored shadows, no gradients, no cyan/violet/neon anywhere.
+   Scoped entirely to [data-ui="standard"] — Retro, Funky, Digital and Pantheon
+   carry their own token files and are unaffected by anything in here. */
 [data-ui="standard"] {
-  /* Bridge Digital-origin token names so shared components render correctly */
+  /* Bridge Digital-origin token names so shared components render correctly.
+     IntakeWizard and other shared components read these — every alias below
+     must stay defined; only the values behind them changed in Phase 8. */
   --color-bg-base:        var(--bg-base);
   --color-bg-surface:     var(--bg-card);
   --color-bg-elevated:    var(--bg-elevated);
@@ -8,17 +14,38 @@
   --color-text-primary:   var(--text-primary);
   --color-text-secondary: var(--text-secondary);
   --color-text-muted:     var(--text-tertiary);
-  --color-text-accent:    var(--accent);
+  --color-text-accent:    var(--accent-ink);
   --color-accent-primary: var(--accent);
-  --color-accent-secondary: var(--accent-amber);
+  --color-accent-secondary: var(--accent);   /* amber retired — orange is the only accent */
   --color-border-subtle:  var(--border-subtle);
   --color-border-default: var(--border-strong);
-  --color-status-active:         #22C55E;
-  --color-status-beta:           #F59E0B;
-  --color-status-stable:         var(--accent);
-  --color-status-concept:        #8B5CF6;
-  --color-status-in-development: #F59E0B;
-  --color-status-available:      #FFFFFF;
+
+  /* Status map — see also Badge.jsx, StandardCard.jsx, StandardPortfolio.jsx,
+     StandardProjectPage.jsx (all four read these tokens, not literal hexes).
+     Per-mode values live in the mode blocks below. */
+  --color-status-active:         var(--status-green);
+  --color-status-beta:           var(--accent-ink);
+  --color-status-stable:         var(--steel-mid);
+  --color-status-concept:        var(--steel-deep);
+  --color-status-in-development: var(--accent-ink);
+  --color-status-available:      var(--text-primary);
+  --color-status-error:          var(--status-red);
+
+  /* AVAILABLE dot: no glow. Other themes do not define these two, so their
+     var() fallbacks keep the original glow treatment untouched. */
+  --status-available-glow:   none;
+  --status-available-border: 1px solid var(--border-strong);
+
+  /* Category map — steel greys of differing lightness, orange reserved for
+     ENGINEERING (the shop half: physical parts, Fresh Prints).
+     Read via getCategoryColor(); other themes fall back to their originals. */
+  --color-category-engineering: var(--accent-ink);
+  --color-category-software:    var(--steel-deep);
+  --color-category-games:       var(--steel-mid);
+  --color-category-ai:          var(--steel-soft);
+  --color-category-content:     var(--steel-pale);
+  --color-category-default:     var(--steel-mid);
+
   --z-modal: 1000;
 
   /* ─── Type families ───
@@ -74,11 +101,12 @@
   --weight-bold:      700;
   --weight-extrabold: 800;
 
-  --radius-sm:  0.375rem;
-  --radius-md:  0.5rem;
-  --radius-lg:  0.75rem;
-  --radius-xl:  1rem;
-  --radius-2xl: 1.5rem;
+  /* ─── Radii — square-ish. Reads as a shop, not a landing-page template. ─── */
+  --radius-sm:  2px;
+  --radius-md:  3px;
+  --radius-lg:  4px;
+  --radius-xl:  4px;
+  --radius-2xl: 6px;
 
   /* ─── Spacing / rhythm scale ─── */
   --space-px: 1px;
@@ -106,82 +134,101 @@
   /* ─── Motion ─── */
   --ease-standard: cubic-bezier(0.4, 0, 0.2, 1);
   --duration-fast: 180ms;
+
+  /* ─── Gradients retired ───
+     The token name stays defined (and inert) because the shared Standard page
+     components that reference it are also rendered by Funky, which supplies its
+     own --gradient-hero. Holding it at `none` keeps those references valid and
+     flattens every Standard hero. --gradient-text is deleted outright. */
+  --gradient-hero: none;
 }
 
 /* ─── Dark mode ─── */
 [data-ui="standard"][data-mode="dark"] {
-  --bg-base:    #0A0A0F;
-  --bg-elevated: #121219;
-  --bg-card:    #16161F;
-  --bg-overlay: rgba(10, 10, 15, 0.88);
+  --bg-base:    #15181C;
+  --bg-elevated: #1D2126;
+  --bg-card:    #222730;
+  --bg-overlay: rgba(21, 24, 28, 0.92);
 
-  --text-primary:    #F0F0F8;
-  --text-secondary:  #A6A6B4;
-  --text-tertiary:   #6A6A78;
-  --text-quaternary: #45454F;
+  --text-primary:    #E6E8EB;
+  --text-secondary:  #8A9199;
+  --text-tertiary:   #5F666E;
+  --text-quaternary: #474D54;
 
-  --border-subtle:  rgba(255, 255, 255, 0.07);
-  --border-strong:  rgba(255, 255, 255, 0.14);
-  --border-accent:  rgba(0, 200, 255, 0.45);
-  --hairline:       rgba(255, 255, 255, 0.10);
+  --border-subtle:  #2E343B;
+  --border-strong:  #3D444C;
+  --border-accent:  #FF6A1A;
+  --hairline:       #2E343B;
 
-  /* Primary accent — electric blue */
-  --accent:       #00C8FF;
-  --accent-hover: #4FD8FF;
-  --accent-muted: rgba(0, 200, 255, 0.12);
-  --accent-text:  #04121A;
+  /* Primary accent — safety orange. Sole accent; no secondary. */
+  --accent:       #FF6A1A;
+  --accent-hover: #FF7D38;
+  --accent-muted: rgba(255, 106, 26, 0.10);
+  /* Ink laid ON the orange fill. Near-black, not white: white on #FF6A1A is
+     2.9:1 and fails AA. Black on safety orange is also the industrial idiom. */
+  --accent-text:  #14171B;
+  /* Orange used AS text on a dark ground — 6.2:1 on bg-base, 5.2:1 on bg-card */
+  --accent-ink:   #FF6A1A;
 
-  /* Secondary accent — amber / gold (Fresh Prints) */
-  --accent-amber:       #FFB347;
-  --accent-amber-hover: #FFC56E;
-  --accent-amber-muted: rgba(255, 179, 71, 0.14);
-  --accent-amber-text:  #1A1206;
+  /* Steel ramp — category + status greys */
+  --steel-pale: #C3C9CF;
+  --steel-soft: #A8B0B8;
+  --steel-mid:  #8A9199;
+  --steel-deep: #5F666E;
 
-  --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.3);
-  --shadow-md: 0 4px 8px -2px rgba(0, 0, 0, 0.4);
-  --shadow-lg: 0 12px 24px -8px rgba(0, 0, 0, 0.5);
-  --shadow-xl: 0 24px 48px -12px rgba(0, 0, 0, 0.6);
+  --status-green: #5C9E6B;   /* desaturated toward steel — not #22C55E neon */
+  --status-red:   #D4574C;
 
-  --gradient-hero: linear-gradient(135deg, rgba(0, 200, 255, 0.06) 0%, rgba(10, 10, 15, 0) 55%);
-  --gradient-text: linear-gradient(180deg, #F0F0F8 0%, #A6A6B4 100%);
+  /* One neutral shadow. --shadow-xl is reserved for lifted overlays
+     (lightbox, modal) where a page-detaching edge is doing real work. */
+  --shadow-1:  0 1px 2px rgba(0, 0, 0, 0.35);
+  --shadow-sm: var(--shadow-1);
+  --shadow-md: var(--shadow-1);
+  --shadow-lg: var(--shadow-1);
+  --shadow-xl: 0 4px 16px rgba(0, 0, 0, 0.45);
 }
 
 /* ─── Light mode ─── */
 [data-ui="standard"][data-mode="light"] {
-  --bg-base:    #F7F7F4;
-  --bg-elevated: #FFFFFF;
+  --bg-base:    #EEF0F2;
+  --bg-elevated: #F7F8F9;
   --bg-card:    #FFFFFF;
-  --bg-overlay: rgba(247, 247, 244, 0.88);
+  --bg-overlay: rgba(238, 240, 242, 0.92);
 
-  --text-primary:    #0A0A0F;
-  --text-secondary:  #54545F;
-  --text-tertiary:   #87878F;
-  --text-quaternary: #B4B4BB;
+  --text-primary:    #14171B;
+  --text-secondary:  #5F666E;
+  --text-tertiary:   #6E757D;
+  --text-quaternary: #8A9199;
 
-  --border-subtle:  rgba(0, 0, 0, 0.07);
-  --border-strong:  rgba(0, 0, 0, 0.14);
-  --border-accent:  rgba(0, 119, 168, 0.35);
-  --hairline:       rgba(0, 0, 0, 0.11);
+  --border-subtle:  #D3D8DD;
+  --border-strong:  #B9C0C7;
+  --border-accent:  #E85D04;
+  --hairline:       #D3D8DD;
 
-  /* Primary accent — deepened electric blue (AA on white: fill & text) */
-  --accent:       #0077A8;
-  --accent-hover: #006288;
-  --accent-muted: rgba(0, 119, 168, 0.10);
-  --accent-text:  #FFFFFF;
+  /* Primary accent — safety orange. Sole accent; no secondary. */
+  --accent:       #E85D04;
+  --accent-hover: #CF5203;
+  --accent-muted: rgba(232, 93, 4, 0.09);
+  /* Ink laid ON the orange fill — white on #E85D04 is 3.5:1 and fails AA. */
+  --accent-text:  #14171B;
+  /* Orange used AS text on a light ground. #E85D04 is only 3.1:1 there;
+     this deepened orange is 4.7:1 on bg-base and 5.9:1 on white cards. */
+  --accent-ink:   #B54708;
 
-  /* Secondary accent — amber / gold (Fresh Prints), deepened for light bg */
-  --accent-amber:       #C77A0A;
-  --accent-amber-hover: #A86508;
-  --accent-amber-muted: rgba(199, 122, 10, 0.12);
-  --accent-amber-text:  #1A1206;
+  /* Steel ramp — category + status greys */
+  --steel-pale: #6E757D;
+  --steel-soft: #5F666E;
+  --steel-mid:  #4A5158;
+  --steel-deep: #333A41;
 
-  --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.04);
-  --shadow-md: 0 4px 8px -2px rgba(0, 0, 0, 0.08);
-  --shadow-lg: 0 12px 24px -8px rgba(0, 0, 0, 0.12);
-  --shadow-xl: 0 24px 48px -12px rgba(0, 0, 0, 0.16);
+  --status-green: #3F7A4E;   /* desaturated toward steel — not #22C55E neon */
+  --status-red:   #B3392E;
 
-  --gradient-hero: linear-gradient(135deg, rgba(0, 119, 168, 0.05) 0%, rgba(247, 247, 244, 0) 55%);
-  --gradient-text: linear-gradient(180deg, #0A0A0F 0%, #54545F 100%);
+  --shadow-1:  0 1px 2px rgba(0, 0, 0, 0.08);
+  --shadow-sm: var(--shadow-1);
+  --shadow-md: var(--shadow-1);
+  --shadow-lg: var(--shadow-1);
+  --shadow-xl: 0 4px 16px rgba(0, 0, 0, 0.14);
 }
 
 /* ─── Global resets scoped to Standard ─── */
@@ -238,7 +285,7 @@
 /* ─── Scroll animation helper ─── */
 [data-ui="standard"] .s-reveal {
   opacity: 0;
-  transform: translateY(24px);
+  transform: translateY(12px);
 }
 
 /* ─── Card grid ─── */
@@ -281,23 +328,6 @@
   }
 }
 
-/* ─── Breathing animation for hero SVG ─── */
-@keyframes s-breathe {
-  0%, 100% { transform: scale(1) rotate(0deg); }
-  50%       { transform: scale(1.015) rotate(0.5deg); }
-}
-
-[data-ui="standard"] .s-motif {
-  animation: s-breathe 12s ease-in-out infinite;
-  transform-origin: center;
-}
-
-@media (prefers-reduced-motion: reduce) {
-  [data-ui="standard"] .s-motif {
-    animation: none;
-  }
-}
-
 /* ─── Nav active link indicator ─── */
 [data-ui="standard"] .s-nav-link {
   position: relative;
@@ -315,7 +345,7 @@
   bottom: -2px;
   left: 0;
   right: 0;
-  height: 1px;
+  height: 2px;
   background: var(--accent);
   transform: scaleX(0);
   transform-origin: left;
@@ -327,6 +357,8 @@
 [data-ui="standard"] .s-nav-link:hover::after {
   transform: scaleX(1);
 }
+/* Active = orange underline only. The label stays text-primary, not orange —
+   one signal per state, not two. */
 [data-ui="standard"] .s-nav-link.active {
   color: var(--text-primary);
 }
